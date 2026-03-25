@@ -1,0 +1,105 @@
+{
+  "problem_id": "example-saas-features",
+  "name": "SaaS Feature Prioritization",
+  "domain": "SaaS product management",
+  "context": "Product manager for a SaaS tool for product and marketing teams. Choosing the best mix of features to develop to reach public beta.",
+  "objectives": [
+    {"name": "User Value Score", "direction": "maximize", "unit": "1-10 scale"},
+    {"name": "Development Days", "direction": "minimize", "unit": "days"},
+    {"name": "Technical Risk", "direction": "minimize", "unit": "1-5 scale"},
+    {"name": "Revenue Impact", "direction": "maximize", "unit": "$ thousands"},
+    {"name": "Market Differentiation", "direction": "maximize", "unit": "%"}
+  ],
+  "options": [
+    {"name": "Real-time Collaboration", "description": "Multiple users can edit and comment simultaneously on projects"},
+    {"name": "Advanced Analytics Dashboard", "description": "Comprehensive metrics and insights with customizable reports"},
+    {"name": "AI Content Generation", "description": "AI-powered tools to generate marketing copy and product descriptions"},
+    {"name": "Template Library", "description": "Pre-built templates for common marketing and product workflows"},
+    {"name": "Workflow Automation", "description": "Automated task assignment and notification system"},
+    {"name": "Third-party Integrations", "description": "Connect with Slack, Jira, HubSpot, and other popular tools"},
+    {"name": "Mobile App", "description": "Native iOS and Android applications for on-the-go access"},
+    {"name": "Custom Branding", "description": "White-label options for enterprise customers"},
+    {"name": "Version Control", "description": "Track changes and rollback to previous versions of content"},
+    {"name": "User Permissions System", "description": "Granular role-based access control for teams"},
+    {"name": "API Access", "description": "RESTful API for custom integrations and automation"},
+    {"name": "Data Export Tools", "description": "Export data in multiple formats (CSV, JSON, PDF)"}
+  ],
+  "scores": [
+    {"option": "Real-time Collaboration", "objective": "User Value Score", "value": 9},
+    {"option": "Real-time Collaboration", "objective": "Development Days", "value": 21},
+    {"option": "Real-time Collaboration", "objective": "Technical Risk", "value": 4},
+    {"option": "Real-time Collaboration", "objective": "Revenue Impact", "value": 150},
+    {"option": "Real-time Collaboration", "objective": "Market Differentiation", "value": 75},
+
+    {"option": "Advanced Analytics Dashboard", "objective": "User Value Score", "value": 8},
+    {"option": "Advanced Analytics Dashboard", "objective": "Development Days", "value": 18},
+    {"option": "Advanced Analytics Dashboard", "objective": "Technical Risk", "value": 3},
+    {"option": "Advanced Analytics Dashboard", "objective": "Revenue Impact", "value": 120},
+    {"option": "Advanced Analytics Dashboard", "objective": "Market Differentiation", "value": 65},
+
+    {"option": "AI Content Generation", "objective": "User Value Score", "value": 9},
+    {"option": "AI Content Generation", "objective": "Development Days", "value": 25},
+    {"option": "AI Content Generation", "objective": "Technical Risk", "value": 5},
+    {"option": "AI Content Generation", "objective": "Revenue Impact", "value": 200},
+    {"option": "AI Content Generation", "objective": "Market Differentiation", "value": 85},
+
+    {"option": "Template Library", "objective": "User Value Score", "value": 7},
+    {"option": "Template Library", "objective": "Development Days", "value": 8},
+    {"option": "Template Library", "objective": "Technical Risk", "value": 1},
+    {"option": "Template Library", "objective": "Revenue Impact", "value": 60},
+    {"option": "Template Library", "objective": "Market Differentiation", "value": 40},
+
+    {"option": "Workflow Automation", "objective": "User Value Score", "value": 8},
+    {"option": "Workflow Automation", "objective": "Development Days", "value": 15},
+    {"option": "Workflow Automation", "objective": "Technical Risk", "value": 3},
+    {"option": "Workflow Automation", "objective": "Revenue Impact", "value": 110},
+    {"option": "Workflow Automation", "objective": "Market Differentiation", "value": 70},
+
+    {"option": "Third-party Integrations", "objective": "User Value Score", "value": 8},
+    {"option": "Third-party Integrations", "objective": "Development Days", "value": 12},
+    {"option": "Third-party Integrations", "objective": "Technical Risk", "value": 2},
+    {"option": "Third-party Integrations", "objective": "Revenue Impact", "value": 90},
+    {"option": "Third-party Integrations", "objective": "Market Differentiation", "value": 60},
+
+    {"option": "Mobile App", "objective": "User Value Score", "value": 7},
+    {"option": "Mobile App", "objective": "Development Days", "value": 45},
+    {"option": "Mobile App", "objective": "Technical Risk", "value": 4},
+    {"option": "Mobile App", "objective": "Revenue Impact", "value": 130},
+    {"option": "Mobile App", "objective": "Market Differentiation", "value": 55},
+
+    {"option": "Custom Branding", "objective": "User Value Score", "value": 6},
+    {"option": "Custom Branding", "objective": "Development Days", "value": 5},
+    {"option": "Custom Branding", "objective": "Technical Risk", "value": 1},
+    {"option": "Custom Branding", "objective": "Revenue Impact", "value": 80},
+    {"option": "Custom Branding", "objective": "Market Differentiation", "value": 50},
+
+    {"option": "Version Control", "objective": "User Value Score", "value": 7},
+    {"option": "Version Control", "objective": "Development Days", "value": 10},
+    {"option": "Version Control", "objective": "Technical Risk", "value": 2},
+    {"option": "Version Control", "objective": "Revenue Impact", "value": 70},
+    {"option": "Version Control", "objective": "Market Differentiation", "value": 45},
+
+    {"option": "User Permissions System", "objective": "User Value Score", "value": 8},
+    {"option": "User Permissions System", "objective": "Development Days", "value": 8},
+    {"option": "User Permissions System", "objective": "Technical Risk", "value": 2},
+    {"option": "User Permissions System", "objective": "Revenue Impact", "value": 85},
+    {"option": "User Permissions System", "objective": "Market Differentiation", "value": 35},
+
+    {"option": "API Access", "objective": "User Value Score", "value": 7},
+    {"option": "API Access", "objective": "Development Days", "value": 14},
+    {"option": "API Access", "objective": "Technical Risk", "value": 3},
+    {"option": "API Access", "objective": "Revenue Impact", "value": 100},
+    {"option": "API Access", "objective": "Market Differentiation", "value": 65},
+
+    {"option": "Data Export Tools", "objective": "User Value Score", "value": 6},
+    {"option": "Data Export Tools", "objective": "Development Days", "value": 3},
+    {"option": "Data Export Tools", "objective": "Technical Risk", "value": 1},
+    {"option": "Data Export Tools", "objective": "Revenue Impact", "value": 40},
+    {"option": "Data Export Tools", "objective": "Market Differentiation", "value": 25}
+  ],
+  "constraints": [
+    {"type": "cardinality", "min": 4, "max": 6},
+    {"type": "objective_bound", "objective": "Development Days", "operator": "max", "value": 90}
+  ],
+  "feedback": []
+}

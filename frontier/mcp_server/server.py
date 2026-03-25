@@ -8,10 +8,11 @@ from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
 
-from frontier.engine import explorer, optimizer
+from frontier.engine import explorer, metrics, optimizer
 from frontier.engine.models import (
     Constraint,
     CardinalityConstraint,
+    Feedback,
     ForceExcludeConstraint,
     ForceIncludeConstraint,
     Objective,
@@ -197,7 +198,7 @@ def _model_update(params: dict) -> dict:
     store.save(p)
 
     total_possible = len(p.objectives) * len(p.options)
-    return {
+    result = {
         "problem_id": p.problem_id,
         "updated_at": p.updated_at.isoformat(),
         "status": {
@@ -207,6 +208,15 @@ def _model_update(params: dict) -> dict:
             "has_run": p.run is not None,
         },
     }
+
+    # Include metrics on structural changes so the LLM can coach the user
+    if structural_change:
+        result["metrics"] = {
+            "framing": metrics.framing_metrics(p),
+            "data": metrics.data_metrics(p),
+        }
+
+    return result
 
 
 def _model_get(params: dict) -> dict:
@@ -304,6 +314,10 @@ def _solve_run(p: Problem) -> dict:
         "solutions_found": len(run.solutions),
         "solutions": [json.loads(s.model_dump_json()) for s in run.solutions],
         "quality": json.loads(run.quality.model_dump_json()),
+        "metrics": {
+            "solve": metrics.solve_metrics(p),
+            "diagnostics": metrics.diagnostics(p),
+        },
     }
 
 
@@ -316,6 +330,9 @@ def explore(
     problem_id: str,
     solution_ids: list[int] | None = None,
     solution_id: int | None = None,
+    rating: int | None = None,
+    notes: str | None = None,
+    stage: str | None = None,
 ) -> dict:
     """Navigate results after solving.
 
@@ -324,6 +341,7 @@ def explore(
       compare    — Side-by-side comparison. Requires solution_ids (list of 2+ ints).
       solutions  — Full Pareto frontier listing.
       solution   — Single solution detail. Requires solution_id (int).
+      feedback   — Record user feedback. Params: solution_id?, rating? (1-5), notes?, stage?
     """
     try:
         p = store.load(problem_id)
@@ -355,8 +373,38 @@ def explore(
                 return explorer.get_solution(p, solution_id)
             except ValueError as e:
                 return {"error": str(e)}
+        case "feedback":
+            return _explore_feedback(p, solution_id, rating, notes, stage)
         case _:
-            return {"error": f"Unknown action: {action}. Use tradeoffs/compare/solutions/solution."}
+            return {"error": f"Unknown action: {action}. Use tradeoffs/compare/solutions/solution/feedback."}
+
+
+def _explore_feedback(
+    p: Problem,
+    solution_id: int | None,
+    rating: int | None,
+    notes: str | None,
+    stage: str | None,
+) -> dict:
+    """Record user feedback on solutions or the overall process."""
+    if rating is not None and not (1 <= rating <= 5):
+        return {"error": "rating must be 1-5."}
+
+    fb = Feedback(
+        solution_id=solution_id,
+        rating=rating,
+        notes=notes or "",
+        stage=stage or "",
+    )
+    p.feedback.append(fb)
+    p.updated_at = datetime.now(timezone.utc)
+    store.save(p)
+
+    return {
+        "recorded": True,
+        "feedback_count": len(p.feedback),
+        "outcome": metrics.outcome_metrics(p),
+    }
 
 
 # ─── Entry point ───

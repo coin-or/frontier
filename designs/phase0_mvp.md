@@ -401,41 +401,158 @@ Verify: Run checkpoint conversation.
 
 ## Checkpoint: "Can Claude help me make a decision?"
 
-Test problem: **"Pick 4 of 10 product features for next quarter given revenue impact (maximize), eng effort (minimize), and user satisfaction (maximize)."**
+The checkpoint is a scripted end-to-end conversation that exercises every tool, every skill, and every phase transition. It's the single test that tells us if Phase 0 works.
 
-### Setup (scripted or conversational)
+### Test Problem
+
+**"Pick 4 of 10 product features for next quarter given revenue impact (maximize), eng effort (minimize), and user satisfaction (maximize)."**
+
+This problem is deliberately in the sweet spot: enough options for combinatorial complexity (252 ways to pick 4 of 10), enough objectives for genuine tradeoffs (revenue vs effort is the classic tension), and a constraint (must include SSO) that meaningfully shapes the frontier.
+
+### Test Data
 
 ```
 10 options, 3 objectives, 30 scores (complete matrix)
 Constraints: cardinality 3-5, force_include "SSO Integration"
 ```
 
-### Pass criteria
+Reference scores (from the SaaS Feature Prioritization demo, adapted):
 
-- [ ] LLM activates problem_framing expertise — validates objectives are directional, checks completeness
-- [ ] LLM creates problem via `model create`, builds it up via `model update`
-- [ ] LLM activates data_collection expertise — uses anchoring, batches score entry
-- [ ] Score matrix built incrementally (multiple `model update` calls with score merge)
-- [ ] `solve validate` returns ready
-- [ ] `solve run` returns Pareto frontier with >5 solutions
-- [ ] All solutions respect cardinality (3-5) and include SSO
-- [ ] LLM activates solution_interpreter expertise — presents extremes, balanced, asks preference
-- [ ] LLM uses `explore tradeoffs` to present frontier overview
-- [ ] LLM uses `explore compare` when user is weighing two solutions
-- [ ] User says "what if effort must be under 30?" → LLM updates constraints via `model update`, re-runs `solve`
-- [ ] New frontier is smaller and respects new bound
-- [ ] User gravitates toward a solution, LLM explains tradeoffs without saying "best"
+| Feature | Revenue Impact (1-10) | Eng Effort (days) | User Satisfaction (1-10) |
+|---|---|---|---|
+| Real-time Collaboration | 9 | 21 | 9 |
+| Analytics Dashboard | 8 | 18 | 7 |
+| AI Content Generation | 9 | 25 | 8 |
+| Template Library | 6 | 8 | 7 |
+| Workflow Automation | 8 | 15 | 7 |
+| Third-party Integrations | 7 | 12 | 8 |
+| Mobile App | 7 | 45 | 6 |
+| SSO Integration | 5 | 8 | 8 |
+| Version Control | 6 | 10 | 7 |
+| API Access | 7 | 14 | 5 |
+
+### Conversation Script
+
+The checkpoint follows the natural workflow: frame → score → solve → explore → refine → re-solve. Each phase tests specific tool calls and skill activations.
+
+**Phase 1: Framing** (problem_framing skill)
+
+User opens with the problem statement. The LLM should:
+1. Validate objectives are directional and measurable ✓
+2. Note the option count is in the sweet spot (10) ✓
+3. Ask about constraints — "Any features that must be included or excluded?"
+4. Translate "pick 4" into a cardinality constraint
+5. Call `model create` then `model update` with objectives, options, constraints
+
+Expected tool calls: `model create`, `model update` (objectives + options + constraints)
+
+**Phase 2: Scoring** (data_collection skill)
+
+User provides or confirms scores. The LLM should:
+1. Batch scores efficiently — by objective or by option, not one at a time
+2. Use anchoring: "For Revenue Impact, which feature has the highest impact? Which has the lowest?"
+3. Build matrix incrementally via `model update` with score merge
+4. Confirm completeness before proceeding
+
+Expected tool calls: 1-3 `model update` calls with scores (not 30 individual calls)
+
+**Phase 3: Solve** (optimization_strategy skill)
+
+LLM runs the optimizer:
+1. Call `solve validate` — should return ready
+2. Call `solve run` — should return Pareto frontier
+3. Note that binary mode is correct for "pick K of N"
+4. Interpret solution count: 5-15 solutions is healthy
+
+Expected tool calls: `solve run` (validation is built in)
+
+**Phase 4: Explore** (solution_interpreter skill)
+
+LLM presents results:
+1. Call `explore tradeoffs` to get frontier overview
+2. Present extremes first: "Solution X maximizes revenue (picks the high-impact features). Solution Y minimizes effort (picks the quick wins)."
+3. Show balanced solution: "Solution Z balances all three objectives."
+4. Ask: "Which of these feels closest to what you want?"
+5. When user asks about two specific solutions, call `explore compare`
+6. Focus on differentiating options — what's different between the solutions, not what's shared
+
+Expected tool calls: `explore tradeoffs`, `explore compare`
+
+**Phase 5: Refine** (optimization_strategy + solution_interpreter skills)
+
+User says: "What if effort must be under 30 days total?"
+1. LLM recognizes this as an objective_bound constraint
+2. Calls `model update` with new constraint (clears existing run)
+3. Calls `solve run` — new frontier should be smaller
+4. Explains what changed: "Adding the effort cap eliminated solutions that included Mobile App and AI Content Generation together."
+5. Presents the new tradeoff landscape
+
+Expected tool calls: `model update` (constraint), `solve run`, `explore tradeoffs`
+
+### Pass Criteria
+
+**Engine correctness:**
+- [ ] `solve run` returns Pareto frontier with ≥5 solutions
+- [ ] All solutions respect cardinality (3-5 features selected)
+- [ ] All solutions include SSO Integration
+- [ ] After adding effort bound, all solutions have total effort ≤ 30
+- [ ] New frontier is strictly smaller than original
+- [ ] Solutions are genuinely Pareto-optimal (no solution dominates another)
+
+**Skill activation:**
+- [ ] LLM validates objectives before building (problem_framing)
+- [ ] LLM batches scores, doesn't ask one at a time (data_collection)
+- [ ] LLM identifies binary mode as correct approach (optimization_strategy)
+- [ ] LLM presents extremes → balanced → asks preference (solution_interpreter)
+- [ ] LLM translates "effort under 30" to objective_bound constraint (optimization_strategy)
+- [ ] LLM explains tradeoffs without saying "best" (solution_interpreter)
+- [ ] LLM uses the Five Things framework when explaining a solution the user is considering
+
+**Tool usage:**
+- [ ] LLM creates problem via `model create`, builds via `model update`
+- [ ] Score matrix built in ≤3 `model update` calls (not 30)
+- [ ] LLM uses `explore tradeoffs` for overview, `explore compare` for side-by-side
 - [ ] Total tool calls for full workflow: ≤ 12
+- [ ] LLM re-runs after constraint change without being told to
 
-### Fail signals
+**Conversation quality:**
+- [ ] LLM asks what matters most to the user before recommending
+- [ ] When user gravitates toward a solution, LLM quantifies what they're giving up
+- [ ] LLM offers iteration: "Would you like to explore what changes if we adjust...?"
+- [ ] No hallucinated scores or solution details — everything references tool output
 
-- Optimization returns 0 solutions without clear error
-- LLM doesn't know what tool to use next
+### Fail Signals
+
+**Hard failures** (checkpoint does not pass):
+- Optimization returns 0 solutions without clear error or infeasibility diagnosis
+- Solutions violate constraints (cardinality, force_include, or objective_bound)
+- LLM says "the best solution is..." or ranks solutions as #1, #2, #3
 - Score entry takes more than 5 back-and-forth exchanges for 30 scores
-- Solutions violate constraints
-- LLM says "the best solution is..."
-- LLM doesn't load relevant skill at phase transition
-- LLM can't reason about approach fit (optimization_strategy gap)
+- LLM doesn't know what tool to call next (gets stuck)
+
+**Soft failures** (checkpoint passes but needs design attention):
+- LLM doesn't load relevant skill at phase transition (works but less expert)
+- LLM can't reason about approach fit — treats everything as binary without considering if that's right
+- `explore` doesn't add value beyond what `solve run` already returned
+- LLM over-explains or under-explains (progressive disclosure not calibrated)
+- LLM recommends without the user expressing any preferences (weak signal, should ask)
+- LLM doesn't detect hidden objectives from user comments during exploration
+
+### Checkpoint Variants
+
+After the primary checkpoint passes, run these variants to stress-test:
+
+**Variant A: Infeasibility**
+Add constraints: force_include 3 expensive features + cardinality max=4 + effort bound ≤ 20. This should be infeasible. Test that the LLM diagnoses which constraint to relax and explains why.
+
+**Variant B: Vague framing**
+User says: "Help me figure out which features to build." No objectives, no scores. Test that problem_framing skill activates, draws out objectives through conversation, and doesn't jump to scoring.
+
+**Variant C: Reconsidering after results**
+User sees results and says "actually, I think we should also consider technical risk." Test that the LLM recognizes this as a new objective, warns that results will be cleared, and smoothly re-frames the problem.
+
+**Variant D: Misconception handling**
+User says "which one should I pick?" after seeing results. Test that the LLM correctly explains Pareto optimality and asks about preferences rather than picking for them.
 
 ---
 
@@ -449,6 +566,72 @@ mcp >= 1.0          # MCP server SDK (FastMCP)
 ```
 
 No FastAPI, no database, no async, no background tasks. Pure synchronous Python + MCP.
+
+---
+
+## Eval Harness
+
+The eval harness measures two axes: (1) does the agent guide the workflow effectively, and (2) does the optimization journey improve the user's decision. It's designed to be part of the natural workflow, not a separate system.
+
+### Layer 1: Automated Metrics
+
+A `metrics` module (`frontier/engine/metrics.py`) computes deterministic health signals from problem state. These are included in tool responses at natural checkpoints — no extra tool calls needed.
+
+**When metrics appear:**
+
+| Tool response | Metrics included |
+|---|---|
+| `model update` (structural change) | `framing` + `data` |
+| `solve run` (success) | `solve` + `diagnostics` |
+| `explore feedback` | `outcome` |
+
+**What's measured:**
+
+- **Framing**: objective/option counts, directions set, constraint count
+- **Data**: score completeness, per-objective variance, dominated options
+- **Solve**: solution count, feasibility, hypervolume, spacing, per-objective variation, per-option coverage
+- **Outcome**: user-selected solution, rating (1-5), feedback count
+- **Diagnostics**: clustered solutions, low-variation objectives, never-selected options, binding constraints, zero solutions
+
+The LLM uses these to coach the user (e.g., "Objective X doesn't differentiate your options" or "Only 2 solutions survived — constraints may be too tight"). The diagnostics patterns are adapted from the v2 Decision Assistant.
+
+### Layer 2: User Feedback
+
+A new `explore feedback` action collects lightweight signals at the decision point:
+
+```
+explore feedback problem_id=X solution_id=3 rating=4 notes="..." stage="decision"
+```
+
+Feedback is stored on the Problem model and persisted with the problem JSON. It captures:
+- Which solution the user chose (if any)
+- Satisfaction rating (1-5)
+- Free-text notes
+- Stage (exploration, decision, post-refinement)
+
+This feeds into outcome metrics and is available for cross-problem analysis once we have enough data.
+
+### Eval Checkpoint Script
+
+`tests/eval_checkpoint.py` exercises the full workflow programmatically using the checkpoint test data:
+
+1. Create problem with 10 options, 3 objectives, cardinality 3-5, force_include SSO
+2. Add 30 scores (complete matrix)
+3. Validate and optimize
+4. Check metrics: ≥5 solutions, all respect constraints, hypervolume > 0.3
+5. Explore: tradeoffs overview, compare two solutions
+6. Refine: add effort ≤ 30 constraint, re-solve
+7. Check: fewer solutions, all respect new bound
+8. Record feedback, verify persistence
+
+Run: `python -m tests.eval_checkpoint`
+
+### What this does NOT include
+
+- No CSV test case management (v2 pattern, too heavy)
+- No LLM-in-the-loop eval (conversation quality tested manually via checkpoint variants)
+- No dashboard (stdout sufficient)
+- No regression baselines (no baseline yet)
 
 ---
 

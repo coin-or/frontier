@@ -105,6 +105,17 @@ class Run(BaseModel):
     quality: QualityIndicators = QualityIndicators()
 
 
+# --- Feedback ---
+
+
+class Feedback(BaseModel):
+    solution_id: int | None = None
+    rating: int | None = None  # 1-5
+    notes: str = ""
+    stage: str = ""  # "exploration", "decision", "post-refinement"
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
 # --- Problem ---
 
 
@@ -126,6 +137,7 @@ class Problem(BaseModel):
     scores: list[Score] = []
     constraints: list[Constraint] = []
     run: Run | None = None
+    feedback: list[Feedback] = []
     created_at: datetime = Field(default_factory=_now)
     updated_at: datetime = Field(default_factory=_now)
 
