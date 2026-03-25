@@ -415,10 +415,10 @@ def main():
 
     transport = os.environ.get("MCP_TRANSPORT", "stdio")
 
-    # Render sets PORT; FastMCP reads FASTMCP_PORT and FASTMCP_HOST
+    # Render provides PORT; override FastMCP defaults for web deployment
     if "PORT" in os.environ:
-        os.environ.setdefault("FASTMCP_PORT", os.environ["PORT"])
-        os.environ.setdefault("FASTMCP_HOST", "0.0.0.0")
+        mcp.settings.port = int(os.environ["PORT"])
+        mcp.settings.host = "0.0.0.0"
 
     mcp.run(transport=transport)
 
