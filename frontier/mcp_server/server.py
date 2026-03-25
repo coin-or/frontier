@@ -411,7 +411,16 @@ def _explore_feedback(
 
 
 def main():
-    mcp.run()
+    import os
+
+    transport = os.environ.get("MCP_TRANSPORT", "stdio")
+
+    # Render sets PORT; FastMCP reads FASTMCP_PORT and FASTMCP_HOST
+    if "PORT" in os.environ:
+        os.environ.setdefault("FASTMCP_PORT", os.environ["PORT"])
+        os.environ.setdefault("FASTMCP_HOST", "0.0.0.0")
+
+    mcp.run(transport=transport)
 
 
 if __name__ == "__main__":
