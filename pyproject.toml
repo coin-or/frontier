@@ -1,0 +1,18 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "frontier"
+version = "0.1.0"
+description = "Multi-objective portfolio optimization engine"
+requires-python = ">=3.11"
+dependencies = [
+    "pymoo>=0.6",
+    "pydantic>=2.0",
+    "mcp>=1.0",
+    "scipy>=1.11",
+]
+
+[project.scripts]
+frontier = "frontier.mcp_server.server:main"
