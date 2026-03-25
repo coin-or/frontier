@@ -103,6 +103,25 @@ def compare_solutions(problem: Problem, solution_ids: list[int]) -> dict:
     }
 
 
+def get_solutions(problem: Problem) -> dict:
+    """Full Pareto frontier, sorted by first objective."""
+    run = _require_run(problem)
+    return {
+        "run_id": run.run_id,
+        "total_solutions": len(run.solutions),
+        "solutions": [s.model_dump() for s in run.solutions],
+    }
+
+
+def get_solution(problem: Problem, solution_id: int) -> dict:
+    """Single solution detail by ID."""
+    run = _require_run(problem)
+    for s in run.solutions:
+        if s.solution_id == solution_id:
+            return s.model_dump()
+    raise ValueError(f"Solution {solution_id} not found in current run.")
+
+
 def _require_run(problem: Problem) -> Run:
     if problem.run is None:
         raise ValueError("No run found. Use solve first.")

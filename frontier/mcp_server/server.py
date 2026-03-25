@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
@@ -56,7 +55,17 @@ def skill_solution_interpreter() -> str:
 
 
 @mcp.tool()
-def model(action: str, **kwargs: Any) -> dict:
+def model(
+    action: str,
+    problem_id: str | None = None,
+    name: str | None = None,
+    domain: str | None = None,
+    context: str | None = None,
+    objectives: list[dict] | None = None,
+    options: list[dict] | None = None,
+    scores: list[dict] | None = None,
+    constraints: list[dict] | None = None,
+) -> dict:
     """Build and modify the optimization problem.
 
     Actions:
@@ -68,17 +77,24 @@ def model(action: str, **kwargs: Any) -> dict:
       list    — All problems. No params.
       delete  — Remove problem. Params: problem_id
     """
+    params = {
+        k: v for k, v in {
+            "problem_id": problem_id, "name": name, "domain": domain,
+            "context": context, "objectives": objectives, "options": options,
+            "scores": scores, "constraints": constraints,
+        }.items() if v is not None
+    }
     match action:
         case "create":
-            return _model_create(kwargs)
+            return _model_create(params)
         case "update":
-            return _model_update(kwargs)
+            return _model_update(params)
         case "get":
-            return _model_get(kwargs)
+            return _model_get(params)
         case "list":
             return _model_list()
         case "delete":
-            return _model_delete(kwargs)
+            return _model_delete(params)
         case _:
             return {"error": f"Unknown action: {action}. Use create/update/get/list/delete."}
 
@@ -151,6 +167,17 @@ def _model_update(params: dict) -> dict:
     # Scores — merge semantics (upsert by option+objective)
     if "scores" in params:
         new_scores = [Score(**s) if isinstance(s, dict) else s for s in params["scores"]]
+        valid_opts = {o.name for o in p.options}
+        valid_objs = {o.name for o in p.objectives}
+        invalid = [
+            s for s in new_scores
+            if s.option not in valid_opts or s.objective not in valid_objs
+        ]
+        if invalid:
+            bad_refs = [
+                f"{s.option}/{s.objective}" for s in invalid
+            ]
+            return {"error": f"Scores reference unknown options/objectives: {bad_refs}"}
         score_map = {(s.option, s.objective): s for s in p.scores}
         for s in new_scores:
             score_map[(s.option, s.objective)] = s
@@ -193,8 +220,8 @@ def _model_get(params: dict) -> dict:
     return json.loads(p.model_dump_json())
 
 
-def _model_list() -> dict:
-    return {"problems": store.list()}
+def _model_list() -> list:
+    return store.list()
 
 
 def _model_delete(params: dict) -> dict:
@@ -254,7 +281,8 @@ def solve(action: str, problem_id: str) -> dict:
 def _solve_run(p: Problem) -> dict:
     vr = optimizer.validate(p)
     if not vr.ready:
-        return {"ready": False, "issues": json.loads(vr.model_dump_json())["issues"]}
+        vr_data = json.loads(vr.model_dump_json())
+        return {"ready": False, "issues": vr_data["issues"], "missing_scores": vr_data["missing_scores"]}
 
     try:
         run = optimizer.optimize(p)
@@ -262,10 +290,10 @@ def _solve_run(p: Problem) -> dict:
         return {"feasible": False, "error": str(e)}
 
     if not run.solutions:
+        analysis = optimizer.analyze_infeasibility(p)
         return {
             "feasible": False,
-            "binding_constraints": [c.model_dump() for c in p.constraints],
-            "suggestions": ["Try relaxing cardinality or objective bound constraints."],
+            **analysis,
         }
 
     p.run = run
@@ -283,12 +311,19 @@ def _solve_run(p: Problem) -> dict:
 
 
 @mcp.tool()
-def explore(action: str, problem_id: str, solution_ids: list[int] | None = None) -> dict:
+def explore(
+    action: str,
+    problem_id: str,
+    solution_ids: list[int] | None = None,
+    solution_id: int | None = None,
+) -> dict:
     """Navigate results after solving.
 
     Actions:
-      tradeoffs — Frontier overview: ranges, correlations, extremes, balanced solution.
-      compare   — Side-by-side comparison. Requires solution_ids (list of ints).
+      tradeoffs  — Frontier overview: ranges, correlations, extremes, balanced solution.
+      compare    — Side-by-side comparison. Requires solution_ids (list of 2+ ints).
+      solutions  — Full Pareto frontier listing.
+      solution   — Single solution detail. Requires solution_id (int).
     """
     try:
         p = store.load(problem_id)
@@ -302,14 +337,26 @@ def explore(action: str, problem_id: str, solution_ids: list[int] | None = None)
             except ValueError as e:
                 return {"error": str(e)}
         case "compare":
-            if not solution_ids:
-                return {"error": "solution_ids required for compare."}
+            if not solution_ids or len(solution_ids) < 2:
+                return {"error": "solution_ids must contain at least 2 IDs for compare."}
             try:
                 return explorer.compare_solutions(p, solution_ids)
             except ValueError as e:
                 return {"error": str(e)}
+        case "solutions":
+            try:
+                return explorer.get_solutions(p)
+            except ValueError as e:
+                return {"error": str(e)}
+        case "solution":
+            if solution_id is None:
+                return {"error": "solution_id required for solution action."}
+            try:
+                return explorer.get_solution(p, solution_id)
+            except ValueError as e:
+                return {"error": str(e)}
         case _:
-            return {"error": f"Unknown action: {action}. Use tradeoffs/compare."}
+            return {"error": f"Unknown action: {action}. Use tradeoffs/compare/solutions/solution."}
 
 
 # ─── Entry point ───

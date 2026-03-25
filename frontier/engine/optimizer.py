@@ -26,6 +26,24 @@ def validate(problem: Problem) -> ValidationResult:
     issues: list[ValidationIssue] = []
     missing_scores: list[dict[str, str]] = []
 
+    # Duplicate objective names
+    obj_name_list = [o.name for o in problem.objectives]
+    obj_name_dupes = {n for n in obj_name_list if obj_name_list.count(n) > 1}
+    if obj_name_dupes:
+        issues.append(ValidationIssue(
+            severity="error",
+            message=f"Duplicate objective names: {obj_name_dupes}.",
+        ))
+
+    # Duplicate option names
+    opt_name_list = [o.name for o in problem.options]
+    opt_name_dupes = {n for n in opt_name_list if opt_name_list.count(n) > 1}
+    if opt_name_dupes:
+        issues.append(ValidationIssue(
+            severity="error",
+            message=f"Duplicate option names: {opt_name_dupes}.",
+        ))
+
     # Need >= 2 objectives
     if len(problem.objectives) < 2:
         issues.append(ValidationIssue(
@@ -164,8 +182,13 @@ def optimize(problem: Problem) -> Run:
     )
 
     # Scale parameters based on problem size
-    pop_size = max(100, n_options * 10)
-    n_gen = max(200, n_options * 20)
+    # Spec: pop_size=100, n_gen=200 for ≤20 options; scale up for more
+    if n_options <= 20:
+        pop_size = 100
+        n_gen = 200
+    else:
+        pop_size = n_options * 5
+        n_gen = n_options * 10
 
     algorithm = NSGA2(
         pop_size=pop_size,
@@ -289,6 +312,121 @@ class _FrontierProblem(PymooProblem):
                 G.append(value - obj_vals)  # val >= min → min - val <= 0
 
         out["G"] = np.column_stack(G) if G else np.zeros((n_pop, 0))
+
+
+def analyze_infeasibility(problem: Problem) -> dict:
+    """Diagnose which constraints are most likely causing infeasibility.
+
+    Tests each constraint by relaxing it individually and checking if
+    feasible solutions exist via brute-force enumeration of small subsets.
+    """
+    from itertools import combinations
+
+    opt_names = [o.name for o in problem.options]
+    obj_list = problem.objectives
+    n_options = len(opt_names)
+
+    # Build score lookup
+    score_map: dict[tuple[str, str], float] = {}
+    for s in problem.scores:
+        score_map[(s.option, s.objective)] = s.value
+
+    # Parse constraints
+    forced_in = {c.option for c in problem.constraints if c.type == "force_include"}
+    forced_out = {c.option for c in problem.constraints if c.type == "force_exclude"}
+    card_min, card_max = 1, n_options
+    obj_bounds = []
+    for c in problem.constraints:
+        if c.type == "cardinality":
+            card_min, card_max = c.min, c.max
+        elif c.type == "objective_bound":
+            obj_bounds.append((c.objective, c.operator, c.value))
+
+    def portfolio_feasible(selected: set[str], skip_constraint=None) -> bool:
+        """Check if a portfolio satisfies all constraints except skip_constraint."""
+        # Cardinality
+        if skip_constraint != "cardinality":
+            if not (card_min <= len(selected) <= card_max):
+                return False
+        # Force include
+        for opt in forced_in:
+            if skip_constraint == f"force_include:{opt}":
+                continue
+            if opt not in selected:
+                return False
+        # Force exclude
+        for opt in forced_out:
+            if skip_constraint == f"force_exclude:{opt}":
+                continue
+            if opt in selected:
+                return False
+        # Objective bounds
+        for obj_name, operator, value in obj_bounds:
+            if skip_constraint == f"objective_bound:{obj_name}:{operator}:{value}":
+                continue
+            total = sum(score_map.get((o, obj_name), 0) for o in selected)
+            if operator.value == "max" and total > value:
+                return False
+            if operator.value == "min" and total < value:
+                return False
+        return True
+
+    # Available options (respecting force_exclude for enumeration)
+    available = [o for o in opt_names if o not in forced_out]
+
+    # Try to find any feasible portfolio (brute force for small problems)
+    # Limit enumeration to avoid combinatorial explosion
+    max_combos = 50000
+
+    def has_feasible(skip_constraint=None) -> bool:
+        pool = available if skip_constraint is None or not skip_constraint.startswith("force_exclude:") else opt_names
+        for k in range(max(1, card_min), min(len(pool), card_max) + 1):
+            count = 0
+            for combo in combinations(pool, k):
+                if portfolio_feasible(set(combo), skip_constraint):
+                    return True
+                count += 1
+                if count >= max_combos:
+                    return False  # can't tell, assume not
+        return False
+
+    # Build constraint labels for testing
+    constraint_labels = []
+    for c in problem.constraints:
+        if c.type == "cardinality":
+            constraint_labels.append(("cardinality", c.model_dump()))
+        elif c.type == "force_include":
+            constraint_labels.append((f"force_include:{c.option}", c.model_dump()))
+        elif c.type == "force_exclude":
+            constraint_labels.append((f"force_exclude:{c.option}", c.model_dump()))
+        elif c.type == "objective_bound":
+            constraint_labels.append(
+                (f"objective_bound:{c.objective}:{c.operator}:{c.value}", c.model_dump())
+            )
+
+    # Test each constraint: does removing it make the problem feasible?
+    binding = []
+    suggestions = []
+    for label, constraint_dict in constraint_labels:
+        if has_feasible(skip_constraint=label):
+            binding.append(constraint_dict)
+            if label == "cardinality":
+                suggestions.append(f"Relaxing cardinality ({card_min}-{card_max}) may help.")
+            elif label.startswith("force_include:"):
+                opt = label.split(":", 1)[1]
+                suggestions.append(f"Removing force_include on '{opt}' may help.")
+            elif label.startswith("force_exclude:"):
+                opt = label.split(":", 1)[1]
+                suggestions.append(f"Removing force_exclude on '{opt}' may help.")
+            elif label.startswith("objective_bound:"):
+                parts = label.split(":")
+                suggestions.append(f"Relaxing {parts[2]} bound on '{parts[1]}' ({parts[3]}) may help.")
+
+    if not binding:
+        binding = [c.model_dump() for c in problem.constraints]
+        suggestions = ["Constraints may be jointly infeasible. Try relaxing multiple constraints."]
+
+    return {"binding_constraints": binding, "suggestions": suggestions}
 
 
 def _compute_quality(result) -> QualityIndicators:

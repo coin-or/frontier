@@ -23,6 +23,16 @@
 - Is this actually a portfolio selection problem? "Pick K of N" or "allocate across N" — if neither fits, this might not need Frontier.
 - If the user describes a ranking problem, suggest they just rank directly. Optimization adds value when there are genuine tradeoffs.
 
+### Domain Patterns
+Common objective structures by domain — use these as starting points:
+- **Product planning**: Revenue impact, Engineering effort, User satisfaction, Strategic alignment
+- **Hiring**: Skill fit, Culture fit, Compensation cost, Growth potential
+- **Vendor selection**: Cost, Integration complexity, Capability coverage, Vendor lock-in risk
+- **Architecture decisions**: Performance, Development cost, Maintainability, Scalability
+- **Investment/portfolio**: Expected return, Risk (volatility), Liquidity, Diversification
+
+These are starting points, not templates. Always validate with the user.
+
 ## Activation
 Use this expertise at the start of any conversation, before any tool calls. Validate the problem structure before building it in the tool.
 

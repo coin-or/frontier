@@ -34,6 +34,14 @@ When the solver returns no solutions:
 - "Only 2 solutions survived. Your constraints might be too tight."
 - 5-10 solutions on the frontier is a healthy number for most decisions.
 
+### Phase 1+ Readiness
+Recognize when the user's problem outgrows Phase 0. Surface this honestly rather than forcing a bad fit:
+- User needs proportional allocation ("split budget across channels") → Phase 0 only supports binary (pick K of N). Suggest discretizing into tiers for now.
+- User has 7+ objectives → NSGA-II handles this poorly. Suggest consolidating correlated objectives, note that Phase 1 adds NSGA-III.
+- User wants "what if" scenarios with different score assumptions → Phase 0 has no scenario engine. Suggest re-running with modified scores manually.
+- User needs mutual exclusion ("can't pick both X and Y") → Phase 0 only has force_exclude. Suggest excluding the less preferred option for now.
+- User wants to filter solutions post-optimization without re-running → Phase 0 has no filter mode. All criteria are hard constraints.
+
 ## Activation
 Use this expertise at the boundary between modeling and solving, and when interpreting solver results that suggest structural changes.
 
