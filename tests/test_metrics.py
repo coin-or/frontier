@@ -72,14 +72,13 @@ class TestFramingMetrics:
         m = framing_metrics(empty_problem)
         assert m["objective_count"] == 0
         assert m["option_count"] == 0
-        assert m["has_constraints"] is False
+        assert m["constraint_count"] == 0
         assert m["directions_set"] is True  # vacuously true
 
     def test_framed_problem(self, framed_problem):
         m = framing_metrics(framed_problem)
         assert m["objective_count"] == 2
         assert m["option_count"] == 5
-        assert m["has_constraints"] is True
         assert m["constraint_count"] == 1
         assert m["directions_set"] is True
 
@@ -139,7 +138,6 @@ class TestSolveMetrics:
         m = solve_metrics(solved_problem)
         assert m["solve_success"] is True
         assert m["solution_count"] >= 1
-        assert m["feasibility"] is True
         assert isinstance(m["objective_variation"], dict)
         assert "Revenue" in m["objective_variation"]
         assert isinstance(m["option_coverage"], dict)

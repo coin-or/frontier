@@ -10,13 +10,18 @@ The MCP server includes them in tool responses at natural checkpoints.
 
 from __future__ import annotations
 
-from statistics import mean, variance
+from statistics import variance
 
 from .models import (
     BoundOperator,
     Direction,
+    ForceExcludeConstraint,
+    ObjectiveBoundConstraint,
     Problem,
+    Solution,
 )
+
+_MAX_MISSING_SCORES_RETURNED = 20
 
 
 def compute_metrics(problem: Problem) -> dict:
@@ -38,7 +43,6 @@ def framing_metrics(problem: Problem) -> dict:
     return {
         "objective_count": len(problem.objectives),
         "option_count": len(problem.options),
-        "has_constraints": len(problem.constraints) > 0,
         "constraint_count": len(problem.constraints),
         "directions_set": all(
             obj.direction is not None for obj in problem.objectives
@@ -60,36 +64,49 @@ def data_metrics(problem: Problem) -> dict:
             "dominated_options": [],
         }
 
-    # Completeness
-    filled = {(s.option, s.objective) for s in problem.scores}
+    # Single pass over scores: build filled set, per-objective values, and score map
+    filled: set[tuple[str, str]] = set()
+    scores_by_obj: dict[str, list[float]] = {}
+    score_map: dict[str, dict[str, float]] = {}
+    for s in problem.scores:
+        filled.add((s.option, s.objective))
+        if s.objective in obj_names:
+            scores_by_obj.setdefault(s.objective, []).append(s.value)
+        score_map.setdefault(s.option, {})[s.objective] = s.value
+
+    # Missing scores (capped to avoid bloating tool responses)
     missing = []
     for opt in opt_names:
         for obj in obj_names:
             if (opt, obj) not in filled:
                 missing.append({"option": opt, "objective": obj})
+                if len(missing) >= _MAX_MISSING_SCORES_RETURNED:
+                    break
+        if len(missing) >= _MAX_MISSING_SCORES_RETURNED:
+            break
 
     completeness = len(filled) / max_scores
 
-    # Per-objective variance (do scores actually differentiate options?)
-    scores_by_obj: dict[str, list[float]] = {}
-    for s in problem.scores:
-        if s.objective in obj_names:
-            scores_by_obj.setdefault(s.objective, []).append(s.value)
-
+    # Per-objective variance
     variance_by_obj = {}
     for obj_name, values in scores_by_obj.items():
         if len(values) >= 2:
             variance_by_obj[obj_name] = round(variance(values), 4)
 
-    # Dominated options (worse than another option on ALL objectives)
-    dominated = _find_dominated_options(problem)
+    # Dominated options (reuse score_map built above)
+    dominated = _find_dominated_options(problem, score_map)
 
-    return {
+    missing_total = max_scores - len(filled)
+    result = {
         "score_completeness": round(completeness, 4),
         "missing_scores": missing,
         "score_variance_by_objective": variance_by_obj,
         "dominated_options": dominated,
     }
+    if missing_total > _MAX_MISSING_SCORES_RETURNED:
+        result["missing_scores_total"] = missing_total
+
+    return result
 
 
 def solve_metrics(problem: Problem) -> dict:
@@ -98,7 +115,6 @@ def solve_metrics(problem: Problem) -> dict:
         return {
             "solve_success": False,
             "solution_count": 0,
-            "feasibility": None,
             "hypervolume": None,
             "spacing_cv": None,
             "objective_variation": {},
@@ -111,7 +127,7 @@ def solve_metrics(problem: Problem) -> dict:
     # Objective variation across solutions
     obj_variation = {}
     for obj in problem.objectives:
-        values = [s.objective_values.get(obj.name, 0) for s in solutions]
+        values = _obj_values(solutions, obj.name)
         if values:
             obj_variation[obj.name] = {
                 "min": round(min(values), 4),
@@ -130,7 +146,6 @@ def solve_metrics(problem: Problem) -> dict:
     return {
         "solve_success": len(solutions) > 0,
         "solution_count": len(solutions),
-        "feasibility": len(solutions) > 0,
         "hypervolume": run.quality.hypervolume_normalized,
         "spacing_cv": run.quality.spacing_cv,
         "objective_variation": obj_variation,
@@ -139,16 +154,33 @@ def solve_metrics(problem: Problem) -> dict:
 
 
 def outcome_metrics(problem: Problem) -> dict:
-    """Metrics about user engagement and decision progress."""
+    """Metrics about user engagement and decision progress.
+
+    Uses the latest feedback entry that has both solution_id and rating,
+    falling back to the latest of each independently.
+    """
     feedback_list = problem.feedback
 
+    # Prefer the latest feedback that has both fields paired
     selected = None
     rating = None
-    for fb in feedback_list:
-        if fb.solution_id is not None:
+    for fb in reversed(feedback_list):
+        if fb.solution_id is not None and fb.rating is not None:
             selected = fb.solution_id
-        if fb.rating is not None:
             rating = fb.rating
+            break
+
+    # Fall back to latest of each if no paired entry exists
+    if selected is None:
+        for fb in reversed(feedback_list):
+            if fb.solution_id is not None:
+                selected = fb.solution_id
+                break
+    if rating is None:
+        for fb in reversed(feedback_list):
+            if fb.rating is not None:
+                rating = fb.rating
+                break
 
     return {
         "user_selected_solution": selected,
@@ -165,7 +197,7 @@ def diagnostics(problem: Problem) -> list[dict]:
 
     Returns a list of diagnostic dicts with 'pattern', 'message', and 'severity'.
     """
-    results = []
+    results: list[dict] = []
 
     if problem.run is None or not problem.run.solutions:
         if problem.run is not None:
@@ -181,12 +213,15 @@ def diagnostics(problem: Problem) -> list[dict]:
 
     solutions = problem.run.solutions
 
+    # Pre-compute per-objective stats (single pass, shared by clustering + dominance checks)
+    obj_stats = _compute_obj_stats(problem, solutions)
+
     # 1. Clustered solutions: all solutions within 5% of each other
     if len(solutions) >= 3:
-        _check_clustering(problem, solutions, results)
+        _check_clustering(obj_stats, results)
 
     # 2. One objective dominates: <10% variation
-    _check_objective_dominance(problem, solutions, results)
+    _check_low_variation(obj_stats, results)
 
     # 3. Option never selected
     _check_option_coverage(problem, solutions, results)
@@ -197,19 +232,39 @@ def diagnostics(problem: Problem) -> list[dict]:
     return results
 
 
-def _check_clustering(problem, solutions, results):
-    """Detect if solutions are highly clustered (within 5% on all objectives)."""
+# --- Diagnostic helpers ---
+
+
+def _compute_obj_stats(
+    problem: Problem, solutions: list[Solution],
+) -> dict[str, dict]:
+    """Compute per-objective stats once for use by multiple diagnostic checks."""
+    stats = {}
     for obj in problem.objectives:
-        values = [s.objective_values.get(obj.name, 0) for s in solutions]
-        if not values:
+        values = _obj_values(solutions, obj.name)
+        if len(values) < 2:
             continue
-        obj_range = max(values) - min(values)
-        obj_mean = mean(values) if values else 1
-        # Avoid division by zero
-        if obj_mean == 0:
-            continue
-        relative_range = obj_range / abs(obj_mean)
-        if relative_range > 0.05:
+        val_min = min(values)
+        val_max = max(values)
+        val_range = val_max - val_min
+        val_mean = sum(values) / len(values)
+        rel_range = (val_range / abs(val_mean)) if val_mean != 0 else 0.0
+        stats[obj.name] = {
+            "min": val_min,
+            "max": val_max,
+            "range": val_range,
+            "mean": val_mean,
+            "relative_range": rel_range,
+        }
+    return stats
+
+
+def _check_clustering(obj_stats: dict, results: list[dict]):
+    """Detect if solutions are highly clustered (within 5% on all objectives)."""
+    if not obj_stats:
+        return
+    for stat in obj_stats.values():
+        if stat["relative_range"] > 0.05:
             return  # At least one objective has spread — not clustered
 
     results.append({
@@ -223,24 +278,16 @@ def _check_clustering(problem, solutions, results):
     })
 
 
-def _check_objective_dominance(problem, solutions, results):
+def _check_low_variation(obj_stats: dict, results: list[dict]):
     """Detect objectives with <10% variation across solutions."""
-    for obj in problem.objectives:
-        values = [s.objective_values.get(obj.name, 0) for s in solutions]
-        if len(values) < 2:
-            continue
-        obj_range = max(values) - min(values)
-        obj_mean = mean(values) if values else 1
-        if obj_mean == 0:
-            continue
-        relative_range = obj_range / abs(obj_mean)
-        if relative_range < 0.10:
+    for obj_name, stat in obj_stats.items():
+        if stat["relative_range"] < 0.10:
             results.append({
                 "pattern": "low_variation_objective",
                 "severity": "info",
                 "message": (
-                    f"Objective '{obj.name}' shows <10% variation across "
-                    f"solutions (range: {obj_range:.2f}). It may not "
+                    f"Objective '{obj_name}' shows <10% variation across "
+                    f"solutions (range: {stat['range']:.2f}). It may not "
                     f"genuinely conflict with other objectives."
                 ),
             })
@@ -249,9 +296,8 @@ def _check_objective_dominance(problem, solutions, results):
 def _check_option_coverage(problem, solutions, results):
     """Detect options that never appear in any solution."""
     opt_names = {o.name for o in problem.options}
-    # Exclude force-excluded options
     for c in problem.constraints:
-        if hasattr(c, "type") and c.type == "force_exclude":
+        if isinstance(c, ForceExcludeConstraint):
             opt_names.discard(c.option)
 
     selected_ever = set()
@@ -273,48 +319,53 @@ def _check_option_coverage(problem, solutions, results):
 def _check_binding_constraints(problem, solutions, results):
     """Detect constraints that are binding on all solutions."""
     for constraint in problem.constraints:
-        if constraint.type == "objective_bound":
-            obj_name = constraint.objective
-            bound_val = constraint.value
-            op = constraint.operator
+        if not isinstance(constraint, ObjectiveBoundConstraint):
+            continue
 
-            values = [
-                s.objective_values.get(obj_name, 0) for s in solutions
-            ]
-            if not values:
-                continue
+        obj_name = constraint.objective
+        bound_val = constraint.value
+        values = _obj_values(solutions, obj_name)
+        if not values:
+            continue
 
-            # Check if constraint is binding (all solutions at the boundary)
-            if op == BoundOperator.max:
-                max_val = max(values)
-                if max_val >= bound_val * 0.95:  # within 5% of bound
-                    results.append({
-                        "pattern": "binding_constraint",
-                        "severity": "info",
-                        "message": (
-                            f"Constraint '{obj_name} ≤ {bound_val}' is "
-                            f"binding (max across solutions: {max_val:.2f}). "
-                            f"Relaxing it could expand the solution space."
-                        ),
-                    })
-            elif op == BoundOperator.min:
-                min_val = min(values)
-                if min_val <= bound_val * 1.05:  # within 5% of bound
-                    results.append({
-                        "pattern": "binding_constraint",
-                        "severity": "info",
-                        "message": (
-                            f"Constraint '{obj_name} ≥ {bound_val}' is "
-                            f"binding (min across solutions: {min_val:.2f}). "
-                            f"Relaxing it could expand the solution space."
-                        ),
-                    })
+        if constraint.operator == BoundOperator.max:
+            extreme = max(values)
+            if extreme >= bound_val * 0.95:
+                results.append({
+                    "pattern": "binding_constraint",
+                    "severity": "info",
+                    "message": (
+                        f"Constraint '{obj_name} ≤ {bound_val}' is "
+                        f"binding (max across solutions: {extreme:.2f}). "
+                        f"Relaxing it could expand the solution space."
+                    ),
+                })
+        elif constraint.operator == BoundOperator.min:
+            extreme = min(values)
+            if extreme <= bound_val * 1.05:
+                results.append({
+                    "pattern": "binding_constraint",
+                    "severity": "info",
+                    "message": (
+                        f"Constraint '{obj_name} ≥ {bound_val}' is "
+                        f"binding (min across solutions: {extreme:.2f}). "
+                        f"Relaxing it could expand the solution space."
+                    ),
+                })
 
 
-# --- Helpers ---
+# --- Shared helpers ---
 
 
-def _find_dominated_options(problem: Problem) -> list[str]:
+def _obj_values(solutions: list[Solution], obj_name: str) -> list[float]:
+    """Extract values for a single objective across all solutions."""
+    return [s.objective_values.get(obj_name, 0) for s in solutions]
+
+
+def _find_dominated_options(
+    problem: Problem,
+    score_map: dict[str, dict[str, float]] | None = None,
+) -> list[str]:
     """Find options dominated on all objectives by at least one other option."""
     obj_names = [o.name for o in problem.objectives]
     opt_names = [o.name for o in problem.options]
@@ -323,10 +374,10 @@ def _find_dominated_options(problem: Problem) -> list[str]:
     if not obj_names or not opt_names:
         return []
 
-    # Build score lookup: option -> objective -> value
-    score_map: dict[str, dict[str, float]] = {}
-    for s in problem.scores:
-        score_map.setdefault(s.option, {})[s.objective] = s.value
+    if score_map is None:
+        score_map = {}
+        for s in problem.scores:
+            score_map.setdefault(s.option, {})[s.objective] = s.value
 
     # Only consider options with complete scores
     complete_opts = [
@@ -339,7 +390,6 @@ def _find_dominated_options(problem: Problem) -> list[str]:
         for opt_b in complete_opts:
             if opt_a == opt_b:
                 continue
-            # Check if opt_b dominates opt_a
             b_dominates = True
             b_strictly_better = False
             for obj in obj_names:
@@ -351,7 +401,7 @@ def _find_dominated_options(problem: Problem) -> list[str]:
                         break
                     if b_val > a_val:
                         b_strictly_better = True
-                else:  # minimize
+                else:
                     if b_val > a_val:
                         b_dominates = False
                         break
@@ -359,6 +409,6 @@ def _find_dominated_options(problem: Problem) -> list[str]:
                         b_strictly_better = True
             if b_dominates and b_strictly_better:
                 dominated.append(opt_a)
-                break  # No need to check more — opt_a is dominated
+                break
 
     return dominated

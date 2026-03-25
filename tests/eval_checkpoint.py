@@ -120,7 +120,7 @@ def run_checkpoint():
     check("Objective count", m["framing"]["objective_count"] == 3, f"got {m['framing']['objective_count']}")
     check("Option count", m["framing"]["option_count"] == 10, f"got {m['framing']['option_count']}")
     check("Directions set", m["framing"]["directions_set"])
-    check("Has constraints", m["framing"]["has_constraints"])
+    check("Has constraints", m["framing"]["constraint_count"] > 0)
     check("Score completeness 0%", m["data"]["score_completeness"] == 0.0)
 
     # === Phase 2: Scoring ===
@@ -148,7 +148,7 @@ def run_checkpoint():
 
     check("Solve success", m["solve"]["solve_success"])
     check("Solutions found >= 5", m["solve"]["solution_count"] >= 5, f"got {m['solve']['solution_count']}")
-    check("Feasible", m["solve"]["feasibility"])
+    check("Feasible", m["solve"]["solve_success"])
     check("Hypervolume > 0.3", (m["solve"]["hypervolume"] or 0) > 0.3, f"got {m['solve']['hypervolume']}")
 
     # All solutions respect constraints
