@@ -74,141 +74,187 @@ Restart Claude Desktop after saving.
 Frontier uses three tools that map to the natural decision-making workflow:
 
 ```
-model  →  solve  →  explore
-  │          │          │
-  │          │          └── understand results, compare, iterate
-  │          └── validate constraints, run optimizer
-  └── define objectives, options, scores, constraints
+model  →  solve  →  explore  →  refine (loop back to model)
 ```
 
-### 1. Model — frame the problem
+Each tool represents an activity: building the problem, computing the frontier, understanding the results. A typical session moves through all three, then loops back to refine.
+
+### Phase 1: Frame the problem (`model`)
+
+Start by creating a problem and defining what you're deciding.
+
+**Create the problem:**
+```
+model create  name="Q3 Feature Prioritization"  domain="Product"  context="Pick features for beta"
+→ { problem_id: "abc-123", ... }
+```
+
+**Add objectives, options, and constraints in one update:**
+```
+model update  problem_id="abc-123"
+  objectives=[
+    { name: "Revenue Impact",     direction: "maximize", unit: "1-10" },
+    { name: "Eng Effort",         direction: "minimize", unit: "days" },
+    { name: "User Satisfaction",   direction: "maximize", unit: "1-10" }
+  ]
+  options=[
+    { name: "Real-time Collaboration" },
+    { name: "Analytics Dashboard" },
+    { name: "AI Content Generation" },
+    ...
+  ]
+  constraints=[
+    { type: "cardinality", min: 3, max: 5 },
+    { type: "force_include", option: "SSO Integration" }
+  ]
+→ { status: { objectives: 3, options: 10, scores_complete: 0.0 }, metrics: { framing: {...} } }
+```
+
+The response includes framing metrics so the LLM can validate the problem structure before moving on.
+
+**Objectives** — what you're optimizing. Each needs a name, direction (`maximize`/`minimize`), and unit. 2-6 objectives is the sweet spot.
+
+**Options** — what you're choosing between. 5-40 is the sweet spot.
+
+**Constraints** — hard limits on the solution space:
+
+| Type | What it does | Format |
+|---|---|---|
+| `cardinality` | Pick between N and M items | `{ type: "cardinality", min: 3, max: 5 }` |
+| `force_include` | Solution must contain this option | `{ type: "force_include", option: "SSO" }` |
+| `force_exclude` | Solution cannot contain this option | `{ type: "force_exclude", option: "Mobile" }` |
+| `objective_bound` | Cap a total objective value | `{ type: "objective_bound", objective: "Effort", operator: "max", value: 40 }` |
+
+### Phase 2: Score the options (`model update` with scores)
+
+Rate every option on every objective. Send scores in batches — the tool uses merge semantics (upsert by option+objective), so you can build the matrix incrementally across 1-3 calls.
 
 ```
-model create  — Start a new problem (name, domain, context)
-model update  — Add objectives, options, scores, constraints
-model get     — View full problem state
-model list    — List all problems
+model update  problem_id="abc-123"
+  scores=[
+    { option: "Real-time Collaboration", objective: "Revenue Impact",    value: 9 },
+    { option: "Real-time Collaboration", objective: "Eng Effort",        value: 21 },
+    { option: "Real-time Collaboration", objective: "User Satisfaction",  value: 9 },
+    { option: "Analytics Dashboard",     objective: "Revenue Impact",    value: 8 },
+    ...all 30 scores in one call...
+  ]
+→ { status: { scores_complete: 1.0 }, metrics: { data: { dominated_options: ["Mobile App"], ... } } }
+```
+
+The response includes data metrics: score completeness, variance per objective, and dominated options (options that are worse on every objective — worth flagging to the user).
+
+The score matrix must be 100% complete before solving.
+
+### Phase 3: Solve (`solve`)
+
+Validate the problem and run the NSGA-II optimizer.
+
+```
+solve run  problem_id="abc-123"
+→ {
+    solutions_found: 22,
+    quality: { hypervolume_normalized: 0.567, spacing_cv: 0.457 },
+    solutions: [
+      { solution_id: 0, selected_options: ["Collab", "Analytics", "AI", "Workflow", "SSO"],
+        objective_values: { "Revenue Impact": 39, "Eng Effort": 87, "User Satisfaction": 39 } },
+      ...
+    ],
+    metrics: { solve: {...}, diagnostics: [...] }
+  }
+```
+
+Every returned solution is Pareto-optimal — no solution dominates another. All solutions respect constraints.
+
+If the problem isn't ready, `solve validate` returns specific issues and missing scores. If constraints are contradictory, it returns `feasible: false` with binding constraints and suggestions for what to relax.
+
+### Phase 4: Explore results (`explore`)
+
+Navigate the Pareto frontier to understand what you're choosing between.
+
+**Start with the tradeoff overview:**
+```
+explore tradeoffs  problem_id="abc-123"
+→ {
+    total_solutions: 22,
+    objective_ranges: { "Revenue Impact": { min: 17, max: 39 }, ... },
+    key_tradeoffs: [ { objectives: ["Revenue", "Effort"], correlation: 0.92 } ],
+    extreme_solutions: { "best_Revenue Impact": { solution_id: 0, value: 39, ... }, ... },
+    balanced_solution: { solution_id: 10, selected_options: [...], ... }
+  }
+```
+
+This gives you the shape of the frontier: what's achievable, what trades off against what, and which solutions represent the extremes and the balanced middle.
+
+**Compare specific solutions side-by-side:**
+```
+explore compare  problem_id="abc-123"  solution_ids=[0, 10]
+→ {
+    shared_options: ["SSO Integration", "Workflow Automation"],
+    differentiating_options: ["AI Content Generation", "Template Library", ...],
+    tradeoff_summary: { "Revenue Impact": { best: 0, worst: 10, range: [28, 39] }, ... }
+  }
+```
+
+Focus on differentiating options — what's different between solutions matters more than what's shared.
+
+**Get a single solution's detail:**
+```
+explore solution  problem_id="abc-123"  solution_id=0
+→ { selected_options: [...], objective_values: {...}, ... }
+```
+
+**Record feedback when the user gravitates toward a choice:**
+```
+explore feedback  problem_id="abc-123"  solution_id=3  rating=4  notes="Good balance"  stage="decision"
+→ { recorded: true, feedback_count: 1, outcome: { user_selected_solution: 3, user_rating: 4 } }
+```
+
+### Phase 5: Refine and re-solve
+
+When the user wants to adjust — "what if effort must be under 30 days?" — update constraints and re-solve.
+
+```
+model update  problem_id="abc-123"
+  constraints=[
+    { type: "cardinality", min: 3, max: 5 },
+    { type: "force_include", option: "SSO Integration" },
+    { type: "objective_bound", objective: "Eng Effort", operator: "max", value: 30 }
+  ]
+→ { status: { has_run: false }, ... }    ← run auto-cleared
+```
+
+```
+solve run  problem_id="abc-123"
+→ { solutions_found: 2, ... }           ← frontier narrowed from 22 to 2
+```
+
+```
+explore tradeoffs  problem_id="abc-123"
+→ new balanced solution reflecting tighter constraints
+```
+
+This loop — frame → score → solve → explore → refine — is the core interaction pattern. Each iteration sharpens the decision.
+
+**Other `model` actions:**
+```
+model get     — Full problem state (objectives, options, scores, constraints, solutions)
+model list    — All problems with summary status
 model delete  — Remove a problem
 ```
 
-**Objectives** define what you're optimizing (direction + unit):
-```json
-{"name": "Revenue Impact", "direction": "maximize", "unit": "1-10"}
-{"name": "Eng Effort", "direction": "minimize", "unit": "days"}
-```
-
-**Options** are the things you're choosing between:
-```json
-{"name": "Real-time Collaboration", "description": "Multiple users editing simultaneously"}
-```
-
-**Scores** rate each option on each objective (sent in batches, merge semantics):
-```json
-{"option": "Real-time Collaboration", "objective": "Revenue Impact", "value": 9}
-```
-
-**Constraints** shape the feasible space:
-
-| Type | Example | Format |
-|---|---|---|
-| `cardinality` | Pick 3-5 items | `{"type": "cardinality", "min": 3, "max": 5}` |
-| `force_include` | Must have SSO | `{"type": "force_include", "option": "SSO"}` |
-| `force_exclude` | Can't do Mobile | `{"type": "force_exclude", "option": "Mobile"}` |
-| `objective_bound` | Effort ≤ 40 days | `{"type": "objective_bound", "objective": "Effort", "operator": "max", "value": 40}` |
-
-### 2. Solve — run the optimizer
-
-```
-solve validate  — Check if the problem is ready (≥2 objectives, ≥3 options, 100% scores)
-solve run       — Validate + optimize. Returns full Pareto frontier.
-```
-
-Returns solution count, quality metrics (hypervolume, spacing), and all Pareto-optimal solutions. If infeasible, returns binding constraints and suggestions.
-
-### 3. Explore — navigate results
-
-```
-explore tradeoffs   — Frontier overview: ranges, correlations, extremes, balanced solution
-explore compare     — Side-by-side comparison of 2+ solutions (shared vs differentiating options)
-explore solutions   — Full Pareto frontier listing
-explore solution    — Single solution detail
-explore feedback    — Record user rating/notes on a solution
-```
-
-## Iteration pattern
-
-The typical flow involves refinement cycles:
-
-1. Frame → Score → Solve → Explore tradeoffs
-2. User says "effort must be under 30 days" → add `objective_bound` constraint
-3. Re-solve → frontier narrows → explore new tradeoffs
-4. User gravitates toward a solution → record feedback
-
-Changing objectives, options, scores, or constraints automatically clears the previous run.
-
 ## Skills (MCP resources)
 
-Frontier includes four expert skill resources that Claude loads at different workflow phases:
+Frontier includes four expert skill resources that Claude loads at different workflow phases. Each contains domain expertise for that phase — the guidance lives in the skills themselves, not here.
 
-| Skill | Expertise | When |
+| Skill | Expert role | When to load |
 |---|---|---|
-| `problem_framing` | Objective vs constraint distinction, completeness, scope | Before building the problem |
-| `data_collection` | Anchoring technique, batch scoring, uncertainty handling | During score entry |
-| `optimization_strategy` | Approach selection, constraint strategy, infeasibility response | Before/after solving |
-| `solution_interpreter` | Tradeoff framing, differentiation, never say "best" | During exploration |
+| `frontier://skills/problem_framing` | Decision analyst | Before framing — validates objectives, checks scope |
+| `frontier://skills/data_collection` | Researcher | During scoring — anchoring, batching, uncertainty |
+| `frontier://skills/optimization_strategy` | Operations researcher | Before/after solving — approach fit, constraint strategy |
+| `frontier://skills/solution_interpreter` | Advisor | During exploration — tradeoff framing, preference elicitation |
 
-These are served as MCP resources at `frontier://skills/{name}` and are automatically available when the server is connected.
+These are served as MCP resources and are automatically available when the server is connected. See `CLAUDE.md` for instructions on activating them.
 
-## Deployment
+## Reference
 
-### Render
-
-The repo includes `render.yaml` for one-click deployment:
-
-| Setting | Value |
-|---|---|
-| **Runtime** | Python 3 |
-| **Build Command** | `pip install -r requirements.txt` |
-| **Start Command** | `MCP_TRANSPORT=sse python -m frontier.mcp_server.server` |
-| **Env Var** | `PYTHON_VERSION=3.11` |
-
-Render sets `PORT` automatically. The server binds to `0.0.0.0:$PORT`.
-
-### Run locally
-
-```bash
-# stdio mode (default, for direct MCP client piping)
-python -m frontier.mcp_server.server
-
-# SSE mode (for network clients)
-MCP_TRANSPORT=sse PORT=8080 python -m frontier.mcp_server.server
-```
-
-## Tests
-
-```bash
-# Eval checkpoint (full end-to-end workflow)
-python -m tests.eval_checkpoint
-
-# Unit tests
-pip install pytest
-pytest tests/ -v
-```
-
-## Architecture
-
-```
-frontier/
-├── engine/
-│   ├── models.py        # Pydantic data models
-│   ├── store.py          # JSON file store (one file per problem)
-│   ├── optimizer.py      # NSGA-II via pymoo, validation, infeasibility analysis
-│   ├── explorer.py       # Tradeoff analysis, solution comparison
-│   └── metrics.py        # Automated quality metrics (framing, data, solve, outcome)
-├── mcp_server/
-│   └── server.py         # 3 MCP tools: model, solve, explore
-├── skills/               # 4 expert skill resources (markdown)
-└── tests/
-    ├── fixtures/         # 3 example problems (SaaS, Marketing, Investment)
-    └── eval_checkpoint.py
-```
+See [reference.md](reference.md) for deployment (Render, local), architecture, testing, and development details.

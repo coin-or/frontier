@@ -8,20 +8,14 @@ This project runs as an MCP server with 3 tools: `model`, `solve`, `explore`.
 
 ## Frontier Skills
 
-When using Frontier's optimization tools, load the relevant skill resource at each workflow phase to activate expert guidance:
+When using Frontier's optimization tools, load the relevant skill resource at each workflow phase:
 
-- **Before framing a problem:** read `frontier://skills/problem_framing` — validates objectives vs constraints, checks completeness, calibrates scope
-- **During score entry:** read `frontier://skills/data_collection` — anchoring technique, batch scoring, uncertainty handling
-- **Before/after solving:** read `frontier://skills/optimization_strategy` — approach selection, constraint strategy, infeasibility diagnosis
-- **When exploring results:** read `frontier://skills/solution_interpreter` — tradeoff framing, never say "best", differentiation focus
+- **Before framing a problem:** read `frontier://skills/problem_framing`
+- **During score entry:** read `frontier://skills/data_collection`
+- **Before/after solving:** read `frontier://skills/optimization_strategy`
+- **When exploring results:** read `frontier://skills/solution_interpreter`
 
-## Key Principles
-
-- **Never say "best"** — every Pareto solution is optimal at its tradeoff. Present tradeoffs, not rankings.
-- **Extremes → Balanced → Preference** — show frontier endpoints first, then the balanced middle, then ask what the user gravitates toward.
-- **Batch scores** — send all scores in 1-3 `model update` calls, not one at a time.
-- **Constraints shape, not shrink** — don't add constraints just to reduce the frontier. Let the user decide.
-- **Quantify tradeoffs** — "Solution 3 gives 20% more revenue but costs 35% more effort" is better than "Solution 3 is good."
+Each skill contains expert guidance for that phase. Follow its instructions.
 
 ## Development
 
