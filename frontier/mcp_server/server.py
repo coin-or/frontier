@@ -411,7 +411,16 @@ def _explore_feedback(
 
 
 def main():
-    mcp.run()
+    import os
+
+    transport = os.environ.get("MCP_TRANSPORT", "stdio")
+
+    # Render provides PORT; override FastMCP defaults for web deployment
+    if "PORT" in os.environ:
+        mcp.settings.port = int(os.environ["PORT"])
+        mcp.settings.host = "0.0.0.0"
+
+    mcp.run(transport=transport)
 
 
 if __name__ == "__main__":
