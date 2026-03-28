@@ -415,6 +415,48 @@ class TestRunHistory:
         assert result["status"]["total_runs"] == 2
 
 
+class TestReferencePoints:
+    def test_set_reference_points(self):
+        pid = _build_solvable_problem()
+        result = srv.model(action="update", problem_id=pid, reference_points=[
+            {"type": "baseline", "name": "Current", "objective_values": {"Rev": 10, "Eff": 8}},
+            {"type": "aspirational", "name": "Target", "objective_values": {"Rev": 20, "Eff": 3}},
+        ])
+        p = srv.model(action="get", problem_id=pid)
+        assert len(p["reference_points"]) == 2
+        assert p["reference_points"][0]["type"] == "baseline"
+
+    def test_reference_in_tradeoffs(self):
+        pid = _build_solvable_problem()
+        srv.model(action="update", problem_id=pid, reference_points=[
+            {"type": "baseline", "name": "Current", "objective_values": {"Rev": 10, "Eff": 8}},
+        ])
+        srv.solve(action="run", problem_id=pid)
+        result = srv.explore(action="tradeoffs", problem_id=pid)
+        assert "balanced_vs_references" in result
+        assert len(result["balanced_vs_references"]) == 1
+        assert result["balanced_vs_references"][0]["type"] == "baseline"
+
+    def test_reference_in_solution(self):
+        pid = _build_solvable_problem()
+        srv.model(action="update", problem_id=pid, reference_points=[
+            {"type": "aspirational", "name": "Goal", "objective_values": {"Rev": 25, "Eff": 2}},
+        ])
+        srv.solve(action="run", problem_id=pid)
+        result = srv.explore(action="solution", problem_id=pid, solution_id=0)
+        assert "vs_references" in result
+        ref = result["vs_references"][0]
+        assert "Rev" in ref["objectives"]
+        assert "better" in ref["objectives"]["Rev"]
+
+    def test_no_reference_no_field(self):
+        """Without reference points, no extra fields in output."""
+        pid = _build_solvable_problem()
+        srv.solve(action="run", problem_id=pid)
+        result = srv.explore(action="tradeoffs", problem_id=pid)
+        assert "balanced_vs_references" not in result
+
+
 class TestCompareRuns:
     def test_compare_two_runs(self):
         pid = _build_solvable_problem()
@@ -463,6 +505,166 @@ class TestCompareRuns:
             run_ids=[r1["run_id"]],
         )
         assert "error" in result
+
+
+class TestScenarios:
+    def test_set_scenario_config(self):
+        pid = _build_solvable_problem()
+        srv.model(action="update", problem_id=pid, scenario_config={
+            "enabled": True,
+            "scenarios": [
+                {"name": "Base", "probability": 0.6, "score_overrides": []},
+                {"name": "Growth", "probability": 0.4, "score_overrides": [
+                    {"option": "A", "objective": "Rev", "value": 20},
+                ]},
+            ],
+        })
+        p = srv.model(action="get", problem_id=pid)
+        assert p["scenario_config"]["enabled"] is True
+        assert len(p["scenario_config"]["scenarios"]) == 2
+
+    def test_run_scenarios(self):
+        pid = _build_solvable_problem()
+        srv.model(action="update", problem_id=pid, scenario_config={
+            "enabled": True,
+            "scenarios": [
+                {"name": "Base", "probability": 0.5, "score_overrides": []},
+                {"name": "Alt", "probability": 0.5, "score_overrides": [
+                    {"option": "A", "objective": "Rev", "value": 1},
+                    {"option": "C", "objective": "Rev", "value": 20},
+                ]},
+            ],
+        })
+        result = srv.solve(action="run_scenarios", problem_id=pid)
+        assert "error" not in result
+        assert result["scenarios_optimized"] == 2
+        assert "Base" in result["results"]
+        assert "Alt" in result["results"]
+        assert result["results"]["Base"]["solutions_found"] > 0
+
+    def test_scenario_results(self):
+        pid = _build_solvable_problem()
+        srv.model(action="update", problem_id=pid, scenario_config={
+            "enabled": True,
+            "scenarios": [
+                {"name": "Base", "probability": 0.6, "score_overrides": []},
+                {"name": "Growth", "probability": 0.4, "score_overrides": [
+                    {"option": "A", "objective": "Rev", "value": 50},
+                ]},
+            ],
+        })
+        srv.solve(action="run_scenarios", problem_id=pid)
+        result = srv.explore(action="scenario_results", problem_id=pid)
+        assert "robust_options" in result
+        assert "scenario_specific_options" in result
+        assert "expected_values" in result
+        assert "per_scenario" in result
+        assert len(result["per_scenario"]) == 2
+
+    def test_scenario_results_without_run(self):
+        pid = _build_solvable_problem()
+        result = srv.explore(action="scenario_results", problem_id=pid)
+        assert "error" in result
+
+    def test_scenarios_invalid_probabilities(self):
+        pid = _build_solvable_problem()
+        srv.model(action="update", problem_id=pid, scenario_config={
+            "enabled": True,
+            "scenarios": [
+                {"name": "A", "probability": 0.3},
+                {"name": "B", "probability": 0.3},
+            ],
+        })
+        result = srv.solve(action="run_scenarios", problem_id=pid)
+        assert "error" in result
+        assert "probabilities" in result["error"].lower()
+
+
+class TestCuration:
+    def test_curate_solution(self):
+        pid = _build_solvable_problem()
+        srv.solve(action="run", problem_id=pid)
+        result = srv.explore(
+            action="curate", problem_id=pid, solution_id=0, custom_name="Pick A",
+        )
+        assert result.get("curated") is True
+        assert result["custom_name"] == "Pick A"
+        assert result["total_curated"] == 1
+
+    def test_curate_duplicate(self):
+        pid = _build_solvable_problem()
+        srv.solve(action="run", problem_id=pid)
+        srv.explore(action="curate", problem_id=pid, solution_id=0, custom_name="Pick A")
+        result = srv.explore(action="curate", problem_id=pid, solution_id=0, custom_name="Dup")
+        assert "error" in result  # duplicate
+
+    def test_list_curated(self):
+        pid = _build_solvable_problem()
+        srv.solve(action="run", problem_id=pid)
+        srv.explore(action="curate", problem_id=pid, solution_id=0, custom_name="First")
+        srv.explore(action="curate", problem_id=pid, solution_id=1, custom_name="Second")
+        result = srv.explore(action="curated", problem_id=pid)
+        assert result["total_curated"] == 2
+        assert all(c["in_current_frontier"] for c in result["curated_solutions"])
+
+    def test_uncurate(self):
+        pid = _build_solvable_problem()
+        srv.solve(action="run", problem_id=pid)
+        curate_result = srv.explore(
+            action="curate", problem_id=pid, solution_id=0, custom_name="Pick A",
+        )
+        sig = curate_result["content_signature"]
+        result = srv.explore(action="uncurate", problem_id=pid, content_signature=sig)
+        assert result["total_curated"] == 0
+
+    def test_rename_curated(self):
+        pid = _build_solvable_problem()
+        srv.solve(action="run", problem_id=pid)
+        curate_result = srv.explore(
+            action="curate", problem_id=pid, solution_id=0, custom_name="Old",
+        )
+        sig = curate_result["content_signature"]
+        result = srv.explore(
+            action="rename_curated", problem_id=pid,
+            content_signature=sig, custom_name="New Name",
+        )
+        assert result["custom_name"] == "New Name"
+
+    def test_compare_curated(self):
+        pid = _build_solvable_problem()
+        srv.solve(action="run", problem_id=pid)
+        r1 = srv.explore(action="curate", problem_id=pid, solution_id=0, custom_name="A")
+        r2 = srv.explore(action="curate", problem_id=pid, solution_id=1, custom_name="B")
+        result = srv.explore(
+            action="compare_curated", problem_id=pid,
+            signatures=[r1["content_signature"], r2["content_signature"]],
+        )
+        assert "shared_options" in result
+        assert "differentiating_options" in result
+        assert len(result["solutions"]) == 2
+        assert result["solutions"][0]["custom_name"] == "A"
+
+    def test_curated_survives_resolve(self):
+        """Curated solutions persist across runs and track survival."""
+        pid = _build_solvable_problem()
+        srv.solve(action="run", problem_id=pid)
+        r = srv.explore(action="curate", problem_id=pid, solution_id=0, custom_name="Survivor")
+        sig = r["content_signature"]
+
+        # Re-solve (same problem, same constraints — solution should survive)
+        srv.solve(action="run", problem_id=pid)
+        result = srv.explore(action="curated", problem_id=pid)
+        assert result["total_curated"] == 1
+        assert result["curated_solutions"][0]["content_signature"] == sig
+
+    def test_content_signatures_on_solutions(self):
+        """Solutions have content_signature field after solving."""
+        pid = _build_solvable_problem()
+        srv.solve(action="run", problem_id=pid)
+        result = srv.explore(action="solutions", problem_id=pid)
+        for sol in result["solutions"]:
+            assert sol["content_signature"] != ""
+            assert len(sol["content_signature"]) == 12
 
 
 class TestUnknownActions:

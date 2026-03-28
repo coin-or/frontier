@@ -22,6 +22,7 @@ from .models import (
     Solution,
     ValidationIssue,
     ValidationResult,
+    _content_signature,
 )
 
 
@@ -95,6 +96,37 @@ def validate(problem: Problem) -> ValidationResult:
                 severity="error",
                 message=f"objective_bound references unknown objective '{c.objective}'.",
             ))
+        elif c.type == "exclusion_pair":
+            for opt in (c.option_a, c.option_b):
+                if opt not in opt_names:
+                    issues.append(ValidationIssue(
+                        severity="error",
+                        message=f"exclusion_pair references unknown option '{opt}'.",
+                    ))
+            if c.option_a == c.option_b:
+                issues.append(ValidationIssue(
+                    severity="error",
+                    message=f"exclusion_pair has same option for both: '{c.option_a}'.",
+                ))
+        elif c.type == "dependency":
+            for opt in (c.if_option, c.then_option):
+                if opt not in opt_names:
+                    issues.append(ValidationIssue(
+                        severity="error",
+                        message=f"dependency references unknown option '{opt}'.",
+                    ))
+        elif c.type == "group_limit":
+            for opt in c.options:
+                if opt not in opt_names:
+                    issues.append(ValidationIssue(
+                        severity="error",
+                        message=f"group_limit references unknown option '{opt}'.",
+                    ))
+            if c.max < 0:
+                issues.append(ValidationIssue(
+                    severity="error",
+                    message=f"group_limit max ({c.max}) must be non-negative.",
+                ))
 
     # Check force_include + force_exclude conflict
     forced_in = {c.option for c in problem.constraints if c.type == "force_include"}
@@ -130,7 +162,7 @@ def validate(problem: Problem) -> ValidationResult:
     return ValidationResult(ready=ready, issues=issues, missing_scores=missing_scores)
 
 
-def _parse_constraints(problem: Problem) -> tuple:
+def _parse_constraints(problem: Problem) -> dict:
     """Extract constraint parameters from problem. Shared by binary and proportional."""
     opt_names = [o.name for o in problem.options]
     obj_list = problem.objectives
@@ -141,6 +173,9 @@ def _parse_constraints(problem: Problem) -> tuple:
     cardinality_min = 1
     cardinality_max = len(opt_names)
     obj_bounds: list[tuple[int, BoundOperator, float]] = []
+    exclusion_pairs: list[tuple[int, int]] = []
+    dependencies: list[tuple[int, int]] = []  # (if_idx, then_idx)
+    group_limits: list[tuple[list[int], int]] = []  # (group_indices, max)
 
     for c in problem.constraints:
         if c.type == "force_include":
@@ -153,8 +188,24 @@ def _parse_constraints(problem: Problem) -> tuple:
         elif c.type == "objective_bound":
             obj_idx = next(j for j, o in enumerate(obj_list) if o.name == c.objective)
             obj_bounds.append((obj_idx, c.operator, c.value))
+        elif c.type == "exclusion_pair":
+            exclusion_pairs.append((opt_index[c.option_a], opt_index[c.option_b]))
+        elif c.type == "dependency":
+            dependencies.append((opt_index[c.if_option], opt_index[c.then_option]))
+        elif c.type == "group_limit":
+            group_indices = [opt_index[o] for o in c.options]
+            group_limits.append((group_indices, c.max))
 
-    return forced_in_idx, forced_out_idx, cardinality_min, cardinality_max, obj_bounds
+    return {
+        "forced_in": forced_in_idx,
+        "forced_out": forced_out_idx,
+        "cardinality_min": cardinality_min,
+        "cardinality_max": cardinality_max,
+        "obj_bounds": obj_bounds,
+        "exclusion_pairs": exclusion_pairs,
+        "dependencies": dependencies,
+        "group_limits": group_limits,
+    }
 
 
 def _build_score_matrix(problem: Problem) -> np.ndarray:
@@ -180,23 +231,48 @@ def optimize(problem: Problem) -> Run:
     return _optimize_binary(problem)
 
 
+def optimize_scenarios(problem: Problem) -> dict[str, Run]:
+    """Run optimization independently per scenario. Returns {scenario_name: Run}."""
+    from .models import ScenarioRun
+
+    if not problem.scenario_config or not problem.scenario_config.enabled:
+        raise ValueError("Scenario config not enabled.")
+    if not problem.scenario_config.scenarios:
+        raise ValueError("No scenarios defined.")
+
+    # Validate probabilities sum to ~1.0
+    total_prob = sum(s.probability for s in problem.scenario_config.scenarios)
+    if abs(total_prob - 1.0) > 0.05:
+        raise ValueError(f"Scenario probabilities sum to {total_prob}, expected ~1.0.")
+
+    results = {}
+    for scenario in problem.scenario_config.scenarios:
+        # Build scenario-specific problem with overridden scores
+        scenario_problem = problem.model_copy(deep=True)
+        override_map = {(s.option, s.objective): s.value for s in scenario.score_overrides}
+        for score in scenario_problem.scores:
+            key = (score.option, score.objective)
+            if key in override_map:
+                score.value = override_map[key]
+
+        # Clear scenario config to avoid recursion
+        scenario_problem.scenario_config = None
+        run = optimize(scenario_problem)
+        results[scenario.name] = run
+
+    return results
+
+
 def _optimize_binary(problem: Problem) -> Run:
     """Binary mode: pick K of N options."""
     n_options = len(problem.options)
     opt_names = [o.name for o in problem.options]
     obj_list = problem.objectives
     score_matrix = _build_score_matrix(problem)
-    forced_in, forced_out, card_min, card_max, obj_bounds = _parse_constraints(problem)
+    cp = _parse_constraints(problem)
 
     pymoo_problem = _FrontierProblem(
-        n_options=n_options,
-        score_matrix=score_matrix,
-        objectives=obj_list,
-        forced_in=forced_in,
-        forced_out=forced_out,
-        cardinality_min=card_min,
-        cardinality_max=card_max,
-        obj_bounds=obj_bounds,
+        n_options=n_options, score_matrix=score_matrix, objectives=obj_list, **cp,
     )
 
     if n_options <= 20:
@@ -238,17 +314,10 @@ def _optimize_proportional(problem: Problem) -> Run:
     opt_names = [o.name for o in problem.options]
     obj_list = problem.objectives
     score_matrix = _build_score_matrix(problem)
-    forced_in, forced_out, card_min, card_max, obj_bounds = _parse_constraints(problem)
+    cp = _parse_constraints(problem)
 
     pymoo_problem = _ProportionalProblem(
-        n_options=n_options,
-        score_matrix=score_matrix,
-        objectives=obj_list,
-        forced_in=forced_in,
-        forced_out=forced_out,
-        cardinality_min=card_min,
-        cardinality_max=card_max,
-        obj_bounds=obj_bounds,
+        n_options=n_options, score_matrix=score_matrix, objectives=obj_list, **cp,
     )
 
     if n_options <= 20:
@@ -298,13 +367,14 @@ def _optimize_proportional(problem: Problem) -> Run:
 
 
 def _sort_and_reindex(solutions: list[Solution], obj_list: list) -> list[Solution]:
-    """Sort solutions by first objective and reindex."""
+    """Sort solutions by first objective, reindex, and stamp content signatures."""
     if solutions and obj_list:
         first_obj = obj_list[0].name
         reverse = obj_list[0].direction.value == "maximize"
         solutions.sort(key=lambda s: s.objective_values.get(first_obj, 0), reverse=reverse)
         for i, s in enumerate(solutions):
             s.solution_id = i
+            s.content_signature = _content_signature(s.selected_options, s.allocations)
     return solutions
     return run
 
@@ -322,13 +392,22 @@ class _FrontierProblem(PymooProblem):
         cardinality_min: int,
         cardinality_max: int,
         obj_bounds: list[tuple[int, BoundOperator, float]],
+        exclusion_pairs: list[tuple[int, int]] | None = None,
+        dependencies: list[tuple[int, int]] | None = None,
+        group_limits: list[tuple[list[int], int]] | None = None,
     ):
-        # Count inequality constraints
+        exclusion_pairs = exclusion_pairs or []
+        dependencies = dependencies or []
+        group_limits = group_limits or []
+
         n_ieq = 0
         n_ieq += 2  # cardinality min and max
-        n_ieq += len(forced_in)  # each forced in
-        n_ieq += len(forced_out)  # each forced out
-        n_ieq += len(obj_bounds)  # each objective bound
+        n_ieq += len(forced_in)
+        n_ieq += len(forced_out)
+        n_ieq += len(obj_bounds)
+        n_ieq += len(exclusion_pairs)  # x[a] + x[b] <= 1
+        n_ieq += len(dependencies)     # x[a] - x[b] <= 0
+        n_ieq += len(group_limits)     # sum(group) <= max
 
         super().__init__(
             n_var=n_options,
@@ -344,6 +423,9 @@ class _FrontierProblem(PymooProblem):
         self.cardinality_min = cardinality_min
         self.cardinality_max = cardinality_max
         self.obj_bounds = obj_bounds
+        self.exclusion_pairs = exclusion_pairs
+        self.dependencies = dependencies
+        self.group_limits = group_limits
 
     def _aggregate_objective(self, X_bin: np.ndarray, j: int) -> np.ndarray:
         """Compute objective j values for all population members using the correct aggregation."""
@@ -415,9 +497,22 @@ class _FrontierProblem(PymooProblem):
         for obj_idx, operator, value in self.obj_bounds:
             obj_vals = self._aggregate_objective(X_bin, obj_idx)
             if operator == BoundOperator.max:
-                G.append(obj_vals - value)  # val <= max → val - max <= 0
-            else:  # min
-                G.append(value - obj_vals)  # val >= min → min - val <= 0
+                G.append(obj_vals - value)
+            else:
+                G.append(value - obj_vals)
+
+        # Exclusion pairs: x[a] + x[b] <= 1
+        for a, b in self.exclusion_pairs:
+            G.append(X_bin[:, a] + X_bin[:, b] - 1.0)
+
+        # Dependencies: if x[a] then x[b] → x[a] - x[b] <= 0
+        for if_idx, then_idx in self.dependencies:
+            G.append(X_bin[:, if_idx] - X_bin[:, then_idx])
+
+        # Group limits: sum(x[i] for i in group) <= max
+        for group_indices, max_count in self.group_limits:
+            group_sum = sum(X_bin[:, i] for i in group_indices)
+            G.append(group_sum - max_count)
 
         out["G"] = np.column_stack(G) if G else np.zeros((n_pop, 0))
 
@@ -435,9 +530,16 @@ class _ProportionalProblem(PymooProblem):
         cardinality_min: int,
         cardinality_max: int,
         obj_bounds: list[tuple[int, BoundOperator, float]],
+        exclusion_pairs: list[tuple[int, int]] | None = None,
+        dependencies: list[tuple[int, int]] | None = None,
+        group_limits: list[tuple[list[int], int]] | None = None,
     ):
-        # Constraints: sum=100 (2 ineq), cardinality (2), forced in/out, obj bounds
+        exclusion_pairs = exclusion_pairs or []
+        dependencies = dependencies or []
+        group_limits = group_limits or []
+
         n_ieq = 2 + 2 + len(forced_in) + len(forced_out) + len(obj_bounds)
+        n_ieq += len(exclusion_pairs) + len(dependencies) + len(group_limits)
 
         super().__init__(
             n_var=n_options,
@@ -453,6 +555,9 @@ class _ProportionalProblem(PymooProblem):
         self.cardinality_min = cardinality_min
         self.cardinality_max = cardinality_max
         self.obj_bounds = obj_bounds
+        self.exclusion_pairs = exclusion_pairs
+        self.dependencies = dependencies
+        self.group_limits = group_limits
 
     def _aggregate_objective(self, X: np.ndarray, j: int) -> np.ndarray:
         """Compute objective j for proportional allocations."""
@@ -534,6 +639,20 @@ class _ProportionalProblem(PymooProblem):
             else:
                 G.append(value - obj_vals)
 
+        # Exclusion pairs: can't allocate to both (both > 0.5)
+        allocated = (X > 0.5).astype(float)
+        for a, b in self.exclusion_pairs:
+            G.append(allocated[:, a] + allocated[:, b] - 1.0)
+
+        # Dependencies: if allocated to a, must allocate to b
+        for if_idx, then_idx in self.dependencies:
+            G.append(allocated[:, if_idx] - allocated[:, then_idx])
+
+        # Group limits: count of allocated in group <= max
+        for group_indices, max_count in self.group_limits:
+            group_sum = sum(allocated[:, i] for i in group_indices)
+            G.append(group_sum - max_count)
+
         out["G"] = np.column_stack(G) if G else np.zeros((n_pop, 0))
 
 
@@ -560,6 +679,9 @@ def analyze_infeasibility(problem: Problem) -> dict:
     # Parse constraints
     forced_in = {c.option for c in problem.constraints if c.type == "force_include"}
     forced_out = {c.option for c in problem.constraints if c.type == "force_exclude"}
+    exclusion_pairs = [(c.option_a, c.option_b) for c in problem.constraints if c.type == "exclusion_pair"]
+    dependencies = [(c.if_option, c.then_option) for c in problem.constraints if c.type == "dependency"]
+    group_limits = [(c.options, c.max) for c in problem.constraints if c.type == "group_limit"]
     card_min, card_max = 1, n_options
     obj_bounds = []
     for c in problem.constraints:
@@ -611,6 +733,24 @@ def analyze_infeasibility(problem: Problem) -> dict:
                 return False
             if operator.value == "min" and agg_val < value:
                 return False
+        # Exclusion pairs
+        for opt_a, opt_b in exclusion_pairs:
+            if skip_constraint == f"exclusion_pair:{opt_a}:{opt_b}":
+                continue
+            if opt_a in selected and opt_b in selected:
+                return False
+        # Dependencies
+        for if_opt, then_opt in dependencies:
+            if skip_constraint == f"dependency:{if_opt}:{then_opt}":
+                continue
+            if if_opt in selected and then_opt not in selected:
+                return False
+        # Group limits
+        for group_opts, max_count in group_limits:
+            if skip_constraint == f"group_limit:{','.join(group_opts)}:{max_count}":
+                continue
+            if sum(1 for o in group_opts if o in selected) > max_count:
+                return False
         return True
 
     # Available options (respecting force_exclude for enumeration)
@@ -645,6 +785,18 @@ def analyze_infeasibility(problem: Problem) -> dict:
             constraint_labels.append(
                 (f"objective_bound:{c.objective}:{c.operator}:{c.value}", c.model_dump())
             )
+        elif c.type == "exclusion_pair":
+            constraint_labels.append(
+                (f"exclusion_pair:{c.option_a}:{c.option_b}", c.model_dump())
+            )
+        elif c.type == "dependency":
+            constraint_labels.append(
+                (f"dependency:{c.if_option}:{c.then_option}", c.model_dump())
+            )
+        elif c.type == "group_limit":
+            constraint_labels.append(
+                (f"group_limit:{','.join(c.options)}:{c.max}", c.model_dump())
+            )
 
     # Test each constraint: does removing it make the problem feasible?
     binding = []
@@ -663,6 +815,14 @@ def analyze_infeasibility(problem: Problem) -> dict:
             elif label.startswith("objective_bound:"):
                 parts = label.split(":")
                 suggestions.append(f"Relaxing {parts[2]} bound on '{parts[1]}' ({parts[3]}) may help.")
+            elif label.startswith("exclusion_pair:"):
+                parts = label.split(":")
+                suggestions.append(f"Removing exclusion between '{parts[1]}' and '{parts[2]}' may help.")
+            elif label.startswith("dependency:"):
+                parts = label.split(":")
+                suggestions.append(f"Removing dependency '{parts[1]}' → '{parts[2]}' may help.")
+            elif label.startswith("group_limit:"):
+                suggestions.append(f"Relaxing group limit may help.")
 
     if not binding:
         binding = [c.model_dump() for c in problem.constraints]

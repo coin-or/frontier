@@ -1,7 +1,8 @@
-"""Pydantic data models for Frontier Phase 0 MVP."""
+"""Pydantic data models for Frontier."""
 
 from __future__ import annotations
 
+import hashlib
 import uuid
 from datetime import datetime, timezone
 from enum import Enum
@@ -23,6 +24,9 @@ class ConstraintType(str, Enum):
     force_include = "force_include"
     force_exclude = "force_exclude"
     objective_bound = "objective_bound"
+    exclusion_pair = "exclusion_pair"
+    dependency = "dependency"
+    group_limit = "group_limit"
 
 
 class Aggregation(str, Enum):
@@ -89,15 +93,77 @@ class ObjectiveBoundConstraint(BaseModel):
     value: float
 
 
+class ExclusionPairConstraint(BaseModel):
+    type: Literal["exclusion_pair"] = "exclusion_pair"
+    option_a: str
+    option_b: str
+
+
+class DependencyConstraint(BaseModel):
+    type: Literal["dependency"] = "dependency"
+    if_option: str
+    then_option: str
+
+
+class GroupLimitConstraint(BaseModel):
+    type: Literal["group_limit"] = "group_limit"
+    options: list[str]
+    max: int
+
+
 Constraint = (
     CardinalityConstraint
     | ForceIncludeConstraint
     | ForceExcludeConstraint
     | ObjectiveBoundConstraint
+    | ExclusionPairConstraint
+    | DependencyConstraint
+    | GroupLimitConstraint
 )
 
 
+# --- Reference Points ---
+
+
+class ReferencePoint(BaseModel):
+    type: Literal["baseline", "aspirational"]
+    name: str = ""
+    objective_values: dict[str, float] = {}  # partial OK
+    selected_options: list[str] = []  # baseline only — the current portfolio
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+# --- Scenarios ---
+
+
+class Scenario(BaseModel):
+    name: str
+    probability: float  # 0-1
+    description: str = ""
+    score_overrides: list[Score] = []  # only changed scores; base matrix fills rest
+
+
+class ScenarioConfig(BaseModel):
+    enabled: bool = False
+    scenarios: list[Scenario] = []
+
+
+class ScenarioRun(BaseModel):
+    """Results from per-scenario optimization."""
+    scenario_runs: dict[str, Run] = {}  # scenario name → Run
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
 # --- Run / Solution ---
+
+
+def _content_signature(selected_options: list[str], allocations: dict[str, int] | None = None) -> str:
+    """Stable hash of solution composition. Survives re-indexing across runs."""
+    if allocations:
+        content = str(sorted((k, v) for k, v in allocations.items() if v > 0))
+    else:
+        content = str(sorted(selected_options))
+    return hashlib.md5(content.encode()).hexdigest()[:12]
 
 
 class Solution(BaseModel):
@@ -105,6 +171,7 @@ class Solution(BaseModel):
     selected_options: list[str]
     objective_values: dict[str, float]
     allocations: dict[str, int] | None = None  # proportional mode: option → percentage (0-100)
+    content_signature: str = ""  # stable hash, computed post-init
 
 
 class QualityIndicators(BaseModel):
@@ -118,6 +185,20 @@ class Run(BaseModel):
     solutions: list[Solution] = []
     quality: QualityIndicators = QualityIndicators()
     constraints_snapshot: list[dict] = []
+
+
+# --- Curated Solutions ---
+
+
+class CuratedSolution(BaseModel):
+    content_signature: str
+    custom_name: str = ""
+    selected_options: list[str] = []
+    allocations: dict[str, int] | None = None
+    objective_values: dict[str, float] = {}
+    curated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    source_run_id: str = ""
+    notes: str = ""
 
 
 # --- Feedback ---
@@ -152,9 +233,13 @@ class Problem(BaseModel):
     options: list[Option] = []
     scores: list[Score] = []
     constraints: list[Constraint] = []
+    reference_points: list[ReferencePoint] = []
+    scenario_config: ScenarioConfig | None = None
+    scenario_run: ScenarioRun | None = None
     run: Run | None = None
     runs: list[Run] = []
     results_stale: bool = False
+    curated_solutions: list[CuratedSolution] = []
     feedback: list[Feedback] = []
     created_at: datetime = Field(default_factory=_now)
     updated_at: datetime = Field(default_factory=_now)

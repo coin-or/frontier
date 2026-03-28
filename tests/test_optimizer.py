@@ -4,8 +4,11 @@ import pytest
 
 from frontier.engine.models import (
     CardinalityConstraint,
+    DependencyConstraint,
+    ExclusionPairConstraint,
     ForceExcludeConstraint,
     ForceIncludeConstraint,
+    GroupLimitConstraint,
     Objective,
     ObjectiveBoundConstraint,
     Option,
@@ -448,3 +451,82 @@ class TestAggregation:
             # Verify min for WorstRisk
             risk_scores = [s.value for s in p.scores if s.objective == "WorstRisk" and s.option in sol.selected_options]
             assert abs(sol.objective_values["WorstRisk"] - min(risk_scores)) < 0.01
+
+
+# ─── New Constraint Types ───
+
+
+class TestExclusionPair:
+    def test_exclusion_respected(self):
+        """Excluded pair: can't select both A and C."""
+        p = _make_problem(constraints=[
+            CardinalityConstraint(min=2, max=3),
+            ExclusionPairConstraint(option_a="A", option_b="C"),
+        ])
+        run = optimize(p)
+        assert len(run.solutions) > 0
+        for sol in run.solutions:
+            assert not ("A" in sol.selected_options and "C" in sol.selected_options), (
+                f"Both A and C selected: {sol.selected_options}"
+            )
+
+    def test_exclusion_validation_unknown_option(self):
+        p = _make_problem(constraints=[
+            ExclusionPairConstraint(option_a="A", option_b="UNKNOWN"),
+        ])
+        vr = validate(p)
+        assert not vr.ready
+        assert any("UNKNOWN" in i.message for i in vr.issues)
+
+    def test_exclusion_same_option(self):
+        p = _make_problem(constraints=[
+            ExclusionPairConstraint(option_a="A", option_b="A"),
+        ])
+        vr = validate(p)
+        assert not vr.ready
+
+
+class TestDependency:
+    def test_dependency_respected(self):
+        """If A selected, B must be selected too."""
+        p = _make_problem(constraints=[
+            CardinalityConstraint(min=2, max=4),
+            DependencyConstraint(if_option="A", then_option="B"),
+        ])
+        run = optimize(p)
+        assert len(run.solutions) > 0
+        for sol in run.solutions:
+            if "A" in sol.selected_options:
+                assert "B" in sol.selected_options, (
+                    f"A selected without B: {sol.selected_options}"
+                )
+
+    def test_dependency_validation_unknown_option(self):
+        p = _make_problem(constraints=[
+            DependencyConstraint(if_option="UNKNOWN", then_option="B"),
+        ])
+        vr = validate(p)
+        assert not vr.ready
+
+
+class TestGroupLimit:
+    def test_group_limit_respected(self):
+        """At most 1 from group {A, C, E}."""
+        p = _make_problem(constraints=[
+            CardinalityConstraint(min=2, max=3),
+            GroupLimitConstraint(options=["A", "C", "E"], max=1),
+        ])
+        run = optimize(p)
+        assert len(run.solutions) > 0
+        for sol in run.solutions:
+            group_count = sum(1 for o in ["A", "C", "E"] if o in sol.selected_options)
+            assert group_count <= 1, (
+                f"Group has {group_count} selected: {sol.selected_options}"
+            )
+
+    def test_group_limit_validation_unknown_option(self):
+        p = _make_problem(constraints=[
+            GroupLimitConstraint(options=["A", "UNKNOWN"], max=1),
+        ])
+        vr = validate(p)
+        assert not vr.ready

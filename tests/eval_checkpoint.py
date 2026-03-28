@@ -9,16 +9,25 @@ Run: python -m tests.eval_checkpoint
 from frontier.engine.metrics import compute_metrics, diagnostics
 from frontier.engine.models import (
     CardinalityConstraint,
+    ExclusionPairConstraint,
+    DependencyConstraint,
     Feedback,
     ForceIncludeConstraint,
+    GroupLimitConstraint,
     ObjectiveBoundConstraint,
     Objective,
     Option,
     Problem,
+    ReferencePoint,
+    Scenario,
+    ScenarioConfig,
     Score,
 )
-from frontier.engine.optimizer import optimize, validate
-from frontier.engine.explorer import compare_runs, compare_solutions, get_tradeoffs
+from frontier.engine.optimizer import optimize, optimize_scenarios, validate
+from frontier.engine.explorer import (
+    compare_runs, compare_solutions, curate_solution, list_curated,
+    compare_curated, get_scenario_results, get_solution, get_tradeoffs,
+)
 
 # --- Test data (from design doc checkpoint) ---
 
@@ -328,6 +337,120 @@ def run_checkpoint():
                 2 <= n_allocated <= 3,
                 f"allocated to {n_allocated}",
             )
+
+    # === Phase 11: New Constraint Types ===
+    print("\n=== Phase 11: New Constraint Types ===")
+
+    p_constr = Problem(
+        name="Constraint Test",
+        objectives=[
+            Objective(name="Value", direction="maximize"),
+            Objective(name="Cost", direction="minimize"),
+        ],
+        options=[Option(name=n) for n in ["A", "B", "C", "D", "E", "F"]],
+        scores=[
+            Score(option="A", objective="Value", value=10), Score(option="A", objective="Cost", value=8),
+            Score(option="B", objective="Value", value=7),  Score(option="B", objective="Cost", value=4),
+            Score(option="C", objective="Value", value=9),  Score(option="C", objective="Cost", value=7),
+            Score(option="D", objective="Value", value=5),  Score(option="D", objective="Cost", value=2),
+            Score(option="E", objective="Value", value=6),  Score(option="E", objective="Cost", value=3),
+            Score(option="F", objective="Value", value=8),  Score(option="F", objective="Cost", value=5),
+        ],
+        constraints=[
+            CardinalityConstraint(min=2, max=3),
+            ExclusionPairConstraint(option_a="A", option_b="C"),
+            DependencyConstraint(if_option="B", then_option="D"),
+            GroupLimitConstraint(options=["A", "C", "F"], max=1),
+        ],
+    )
+    run_constr = optimize(p_constr)
+    p_constr.run = run_constr
+    check("Constraint test solve success", len(run_constr.solutions) > 0)
+    for sol in run_constr.solutions:
+        check(f"Sol {sol.solution_id}: exclusion pair", not ("A" in sol.selected_options and "C" in sol.selected_options))
+        if "B" in sol.selected_options:
+            check(f"Sol {sol.solution_id}: dependency B→D", "D" in sol.selected_options)
+        group_count = sum(1 for o in ["A", "C", "F"] if o in sol.selected_options)
+        check(f"Sol {sol.solution_id}: group limit ≤1", group_count <= 1)
+
+    # === Phase 12: Reference Points ===
+    print("\n=== Phase 12: Reference Points ===")
+
+    p.reference_points = [
+        ReferencePoint(type="baseline", name="Current", objective_values={"Revenue Impact": 20, "Eng Effort": 50, "User Satisfaction": 25}),
+        ReferencePoint(type="aspirational", name="Target", objective_values={"Revenue Impact": 35, "Eng Effort": 20, "User Satisfaction": 35}),
+    ]
+    sol_detail = get_solution(p, 0)
+    check("Solution has vs_references", "vs_references" in sol_detail)
+    check("Two reference comparisons", len(sol_detail["vs_references"]) == 2)
+    ref_baseline = sol_detail["vs_references"][0]
+    check("Baseline has objectives", len(ref_baseline["objectives"]) > 0)
+
+    tradeoffs_ref = get_tradeoffs(p)
+    check("Tradeoffs has balanced_vs_references", "balanced_vs_references" in tradeoffs_ref)
+
+    # === Phase 13: Scenarios ===
+    print("\n=== Phase 13: Scenarios ===")
+
+    p_scen = Problem(
+        name="Scenario Test",
+        objectives=OBJECTIVES,
+        options=OPTIONS,
+        scores=SCORES,
+        constraints=[CardinalityConstraint(min=3, max=5), ForceIncludeConstraint(option="SSO Integration")],
+        scenario_config=ScenarioConfig(enabled=True, scenarios=[
+            Scenario(name="Base", probability=0.5, score_overrides=[]),
+            Scenario(name="Growth", probability=0.3, score_overrides=[
+                Score(option="Real-time Collaboration", objective="Revenue Impact", value=15),
+                Score(option="AI Content Generation", objective="Revenue Impact", value=14),
+            ]),
+            Scenario(name="Contraction", probability=0.2, score_overrides=[
+                Score(option="Mobile App", objective="Revenue Impact", value=2),
+                Score(option="Analytics Dashboard", objective="Revenue Impact", value=3),
+            ]),
+        ]),
+    )
+    scenario_results = optimize_scenarios(p_scen)
+    from frontier.engine.models import ScenarioRun
+    p_scen.scenario_run = ScenarioRun(scenario_runs=scenario_results)
+    check("3 scenarios optimized", len(scenario_results) == 3)
+    for name, run in scenario_results.items():
+        check(f"Scenario '{name}' has solutions", len(run.solutions) > 0)
+
+    analysis = get_scenario_results(p_scen)
+    check("Has robust_options", "robust_options" in analysis)
+    check("Has scenario_specific_options", "scenario_specific_options" in analysis)
+    check("Has expected_values", "expected_values" in analysis)
+    check("Has per_scenario", len(analysis["per_scenario"]) == 3)
+
+    # === Phase 14: Solution Curation ===
+    print("\n=== Phase 14: Solution Curation ===")
+
+    # Use the main problem p (which has run_v2 from Phase 6)
+    # Curate two solutions
+    if len(p.run.solutions) >= 2:
+        r1 = curate_solution(p, 0, custom_name="Conservative Pick", notes="Low effort")
+        check("Curate first solution", r1.get("curated") is True)
+        r2 = curate_solution(p, 1, custom_name="Growth Bet")
+        check("Curate second solution", r2.get("curated") is True)
+
+        # List curated
+        curated = list_curated(p)
+        check("Two curated solutions", curated["total_curated"] == 2)
+        check("Both in frontier", all(c["in_current_frontier"] for c in curated["curated_solutions"]))
+
+        # Compare curated
+        sigs = [c["content_signature"] for c in curated["curated_solutions"]]
+        comp = compare_curated(p, sigs)
+        check("Compare has shared_options", "shared_options" in comp)
+        check("Compare has custom names", comp["solutions"][0]["custom_name"] == "Conservative Pick")
+
+        # Content signatures are stable
+        check("Signature length", all(len(s) == 12 for s in sigs))
+
+        # Duplicate detection
+        dup = curate_solution(p, 0, custom_name="Duplicate")
+        check("Duplicate blocked", "error" in dup)
 
     # === Summary ===
     print(f"\n{'=' * 40}")

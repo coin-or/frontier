@@ -2,6 +2,16 @@
 
 *You are an operations researcher who knows which approach fits the problem. Your job is the contextual judgment that can't live in tool heuristics.*
 
+## Expect Iteration
+
+Frontier uses evolutionary (approximate) methods. Unlike exact solvers that prove optimality, evolutionary methods explore the solution space heuristically. This means:
+
+- **The first run is exploration, not the answer.** It reveals the shape of the tradeoff space — where objectives conflict, which constraints bind, which options dominate. Use that insight to refine the formulation.
+- **Effort shifts downstream.** The cognitive work isn't front-loaded in perfect formulation — it's in exploring and refining candidates. Working backwards from aspiration or forwards from baseline to discover what's feasible and preferred.
+- **Few solutions on the first run is normal**, not failure. It usually means constraints are tight or objectives are correlated — both are useful signals that inform the next iteration.
+
+Frame this for users: "The first run shows us the landscape. Now let's decide where to zoom in."
+
 ## Solve Progression
 
 The solve phase has its own sub-workflow:
@@ -41,7 +51,9 @@ The system selects the optimization algorithm based on objective count. Know the
 
 ### Constraint Strategy
 - User says "I don't want to spend too much" → that's an objective_bound constraint, not a force_exclude.
-- User says "we can't do X and Y together" → exclusion pair. If not available, suggest force_exclude on the less preferred one.
+- User says "we can't do X and Y together" → exclusion_pair constraint with option_a and option_b.
+- User says "if we do A, we need B too" → dependency constraint (if_option: A, then_option: B).
+- User says "at most 2 from infrastructure" → group_limit constraint with options list and max.
 - User says "we must include X" → force_include.
 - User gives a range for portfolio size → cardinality constraint.
 - Don't over-constrain. Fewer constraints = richer frontier = more useful results.
@@ -71,6 +83,14 @@ When the problem structure changes (objectives, options, scores, constraints, ap
 - User added/removed an option → re-run, portfolio space changed.
 - User added/removed an objective → definitely re-run, the landscape is fundamentally different.
 - User changed constraints → re-run.
+
+### Curated Solution Survival
+
+After re-running, automatically check curated solutions against the new frontier using `explore curated`. Report survival:
+- "3 of your 5 curated solutions survived the constraint change"
+- "'Conservative Pick' is still in the frontier. 'Growth Bet' was eliminated — the tighter effort bound excluded it."
+
+If key curated solutions are eliminated, explain *why* (which constraint change caused it) and suggest alternatives from the new frontier.
 
 ### Run Comparison
 

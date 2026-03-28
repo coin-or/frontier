@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from .models import Problem, Run
+from .models import CuratedSolution, Problem, Run, _content_signature
 
 
 def get_tradeoffs(problem: Problem) -> dict:
@@ -51,7 +51,7 @@ def get_tradeoffs(problem: Problem) -> dict:
     # Balanced solution: min normalized distance to ideal point
     balanced = _find_balanced(solutions, problem.objectives)
 
-    return {
+    result = {
         "total_solutions": len(solutions),
         "objective_ranges": obj_ranges,
         "key_tradeoffs": key_tradeoffs,
@@ -62,6 +62,13 @@ def get_tradeoffs(problem: Problem) -> dict:
             "selected_options": balanced.selected_options,
         },
     }
+
+    if problem.reference_points:
+        result["balanced_vs_references"] = _compute_reference_analysis(
+            balanced.objective_values, problem.reference_points, problem.objectives,
+        )
+
+    return result
 
 
 def compare_solutions(problem: Problem, solution_ids: list[int]) -> dict:
@@ -130,8 +137,47 @@ def get_solution(problem: Problem, solution_id: int) -> dict:
     run = _require_run(problem)
     for s in run.solutions:
         if s.solution_id == solution_id:
-            return s.model_dump()
+            result = s.model_dump()
+            if problem.reference_points:
+                result["vs_references"] = _compute_reference_analysis(
+                    s.objective_values, problem.reference_points, problem.objectives,
+                )
+            return result
     raise ValueError(f"Solution {solution_id} not found in current run.")
+
+
+def _compute_reference_analysis(solution_obj_values: dict, reference_points: list, objectives: list) -> list[dict]:
+    """Compute distance from a solution to each reference point, per objective."""
+    if not reference_points:
+        return []
+
+    obj_dirs = {o.name: o.direction.value for o in objectives}
+    results = []
+    for rp in reference_points:
+        per_obj = {}
+        for obj_name, ref_val in rp.objective_values.items():
+            if obj_name not in solution_obj_values:
+                continue
+            sol_val = solution_obj_values[obj_name]
+            diff = sol_val - ref_val
+            direction = obj_dirs.get(obj_name, "maximize")
+            # Positive = better than reference for maximize, worse for minimize
+            if direction == "minimize":
+                diff = -diff
+            pct = round(diff / abs(ref_val) * 100, 1) if ref_val != 0 else 0.0
+            per_obj[obj_name] = {
+                "solution_value": sol_val,
+                "reference_value": ref_val,
+                "difference": round(diff, 4),
+                "percent_vs_reference": pct,
+                "better": diff > 0,
+            }
+        results.append({
+            "reference": rp.name or rp.type,
+            "type": rp.type,
+            "objectives": per_obj,
+        })
+    return results
 
 
 def compare_runs(problem: Problem, run_ids: list[str]) -> dict:
@@ -207,7 +253,210 @@ def _constraint_key(c: dict) -> str:
         return f"{ctype}:{c.get('option')}"
     elif ctype == "objective_bound":
         return f"objective_bound:{c.get('objective')}:{c.get('operator')}:{c.get('value')}"
+    elif ctype == "exclusion_pair":
+        return f"exclusion_pair:{c.get('option_a')}:{c.get('option_b')}"
+    elif ctype == "dependency":
+        return f"dependency:{c.get('if_option')}:{c.get('then_option')}"
+    elif ctype == "group_limit":
+        return f"group_limit:{','.join(c.get('options', []))}:{c.get('max')}"
     return str(c)
+
+
+def curate_solution(problem: Problem, solution_id: int, custom_name: str = "", notes: str = "") -> dict:
+    """Add a solution from the current frontier to the curated set."""
+    run = _require_run(problem)
+    sol = None
+    for s in run.solutions:
+        if s.solution_id == solution_id:
+            sol = s
+            break
+    if sol is None:
+        raise ValueError(f"Solution {solution_id} not found in current run.")
+
+    sig = sol.content_signature or _content_signature(sol.selected_options, sol.allocations)
+
+    # Duplicate check
+    for cs in problem.curated_solutions:
+        if cs.content_signature == sig:
+            return {"error": f"Solution already curated as '{cs.custom_name or sig}'."}
+
+    curated = CuratedSolution(
+        content_signature=sig,
+        custom_name=custom_name,
+        selected_options=sol.selected_options,
+        allocations=sol.allocations,
+        objective_values=sol.objective_values,
+        source_run_id=run.run_id,
+        notes=notes,
+    )
+    problem.curated_solutions.append(curated)
+    return {
+        "curated": True,
+        "content_signature": sig,
+        "custom_name": custom_name,
+        "total_curated": len(problem.curated_solutions),
+    }
+
+
+def uncurate_solution(problem: Problem, content_signature: str) -> dict:
+    """Remove a solution from the curated set."""
+    before = len(problem.curated_solutions)
+    problem.curated_solutions = [
+        cs for cs in problem.curated_solutions if cs.content_signature != content_signature
+    ]
+    if len(problem.curated_solutions) == before:
+        raise ValueError(f"No curated solution with signature '{content_signature}'.")
+    return {"removed": content_signature, "total_curated": len(problem.curated_solutions)}
+
+
+def rename_curated(problem: Problem, content_signature: str, custom_name: str) -> dict:
+    """Update the name of a curated solution."""
+    for cs in problem.curated_solutions:
+        if cs.content_signature == content_signature:
+            cs.custom_name = custom_name
+            return {"renamed": content_signature, "custom_name": custom_name}
+    raise ValueError(f"No curated solution with signature '{content_signature}'.")
+
+
+def list_curated(problem: Problem) -> dict:
+    """List all curated solutions with survival status against current run."""
+    current_sigs = set()
+    if problem.run:
+        for s in problem.run.solutions:
+            sig = s.content_signature or _content_signature(s.selected_options, s.allocations)
+            current_sigs.add(sig)
+
+    curated = []
+    for cs in problem.curated_solutions:
+        entry = cs.model_dump()
+        entry["in_current_frontier"] = cs.content_signature in current_sigs
+        curated.append(entry)
+
+    return {
+        "total_curated": len(curated),
+        "curated_solutions": curated,
+    }
+
+
+def compare_curated(problem: Problem, signatures: list[str]) -> dict:
+    """Side-by-side comparison of curated solutions."""
+    sig_map = {cs.content_signature: cs for cs in problem.curated_solutions}
+
+    selected = []
+    for sig in signatures:
+        if sig not in sig_map:
+            raise ValueError(f"No curated solution with signature '{sig}'.")
+        selected.append(sig_map[sig])
+
+    # Shared and differentiating options
+    option_sets = [set(cs.selected_options) for cs in selected]
+    shared = set.intersection(*option_sets) if option_sets else set()
+    all_options = set.union(*option_sets) if option_sets else set()
+    differentiating = all_options - shared
+
+    # Tradeoff summary per objective
+    tradeoff_summary = {}
+    for obj in problem.objectives:
+        name = obj.name
+        vals = {cs.content_signature: cs.objective_values.get(name, 0) for cs in selected}
+        if not vals:
+            continue
+        best_sig = max(vals, key=vals.get) if obj.direction.value == "maximize" else min(vals, key=vals.get)
+        worst_sig = min(vals, key=vals.get) if obj.direction.value == "maximize" else max(vals, key=vals.get)
+        all_vals = list(vals.values())
+        tradeoff_summary[name] = {
+            "best": best_sig,
+            "worst": worst_sig,
+            "range": [min(all_vals), max(all_vals)],
+        }
+
+    result = {
+        "solutions": [
+            {
+                "content_signature": cs.content_signature,
+                "custom_name": cs.custom_name,
+                "selected_options": cs.selected_options,
+                "objective_values": cs.objective_values,
+                "allocations": cs.allocations,
+            }
+            for cs in selected
+        ],
+        "shared_options": sorted(shared),
+        "differentiating_options": sorted(differentiating),
+        "tradeoff_summary": tradeoff_summary,
+    }
+
+    if problem.reference_points:
+        for sol_dict in result["solutions"]:
+            sol_dict["vs_references"] = _compute_reference_analysis(
+                sol_dict["objective_values"], problem.reference_points, problem.objectives,
+            )
+
+    return result
+
+
+def get_scenario_results(problem: Problem) -> dict:
+    """Analyze per-scenario results: robust options, scenario-specific options, expected value."""
+    if not problem.scenario_run or not problem.scenario_run.scenario_runs:
+        raise ValueError("No scenario runs found. Use solve run_scenarios first.")
+    if not problem.scenario_config or not problem.scenario_config.scenarios:
+        raise ValueError("No scenario config found.")
+
+    scenario_runs = problem.scenario_run.scenario_runs
+    scenarios = {s.name: s for s in problem.scenario_config.scenarios}
+    opt_names = [o.name for o in problem.options]
+    obj_names = [o.name for o in problem.objectives]
+
+    # Per-scenario summaries
+    per_scenario = {}
+    for name, run in scenario_runs.items():
+        ranges = {}
+        for obj in obj_names:
+            vals = [s.objective_values.get(obj, 0) for s in run.solutions]
+            if vals:
+                ranges[obj] = {"min": min(vals), "max": max(vals)}
+        per_scenario[name] = {
+            "solution_count": len(run.solutions),
+            "objective_ranges": ranges,
+        }
+
+    # Robust options: appear in at least one Pareto solution in ALL scenarios
+    option_in_scenario = {}
+    for name, run in scenario_runs.items():
+        opts_in_any = set()
+        for sol in run.solutions:
+            opts_in_any.update(sol.selected_options)
+        option_in_scenario[name] = opts_in_any
+
+    all_scenario_names = list(scenario_runs.keys())
+    robust_options = []
+    scenario_specific = {}
+    for opt in opt_names:
+        present_in = [name for name in all_scenario_names if opt in option_in_scenario.get(name, set())]
+        if len(present_in) == len(all_scenario_names):
+            robust_options.append(opt)
+        elif len(present_in) > 0:
+            scenario_specific[opt] = present_in
+
+    # Expected value solution: probability-weighted average of best objective values
+    expected_values = {}
+    for obj in obj_names:
+        ev = 0.0
+        for name, run in scenario_runs.items():
+            prob = scenarios[name].probability
+            vals = [s.objective_values.get(obj, 0) for s in run.solutions]
+            if vals:
+                direction = next(o.direction.value for o in problem.objectives if o.name == obj)
+                best = max(vals) if direction == "maximize" else min(vals)
+                ev += prob * best
+        expected_values[obj] = round(ev, 4)
+
+    return {
+        "per_scenario": per_scenario,
+        "robust_options": sorted(robust_options),
+        "scenario_specific_options": scenario_specific,
+        "expected_values": expected_values,
+    }
 
 
 def _require_run(problem: Problem) -> Run:

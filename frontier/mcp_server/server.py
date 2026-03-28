@@ -14,13 +14,20 @@ from frontier.engine.models import (
     Approach,
     Constraint,
     CardinalityConstraint,
+    DependencyConstraint,
+    ExclusionPairConstraint,
     Feedback,
     ForceExcludeConstraint,
     ForceIncludeConstraint,
+    GroupLimitConstraint,
     Objective,
     ObjectiveBoundConstraint,
     Option,
     Problem,
+    ReferencePoint,
+    Scenario,
+    ScenarioConfig,
+    ScenarioRun,
     Score,
 )
 from frontier.engine.store import Store
@@ -82,6 +89,8 @@ def model(
     scores: list[dict] | None = None,
     constraints: list[dict] | None = None,
     approach: str | None = None,
+    reference_points: list[dict] | None = None,
+    scenario_config: dict | None = None,
 ) -> dict:
     """Build and modify the optimization problem.
 
@@ -92,7 +101,8 @@ def model(
       create  — Start a new problem. Params: name?, domain?, context?, approach?
       update  — Modify problem. Params: problem_id (required), plus any of:
                 name, domain, context, objectives, options, scores, constraints,
-                approach ("binary" or "proportional").
+                approach ("binary" or "proportional"),
+                reference_points (list of {type, name?, objective_values, selected_options?}).
                 Scores use merge semantics; everything else is full replacement.
       get     — Full problem state. Params: problem_id
       list    — All problems. No params.
@@ -103,6 +113,7 @@ def model(
             "problem_id": problem_id, "name": name, "domain": domain,
             "context": context, "objectives": objectives, "options": options,
             "scores": scores, "constraints": constraints, "approach": approach,
+            "reference_points": reference_points, "scenario_config": scenario_config,
         }.items() if v is not None
     }
     match action:
@@ -182,10 +193,19 @@ def _model_update(params: dict) -> dict:
         removed = old_names - new_names
         if removed:
             p.scores = [s for s in p.scores if s.option not in removed]
-            p.constraints = [
-                c for c in p.constraints
-                if not (c.type in ("force_include", "force_exclude") and c.option in removed)
-            ]
+
+            def _constraint_references_removed(c, removed_opts):
+                if c.type in ("force_include", "force_exclude") and c.option in removed_opts:
+                    return True
+                if c.type == "exclusion_pair" and (c.option_a in removed_opts or c.option_b in removed_opts):
+                    return True
+                if c.type == "dependency" and (c.if_option in removed_opts or c.then_option in removed_opts):
+                    return True
+                if c.type == "group_limit" and any(o in removed_opts for o in c.options):
+                    return True
+                return False
+
+            p.constraints = [c for c in p.constraints if not _constraint_references_removed(c, removed)]
         structural_change = True
 
     # Scores — merge semantics (upsert by option+objective)
@@ -217,6 +237,30 @@ def _model_update(params: dict) -> dict:
     if "approach" in params:
         p.approach = Approach(params["approach"])
         structural_change = True
+
+    # Scenario config
+    if "scenario_config" in params:
+        sc = params["scenario_config"]
+        if isinstance(sc, dict):
+            # Parse nested scenarios with score overrides
+            scenarios = []
+            for s in sc.get("scenarios", []):
+                overrides = [Score(**o) if isinstance(o, dict) else o for o in s.get("score_overrides", [])]
+                scenarios.append(Scenario(
+                    name=s["name"],
+                    probability=s["probability"],
+                    description=s.get("description", ""),
+                    score_overrides=overrides,
+                ))
+            p.scenario_config = ScenarioConfig(enabled=sc.get("enabled", True), scenarios=scenarios)
+        structural_change = True
+
+    # Reference points — full replacement (interpretive, no structural impact)
+    if "reference_points" in params:
+        p.reference_points = [
+            ReferencePoint(**rp) if isinstance(rp, dict) else rp
+            for rp in params["reference_points"]
+        ]
 
     # Mark results stale on structural change (preserve run for comparison)
     if structural_change:
@@ -288,6 +332,12 @@ def _parse_constraint(c: dict | Constraint) -> Constraint:
             return ForceExcludeConstraint(**c)
         case "objective_bound":
             return ObjectiveBoundConstraint(**c)
+        case "exclusion_pair":
+            return ExclusionPairConstraint(**c)
+        case "dependency":
+            return DependencyConstraint(**c)
+        case "group_limit":
+            return GroupLimitConstraint(**c)
         case _:
             raise ValueError(f"Unknown constraint type: {ctype}")
 
@@ -302,8 +352,9 @@ def solve(action: str, problem_id: str) -> dict:
     Read frontier://skills/optimization_strategy before running.
 
     Actions:
-      validate — Check if problem is ready. Returns issues and missing scores.
-      run      — Validate, then optimize. Returns full Pareto frontier inline.
+      validate       — Check if problem is ready. Returns issues and missing scores.
+      run            — Validate, then optimize. Returns full Pareto frontier inline.
+      run_scenarios  — Run optimization independently per scenario. Requires scenario_config.
     """
     try:
         p = store.load(problem_id)
@@ -316,8 +367,10 @@ def solve(action: str, problem_id: str) -> dict:
             return json.loads(vr.model_dump_json())
         case "run":
             return _solve_run(p)
+        case "run_scenarios":
+            return _solve_run_scenarios(p)
         case _:
-            return {"error": f"Unknown action: {action}. Use validate/run."}
+            return {"error": f"Unknown action: {action}. Use validate/run/run_scenarios."}
 
 
 def _solve_run(p: Problem) -> dict:
@@ -361,6 +414,34 @@ def _solve_run(p: Problem) -> dict:
     }
 
 
+def _solve_run_scenarios(p: Problem) -> dict:
+    vr = optimizer.validate(p)
+    if not vr.ready:
+        vr_data = json.loads(vr.model_dump_json())
+        return {"ready": False, "issues": vr_data["issues"]}
+
+    try:
+        scenario_results = optimizer.optimize_scenarios(p)
+    except ValueError as e:
+        return {"error": str(e)}
+
+    p.scenario_run = ScenarioRun(scenario_runs=scenario_results)
+    p.results_stale = False
+    store.save(p)
+
+    summary = {}
+    for name, run in scenario_results.items():
+        summary[name] = {
+            "solutions_found": len(run.solutions),
+            "quality": json.loads(run.quality.model_dump_json()),
+        }
+
+    return {
+        "scenarios_optimized": len(scenario_results),
+        "results": summary,
+    }
+
+
 # ─── Tool 3: explore ───
 
 
@@ -374,6 +455,9 @@ def explore(
     notes: str | None = None,
     stage: str | None = None,
     run_ids: list[str] | None = None,
+    custom_name: str | None = None,
+    content_signature: str | None = None,
+    signatures: list[str] | None = None,
 ) -> dict:
     """Navigate results after solving.
 
@@ -386,6 +470,12 @@ def explore(
       solution   — Single solution detail. Requires solution_id (int).
       feedback   — Record user feedback. Params: solution_id?, rating? (1-5), notes?, stage?
       compare_runs — Compare run history. Requires run_ids (list of 2+ run ID strings).
+      scenario_results — Per-scenario analysis: robust options, scenario-specific options, expected values.
+      curate     — Add solution to curated set. Params: solution_id, custom_name?, notes?
+      uncurate   — Remove from curated set. Params: content_signature.
+      rename_curated — Update name. Params: content_signature, custom_name.
+      curated    — List all curated solutions with survival status.
+      compare_curated — Compare curated solutions. Params: signatures (list of 2+ content_signature strings).
     """
     try:
         p = store.load(problem_id)
@@ -426,8 +516,49 @@ def explore(
                 return explorer.compare_runs(p, run_ids)
             except ValueError as e:
                 return {"error": str(e)}
+        case "scenario_results":
+            try:
+                return explorer.get_scenario_results(p)
+            except ValueError as e:
+                return {"error": str(e)}
+        case "curate":
+            if solution_id is None:
+                return {"error": "solution_id required for curate action."}
+            try:
+                result = explorer.curate_solution(p, solution_id, custom_name or "", notes or "")
+                store.save(p)
+                return result
+            except ValueError as e:
+                return {"error": str(e)}
+        case "uncurate":
+            if not content_signature:
+                return {"error": "content_signature required for uncurate action."}
+            try:
+                result = explorer.uncurate_solution(p, content_signature)
+                store.save(p)
+                return result
+            except ValueError as e:
+                return {"error": str(e)}
+        case "rename_curated":
+            if not content_signature or not custom_name:
+                return {"error": "content_signature and custom_name required for rename_curated."}
+            try:
+                result = explorer.rename_curated(p, content_signature, custom_name)
+                store.save(p)
+                return result
+            except ValueError as e:
+                return {"error": str(e)}
+        case "curated":
+            return explorer.list_curated(p)
+        case "compare_curated":
+            if not signatures or len(signatures) < 2:
+                return {"error": "signatures must contain at least 2 content_signature strings."}
+            try:
+                return explorer.compare_curated(p, signatures)
+            except ValueError as e:
+                return {"error": str(e)}
         case _:
-            return {"error": f"Unknown action: {action}. Use tradeoffs/compare/solutions/solution/feedback/compare_runs."}
+            return {"error": f"Unknown action: {action}."}
 
 
 def _explore_feedback(

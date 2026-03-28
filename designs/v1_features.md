@@ -1,204 +1,126 @@
 # Frontier v1 Features
 
-**Building on Phase 0 MVP toward a complete multi-objective portfolio optimization tool.**
+**Multi-objective portfolio optimization — from Phase 0 MVP to complete v1.**
 
-Version 1.0 · March 2026
+Version 1.1 · March 2026
 
 ---
 
 ## Status
 
-Phase 0 MVP is complete: binary optimization (NSGA-II), 3 MCP tools (`model`, `solve`, `explore`), 4 skills, JSON persistence, 150+ tests. Everything below builds on that foundation.
+**All [now] and [next] features are implemented, plus solution curation.** 192 tests passing, 550 eval checkpoint checks across 14 phases.
 
----
-
-## Feature Tiers
-
-### [now] — Implement immediately
-
-#### 1. Objective Aggregation
-
-Phase 0 hardcodes sum aggregation for all objectives. Real problems need different aggregation semantics.
-
-**Aggregation modes:**
-
-| Mode | Semantics | Example |
+| Tier | Features | Status |
 |---|---|---|
-| `sum` | Total across selected options | "Total revenue of selected features" |
-| `avg` | Average across selected options | "Average user satisfaction of selected features" |
-| `min` | Worst individual option in portfolio | "Minimum reliability across selected vendors" |
-| `max` | Best individual option in portfolio | "Peak performance of best selected component" |
+| **[now]** | Aggregation, proportional allocation, run comparison | ✅ Shipped |
+| **[next]** | New constraints, reference points, scenarios | ✅ Shipped |
+| **[now-2]** | Solution curation (content signatures, naming, cross-run survival) | ✅ Shipped |
+| **[later]** | Guided data collection | Design only |
+| **[later+]** | Algorithm routing | Design only |
 
-**Model change:** Add `aggregation` field to Objective (default: `sum` for backward compat).
-
-**Optimizer change:** Replace `F = X_bin @ score_matrix` with per-objective aggregation. Objective bound constraints must also respect the aggregation method.
-
-**Scope:** Models, optimizer, infeasibility analysis. Skills mention aggregation. Tests verify each mode.
+**Current counts:** 7 constraint types, 4 aggregation modes, 2 optimization approaches, 3 MCP tools (model/solve/explore with 20 total actions), 4 skills, scenario support, solution curation with content-based identity.
 
 ---
 
-#### 2. Proportional Allocation
+## What's Implemented
 
-Phase 0 supports binary selection only (pick K of N). Proportional mode enables resource allocation problems (distribute budget/effort/attention across N options).
+### Objective Aggregation ✅
 
-**How it works:**
-- Decision variables: integer percentages 0-100 per option, summing to 100
-- Objectives: computed from allocations × scores (for sum aggregation: weighted sum; for avg/min/max: applied over allocated options)
-- Solutions report both `selected_options` (allocation > 0) and `allocations` dict
+`Aggregation` enum on Objective: `sum` (default) | `avg` | `min` | `max`.
 
-**Constraint mapping in proportional mode:**
-
-| Constraint | Binary meaning | Proportional meaning |
+| Mode | Binary semantics | Proportional semantics |
 |---|---|---|
-| Cardinality (3-5) | Select 3-5 options | Allocate to 3-5 options (non-zero) |
-| Force include X | Must select X | Must allocate to X (> 0%) |
-| Force exclude X | Cannot select X | Must not allocate to X (0%) |
-| Objective bound | Portfolio total/avg/min/max ≤ value | Same, computed from allocations |
+| `sum` | Total of selected options' scores | Weighted sum: `sum(alloc% × score)` |
+| `avg` | Average of selected options' scores | Weighted average: `sum(alloc% × score) / sum(alloc%)` |
+| `min` | Worst score among selected options | Worst score among allocated options (alloc > 0) |
+| `max` | Best score among selected options | Best score among allocated options (alloc > 0) |
 
-**Model changes:** `Approach` enum on Problem (`binary` | `proportional`, default `binary`). `allocations` field on Solution.
+Objective bound constraints respect the aggregation method. Infeasibility analysis respects aggregation.
 
-**Optimizer changes:** New `_ProportionalProblem` pymoo class with continuous variables, SBX crossover, polynomial mutation. Sum-to-100 equality constraint.
+### Proportional Allocation ✅
 
-**Explorer changes:** Allocation-aware comparison (show percentage differences, not just set membership).
+`Approach` enum on Problem: `binary` (default) | `proportional`.
 
----
+Solutions in proportional mode include `allocations: dict[str, int]` — integer percentages (0-100) summing to 100. All 7 constraint types work in both modes. Explorer shows `allocation_comparison` in side-by-side comparisons.
 
-#### 3. Run Comparison (Iterative Solves)
+**Implementation:** `_ProportionalProblem` pymoo class with continuous variables [0, 100], SBX crossover, polynomial mutation, sum-to-100 equality constraint via paired inequalities.
 
-Phase 0 stores only the latest run and clears it on structural change. Iterative optimization — the core workflow — needs run history and comparison.
+### Run Comparison ✅
 
-**Changes:**
-- `results_stale` flag replaces clearing run on structural change
-- Run archival: previous runs stored in `runs` list on Problem
-- Each Run snapshots constraints at solve time
-- New `compare_runs` explore action
+- `results_stale` flag replaces destructive run clearing on structural changes
+- `Run.constraints_snapshot` captures constraints at solve time
+- `Problem.runs` stores archived run history
+- `explore compare_runs` action returns criteria diff, frontier diff, option coverage diff
 
-**Compare output:**
-- `criteria_diff`: constraints added, removed, or changed between runs
-- `frontier_diff`: solution count change, objective range changes
-- `option_coverage_diff`: which options gained/lost Pareto membership
+### Additional Constraint Types ✅
 
-**Skills impact:** `optimization_strategy` gets run comparison interpretation guidance. `solution_interpreter` gets run diff narration patterns.
+7 total constraint types (4 from Phase 0, 3 new):
 
----
+| Type | Fields | Binary encoding | Proportional encoding |
+|---|---|---|---|
+| `cardinality` | min, max | count(selected) in [min, max] | count(alloc > 0) in [min, max] |
+| `force_include` | option | x[i] >= 1 | alloc[i] > 0.5 |
+| `force_exclude` | option | x[i] <= 0 | alloc[i] < 0.5 |
+| `objective_bound` | objective, operator, value | agg(objective) ≤/≥ value | same |
+| `exclusion_pair` | option_a, option_b | x[a] + x[b] <= 1 | allocated(a) + allocated(b) <= 1 |
+| `dependency` | if_option, then_option | x[if] - x[then] <= 0 | allocated(if) - allocated(then) <= 0 |
+| `group_limit` | options[], max | sum(x[group]) <= max | count(allocated in group) <= max |
 
-### [next] — Design exists, implement after [now] features are validated
+All types validated in `validate()`, encoded as pymoo inequalities, and supported in `analyze_infeasibility()`. Server cascading handles option removal for all types.
 
-#### 4. Scenario Support
+### Reference Points ✅
 
-Per-scenario optimization answering: "Which portfolio holds up across different futures?"
+`ReferencePoint` model with type (`baseline` | `aspirational`), name, `objective_values` (partial OK), `selected_options` (baseline only).
 
-**Design (from v1 design doc):**
-- Define scenarios with probabilities (sum to 1.0)
-- Score overrides per scenario (only changed scores, base matrix fills rest)
-- Independent optimization per scenario
-- Probabilistic analysis: expected value solution, robust solution (minimax regret), robust options (in all frontiers), scenario-specific options
+- `explore tradeoffs` includes `balanced_vs_references` when reference points exist
+- `explore solution` includes `vs_references` with per-objective distance metrics (difference, percent, better/worse)
+- Set via `model update` with `reference_points` parameter — interpretive only, does not constrain optimizer
 
-**Tool integration:** Scenario config via `model update`, scenario optimization as `solve` action, scenario results via `explore`.
+### Scenario Support ✅
 
-**Open questions:**
-- Do scenarios get their own tool action or fold into existing actions?
-- How does run comparison interact with scenarios (compare across scenarios vs across runs)?
-- Scenario-specific constraints — needed, or too complex for v1?
+- `ScenarioConfig` with probability-weighted `Scenario` objects and `score_overrides`
+- `solve run_scenarios` runs optimization independently per scenario
+- `explore scenario_results` returns:
+  - `robust_options` — appear in Pareto frontier across all scenarios
+  - `scenario_specific_options` — strong in particular scenarios only
+  - `expected_values` — probability-weighted best objective values
+  - `per_scenario` — solution count and ranges per scenario
 
----
-
-#### 5. Additional Constraint Types
-
-Phase 0 has 4 constraint types. Real problems need more.
-
-| Type | Semantics | Example |
-|---|---|---|
-| `exclusion_pair` | Cannot select both A and B | "Can't do both Mobile App and Desktop App" |
-| `dependency` | If A then must include B | "API Access requires SSO Integration" |
-| `group_limit` | At most K from group G | "At most 2 features from the infrastructure category" |
-
-**Proportional mode mapping:**
-- Exclusion pair → can't allocate to both (at most one has allocation > 0)
-- Dependency → if allocation to A > 0, allocation to B must be > 0
-- Group limit → at most K options in group have allocation > 0
-
-**Open questions:**
-- Does the Constraint union type stay flat (add 3 more Pydantic models), or adopt a registry pattern?
-- How do these interact with infeasibility analysis? Each new type needs relaxation logic.
+Probabilities validated to sum to ~1.0.
 
 ---
 
-#### 6. Reference Points (Baseline + Aspirational)
+## Learnings
 
-Users need context for interpreting optimization results. Reference points provide anchors.
+### What worked well
 
-**Two types:**
-- **Baseline**: Status quo or current performance. "Our current system costs $75K and delivers 80% satisfaction." Grounds abstract numbers in familiar context.
-- **Aspirational**: Target or ideal outcome. "We want cost under $50K and satisfaction above 90%." Sets expectations and reveals tension between goals.
+1. **Flat constraint union.** Adding 3 new constraint types was mechanical — new Pydantic model, add to union, add case to `_parse_constraint`, add encoding to both problem classes, add validation, add infeasibility logic. The pattern scales without a registry. Keep it flat unless we hit 15+ types.
 
-**How they're used:**
-- Explorer presents solution performance relative to reference points: "This achieves 95% of your cost target and 80% of your satisfaction target"
-- Gap analysis: distance from aspirational point per objective reveals where goals are most in tension
-- If a solution achieves all aspirational points simultaneously, objectives may not truly conflict (or targets are too conservative)
-- Reference points do NOT constrain the optimizer — they're purely interpretive
+2. **Aggregation as a per-objective field** (not problem-level). Different objectives naturally need different aggregation — "total revenue" (sum) + "average satisfaction" (avg) in the same problem. This was the right granularity.
 
-**Model design:**
+3. **`_parse_constraints` returning a dict** (refactored from tuple). Made it trivial to add new constraint parameters — just add keys. The `**cp` unpacking into problem classes is clean.
 
-```
-ReferencePoint
-├── type: "baseline" | "aspirational"
-├── name: string (optional — e.g., "Current System", "Q4 Target")
-├── objective_values: dict[str, float]  (objective name → value, partial OK)
-├── selected_options: list[str] | None  (baseline only — the current portfolio)
-└── created_at: datetime
-```
+4. **Reference points as interpretive-only.** No optimizer coupling means no constraint interaction to debug. The explorer computes distances; the LLM interprets. Clean separation.
 
-Stored on Problem as `reference_points: list[ReferencePoint]`. Partial objective values are fine — not every objective needs a reference value.
+5. **Scenario support via score overrides.** Only storing changed scores keeps scenarios lightweight. Deep-copying the problem and overriding scores for each scenario run is simple and correct.
 
-**Key distinction:** A baseline can include a solution (the current portfolio) because it represents known reality. An aspirational point is objective values only — the optimal solution is unknown, that's the point of the optimization. Constraints describe directional solution requirements.
+6. **Skills as the contextual judgment layer.** The tool does arithmetic; the skill tells the LLM what to say about it. This held up across all new features — each required tool changes AND skill changes, confirming the architecture.
 
-**Tool integration:**
-- Set via `model update` (reference_points field)
-- `explore tradeoffs` includes distance-to-reference analysis when reference points exist
-- `explore solution` shows performance vs reference points for that solution
-- `explore compare` includes reference point context in tradeoff summary
+### What to watch
 
-**Skill integration:**
-- `problem_framing` encourages setting reference points during framing ("What's your current baseline? What would ideal look like?")
-- `solution_interpreter` uses reference points for contextualized presentation ("This solution is 15% better than your baseline on cost but 5% short of your quality target")
+1. **Proportional mode produces many solutions** (100+ on the Pareto frontier for small problems). The continuous search space is richer than binary. May need frontier pruning or a `max_solutions` parameter if this overwhelms the LLM context.
 
-**Open questions:**
-- Should reference points be per-objective (simpler) or full solution-shaped vectors (more expressive)?
-- How do reference points interact with scenarios? Different baselines per scenario?
-- Should the `explore` tool compute distance metrics automatically, or leave interpretation to the LLM via skills?
+2. **Scenario runs don't get archived.** `scenario_run` stores the latest per-scenario results, but there's no history. If the user changes scenarios and re-runs, old results are lost. Not urgent — scenario iteration is less common than constraint iteration.
 
----
+3. **`min`/`max` aggregation uses per-row loops** in the optimizer (not vectorizable via matrix multiply). Fine for ≤40 options and pop_size ≤200, but would need optimization for larger problems.
 
-### [later] — Validated need, design incomplete
+4. **Weighted avg in proportional mode** divides by `sum(fracs)`, which equals 1.0 when allocations sum to 100. This means weighted avg ≈ weighted sum for well-formed solutions. The distinction matters only for intermediate (infeasible) solutions during optimization. Verify this doesn't cause unexpected behavior during dogfooding.
 
-#### 7. Guided Data Collection
+5. **The `model` tool has 11 parameters now** (action, problem_id, name, domain, context, objectives, options, scores, constraints, approach, reference_points, scenario_config). Approaching complexity threshold. If more top-level fields are needed, consider grouping (e.g., a `config` parameter for approach + reference_points + scenario_config).
 
-The `data_collection` skill is instruction-only. "Guided" means the tool actively assists:
-- Suggest what to score next (highest-impact missing scores)
-- Auto-research researchable scores (pricing, benchmarks)
-- Track confidence per score
-- Sensitivity analysis: which scores, if changed, would most affect the frontier
+6. **Curation as preference bridge.** Curation is not just bookmarking — it's a preference alignment mechanism between agent and user. What gets curated reflects real-world considerations that may not be in the data: political viability, team capacity, strategic timing. Across runs, scenarios, and even problems, the curated set is the strongest signal of what the user actually values. The `solution_interpreter` skill now treats curation choices as preference evidence.
 
-**Depends on:** Scenario support (sensitivity analysis connects naturally), reference points (confidence calibration against baselines).
-
----
-
-### [later+] — Known direction, low urgency
-
-#### 8. Algorithm Routing
-
-NSGA-II handles 2-6 objectives. Beyond that:
-
-| Objectives | Algorithm | Why |
-|---|---|---|
-| 2-3 | NSGA-II | Crowding distance works, tradeoffs intuitive |
-| 4-7 | NSGA-III | Reference points prevent clustering at extremes |
-| 8+ | MOEA/D | Dominance becomes rare, decomposition more efficient |
-
-The `optimization_strategy` skill already describes this routing. Engine-side it's algorithm selection based on objective count — mechanical, testable, low risk.
-
-**Depends on:** Problems with 4+ objectives from dogfooding. Don't add complexity without demonstrated need.
+7. **Skill gap closed: objective ranking and dominance.** The `solution_interpreter` previously had strong preference *observation* (watching patterns) but weak *elicitation* (actively probing). Added: progressive narrowing (probe → rank → filter → curate), marginal tradeoff questions ("how much effort for $50K more?"), strict and preference-conditional dominance explanation. This drives users from raw frontier to named shortlist.
 
 ---
 
@@ -213,77 +135,104 @@ The `optimization_strategy` skill already describes this routing. Engine-side it
 | Proportional cardinality | Count of non-zero allocations | Natural mapping from binary semantics |
 | Min allocation threshold | Zero (any > 0 counts) | Simple; min_allocation as future constraint |
 | Reference points | Interpretive only, not optimizer constraints | Clean separation — constraints constrain, reference points contextualize |
+| Constraint union | Flat (7 Pydantic models) | Pattern scales; no registry needed yet |
+| Proportional avg | Weighted by allocation % | 60% allocation should influence average more than 10% |
+| Hybrid approach | No — one per problem | Keep binary and proportional mutually exclusive |
+| Baseline model | Objective values + optional selected_options | Baselines are known reality; aspirational is target vector only |
+| Scenario actions | Folded into existing tools | `solve run_scenarios`, `explore scenario_results` — no new tool |
+| Solution identity | Content-based signatures (MD5 of composition) | Stable across re-runs, enables curation persistence and cross-run tracking |
+| Curation persistence | Survives re-solves, cleared on structural problem changes | Composition still valid after score changes; stale objective values recomputed on access |
+| Curation as signal | Treat curated choices as preference evidence | Reveals real-world considerations not in scores — political, strategic, intuitive |
 
 ---
 
 ## Resolved Questions
 
-| # | Question | Decision | Rationale |
-|---|---|---|---|
-| 1 | Proportional avg aggregation | **Weighted average** (by allocation %) | Properly represents proportional contribution — an option with 60% allocation should influence the average more than one with 10% |
-| 2 | Min allocation threshold | **Depends on constraints** — no built-in minimum | Users control this via cardinality constraints. If trivial allocations appear, tighten cardinality. A future `min_allocation` constraint type could be added in [next] |
-| 3 | Hybrid approach | **No** — one approach per problem | Keep binary and proportional mutually exclusive. Simplifies model and UX |
-| 4 | Run history limits | **Not an issue yet** | Monitor during dogfooding. JSON files are small |
-| 5 | Reference point model | **Baseline**: objective values + optionally a solution (selected options). **Aspirational**: objective values only — the optimal solution is unknown, that's the point of optimization. Constraints describe directional solution requirements | Baseline grounds results in current reality (which may be a known portfolio). Aspirational is a target vector, not a solution |
-
-## Remaining Open Questions
-
-### Reference points (implementation details for [next])
-
-6. **Automatic distance computation**: Should `explore tradeoffs` automatically compute and return distance-to-reference metrics, or just return reference points for the LLM to interpret? Leaning toward automatic — the LLM shouldn't do arithmetic.
-
-7. **Baseline solution field**: The baseline can optionally include a solution (selected options or allocations) to compare against Pareto solutions. Should this be a full Solution object, or just a list of option names? Leaning toward lightweight (just option names + objective values).
-
-### Architecture
-
-8. **REST API**: The v1 design doc envisions 24 REST endpoints. Is this needed, or is MCP + importable Python library sufficient? Leaning toward: skip REST, invest in MCP quality. Add REST only if a non-LLM client appears.
-
-9. **Store abstraction**: Current JSON-per-file store works. If run history grows large or proportional mode produces many solutions, may need revisiting. Monitor during dogfooding.
+| # | Question | Decision |
+|---|---|---|
+| 1 | Proportional avg aggregation | Weighted average (by allocation %) |
+| 2 | Min allocation threshold | Depends on constraints — no built-in minimum |
+| 3 | Hybrid approach | No — one approach per problem |
+| 4 | Run history limits | Not an issue yet |
+| 5 | Reference point model | Baseline: objective values + optional solution. Aspirational: objective values only |
+| 6 | Automatic distance computation | Yes — explorer computes per-objective distances automatically |
+| 7 | Baseline solution field | Lightweight: list of option names + objective values (not a full Solution object) |
+| 8 | Constraint union pattern | Stay flat — 7 types is fine, would reconsider at 15+ |
+| 9 | Scenario tool integration | Fold into existing tools (solve/explore actions), not separate tool |
+| 10 | Proportional frontier size | OK — agent must identify inflection points and diverse strategies. Present single-digit curated set, never all 100+ |
+| 11 | Scenario run archival | Keep latest run per active scenario — no deep archival needed |
+| 12 | Model tool parameter count | Acceptable for now. Revisit if it grows further |
+| 13 | Score confidence metadata | No — optimizer should not use it. Pure metadata if ever added |
+| 14 | REST API | Skip. MCP + Python library sufficient |
+| 15 | Store abstraction | Keep JSON-per-file. Simplest option |
 
 ---
 
-## Interaction Map: Features × Components
+## Open Questions
 
-Shows which components each feature touches. Features must update both tools AND skills.
+1. **Curated solution invalidation on score changes.** When scores change (not structure), curated solutions' objective values are stale but composition is still valid. Current behavior: keep curated set. Could recompute objective values from current scores on next `explore curated` call. Not urgent — scores rarely change without re-solving.
 
-| Feature | models | optimizer | explorer | server | problem_framing | data_collection | optimization_strategy | solution_interpreter | tests |
-|---|---|---|---|---|---|---|---|---|---|
-| Aggregation | Objective.aggregation | _evaluate per-obj | — | pass-through | aggregation guidance | scoring implications | already mentioned | aggregation framing | new test class |
-| Proportional | Approach enum, Solution.allocations | new Problem class | allocation comparison | approach param | approach selection | — | proportional strategy | allocation presentation | new test file |
-| Run comparison | Run.constraints_snapshot, Problem.runs, results_stale | snapshot stamp | compare_runs | new action, stale flag | — | — | run comparison interp | run diff narration | new test class |
-| Scenarios | ScenarioConfig, overrides | per-scenario runs | probabilistic analysis | scenario actions | scenario guidance | override scoring | scenario strategy | scenario presentation | new test file |
-| New constraints | 3 new constraint types | pymoo encoding | — | parse + validate | constraint language | — | constraint strategy | — | constraint tests |
-| Reference points | ReferencePoint model | — | distance metrics | reference actions | encourage setting | — | — | contextualized presentation | reference tests |
-| Guided data | confidence on Score | — | sensitivity | suggestion action | — | major rewrite | — | confidence narration | data tests |
-| Algorithm routing | — | algorithm selection | — | — | — | — | already described | — | routing tests |
+2. **Max curated set size.** No hard limit currently. Soft warning at 10-15? Dogfood first.
+
+3. **Curated solution export.** Curated set is the natural unit of export/sharing. JSON exists via `explore curated`. Consider structured summary for presentation contexts.
 
 ---
 
-## Implementation Phases
+## What's Next
 
-### Phase A: Foundations (implement now, high confidence)
+### Solution Curation ✅
 
-1. Objective aggregation — small scope, high correctness impact
-2. Run history + stale flag — enables iterative workflow
-3. Run comparison — completes the iteration loop
-4. Proportional allocation — new problem class + constraint adaptation + explorer updates
+Content-based solution identity + accumulative curation across runs. Inspired by the decision assistant v2 model.
 
-### Phase B: Skills + validation (implement after Phase A)
+**Content signatures:** Every solution gets a stable 12-char MD5 hash of its composition (sorted selected_options for binary, sorted allocation pairs for proportional). Survives re-indexing across runs. Enables duplicate detection, cross-run tracking, and name persistence.
 
-5. Update all 4 skills for new capabilities
-6. Update eval checkpoint with new test phases
-7. Run full test suite + manual MCP validation
+**CuratedSolution model:** content_signature, custom_name, selected_options, allocations, objective_values, curated_at, source_run_id, notes. Stored on Problem as `curated_solutions: list[CuratedSolution]`.
 
-### Phase C: Review checkpoint
+**5 new explore actions:** `curate`, `uncurate`, `rename_curated`, `curated`, `compare_curated`.
 
-Pause. Review open questions. Dogfood with real problems. Let friction inform [next] priorities.
+**Cross-run survival:** `explore curated` returns `in_current_frontier` for each curated solution — whether it still appears in the latest run. Curated solutions persist even when eliminated by constraints (flagged, not deleted).
 
-### Phase D: [next] features (after review)
+**Curation as preference signal:** What a user curates reveals real-world considerations not captured in scores or constraints — political viability, team enthusiasm, strategic alignment. The `solution_interpreter` skill treats curation choices as evidence of actual priorities, potentially more reliable than stated objective weights. When a user curates a suboptimal solution, the skill probes why — that's signal.
 
-8. Reference points
-9. Additional constraint types
-10. Scenario support
+**Skill updates:**
+- `solution_interpreter`: objective ranking elicitation (progressive narrowing from frontier to shortlist), dominance explanation (strict and preference-conditional), curation coaching (guide to named shortlist of 3-5), presentation framing (curated set IS the decision set)
+- `optimization_strategy`: curated solution survival reporting after re-solves
 
 ---
 
-*This document is a living reference. Update as decisions are made and questions are resolved.*
+### [later] — Guided Data Collection
+
+The `data_collection` skill is instruction-only. "Guided" means the tool actively assists:
+- Suggest what to score next (highest-impact missing scores)
+- Auto-research researchable scores (pricing, benchmarks)
+- Track confidence per score
+- Sensitivity analysis: which scores, if changed, would most affect the frontier
+
+**Depends on:** Dogfooding to validate that score collection is actually the bottleneck.
+
+### [later+] — Algorithm Routing
+
+NSGA-II handles 2-6 objectives. NSGA-III for 4-7, MOEA/D for 8+. The `optimization_strategy` skill already describes this. Engine-side it's mechanical routing by objective count.
+
+**Depends on:** Problems with 4+ objectives from dogfooding.
+
+---
+
+## Test Coverage
+
+| Test file | Focus | Count |
+|---|---|---|
+| test_optimizer.py | Validation, NSGA-II, infeasibility, aggregation, new constraints | 38 |
+| test_proportional.py | Proportional allocation, constraints, quality | 11 |
+| test_server.py | MCP tool handlers, run history, reference points, scenarios, curation | 61 |
+| test_explorer.py | Tradeoffs, comparisons, frontier navigation | ~20 |
+| test_metrics.py | All metric layers, diagnostics | ~40 |
+| test_models.py | Serialization round-trips | ~10 |
+| test_store.py | JSON persistence | ~10 |
+| eval_checkpoint.py | 14-phase end-to-end workflow | 550 checks |
+
+**Total: 192 pytest tests, 550 eval checks, 0 failures.**
+
+---
+
+*Last updated: March 2026. Living document — update as decisions are made and dogfooding reveals friction.*
