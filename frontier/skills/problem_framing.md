@@ -51,6 +51,38 @@ Users often reveal objectives indirectly. Watch for these trigger phrases:
 - Always ask about the status quo / "do nothing" option.
 - 3-5 options is a comparison, not an optimization. 6-20 is the sweet spot. 30+ means they haven't filtered enough.
 
+### Approach Selection
+
+Frontier supports two optimization approaches. Determine which fits early — it shapes how the entire problem is modeled.
+
+| Approach | When to use | User language signals |
+|---|---|---|
+| **Binary** (default) | Select a subset: "pick K of N" | "which features", "choose", "select", "include/exclude" |
+| **Proportional** | Allocate resources: "distribute across N" | "how much", "allocate", "budget split", "percentage", "weight" |
+
+**Decision heuristic**: If the user is asking "which ones?" it's binary. If they're asking "how much of each?" it's proportional.
+
+Set the approach on the problem via `model create` or `model update` with `approach: "binary"` or `approach: "proportional"`.
+
+**Proportional mode specifics:**
+- Solutions assign integer percentages (0-100) to each option, summing to 100
+- Cardinality constraints limit the count of options that receive non-zero allocation
+- Force include means "must allocate something to this option"
+- Force exclude means "zero allocation to this option"
+
+### Aggregation
+
+Each objective has an aggregation mode that determines how individual option scores combine into a portfolio score. Choose the mode that matches the objective's real-world semantics:
+
+| Mode | Meaning | When to use |
+|---|---|---|
+| `sum` (default) | Total across selected options | Revenue, cost, effort — additive quantities |
+| `avg` | Average across selected options | Satisfaction, quality — portfolio consistency matters |
+| `min` | Worst individual option score | Reliability, security — weakest link matters |
+| `max` | Best individual option score | Peak performance, showcase capability |
+
+**Most objectives use sum.** Only change aggregation when the semantics genuinely differ. Ask: *"Does picking more options increase this value (sum), or does the portfolio quality depend on its weakest member (min) or average (avg)?"*
+
 ### Scope Calibration
 - Is this actually a portfolio selection problem? "Pick K of N" or "allocate across N" — if neither fits, this might not need Frontier.
 - If the user describes a ranking problem, suggest they just rank directly. Optimization adds value when there are genuine tradeoffs.

@@ -95,12 +95,24 @@ def compare_solutions(problem: Problem, solution_ids: list[int]) -> dict:
             "range": [min(all_vals), max(all_vals)],
         }
 
-    return {
+    result = {
         "solutions": [s.model_dump() for s in selected],
         "shared_options": sorted(shared),
         "differentiating_options": sorted(differentiating),
         "tradeoff_summary": tradeoff_summary,
     }
+
+    # Allocation comparison for proportional mode
+    if any(s.allocations for s in selected):
+        alloc_comparison = {}
+        for opt in sorted(all_options):
+            alloc_comparison[opt] = {
+                f"solution_{s.solution_id}": (s.allocations or {}).get(opt, 0)
+                for s in selected
+            }
+        result["allocation_comparison"] = alloc_comparison
+
+    return result
 
 
 def get_solutions(problem: Problem) -> dict:
@@ -120,6 +132,82 @@ def get_solution(problem: Problem, solution_id: int) -> dict:
         if s.solution_id == solution_id:
             return s.model_dump()
     raise ValueError(f"Solution {solution_id} not found in current run.")
+
+
+def compare_runs(problem: Problem, run_ids: list[str]) -> dict:
+    """Compare two or more runs: constraint diffs, frontier diffs, option coverage."""
+    all_runs = {r.run_id: r for r in problem.runs}
+    if problem.run:
+        all_runs[problem.run.run_id] = problem.run
+
+    selected_runs = []
+    for rid in run_ids:
+        if rid not in all_runs:
+            raise ValueError(f"Run {rid} not found. Available: {list(all_runs.keys())}")
+        selected_runs.append(all_runs[rid])
+
+    obj_names = [o.name for o in problem.objectives]
+
+    # Criteria diff: compare constraint snapshots between runs
+    criteria_diffs = []
+    for i in range(1, len(selected_runs)):
+        prev_snap = selected_runs[i - 1].constraints_snapshot
+        curr_snap = selected_runs[i].constraints_snapshot
+        prev_set = {_constraint_key(c) for c in prev_snap}
+        curr_set = {_constraint_key(c) for c in curr_snap}
+        added = [c for c in curr_snap if _constraint_key(c) not in prev_set]
+        removed = [c for c in prev_snap if _constraint_key(c) not in curr_set]
+        criteria_diffs.append({
+            "from_run": selected_runs[i - 1].run_id,
+            "to_run": selected_runs[i].run_id,
+            "added": added,
+            "removed": removed,
+        })
+
+    # Frontier diff: solution count and objective range changes
+    frontier_diffs = []
+    for run in selected_runs:
+        ranges = {}
+        for name in obj_names:
+            vals = [s.objective_values.get(name, 0) for s in run.solutions]
+            if vals:
+                ranges[name] = {"min": min(vals), "max": max(vals)}
+            else:
+                ranges[name] = {"min": None, "max": None}
+        frontier_diffs.append({
+            "run_id": run.run_id,
+            "solution_count": len(run.solutions),
+            "objective_ranges": ranges,
+            "created_at": run.created_at.isoformat(),
+        })
+
+    # Option coverage diff: how many solutions include each option per run
+    option_coverage = {}
+    opt_names = [o.name for o in problem.options]
+    for run in selected_runs:
+        coverage = {}
+        for opt in opt_names:
+            coverage[opt] = sum(1 for s in run.solutions if opt in s.selected_options)
+        option_coverage[run.run_id] = coverage
+
+    return {
+        "runs_compared": [r.run_id for r in selected_runs],
+        "criteria_diffs": criteria_diffs,
+        "frontier_diffs": frontier_diffs,
+        "option_coverage": option_coverage,
+    }
+
+
+def _constraint_key(c: dict) -> str:
+    """Stable string key for a constraint dict, for comparison."""
+    ctype = c.get("type", "")
+    if ctype == "cardinality":
+        return f"cardinality:{c.get('min')}:{c.get('max')}"
+    elif ctype in ("force_include", "force_exclude"):
+        return f"{ctype}:{c.get('option')}"
+    elif ctype == "objective_bound":
+        return f"objective_bound:{c.get('objective')}:{c.get('operator')}:{c.get('value')}"
+    return str(c)
 
 
 def _require_run(problem: Problem) -> Run:

@@ -6,11 +6,15 @@ import numpy as np
 from pymoo.algorithms.moo.nsga2 import NSGA2
 from pymoo.core.problem import Problem as PymooProblem
 from pymoo.operators.crossover.pntx import TwoPointCrossover
+from pymoo.operators.crossover.sbx import SBX
 from pymoo.operators.mutation.bitflip import BitflipMutation
-from pymoo.operators.sampling.rnd import BinaryRandomSampling
+from pymoo.operators.mutation.pm import PM
+from pymoo.operators.sampling.rnd import BinaryRandomSampling, FloatRandomSampling
 from pymoo.optimize import minimize as pymoo_minimize
 
 from .models import (
+    Aggregation,
+    Approach,
     BoundOperator,
     Problem,
     QualityIndicators,
@@ -126,34 +130,17 @@ def validate(problem: Problem) -> ValidationResult:
     return ValidationResult(ready=ready, issues=issues, missing_scores=missing_scores)
 
 
-def optimize(problem: Problem) -> Run:
-    """Validate and run NSGA-II. Returns a Run with solutions."""
-    vr = validate(problem)
-    if not vr.ready:
-        raise ValueError(f"Problem not ready: {[i.message for i in vr.issues]}")
-
-    n_options = len(problem.options)
+def _parse_constraints(problem: Problem) -> tuple:
+    """Extract constraint parameters from problem. Shared by binary and proportional."""
     opt_names = [o.name for o in problem.options]
     obj_list = problem.objectives
+    opt_index = {name: i for i, name in enumerate(opt_names)}
 
-    # Build score lookup: score_matrix[opt_idx][obj_idx] = value
-    score_map: dict[tuple[str, str], float] = {}
-    for s in problem.scores:
-        score_map[(s.option, s.objective)] = s.value
-
-    score_matrix = np.zeros((n_options, len(obj_list)))
-    for i, opt in enumerate(opt_names):
-        for j, obj in enumerate(obj_list):
-            score_matrix[i, j] = score_map[(opt, obj.name)]
-
-    # Parse constraints
     forced_in_idx = set()
     forced_out_idx = set()
     cardinality_min = 1
-    cardinality_max = n_options
+    cardinality_max = len(opt_names)
     obj_bounds: list[tuple[int, BoundOperator, float]] = []
-
-    opt_index = {name: i for i, name in enumerate(opt_names)}
 
     for c in problem.constraints:
         if c.type == "force_include":
@@ -164,31 +151,58 @@ def optimize(problem: Problem) -> Run:
             cardinality_min = c.min
             cardinality_max = c.max
         elif c.type == "objective_bound":
-            obj_idx = next(
-                j for j, o in enumerate(obj_list) if o.name == c.objective
-            )
+            obj_idx = next(j for j, o in enumerate(obj_list) if o.name == c.objective)
             obj_bounds.append((obj_idx, c.operator, c.value))
 
-    # Build pymoo problem
+    return forced_in_idx, forced_out_idx, cardinality_min, cardinality_max, obj_bounds
+
+
+def _build_score_matrix(problem: Problem) -> np.ndarray:
+    """Build score_matrix[opt_idx][obj_idx] from problem scores."""
+    opt_names = [o.name for o in problem.options]
+    obj_list = problem.objectives
+    score_map = {(s.option, s.objective): s.value for s in problem.scores}
+    matrix = np.zeros((len(opt_names), len(obj_list)))
+    for i, opt in enumerate(opt_names):
+        for j, obj in enumerate(obj_list):
+            matrix[i, j] = score_map[(opt, obj.name)]
+    return matrix
+
+
+def optimize(problem: Problem) -> Run:
+    """Validate and run NSGA-II. Returns a Run with solutions."""
+    vr = validate(problem)
+    if not vr.ready:
+        raise ValueError(f"Problem not ready: {[i.message for i in vr.issues]}")
+
+    if problem.approach == Approach.proportional:
+        return _optimize_proportional(problem)
+    return _optimize_binary(problem)
+
+
+def _optimize_binary(problem: Problem) -> Run:
+    """Binary mode: pick K of N options."""
+    n_options = len(problem.options)
+    opt_names = [o.name for o in problem.options]
+    obj_list = problem.objectives
+    score_matrix = _build_score_matrix(problem)
+    forced_in, forced_out, card_min, card_max, obj_bounds = _parse_constraints(problem)
+
     pymoo_problem = _FrontierProblem(
         n_options=n_options,
         score_matrix=score_matrix,
         objectives=obj_list,
-        forced_in=forced_in_idx,
-        forced_out=forced_out_idx,
-        cardinality_min=cardinality_min,
-        cardinality_max=cardinality_max,
+        forced_in=forced_in,
+        forced_out=forced_out,
+        cardinality_min=card_min,
+        cardinality_max=card_max,
         obj_bounds=obj_bounds,
     )
 
-    # Scale parameters based on problem size
-    # Spec: pop_size=100, n_gen=200 for ≤20 options; scale up for more
     if n_options <= 20:
-        pop_size = 100
-        n_gen = 200
+        pop_size, n_gen = 100, 200
     else:
-        pop_size = n_options * 5
-        n_gen = n_options * 10
+        pop_size, n_gen = n_options * 5, n_options * 10
 
     algorithm = NSGA2(
         pop_size=pop_size,
@@ -199,39 +213,99 @@ def optimize(problem: Problem) -> Run:
     )
 
     result = pymoo_minimize(
-        pymoo_problem,
-        algorithm,
-        ("n_gen", n_gen),
-        seed=42,
-        verbose=False,
+        pymoo_problem, algorithm, ("n_gen", n_gen), seed=42, verbose=False,
     )
 
-    # Extract solutions
     solutions: list[Solution] = []
     if result.F is not None and len(result.F) > 0:
         for idx, (x, f) in enumerate(zip(result.X, result.F)):
             selected = [opt_names[i] for i in range(n_options) if x[i] > 0.5]
             obj_values = {}
             for j, obj in enumerate(obj_list):
-                # pymoo minimizes, so we negated maximize objectives — reverse it
                 val = -f[j] if obj.direction.value == "maximize" else f[j]
                 obj_values[obj.name] = round(float(val), 4)
+            solutions.append(Solution(
+                solution_id=idx, selected_options=selected, objective_values=obj_values,
+            ))
+
+    solutions = _sort_and_reindex(solutions, obj_list)
+    return Run(solutions=solutions, quality=_compute_quality(result))
+
+
+def _optimize_proportional(problem: Problem) -> Run:
+    """Proportional mode: allocate integer percentages (0-100, sum to 100)."""
+    n_options = len(problem.options)
+    opt_names = [o.name for o in problem.options]
+    obj_list = problem.objectives
+    score_matrix = _build_score_matrix(problem)
+    forced_in, forced_out, card_min, card_max, obj_bounds = _parse_constraints(problem)
+
+    pymoo_problem = _ProportionalProblem(
+        n_options=n_options,
+        score_matrix=score_matrix,
+        objectives=obj_list,
+        forced_in=forced_in,
+        forced_out=forced_out,
+        cardinality_min=card_min,
+        cardinality_max=card_max,
+        obj_bounds=obj_bounds,
+    )
+
+    if n_options <= 20:
+        pop_size, n_gen = 150, 300
+    else:
+        pop_size, n_gen = n_options * 8, n_options * 15
+
+    algorithm = NSGA2(
+        pop_size=pop_size,
+        sampling=FloatRandomSampling(),
+        crossover=SBX(prob=0.9, eta=15),
+        mutation=PM(eta=20),
+        eliminate_duplicates=True,
+    )
+
+    result = pymoo_minimize(
+        pymoo_problem, algorithm, ("n_gen", n_gen), seed=42, verbose=False,
+    )
+
+    solutions: list[Solution] = []
+    if result.F is not None and len(result.F) > 0:
+        for idx, (x, f) in enumerate(zip(result.X, result.F)):
+            # Round to integers and normalize to sum to 100
+            raw = np.maximum(np.round(x), 0).astype(int)
+            # Redistribute rounding error to largest allocation
+            diff = 100 - raw.sum()
+            if diff != 0 and raw.max() > 0:
+                raw[np.argmax(raw)] += diff
+
+            allocs = {opt_names[i]: int(raw[i]) for i in range(n_options)}
+            selected = [opt_names[i] for i in range(n_options) if raw[i] > 0]
+
+            obj_values = {}
+            for j, obj in enumerate(obj_list):
+                val = -f[j] if obj.direction.value == "maximize" else f[j]
+                obj_values[obj.name] = round(float(val), 4)
+
             solutions.append(Solution(
                 solution_id=idx,
                 selected_options=selected,
                 objective_values=obj_values,
+                allocations=allocs,
             ))
 
-    # Sort by first objective value
+    solutions = _sort_and_reindex(solutions, obj_list)
+    return Run(solutions=solutions, quality=_compute_quality(result))
+
+
+def _sort_and_reindex(solutions: list[Solution], obj_list: list) -> list[Solution]:
+    """Sort solutions by first objective and reindex."""
     if solutions and obj_list:
         first_obj = obj_list[0].name
         reverse = obj_list[0].direction.value == "maximize"
         solutions.sort(key=lambda s: s.objective_values.get(first_obj, 0), reverse=reverse)
-        # Re-index after sort
         for i, s in enumerate(solutions):
             s.solution_id = i
-
-    run = Run(solutions=solutions, quality=_compute_quality(result))
+    return solutions
     return run
 
 
@@ -271,14 +345,48 @@ class _FrontierProblem(PymooProblem):
         self.cardinality_max = cardinality_max
         self.obj_bounds = obj_bounds
 
+    def _aggregate_objective(self, X_bin: np.ndarray, j: int) -> np.ndarray:
+        """Compute objective j values for all population members using the correct aggregation."""
+        agg = self.objectives[j].aggregation
+        n_pop = X_bin.shape[0]
+
+        if agg == Aggregation.sum:
+            return X_bin @ self.score_matrix[:, j]
+        elif agg == Aggregation.avg:
+            sums = X_bin @ self.score_matrix[:, j]
+            counts = np.maximum(X_bin.sum(axis=1), 1.0)  # avoid div by zero
+            return sums / counts
+        elif agg == Aggregation.min:
+            vals = np.full(n_pop, np.inf)
+            for i in range(n_pop):
+                selected = X_bin[i] > 0.5
+                if selected.any():
+                    vals[i] = self.score_matrix[selected, j].min()
+                else:
+                    vals[i] = 0.0
+            return vals
+        elif agg == Aggregation.max:
+            vals = np.full(n_pop, -np.inf)
+            for i in range(n_pop):
+                selected = X_bin[i] > 0.5
+                if selected.any():
+                    vals[i] = self.score_matrix[selected, j].max()
+                else:
+                    vals[i] = 0.0
+            return vals
+        else:
+            return X_bin @ self.score_matrix[:, j]  # fallback to sum
+
     def _evaluate(self, X, out, *args, **kwargs):
         # Round to binary
         X_bin = (X > 0.5).astype(float)
         n_pop = X_bin.shape[0]
+        n_obj = len(self.objectives)
 
-        # Objectives: portfolio score for each objective
-        # F[i, j] = sum of score_matrix[k, j] for selected options k
-        F = X_bin @ self.score_matrix  # (n_pop, n_obj)
+        # Objectives: compute per-objective using aggregation method
+        F = np.zeros((n_pop, n_obj))
+        for j in range(n_obj):
+            F[:, j] = self._aggregate_objective(X_bin, j)
 
         # pymoo minimizes — negate maximize objectives
         for j, obj in enumerate(self.objectives):
@@ -303,13 +411,128 @@ class _FrontierProblem(PymooProblem):
         for i in self.forced_out:
             G.append(X_bin[:, i])
 
-        # Objective bounds
+        # Objective bounds — use same aggregation as the objective
         for obj_idx, operator, value in self.obj_bounds:
-            obj_vals = X_bin @ self.score_matrix[:, obj_idx]
+            obj_vals = self._aggregate_objective(X_bin, obj_idx)
             if operator == BoundOperator.max:
                 G.append(obj_vals - value)  # val <= max → val - max <= 0
             else:  # min
                 G.append(value - obj_vals)  # val >= min → min - val <= 0
+
+        out["G"] = np.column_stack(G) if G else np.zeros((n_pop, 0))
+
+
+class _ProportionalProblem(PymooProblem):
+    """pymoo problem wrapper for proportional allocation (0-100 percentages)."""
+
+    def __init__(
+        self,
+        n_options: int,
+        score_matrix: np.ndarray,
+        objectives: list,
+        forced_in: set[int],
+        forced_out: set[int],
+        cardinality_min: int,
+        cardinality_max: int,
+        obj_bounds: list[tuple[int, BoundOperator, float]],
+    ):
+        # Constraints: sum=100 (2 ineq), cardinality (2), forced in/out, obj bounds
+        n_ieq = 2 + 2 + len(forced_in) + len(forced_out) + len(obj_bounds)
+
+        super().__init__(
+            n_var=n_options,
+            n_obj=len(objectives),
+            n_ieq_constr=n_ieq,
+            xl=0,
+            xu=100,
+        )
+        self.score_matrix = score_matrix
+        self.objectives = objectives
+        self.forced_in = forced_in
+        self.forced_out = forced_out
+        self.cardinality_min = cardinality_min
+        self.cardinality_max = cardinality_max
+        self.obj_bounds = obj_bounds
+
+    def _aggregate_objective(self, X: np.ndarray, j: int) -> np.ndarray:
+        """Compute objective j for proportional allocations."""
+        agg = self.objectives[j].aggregation
+        n_pop = X.shape[0]
+        # Fractions: allocation / 100
+        fracs = X / 100.0
+
+        if agg == Aggregation.sum:
+            # Weighted sum: sum(frac_k * score_k)
+            return fracs @ self.score_matrix[:, j]
+        elif agg == Aggregation.avg:
+            # Weighted average: sum(frac_k * score_k) / sum(frac_k) where frac_k > 0
+            weighted_sums = fracs @ self.score_matrix[:, j]
+            total_fracs = np.maximum(fracs.sum(axis=1), 0.01)  # avoid div by zero
+            return weighted_sums / total_fracs
+        elif agg == Aggregation.min:
+            vals = np.full(n_pop, np.inf)
+            for i in range(n_pop):
+                selected = X[i] > 0.5
+                if selected.any():
+                    vals[i] = self.score_matrix[selected, j].min()
+                else:
+                    vals[i] = 0.0
+            return vals
+        elif agg == Aggregation.max:
+            vals = np.full(n_pop, -np.inf)
+            for i in range(n_pop):
+                selected = X[i] > 0.5
+                if selected.any():
+                    vals[i] = self.score_matrix[selected, j].max()
+                else:
+                    vals[i] = 0.0
+            return vals
+        else:
+            return fracs @ self.score_matrix[:, j]
+
+    def _evaluate(self, X, out, *args, **kwargs):
+        n_pop = X.shape[0]
+        n_obj = len(self.objectives)
+
+        # Objectives
+        F = np.zeros((n_pop, n_obj))
+        for j in range(n_obj):
+            F[:, j] = self._aggregate_objective(X, j)
+
+        for j, obj in enumerate(self.objectives):
+            if obj.direction.value == "maximize":
+                F[:, j] = -F[:, j]
+
+        out["F"] = F
+
+        # Constraints
+        G = []
+
+        # Sum to 100: |sum - 100| <= 0 via two inequalities
+        sums = X.sum(axis=1)
+        G.append(sums - 100.0)   # sum <= 100
+        G.append(100.0 - sums)   # sum >= 100
+
+        # Cardinality: count of non-zero allocations
+        allocated_count = (X > 0.5).sum(axis=1).astype(float)
+        G.append(self.cardinality_min - allocated_count)
+        G.append(allocated_count - self.cardinality_max)
+
+        # Force include: allocation must be > 0 (use threshold 0.5)
+        for i in self.forced_in:
+            G.append(0.5 - X[:, i])
+
+        # Force exclude: allocation must be 0 (use threshold 0.5)
+        for i in self.forced_out:
+            G.append(X[:, i] - 0.5)
+
+        # Objective bounds
+        for obj_idx, operator, value in self.obj_bounds:
+            obj_vals = self._aggregate_objective(X, obj_idx)
+            if operator == BoundOperator.max:
+                G.append(obj_vals - value)
+            else:
+                G.append(value - obj_vals)
 
         out["G"] = np.column_stack(G) if G else np.zeros((n_pop, 0))
 
@@ -331,6 +554,9 @@ def analyze_infeasibility(problem: Problem) -> dict:
     for s in problem.scores:
         score_map[(s.option, s.objective)] = s.value
 
+    # Build aggregation map from objectives
+    agg_map = {o.name: o.aggregation for o in problem.objectives}
+
     # Parse constraints
     forced_in = {c.option for c in problem.constraints if c.type == "force_include"}
     forced_out = {c.option for c in problem.constraints if c.type == "force_exclude"}
@@ -341,6 +567,22 @@ def analyze_infeasibility(problem: Problem) -> dict:
             card_min, card_max = c.min, c.max
         elif c.type == "objective_bound":
             obj_bounds.append((c.objective, c.operator, c.value))
+
+    def _aggregate_for_portfolio(selected: set[str], obj_name: str) -> float:
+        """Compute aggregated objective value for a portfolio, respecting aggregation mode."""
+        scores = [score_map.get((o, obj_name), 0) for o in selected]
+        if not scores:
+            return 0.0
+        agg = agg_map.get(obj_name, Aggregation.sum)
+        if agg == Aggregation.sum:
+            return sum(scores)
+        elif agg == Aggregation.avg:
+            return sum(scores) / len(scores)
+        elif agg == Aggregation.min:
+            return min(scores)
+        elif agg == Aggregation.max:
+            return max(scores)
+        return sum(scores)
 
     def portfolio_feasible(selected: set[str], skip_constraint=None) -> bool:
         """Check if a portfolio satisfies all constraints except skip_constraint."""
@@ -364,10 +606,10 @@ def analyze_infeasibility(problem: Problem) -> dict:
         for obj_name, operator, value in obj_bounds:
             if skip_constraint == f"objective_bound:{obj_name}:{operator}:{value}":
                 continue
-            total = sum(score_map.get((o, obj_name), 0) for o in selected)
-            if operator.value == "max" and total > value:
+            agg_val = _aggregate_for_portfolio(selected, obj_name)
+            if operator.value == "max" and agg_val > value:
                 return False
-            if operator.value == "min" and total < value:
+            if operator.value == "min" and agg_val < value:
                 return False
         return True
 

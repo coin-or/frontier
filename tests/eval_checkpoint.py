@@ -1,7 +1,7 @@
-"""Eval checkpoint: deterministic end-to-end test of the Phase 0 workflow.
+"""Eval checkpoint: deterministic end-to-end test of the full workflow.
 
 Exercises: model → score → solve → explore → refine → re-solve → feedback
-using the SaaS Feature Prioritization test data from the design doc.
+Plus v1 features: aggregation, run comparison, proportional allocation.
 
 Run: python -m tests.eval_checkpoint
 """
@@ -18,7 +18,7 @@ from frontier.engine.models import (
     Score,
 )
 from frontier.engine.optimizer import optimize, validate
-from frontier.engine.explorer import compare_solutions, get_tradeoffs
+from frontier.engine.explorer import compare_runs, compare_solutions, get_tradeoffs
 
 # --- Test data (from design doc checkpoint) ---
 
@@ -185,13 +185,19 @@ def run_checkpoint():
     print("\n=== Phase 6: Refinement (add effort bound) ===")
 
     solution_count_v1 = len(run.solutions)
+    # Stale flag: mark stale rather than clearing
+    p.results_stale = True
+    run_v1_id = run.run_id
     p.constraints.append(
         ObjectiveBoundConstraint(objective="Eng Effort", operator="max", value=30)
     )
-    p.run = None  # Clear run (as server would)
 
     run_v2 = optimize(p)
+    run_v2.constraints_snapshot = [c.model_dump() for c in p.constraints]
+    # Archive previous run
+    p.runs.append(p.run)
     p.run = run_v2
+    p.results_stale = False
     m_v2 = compute_metrics(p)
 
     check("Re-solve success", m_v2["solve"]["solve_success"])
@@ -220,6 +226,108 @@ def run_checkpoint():
     check("Feedback recorded", m_final["outcome"]["feedback_count"] == 1)
     check("Selected solution recorded", m_final["outcome"]["user_selected_solution"] == 0)
     check("Rating recorded", m_final["outcome"]["user_rating"] == 4)
+
+    # === Phase 8: Aggregation ===
+    print("\n=== Phase 8: Aggregation (avg objective) ===")
+
+    p_agg = Problem(
+        name="Aggregation Test",
+        objectives=[
+            Objective(name="TotalRev", direction="maximize", aggregation="sum"),
+            Objective(name="AvgSat", direction="maximize", aggregation="avg"),
+        ],
+        options=[Option(name=n) for n in ["A", "B", "C", "D", "E"]],
+        scores=[
+            Score(option="A", objective="TotalRev", value=10), Score(option="A", objective="AvgSat", value=9),
+            Score(option="B", objective="TotalRev", value=6),  Score(option="B", objective="AvgSat", value=4),
+            Score(option="C", objective="TotalRev", value=8),  Score(option="C", objective="AvgSat", value=7),
+            Score(option="D", objective="TotalRev", value=3),  Score(option="D", objective="AvgSat", value=8),
+            Score(option="E", objective="TotalRev", value=5),  Score(option="E", objective="AvgSat", value=6),
+        ],
+        constraints=[CardinalityConstraint(min=2, max=3)],
+    )
+    run_agg = optimize(p_agg)
+    p_agg.run = run_agg
+    check("Aggregation solve success", len(run_agg.solutions) > 0)
+
+    # Verify avg is actually computed as average, not sum
+    for sol in run_agg.solutions:
+        sat_scores = [
+            s.value for s in p_agg.scores
+            if s.objective == "AvgSat" and s.option in sol.selected_options
+        ]
+        expected_avg = sum(sat_scores) / len(sat_scores)
+        check(
+            f"Sol {sol.solution_id}: avg correct",
+            abs(sol.objective_values["AvgSat"] - expected_avg) < 0.01,
+            f"got {sol.objective_values['AvgSat']}, expected {expected_avg}",
+        )
+
+    # === Phase 9: Run Comparison ===
+    print("\n=== Phase 9: Run Comparison ===")
+
+    run_v2_id = run_v2.run_id
+    check("Run history has archived run", len(p.runs) >= 1)
+    check("Current run has constraints_snapshot", len(p.run.constraints_snapshot) > 0)
+
+    # We need the first run to also have a snapshot for comparison
+    # Stamp it if missing (Phase 0 runs won't have it)
+    if not p.runs[0].constraints_snapshot:
+        p.runs[0].constraints_snapshot = [
+            c.model_dump() for c in [
+                CardinalityConstraint(min=3, max=5),
+                ForceIncludeConstraint(option="SSO Integration"),
+            ]
+        ]
+
+    comp = compare_runs(p, [p.runs[0].run_id, p.run.run_id])
+    check("Compare returns runs_compared", len(comp["runs_compared"]) == 2)
+    check("Compare returns criteria_diffs", len(comp["criteria_diffs"]) > 0)
+    check("Compare returns frontier_diffs", len(comp["frontier_diffs"]) == 2)
+    check("Compare returns option_coverage", len(comp["option_coverage"]) == 2)
+    check("Criteria diff shows added constraint", len(comp["criteria_diffs"][0]["added"]) > 0)
+
+    # === Phase 10: Proportional Allocation ===
+    print("\n=== Phase 10: Proportional Allocation ===")
+
+    p_prop = Problem(
+        name="Budget Allocation Test",
+        approach="proportional",
+        objectives=[
+            Objective(name="ROI", direction="maximize", unit="%"),
+            Objective(name="Risk", direction="minimize", unit="score"),
+        ],
+        options=[Option(name=n) for n in ["Channel A", "Channel B", "Channel C", "Channel D"]],
+        scores=[
+            Score(option="Channel A", objective="ROI", value=12), Score(option="Channel A", objective="Risk", value=8),
+            Score(option="Channel B", objective="ROI", value=8),  Score(option="Channel B", objective="Risk", value=3),
+            Score(option="Channel C", objective="ROI", value=15), Score(option="Channel C", objective="Risk", value=9),
+            Score(option="Channel D", objective="ROI", value=5),  Score(option="Channel D", objective="Risk", value=2),
+        ],
+        constraints=[CardinalityConstraint(min=2, max=3)],
+    )
+    run_prop = optimize(p_prop)
+    p_prop.run = run_prop
+    check("Proportional solve success", len(run_prop.solutions) > 0)
+
+    for sol in run_prop.solutions:
+        check(
+            f"Sol {sol.solution_id}: has allocations",
+            sol.allocations is not None,
+        )
+        if sol.allocations:
+            total = sum(sol.allocations.values())
+            check(
+                f"Sol {sol.solution_id}: allocations sum to ~100",
+                abs(total - 100) <= 1,
+                f"sum={total}",
+            )
+            n_allocated = sum(1 for v in sol.allocations.values() if v > 0)
+            check(
+                f"Sol {sol.solution_id}: cardinality 2-3",
+                2 <= n_allocated <= 3,
+                f"allocated to {n_allocated}",
+            )
 
     # === Summary ===
     print(f"\n{'=' * 40}")

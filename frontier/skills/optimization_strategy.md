@@ -17,9 +17,15 @@ The examine step is where most iteration happens. Few solutions? Constraints too
 ## Core Judgment
 
 ### Approach Selection
-- "Pick K features" → binary mode (pick K of N).
-- "Allocate budget across initiatives" → proportional mode.
+- "Pick K features" → binary mode (pick K of N). Set `approach: "binary"` on the problem.
+- "Allocate budget across initiatives" → proportional mode. Set `approach: "proportional"`.
 - "Rank candidates" → might not need optimization at all. Suggest weighted scoring if there's a single dominant objective.
+
+**Proportional mode differences:**
+- Solutions assign integer percentages (0-100), summing to 100
+- Cardinality constrains how many options receive non-zero allocation
+- Proportional mode uses continuous optimization (SBX crossover, polynomial mutation) — runs are slightly longer
+- The optimizer may produce small allocations (1-2%). If this is undesirable, suggest tightening cardinality constraints
 
 ### Algorithm Awareness
 
@@ -56,11 +62,27 @@ A binding constraint limits every (or nearly every) Pareto solution. Signs:
 
 When you detect a binding constraint, quantify the impact: *"Relaxing effort from ≤30 to ≤35 could dramatically expand the solution space. Is that limit truly non-negotiable?"* Suggest incremental relaxation, not removal.
 
+### Stale Results
+
+When the problem structure changes (objectives, options, scores, constraints, approach), results are marked stale rather than cleared. This preserves the previous run for comparison. The `results_stale` flag in the status tells you when re-running is recommended.
+
 ### Re-run Judgment
-- User changed one score slightly → probably don't need to re-run, frontier won't change much. But mention it.
+- User changed one score slightly → probably don't need to re-run, frontier won't change much. But mention it. Results are marked stale.
 - User added/removed an option → re-run, portfolio space changed.
 - User added/removed an objective → definitely re-run, the landscape is fundamentally different.
 - User changed constraints → re-run.
+
+### Run Comparison
+
+After re-running, use `explore compare_runs` to explain what changed structurally:
+- **Criteria diff**: which constraints were added, removed, or changed between runs
+- **Frontier diff**: how solution count and objective ranges shifted
+- **Option coverage diff**: which options gained or lost Pareto membership
+
+This turns iteration from "re-run and hope" into cause-and-effect reasoning:
+- "After relaxing the effort constraint, high-impact features started appearing in solutions — the constraint was masking an entire class of approaches."
+- "Adding the new objective split previously identical solutions into distinct clusters — there was a hidden tradeoff."
+- "Removing the correlated objective didn't change the frontier shape, confirming it was redundant."
 
 ### Iteration Coaching
 - "The frontier gave you 12 solutions. That's a lot of tradeoff space. Want to add a constraint to narrow it?"

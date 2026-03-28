@@ -112,12 +112,13 @@ class TestModelUpdate:
         p = srv.model(action="get", problem_id=pid)
         assert p["run"] is not None
 
-        # Updating scores should clear the run
+        # Updating scores should mark results stale (not clear the run)
         srv.model(action="update", problem_id=pid, scores=[
             {"option": "A", "objective": "Rev", "value": 1},
         ])
         p = srv.model(action="get", problem_id=pid)
-        assert p["run"] is None
+        assert p["run"] is not None  # run preserved for comparison
+        assert p["results_stale"] is True
 
     def test_cascading_removes_scores_on_objective_removal(self):
         created = srv.model(action="create")
@@ -343,6 +344,124 @@ class TestExploreSolutions:
         pid = _build_solvable_problem()
         srv.solve(action="run", problem_id=pid)
         result = srv.explore(action="solution", problem_id=pid, solution_id=9999)
+        assert "error" in result
+
+
+class TestRunHistory:
+    def test_structural_change_sets_stale(self):
+        pid = _build_solvable_problem()
+        srv.solve(action="run", problem_id=pid)
+        p = srv.model(action="get", problem_id=pid)
+        assert p["results_stale"] is False
+
+        # Structural change sets stale
+        result = srv.model(action="update", problem_id=pid, scores=[
+            {"option": "A", "objective": "Rev", "value": 1},
+        ])
+        assert result["status"]["results_stale"] is True
+        p = srv.model(action="get", problem_id=pid)
+        assert p["results_stale"] is True
+        assert p["run"] is not None  # run preserved
+
+    def test_solve_clears_stale(self):
+        pid = _build_solvable_problem()
+        srv.solve(action="run", problem_id=pid)
+        srv.model(action="update", problem_id=pid, scores=[
+            {"option": "A", "objective": "Rev", "value": 1},
+        ])
+        p = srv.model(action="get", problem_id=pid)
+        assert p["results_stale"] is True
+
+        # Re-solve clears stale
+        srv.solve(action="run", problem_id=pid)
+        p = srv.model(action="get", problem_id=pid)
+        assert p["results_stale"] is False
+
+    def test_solve_archives_previous_run(self):
+        pid = _build_solvable_problem()
+        result1 = srv.solve(action="run", problem_id=pid)
+        run1_id = result1["run_id"]
+
+        # Second solve
+        result2 = srv.solve(action="run", problem_id=pid)
+        run2_id = result2["run_id"]
+
+        p = srv.model(action="get", problem_id=pid)
+        assert p["run"]["run_id"] == run2_id
+        assert len(p["runs"]) == 1
+        assert p["runs"][0]["run_id"] == run1_id
+
+    def test_run_has_constraints_snapshot(self):
+        pid = _build_solvable_problem()
+        result = srv.solve(action="run", problem_id=pid)
+        p = srv.model(action="get", problem_id=pid)
+        assert len(p["run"]["constraints_snapshot"]) > 0
+        assert p["run"]["constraints_snapshot"][0]["type"] == "cardinality"
+
+    def test_multiple_runs_accumulate(self):
+        pid = _build_solvable_problem()
+        srv.solve(action="run", problem_id=pid)
+        srv.solve(action="run", problem_id=pid)
+        srv.solve(action="run", problem_id=pid)
+        p = srv.model(action="get", problem_id=pid)
+        assert len(p["runs"]) == 2  # 2 archived + 1 current
+        assert p["run"] is not None
+
+    def test_status_shows_total_runs(self):
+        pid = _build_solvable_problem()
+        srv.solve(action="run", problem_id=pid)
+        srv.solve(action="run", problem_id=pid)
+        result = srv.model(action="update", problem_id=pid, name="Updated")
+        assert result["status"]["total_runs"] == 2
+
+
+class TestCompareRuns:
+    def test_compare_two_runs(self):
+        pid = _build_solvable_problem()
+        r1 = srv.solve(action="run", problem_id=pid)
+        r2 = srv.solve(action="run", problem_id=pid)
+        result = srv.explore(
+            action="compare_runs", problem_id=pid,
+            run_ids=[r1["run_id"], r2["run_id"]],
+        )
+        assert "runs_compared" in result
+        assert len(result["runs_compared"]) == 2
+        assert "frontier_diffs" in result
+        assert "option_coverage" in result
+
+    def test_compare_runs_criteria_diff(self):
+        pid = _build_solvable_problem()
+        r1 = srv.solve(action="run", problem_id=pid)
+        # Add a constraint and re-solve
+        srv.model(action="update", problem_id=pid, constraints=[
+            {"type": "cardinality", "min": 2, "max": 3},
+            {"type": "force_include", "option": "A"},
+        ])
+        r2 = srv.solve(action="run", problem_id=pid)
+        result = srv.explore(
+            action="compare_runs", problem_id=pid,
+            run_ids=[r1["run_id"], r2["run_id"]],
+        )
+        diffs = result["criteria_diffs"]
+        assert len(diffs) == 1
+        assert len(diffs[0]["added"]) > 0  # force_include was added
+
+    def test_compare_runs_invalid_id(self):
+        pid = _build_solvable_problem()
+        srv.solve(action="run", problem_id=pid)
+        result = srv.explore(
+            action="compare_runs", problem_id=pid,
+            run_ids=["nonexistent1", "nonexistent2"],
+        )
+        assert "error" in result
+
+    def test_compare_runs_needs_two(self):
+        pid = _build_solvable_problem()
+        r1 = srv.solve(action="run", problem_id=pid)
+        result = srv.explore(
+            action="compare_runs", problem_id=pid,
+            run_ids=[r1["run_id"]],
+        )
         assert "error" in result
 
 

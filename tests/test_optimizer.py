@@ -267,3 +267,184 @@ class TestInfeasibility:
         ])
         result = analyze_infeasibility(p)
         assert any("Effort" in s for s in result["suggestions"])
+
+
+# ─── Aggregation ───
+
+
+class TestAggregation:
+    def test_sum_is_default(self):
+        """Default aggregation is sum — matches legacy behavior."""
+        p = _make_problem()
+        for obj in p.objectives:
+            assert obj.aggregation == "sum"
+
+    def test_sum_matches_legacy(self):
+        """Explicit sum produces same results as Phase 0."""
+        p = _make_problem(objectives=[
+            Objective(name="Revenue", direction="maximize", unit="$", aggregation="sum"),
+            Objective(name="Effort", direction="minimize", unit="weeks", aggregation="sum"),
+        ])
+        run = optimize(p)
+        assert len(run.solutions) > 0
+        # Sum: portfolio value = sum of selected option scores
+        for sol in run.solutions:
+            expected_rev = sum(
+                s.value for s in p.scores
+                if s.objective == "Revenue" and s.option in sol.selected_options
+            )
+            assert abs(sol.objective_values["Revenue"] - expected_rev) < 0.01
+
+    def test_avg_aggregation(self):
+        """Average aggregation divides by count of selected options."""
+        p = _make_problem(
+            objectives=[
+                Objective(name="Quality", direction="maximize", aggregation="avg"),
+                Objective(name="Cost", direction="minimize", aggregation="sum"),
+            ],
+            scores=[
+                Score(option="A", objective="Quality", value=10),
+                Score(option="A", objective="Cost", value=5),
+                Score(option="B", objective="Quality", value=6),
+                Score(option="B", objective="Cost", value=3),
+                Score(option="C", objective="Quality", value=8),
+                Score(option="C", objective="Cost", value=7),
+                Score(option="D", objective="Quality", value=4),
+                Score(option="D", objective="Cost", value=2),
+                Score(option="E", objective="Quality", value=7),
+                Score(option="E", objective="Cost", value=4),
+            ],
+        )
+        run = optimize(p)
+        assert len(run.solutions) > 0
+        for sol in run.solutions:
+            scores = [
+                s.value for s in p.scores
+                if s.objective == "Quality" and s.option in sol.selected_options
+            ]
+            expected_avg = sum(scores) / len(scores)
+            assert abs(sol.objective_values["Quality"] - expected_avg) < 0.01
+
+    def test_min_aggregation(self):
+        """Min aggregation returns worst individual option score."""
+        p = _make_problem(
+            objectives=[
+                Objective(name="Reliability", direction="maximize", aggregation="min"),
+                Objective(name="Cost", direction="minimize", aggregation="sum"),
+            ],
+            scores=[
+                Score(option="A", objective="Reliability", value=9),
+                Score(option="A", objective="Cost", value=5),
+                Score(option="B", objective="Reliability", value=3),
+                Score(option="B", objective="Cost", value=2),
+                Score(option="C", objective="Reliability", value=7),
+                Score(option="C", objective="Cost", value=6),
+                Score(option="D", objective="Reliability", value=5),
+                Score(option="D", objective="Cost", value=3),
+                Score(option="E", objective="Reliability", value=8),
+                Score(option="E", objective="Cost", value=4),
+            ],
+        )
+        run = optimize(p)
+        assert len(run.solutions) > 0
+        for sol in run.solutions:
+            scores = [
+                s.value for s in p.scores
+                if s.objective == "Reliability" and s.option in sol.selected_options
+            ]
+            expected_min = min(scores)
+            assert abs(sol.objective_values["Reliability"] - expected_min) < 0.01
+
+    def test_max_aggregation(self):
+        """Max aggregation returns best individual option score."""
+        p = _make_problem(
+            objectives=[
+                Objective(name="Peak", direction="maximize", aggregation="max"),
+                Objective(name="Cost", direction="minimize", aggregation="sum"),
+            ],
+            scores=[
+                Score(option="A", objective="Peak", value=10),
+                Score(option="A", objective="Cost", value=8),
+                Score(option="B", objective="Peak", value=4),
+                Score(option="B", objective="Cost", value=2),
+                Score(option="C", objective="Peak", value=7),
+                Score(option="C", objective="Cost", value=5),
+                Score(option="D", objective="Peak", value=3),
+                Score(option="D", objective="Cost", value=1),
+                Score(option="E", objective="Peak", value=6),
+                Score(option="E", objective="Cost", value=3),
+            ],
+        )
+        run = optimize(p)
+        assert len(run.solutions) > 0
+        for sol in run.solutions:
+            scores = [
+                s.value for s in p.scores
+                if s.objective == "Peak" and s.option in sol.selected_options
+            ]
+            expected_max = max(scores)
+            assert abs(sol.objective_values["Peak"] - expected_max) < 0.01
+
+    def test_objective_bound_respects_avg_aggregation(self):
+        """Objective bound constraint should apply to aggregated (avg) value."""
+        p = _make_problem(
+            objectives=[
+                Objective(name="Quality", direction="maximize", aggregation="avg"),
+                Objective(name="Cost", direction="minimize", aggregation="sum"),
+            ],
+            scores=[
+                Score(option="A", objective="Quality", value=10),
+                Score(option="A", objective="Cost", value=5),
+                Score(option="B", objective="Quality", value=2),
+                Score(option="B", objective="Cost", value=1),
+                Score(option="C", objective="Quality", value=8),
+                Score(option="C", objective="Cost", value=6),
+                Score(option="D", objective="Quality", value=3),
+                Score(option="D", objective="Cost", value=2),
+                Score(option="E", objective="Quality", value=6),
+                Score(option="E", objective="Cost", value=3),
+            ],
+            constraints=[
+                CardinalityConstraint(min=2, max=3),
+                ObjectiveBoundConstraint(objective="Quality", operator="min", value=6),
+            ],
+        )
+        run = optimize(p)
+        assert len(run.solutions) > 0
+        for sol in run.solutions:
+            scores = [
+                s.value for s in p.scores
+                if s.objective == "Quality" and s.option in sol.selected_options
+            ]
+            avg = sum(scores) / len(scores)
+            assert avg >= 6.0 - 0.01, f"Avg quality {avg} below bound 6"
+
+    def test_mixed_aggregation(self):
+        """Different objectives can use different aggregation modes."""
+        p = _make_problem(
+            objectives=[
+                Objective(name="TotalRev", direction="maximize", aggregation="sum"),
+                Objective(name="WorstRisk", direction="minimize", aggregation="min"),
+            ],
+            scores=[
+                Score(option="A", objective="TotalRev", value=10),
+                Score(option="A", objective="WorstRisk", value=3),
+                Score(option="B", objective="TotalRev", value=5),
+                Score(option="B", objective="WorstRisk", value=1),
+                Score(option="C", objective="TotalRev", value=8),
+                Score(option="C", objective="WorstRisk", value=4),
+                Score(option="D", objective="TotalRev", value=3),
+                Score(option="D", objective="WorstRisk", value=2),
+                Score(option="E", objective="TotalRev", value=6),
+                Score(option="E", objective="WorstRisk", value=5),
+            ],
+        )
+        run = optimize(p)
+        assert len(run.solutions) > 0
+        for sol in run.solutions:
+            # Verify sum for TotalRev
+            rev_scores = [s.value for s in p.scores if s.objective == "TotalRev" and s.option in sol.selected_options]
+            assert abs(sol.objective_values["TotalRev"] - sum(rev_scores)) < 0.01
+            # Verify min for WorstRisk
+            risk_scores = [s.value for s in p.scores if s.objective == "WorstRisk" and s.option in sol.selected_options]
+            assert abs(sol.objective_values["WorstRisk"] - min(risk_scores)) < 0.01

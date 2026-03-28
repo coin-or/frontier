@@ -11,6 +11,7 @@ from mcp.server.fastmcp import FastMCP
 
 from frontier.engine import explorer, metrics, optimizer
 from frontier.engine.models import (
+    Approach,
     Constraint,
     CardinalityConstraint,
     Feedback,
@@ -80,6 +81,7 @@ def model(
     options: list[dict] | None = None,
     scores: list[dict] | None = None,
     constraints: list[dict] | None = None,
+    approach: str | None = None,
 ) -> dict:
     """Build and modify the optimization problem.
 
@@ -87,9 +89,10 @@ def model(
     Read frontier://skills/data_collection before entering scores.
 
     Actions:
-      create  — Start a new problem. Params: name?, domain?, context?
+      create  — Start a new problem. Params: name?, domain?, context?, approach?
       update  — Modify problem. Params: problem_id (required), plus any of:
-                name, domain, context, objectives, options, scores, constraints.
+                name, domain, context, objectives, options, scores, constraints,
+                approach ("binary" or "proportional").
                 Scores use merge semantics; everything else is full replacement.
       get     — Full problem state. Params: problem_id
       list    — All problems. No params.
@@ -99,7 +102,7 @@ def model(
         k: v for k, v in {
             "problem_id": problem_id, "name": name, "domain": domain,
             "context": context, "objectives": objectives, "options": options,
-            "scores": scores, "constraints": constraints,
+            "scores": scores, "constraints": constraints, "approach": approach,
         }.items() if v is not None
     }
     match action:
@@ -118,11 +121,14 @@ def model(
 
 
 def _model_create(params: dict) -> dict:
-    p = Problem(
+    kwargs = dict(
         name=params.get("name", ""),
         domain=params.get("domain", ""),
         context=params.get("context", ""),
     )
+    if "approach" in params:
+        kwargs["approach"] = Approach(params["approach"])
+    p = Problem(**kwargs)
     store.save(p)
     return {
         "problem_id": p.problem_id,
@@ -207,9 +213,14 @@ def _model_update(params: dict) -> dict:
         p.constraints = [_parse_constraint(c) for c in params["constraints"]]
         structural_change = True
 
-    # Clear run on structural change
+    # Approach
+    if "approach" in params:
+        p.approach = Approach(params["approach"])
+        structural_change = True
+
+    # Mark results stale on structural change (preserve run for comparison)
     if structural_change:
-        p.run = None
+        p.results_stale = True
 
     p.updated_at = datetime.now(timezone.utc)
     store.save(p)
@@ -223,6 +234,8 @@ def _model_update(params: dict) -> dict:
             "options": len(p.options),
             "scores_complete": round(len(p.scores) / total_possible, 2) if total_possible > 0 else 0.0,
             "has_run": p.run is not None,
+            "results_stale": p.results_stale,
+            "total_runs": len(p.runs) + (1 if p.run else 0),
         },
     }
 
@@ -325,7 +338,15 @@ def _solve_run(p: Problem) -> dict:
             **analysis,
         }
 
+    # Snapshot constraints on the run
+    run.constraints_snapshot = [c.model_dump() for c in p.constraints]
+
+    # Archive previous run before replacing
+    if p.run is not None:
+        p.runs.append(p.run)
+
     p.run = run
+    p.results_stale = False
     store.save(p)
 
     return {
@@ -352,6 +373,7 @@ def explore(
     rating: int | None = None,
     notes: str | None = None,
     stage: str | None = None,
+    run_ids: list[str] | None = None,
 ) -> dict:
     """Navigate results after solving.
 
@@ -363,6 +385,7 @@ def explore(
       solutions  — Full Pareto frontier listing.
       solution   — Single solution detail. Requires solution_id (int).
       feedback   — Record user feedback. Params: solution_id?, rating? (1-5), notes?, stage?
+      compare_runs — Compare run history. Requires run_ids (list of 2+ run ID strings).
     """
     try:
         p = store.load(problem_id)
@@ -396,8 +419,15 @@ def explore(
                 return {"error": str(e)}
         case "feedback":
             return _explore_feedback(p, solution_id, rating, notes, stage)
+        case "compare_runs":
+            if not run_ids or len(run_ids) < 2:
+                return {"error": "run_ids must contain at least 2 run IDs for compare_runs."}
+            try:
+                return explorer.compare_runs(p, run_ids)
+            except ValueError as e:
+                return {"error": str(e)}
         case _:
-            return {"error": f"Unknown action: {action}. Use tradeoffs/compare/solutions/solution/feedback."}
+            return {"error": f"Unknown action: {action}. Use tradeoffs/compare/solutions/solution/feedback/compare_runs."}
 
 
 def _explore_feedback(

@@ -54,6 +54,17 @@ A complete matrix isn't necessarily a useful one. Watch for:
 - **Low variance**: If all options score 7-8 on an objective, that objective won't drive differentiation. Flag it — the user may want to drop it or re-score with finer granularity.
 - **Scale mismatch**: One objective in dollars (10,000-500,000) and another on a 1-10 scale. The optimizer normalizes, but extreme ranges can distort. Note it for the user.
 
+### Aggregation Implications
+
+The objective's aggregation mode affects how to think about scoring:
+
+- **Sum**: Scores represent absolute contribution. A feature scoring 8 on Revenue adds 8 to the portfolio total. Score each option independently — context doesn't change the value.
+- **Avg**: Scores represent per-option quality. A low-scoring option drags the portfolio average down. When scoring, think about relative quality, not cumulative impact.
+- **Min**: Scores represent floor guarantees. The portfolio is only as strong as its weakest member on this objective. Pay special attention to the low-scoring options — they matter most.
+- **Max**: Scores represent peak potential. Only the highest-scoring selected option determines the portfolio value. Pay attention to standout performers.
+
+When the user sets a non-sum aggregation, adjust your anchoring technique: for min-aggregated objectives, focus on identifying the weakest options first, since they determine portfolio performance.
+
 ### Completeness Drive
 The score matrix must be 100% before solving. Track what's missing. Fill gaps efficiently. Don't let the conversation end with holes in the matrix.
 

@@ -25,6 +25,18 @@ class ConstraintType(str, Enum):
     objective_bound = "objective_bound"
 
 
+class Aggregation(str, Enum):
+    sum = "sum"
+    avg = "avg"
+    min = "min"
+    max = "max"
+
+
+class Approach(str, Enum):
+    binary = "binary"
+    proportional = "proportional"
+
+
 class BoundOperator(str, Enum):
     min = "min"
     max = "max"
@@ -37,6 +49,7 @@ class Objective(BaseModel):
     name: str
     direction: Direction
     unit: str = ""
+    aggregation: Aggregation = Aggregation.sum
 
 
 class Option(BaseModel):
@@ -91,6 +104,7 @@ class Solution(BaseModel):
     solution_id: int
     selected_options: list[str]
     objective_values: dict[str, float]
+    allocations: dict[str, int] | None = None  # proportional mode: option → percentage (0-100)
 
 
 class QualityIndicators(BaseModel):
@@ -103,6 +117,7 @@ class Run(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     solutions: list[Solution] = []
     quality: QualityIndicators = QualityIndicators()
+    constraints_snapshot: list[dict] = []
 
 
 # --- Feedback ---
@@ -132,11 +147,14 @@ class Problem(BaseModel):
     name: str = ""
     domain: str = ""
     context: str = ""
+    approach: Approach = Approach.binary
     objectives: list[Objective] = []
     options: list[Option] = []
     scores: list[Score] = []
     constraints: list[Constraint] = []
     run: Run | None = None
+    runs: list[Run] = []
+    results_stale: bool = False
     feedback: list[Feedback] = []
     created_at: datetime = Field(default_factory=_now)
     updated_at: datetime = Field(default_factory=_now)

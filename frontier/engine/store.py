@@ -44,6 +44,8 @@ class Store:
                         "options": len(p.options),
                         "scores_complete": _scores_completeness(p),
                         "has_run": p.run is not None,
+                        "results_stale": p.results_stale,
+                        "total_runs": len(p.runs) + (1 if p.run else 0),
                     },
                 })
             except Exception:

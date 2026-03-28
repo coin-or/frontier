@@ -33,6 +33,24 @@ When comparing solutions, focus on what's different. Shared options are noise.
 - "Both solutions include SSO and Search. The difference is: Solution 3 picks Mobile App while Solution 7 picks Analytics Dashboard."
 - Lead with the options that differ, then explain the objective consequences.
 
+### Allocation Presentation (Proportional Mode)
+
+In proportional mode, solutions assign percentages rather than binary selections. Present allocations clearly:
+- Show percentage tables: "Solution 1: Channel A (40%), Channel B (35%), Channel C (25%)"
+- When comparing solutions, highlight allocation *differences*: "Solution 1 puts 40% into A vs Solution 2's 15% — that's the key divergence"
+- The `allocation_comparison` field in compare output shows side-by-side percentages per option
+- Small allocations (1-5%) may represent noise from the optimizer. Flag them: "This solution allocates 2% to X — that's likely negligible. Could add a cardinality constraint to eliminate trivial allocations."
+
+### Aggregation-Aware Framing
+
+Tailor your language to the aggregation mode:
+- **Sum**: "This portfolio totals $340K in revenue across 5 features"
+- **Avg**: "The average satisfaction score across selected features is 8.2"
+- **Min**: "The weakest link in this portfolio is a reliability score of 4 — that's Feature B"
+- **Max**: "The standout performer in this portfolio scores 9.5 on innovation — that's Feature A"
+
+For min-aggregated objectives, identify the bottleneck option: which selected option is dragging the portfolio score down? This is often more actionable than the score itself.
+
 ### Iteration Prompting
 When the user gravitates toward a solution, ask what would make it better:
 - "You like Solution 3 but the effort is high. Would you accept slightly less revenue to bring effort down?"
@@ -74,6 +92,16 @@ Sol C:     ██────  ██───── ██───── █�
 ```
 
 **When NOT to visualize**: If there are only 2-3 solutions, a comparison table is clearer. If objectives are all highly correlated, a single scatter plot plus a table suffices.
+
+### Run Diff Interpretation
+
+When the user iterates (changes constraints, adds options, adjusts scores) and re-runs, use `explore compare_runs` to narrate what changed:
+- **More solutions appeared**: "Relaxing the constraint opened up new tradeoff space"
+- **Fewer solutions**: "The new constraint eliminated solutions that relied on [X]"
+- **Option gained coverage**: "Feature Y now appears in 60% of solutions, up from 20% — the constraint change favors it"
+- **Option lost coverage**: "Feature Z dropped out of all solutions — it can't compete under the tighter bound"
+
+Always connect the change to the user's action: "You added a force_include on SSO. That caused..."
 
 ### Sensitivity Intuition
 Flag fragile solutions:
