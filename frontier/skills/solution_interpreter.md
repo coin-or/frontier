@@ -43,10 +43,57 @@ Explain the tradeoff structure in plain language:
 - "Revenue and effort are strongly correlated in your data — the high-impact features are also the expensive ones. That's the core tension here."
 - "Satisfaction and revenue are weakly correlated — you can improve both without much sacrifice."
 
+### Frontier Visualization
+
+When presenting results from `explore`, use visualizations to make the tradeoff structure tangible. Choose the format based on what you're showing:
+
+**Scatter plots (2D)** — Use for pairwise objective comparisons. Pick the pair to plot based on:
+1. **Most conflicting objectives** — lowest or negative correlation; this is where the real tradeoff lives
+2. **Most important to the user** — if they've stated priorities, plot those two
+3. **Inflection points** — if the frontier has a visible "knee" (diminishing returns), a scatter plot reveals it
+4. **Most salient given solutions under discussion** — if the user is comparing two solutions, plot the objectives where those solutions diverge most
+
+Plot all Pareto solutions as points, label notable ones (extremes, balanced, user's shortlist). Axis labels should include direction (e.g., "Risk Score (lower = better)"). When objectives are highly correlated (>0.9), a scatter plot between them adds little — pick a more informative pair.
+
+Multiple scatter plots are fine — show 2-3 pairwise views to cover different slices of the tradeoff space.
+
+**Parallel coordinates** — Use for comparing a subset of solutions across >2 objectives simultaneously. Best when:
+1. **User has narrowed to 3-6 candidate solutions** — show how they differ across all objectives at once
+2. **Showing diversity** — pick solutions that span different strategies (e.g., growth-oriented vs. conservative vs. balanced)
+3. **Reference point comparison** — if the user has a target or baseline, include it as a line so candidates are compared against it
+4. **Revealing hidden differentiation** — when solutions look similar on 2 objectives but diverge on others
+
+Format: one column per objective, one line per solution. Normalize to the objective's range on the frontier so lines are comparable. Label each line with the solution ID or a short name.
+
+```
+Example (3 solutions, 4 objectives):
+           Return  Risk    Cost    Quality
+Sol A:     ██████  ███──── █────── ████████
+Sol B:     ████──  █────── ███──── ██████──
+Sol C:     ██────  ██───── ██───── ██████──
+```
+
+**When NOT to visualize**: If there are only 2-3 solutions, a comparison table is clearer. If objectives are all highly correlated, a single scatter plot plus a table suffices.
+
 ### Sensitivity Intuition
 Flag fragile solutions:
 - "This solution barely makes the cut on your effort constraint. If effort estimates are off by 10%, it might not be feasible."
 - This builds trust and helps the user think about robustness.
+
+### Diagnostic Patterns
+
+Surface these proactively when you detect them in results:
+
+| Pattern | Detection | What it means | Action |
+|---|---|---|---|
+| **Highly clustered** | Solutions within 5% of each other on most objectives | Problem may be single-objective, or objectives are correlated | Ask if stated objectives are truly independent |
+| **Bunched at extremes** | Bimodal distribution, sparse middle | Disconnected strategies or insufficient exploration | Investigate the gap — it may be structural |
+| **One objective flat** | <10% variation across all solutions | That objective doesn't genuinely conflict with others | Consider whether it adds value |
+| **Persistent infeasibility** | 0-5 solutions returned | Over-constrained | Identify which constraint to relax |
+| **Option never selected** | Competitive scores but excluded from all solutions | Dominated, or a hidden factor at play | Check if dominated; if not, probe for missing criteria |
+| **Missing scores** | Incomplete matrix | Data collection was partial | Collect or estimate remaining scores |
+
+**Presentation guidelines**: Be specific, not generic. Limit to 1-2 suggestions based on actual patterns observed. Frame as questions: "You might consider..." Skip entirely if results look healthy.
 
 ### Recommendation Calibration
 
@@ -72,6 +119,14 @@ Watch for behavioral patterns that reveal preferences the user hasn't stated:
 | Asks about a specific option repeatedly | Option preference | "Should we require that option and re-run?" |
 | Can't decide between two solutions | Need sharper tradeoff framing | "What would make you regret choosing one over the other?" |
 
+**When you detect waffling** (user bounces between solutions, expresses indecision, keeps returning to the same few):
+
+1. **Normalize**: "Difficulty deciding is completely normal — you're discovering your real preferences through exploration, not doing something wrong."
+2. **Analyze patterns**: What do the solutions they keep mentioning have in common? Where do they differ most?
+3. **Surface revealed vs stated**: "You mentioned cost and speed were equally important, but you keep gravitating toward low-cost options. That's valuable information about your real priorities."
+4. **Use regret framing**: "If you picked Solution 3 and later wished you hadn't — what would that reason be?"
+5. **Offer a next step**: "Would you like me to find other solutions similar to these?"
+
 ### Common Misconceptions
 
 When users express these, include the corresponding correction:
@@ -79,7 +134,7 @@ When users express these, include the corresponding correction:
 | User says | What to explain |
 |---|---|
 | "Which is the best one?" | "All N solutions are equally optimal — each is best at a different tradeoff. Which tradeoff matters most to you?" |
-| "Results aren't good" / "way off from targets" | "The gap between targets and results reveals genuine tension in your objectives — that's insight, not failure." |
+| "Results aren't good" / "way off from targets" | "The gap between targets and results reveals genuine tension in your objectives — that's insight, not failure. It shows where your goals are most in conflict." |
 | "Is it broken?" | The tool is working. Results reflect the real constraints of the problem. |
 | "Add more objectives" | "More objectives obscure key tradeoffs. Are any of these correlated? Can we consolidate?" |
 

@@ -26,7 +26,15 @@ from frontier.engine.store import Store
 
 mcp = FastMCP(
     "Frontier",
-    instructions="Multi-objective portfolio optimization engine. Use model → solve → explore workflow.",
+    instructions=(
+        "Multi-objective portfolio optimization engine.\n\n"
+        "BEFORE using any tools, read the skill resources for guidance:\n"
+        "- frontier://skills/problem_framing — read before model/create\n"
+        "- frontier://skills/data_collection — read before entering scores\n"
+        "- frontier://skills/optimization_strategy — read before solve/run\n"
+        "- frontier://skills/solution_interpreter — read before explore/tradeoffs\n\n"
+        "Workflow: model → solve → explore. Skills tell you HOW to do each step well."
+    ),
     host=os.environ.get("MCP_HOST", "127.0.0.1"),
     port=int(os.environ.get("PORT", "8000")),
 )
@@ -74,6 +82,9 @@ def model(
     constraints: list[dict] | None = None,
 ) -> dict:
     """Build and modify the optimization problem.
+
+    Read frontier://skills/problem_framing before creating a problem.
+    Read frontier://skills/data_collection before entering scores.
 
     Actions:
       create  — Start a new problem. Params: name?, domain?, context?
@@ -275,6 +286,8 @@ def _parse_constraint(c: dict | Constraint) -> Constraint:
 def solve(action: str, problem_id: str) -> dict:
     """Validate and run the optimizer.
 
+    Read frontier://skills/optimization_strategy before running.
+
     Actions:
       validate — Check if problem is ready. Returns issues and missing scores.
       run      — Validate, then optimize. Returns full Pareto frontier inline.
@@ -341,6 +354,8 @@ def explore(
     stage: str | None = None,
 ) -> dict:
     """Navigate results after solving.
+
+    Read frontier://skills/solution_interpreter before presenting results.
 
     Actions:
       tradeoffs  — Frontier overview: ranges, correlations, extremes, balanced solution.
