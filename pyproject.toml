@@ -10,7 +10,7 @@ requires-python = ">=3.11"
 dependencies = [
     "pymoo>=0.6",
     "pydantic>=2.0",
-    "mcp>=1.0",
+    "mcp[cli]>=1.0",
     "scipy>=1.11",
 ]
 

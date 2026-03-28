@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -23,7 +24,12 @@ from frontier.engine.models import (
 )
 from frontier.engine.store import Store
 
-mcp = FastMCP("Frontier", instructions="Multi-objective portfolio optimization engine. Use model → solve → explore workflow.")
+mcp = FastMCP(
+    "Frontier",
+    instructions="Multi-objective portfolio optimization engine. Use model → solve → explore workflow.",
+    host=os.environ.get("MCP_HOST", "127.0.0.1"),
+    port=int(os.environ.get("PORT", "8000")),
+)
 store = Store()
 
 SKILLS_DIR = Path(__file__).resolve().parent.parent / "skills"
@@ -411,15 +417,7 @@ def _explore_feedback(
 
 
 def main():
-    import os
-
     transport = os.environ.get("MCP_TRANSPORT", "stdio")
-
-    # Render provides PORT; override FastMCP defaults for web deployment
-    if "PORT" in os.environ:
-        mcp.settings.port = int(os.environ["PORT"])
-        mcp.settings.host = "0.0.0.0"
-
     mcp.run(transport=transport)
 
 
