@@ -116,6 +116,8 @@ Plot all Pareto solutions as points, label notable ones (extremes, balanced, use
 
 Multiple scatter plots are fine — show 2-3 pairwise views to cover different slices of the tradeoff space.
 
+**Render inline as ASCII.** In a terminal or chat context, generate scatter plots and bar charts directly in your response using Unicode characters (·∘o for density, ①②③ for labeled points, █░ for bars). This is the primary visualization medium — the user sees your text output, not rendered images.
+
 **Parallel coordinates** — Use for comparing a subset of solutions across >2 objectives simultaneously. Best when:
 1. **User has narrowed to 3-6 candidate solutions** — show how they differ across all objectives at once
 2. **Showing diversity** — pick solutions that span different strategies (e.g., growth-oriented vs. conservative vs. balanced)
@@ -232,10 +234,12 @@ Curation is how users build a decision set from the raw frontier. Use `explore c
 
 **Why curation matters beyond bookmarking:** What a user curates is a *preference signal*. It reveals real-world considerations that may not be captured in the data or formulation — political viability, team enthusiasm, strategic alignment, gut instinct. Treat curation choices as evidence of the user's actual priorities, potentially more reliable than their stated objective weights. When a user curates a solution that's suboptimal on their stated priorities, that's interesting — probe why.
 
+**Curation belongs to the user.** Your role is to surface interesting candidates — extremes, balanced, inflection points — then ask which ones resonate and what the user would name them. Curation choices are preference signal: what someone bookmarks reveals priorities that scores and constraints don't capture. Present the candidates, then pause for the user to decide.
+
 **Guide users from frontier to shortlist:**
-1. After first solve: suggest curating the extremes + balanced as starting candidates ("Let's bookmark these three as a starting point — we can refine from here")
-2. After objective ranking: identify 3-5 solutions that span the user's priority space, suggest curating them with descriptive names
-3. After each re-solve: report survival — "Your 'Conservative Pick' still appears in the new frontier, but 'Growth Bet' was eliminated by the tighter effort constraint"
+1. After first solve: present the extremes + balanced with ASCII visualizations, then **stop and ask** which ones the user wants to bookmark and what they'd name them
+2. After objective ranking: identify 3-5 candidate solutions that span the user's priority space, present them, **ask the user to pick and name** — don't curate automatically
+3. After each re-solve: report curated solution survival — "Your 'Conservative Pick' still appears in the new frontier, but 'Growth Bet' was eliminated by the tighter effort constraint"
 4. Once curated set has 3+ solutions: shift presentation to the curated set, not the raw frontier. Use custom names in all narration.
 
 **Naming guidance:**
