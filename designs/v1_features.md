@@ -15,6 +15,7 @@ Version 1.1 · March 2026
 | **[now]** | Aggregation, proportional allocation, run comparison | ✅ Shipped |
 | **[next]** | New constraints, reference points, scenarios | ✅ Shipped |
 | **[now-2]** | Solution curation (content signatures, naming, cross-run survival) | ✅ Shipped |
+| **[next-2]** | Binding constraint analysis, score sensitivity, question anchor | Scoped |
 | **[later]** | Guided data collection | Design only |
 | **[later+]** | Algorithm routing | Design only |
 
@@ -200,6 +201,160 @@ Content-based solution identity + accumulative curation across runs. Inspired by
 
 ---
 
+### [next] — Binding Constraint Analysis
+
+The `optimization_strategy` skill coaches agents to detect binding constraints ("all solutions sit near the boundary"), and the `solution_interpreter` skill maps binding constraints → bottlenecks. But the agent must infer this from eyeballing solution patterns — no tool action surfaces it directly.
+
+**Goal:** Make bottleneck detection explicit in explorer output so the agent narrates it reliably instead of guessing.
+
+**Approach: augment `explore tradeoffs`**, not a new action. Binding constraint data is most useful when first reviewing results — the same moment `tradeoffs` is called.
+
+**What to compute:**
+
+For each `objective_bound` constraint, check whether it binds across the frontier:
+
+| Field | Definition |
+|---|---|
+| `constraint` | The constraint (objective, operator, value) |
+| `binding_pct` | % of Pareto solutions within 5% of the bound |
+| `tightest_solution` | Solution closest to (or at) the bound |
+| `slack_range` | [min_slack, max_slack] across all solutions — how much room exists |
+| `impact_estimate` | Qualitative: "relaxing by 10% would likely expand the frontier" if binding_pct > 80% |
+
+For cardinality constraints, check similarly — are all solutions at min or max?
+
+**Output shape** (added to `tradeoffs` response):
+
+```python
+"binding_analysis": [
+    {
+        "constraint": {"type": "objective_bound", "objective": "Effort", "operator": "max", "value": 30},
+        "binding_pct": 0.85,
+        "tightest_solution_id": 3,
+        "slack_range": [0.0, 4.2],
+        "suggestion": "85% of solutions are near the effort cap. Relaxing from 30 to 35 could open new tradeoff space."
+    }
+]
+```
+
+**Scope:**
+- Compute in `explorer.get_tradeoffs()` — iterate constraints × solutions
+- Only for `objective_bound` and `cardinality` (the two types with measurable slack)
+- Threshold: "binding" = within 5% of bound value (configurable later)
+- No optimizer re-runs — pure analysis of existing frontier
+- Agent narration via existing skill guidance (bottlenecks section)
+
+**Not in scope:**
+- Shadow prices / dual values (would require LP formulation, not applicable to evolutionary)
+- Automatic constraint relaxation suggestions with re-runs
+- Force_include/exclude binding analysis (binary — either active or not, no gradient)
+
+**Skill update:** `optimization_strategy` Binding Constraint Detection section — add: "The `tradeoffs` response now includes `binding_analysis`. Use it to narrate bottlenecks with data instead of inference."
+
+---
+
+### [next] — Score Sensitivity Analysis
+
+The `solution_interpreter` skill coaches agents to flag fragile solutions ("near the effort constraint — if estimates are off..."), but this is purely qualitative. The agent has no data on which scores actually matter.
+
+**Goal:** Answer "which scores, if wrong, would change my answer?" — the most common unasked question in optimization.
+
+**Approach: new `explore sensitivity` action.** Unlike binding analysis (which augments an existing view), sensitivity analysis is a deliberate investigative action — the user or agent asks for it.
+
+**Method: perturbation-based.** For each score, perturb by ±10%, re-evaluate all current Pareto solutions, check which solutions gain or lose Pareto membership. No new optimization run — just re-evaluation of existing solutions against perturbed objective values.
+
+**What to compute:**
+
+For each score (option × objective pair):
+
+| Field | Definition |
+|---|---|
+| `option` | Option name |
+| `objective` | Objective name |
+| `original_value` | Current score |
+| `frontier_impact` | How many solutions change Pareto status when this score shifts ±10% |
+| `sensitive` | Boolean — true if frontier_impact > 0 |
+
+Aggregate to option-level and objective-level summaries:
+
+```python
+"sensitivity": {
+    "most_sensitive_scores": [
+        {"option": "Feature A", "objective": "Effort", "frontier_impact": 4},
+        {"option": "Feature C", "objective": "Revenue", "frontier_impact": 3},
+    ],
+    "most_sensitive_options": ["Feature A", "Feature C"],  # ordered by total impact
+    "most_sensitive_objectives": ["Effort", "Revenue"],     # ordered by total impact
+    "robust_solutions": [1, 5, 7],    # solutions that survive all perturbations
+    "fragile_solutions": [3, 12],     # solutions eliminated by any single perturbation
+}
+```
+
+**Scope:**
+- New `explore sensitivity` action in server + explorer
+- Perturbation: ±10% per score (hardcoded; parameterize later if needed)
+- Re-evaluate existing solutions only — no new optimization runs (fast)
+- Top-N reporting (default 10 most sensitive scores) to avoid overwhelming output
+- Works for both binary and proportional modes
+
+**Not in scope:**
+- Combined perturbations (changing multiple scores simultaneously) — combinatorial explosion
+- Confidence-weighted sensitivity (requires score metadata we don't have)
+- Automatic score improvement suggestions
+- Integration with data collection ("go research this score more carefully")
+
+**Skill update:** `solution_interpreter` Sensitivity Intuition section — add: "Use `explore sensitivity` to ground fragility claims in data. Lead with the most sensitive scores: 'If Feature A's effort estimate is off by 10%, 4 of your 12 solutions would change.'"
+
+**Depends on:** Solving the Pareto re-evaluation efficiently. Current frontier sizes (5-50 solutions, 5-30 options, 2-5 objectives) make brute-force feasible — O(solutions × scores × objectives) per perturbation direction.
+
+---
+
+### [next] — Question Anchor in Problem Framing
+
+The upstream translation maps **Question → Method**, but the skill jumps straight to objectives without coaching the agent to capture the user's question explicitly. The `model` tool stores `domain` and `context` but doesn't distinguish the driving question.
+
+**Goal:** Make the user's "How should we...?" question a first-class element that grounds the entire formulation and gets reflected back throughout.
+
+**Approach: skill-only change** — no model or tool changes needed. The existing `domain` and `context` fields are sufficient storage. The gap is in agent behavior, not data model.
+
+**Skill update to `problem_framing`:**
+
+Add a "Question First" section at the top of Core Judgment (before Translating User Language):
+
+```markdown
+### Question First
+
+Before objectives, options, or constraints — capture the user's question. Every
+optimization problem starts with a "How should we...?" that grounds the formulation:
+
+- "How should we allocate marketing budget across channels?"
+- "Which features should we build in the next quarter?"
+- "How should we balance cost and reliability in our vendor selection?"
+
+**Reflect it back immediately**: "So your core question is: *How should we allocate
+budget to maximize ROI while staying under $500K?* Let me help structure that."
+
+This anchors the entire session. When the user drifts or adds complexity, return
+to the question: "Does this still serve your core question, or has the question
+changed?"
+
+**Store it**: Put the question in the `context` field via `model create` or
+`model update`. It will be available to downstream skills for framing results
+("To answer your question about budget allocation, here's what the optimization
+found...").
+
+**Approach selection flows from the question**:
+- "Which ones should we pick?" → binary
+- "How much should we put into each?" → proportional
+- "How should we rank these?" → may not need optimization at all
+```
+
+**Why skill-only:** The question isn't a new data field — it's a framing discipline. Adding a `question` field to the Problem model would be overengineering. The `context` field already stores free-text problem context. The change is in how the agent uses it.
+
+**Downstream connection:** The `solution_interpreter` should reference the question when presenting results. Add to the Downstream Translation section: "When presenting results, connect back to the user's original question: 'You asked how to allocate budget — here are the optimal allocations.'"
+
+---
+
 ### [later] — Guided Data Collection
 
 The `data_collection` skill is instruction-only. "Guided" means the tool actively assists:
@@ -208,7 +363,7 @@ The `data_collection` skill is instruction-only. "Guided" means the tool activel
 - Track confidence per score
 - Sensitivity analysis: which scores, if changed, would most affect the frontier
 
-**Depends on:** Dogfooding to validate that score collection is actually the bottleneck.
+**Depends on:** Dogfooding to validate that score collection is actually the bottleneck. Score sensitivity analysis ([next-2]) would feed directly into this — "Feature A's effort score is the most sensitive; research it first."
 
 ### [later+] — Algorithm Routing
 
