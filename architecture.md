@@ -1,0 +1,301 @@
+# Frontier — Architecture Reference
+
+**Related docs:** [`best-practices.md`](best-practices.md) — skill, prompt & MCP design guidelines | [`README.md`](README.md) — user setup and usage guide | [`CLAUDE.md`](CLAUDE.md) — project instructions for Claude
+
+## Tools & Skills Reference
+
+### MCP Tools
+
+Frontier exposes 3 tools, each with multiple actions:
+
+| Tool | Action | Purpose |
+|------|--------|---------|
+| **model** | `create` | Start a new optimization problem (name, domain, context, approach) |
+| | `update` | Add/modify objectives, options, scores, constraints, reference points, scenarios. Merge semantics for scores; full replacement for everything else. Marks results stale on structural changes. |
+| | `get` | Return full problem state as JSON |
+| | `list` | List all problems with metadata snapshots |
+| | `delete` | Remove a problem and its data file |
+| **solve** | `validate` | Pre-flight check: ≥2 objectives, ≥3 options, complete score matrix, feasible constraints |
+| | `run` | Validate then optimize. Returns Pareto frontier with quality indicators. Optional `mode`: "fast" (default, quick iterations) or "thorough" (final convergence). Auto-selects NSGA-II (2-3 obj) or NSGA-III (4+ obj). Parameters adapt to solution space size and objective count. |
+| | `run_scenarios` | Independently optimize each scenario with score overrides/adjustments. Accepts optional `mode`. |
+| **explore** | `tradeoffs` | Frontier overview: objective ranges, correlations, extremes, balanced solution, vs references |
+| | `compare` | Side-by-side comparison of 2+ solutions (shared/differentiating options, tradeoff summary) |
+| | `solutions` | Full Pareto frontier listing |
+| | `solution` | Single solution detail with reference point analysis |
+| | `feedback` | Record user feedback: solution_id or content_signature, rating (1-5), notes, stage. Links to content_signature (stable across runs) and attaches to matching curated solution. |
+| | `compare_runs` | Diff run history: criteria changes, frontier diffs, option coverage |
+| | `scenario_results` | Per-scenario analysis: robust options, scenario-specific options, expected values |
+| | `curate` | Add a solution to the curated set with custom name and notes |
+| | `uncurate` | Remove a solution from the curated set by content signature |
+| | `rename_curated` | Update a curated solution's custom name |
+| | `curated` | List all curated solutions with `in_current_frontier` survival flag |
+| | `compare_curated` | Compare curated solutions side-by-side by content signature |
+
+### MCP Skills (Resources)
+
+Skills are read-only markdown resources the agent consults for domain guidance:
+
+| Skill | Purpose |
+|-------|---------|
+| **problem_framing** | Translate decision language into objectives/options/constraints. Covers objective vs constraint classification (principle-based, not keyword matching), hidden objective detection, approach selection (binary vs proportional — "does quantity matter?"), aggregation modes (canonical definition — sum/avg/min/max), reference points, scenario definition. Cross-referenced by other skills. |
+| **data_collection** | Guide score elicitation. Covers data readiness levels, anchoring techniques, batch efficiency, source evaluation, conflict resolution, score quality signals (variance, scale mismatch), aggregation implications on scoring (cross-references problem_framing), completeness drive. |
+| **optimization_strategy** | Drive solve progression. Covers iteration expectations, validate→run→examine flow, constraint strategy (cross-references problem_framing for types), infeasibility response, binding constraint detection, curated solution survival tracking, run comparison, scenario interpretation, stale results and re-run judgment. |
+| **solution_interpreter** | Present results without bias. Core Judgment (always apply): "never say best", five explanation dimensions, presentation order, tradeoff framing, objective ranking elicitation, dominance explanation. Presentation Refinements (situational): visualization, run diffs, reference point narration, scenario presentation, diagnostics, preference learning, curation guidance. |
+
+---
+
+## 1. User Workflow
+
+How an end-user interacts with the AI agent, which drives Frontier on their behalf.
+
+```mermaid
+flowchart TD
+    subgraph USER["End User"]
+        U1([Describe decision problem])
+        U2([Provide scores, constraints,<br/>reference points & scenarios])
+        U3([Review tradeoffs])
+        U4([Refine & iterate])
+        U5([Curate final selections])
+    end
+
+    subgraph AGENT["AI Agent (Claude)"]
+        A1[Translate business language<br/>into objectives, options, approach]
+        A2[Guide score collection, constraint<br/>setup, reference points & scenarios]
+        A3[Run optimization &<br/>interpret Pareto frontier]
+        A3b[Run scenario optimization<br/>& identify robust options]
+        A4[Present tradeoffs, comparisons,<br/>dominance, scenario analysis]
+        A5[Elicit preferences via<br/>marginal tradeoff questions]
+        A6[Track curated solutions<br/>& collect feedback]
+    end
+
+    subgraph SKILLS["Agent Skills (Resources)"]
+        S1[problem_framing.md]
+        S2[data_collection.md]
+        S3[optimization_strategy.md]
+        S4[solution_interpreter.md]
+    end
+
+    subgraph FRONTIER["Frontier MCP Tools"]
+        T1["model (create/update)"]
+        T2["solve (validate/run/run_scenarios)"]
+        T3["explore (tradeoffs/compare/curate)"]
+    end
+
+    U1 --> A1
+    A1 -.->|reads| S1
+    A1 -->|"create problem, set approach"| T1
+
+    U2 --> A2
+    A2 -.->|reads| S1 & S2
+    A2 -->|"update scores, constraints,<br/>reference points, scenarios"| T1
+
+    A3 -.->|reads| S3
+    T1 -->|problem ready| A3
+    A3 -->|validate & run| T2
+    A3b -.->|reads| S3
+    A3b -->|run_scenarios| T2
+    T2 -->|"Pareto frontier<br/>+ scenario runs"| A4
+
+    A4 -.->|reads| S4
+    A4 -->|"tradeoffs, compare, scenarios,<br/>reference comparisons"| T3
+    T3 -->|insights| A4
+    A4 --> U3
+
+    U3 --> U4
+    U4 --> A5
+    A5 -->|"update scores, constraints,<br/>scenarios / re-run"| T1
+    A5 -->|re-solve| T2
+
+    U3 --> U5
+    U5 --> A6
+    A6 -->|curate & feedback| T3
+```
+
+## 2. System Architecture
+
+MCP tools, skills, engine internals, and how they connect to the agent client.
+
+```mermaid
+flowchart TB
+    subgraph CLIENT["Agent Client (Claude Code / MCP Host)"]
+        CC[Claude Agent]
+    end
+
+    subgraph MCP_LAYER["Frontier MCP Server"]
+        direction TB
+        subgraph TOOLS["Tools (stdio)"]
+            MODEL["model<br/><i>create | update | get | list | delete</i>"]
+            SOLVE["solve<br/><i>validate | run | run_scenarios</i>"]
+            EXPLORE["explore<br/><i>tradeoffs | compare | solutions | solution<br/>feedback | compare_runs | scenario_results<br/>curate | uncurate | rename_curated<br/>curated | compare_curated</i>"]
+        end
+        subgraph RESOURCES["Skills (MCP Resources)"]
+            R1["problem_framing<br/><i>Objective/option/constraint guidance</i>"]
+            R2["data_collection<br/><i>Scoring strategies & quality signals</i>"]
+            R3["optimization_strategy<br/><i>Solve progression & iteration</i>"]
+            R4["solution_interpreter<br/><i>Presentation & preference elicitation</i>"]
+        end
+    end
+
+    subgraph ENGINE["Engine Layer"]
+        direction TB
+        MODELS["models.py<br/><i>Problem, Objective, Option, Score,<br/>Constraint (7 types), Solution,<br/>Run, Scenario, ScoreAdjustment,<br/>CuratedSolution (+ feedback history),<br/>ReferencePoint, Feedback</i>"]
+        OPT["optimizer.py<br/><i>NSGA-II/III (pymoo)<br/>Binary & Proportional modes<br/>Adaptive parameter tuning<br/>Constraint encoding<br/>Scenario optimization</i>"]
+        EXP["explorer.py<br/><i>Tradeoff analysis, comparisons,<br/>balanced solution detection,<br/>scenario aggregation, curation,<br/>reference point analysis</i>"]
+        MET["metrics.py<br/><i>Framing, data, solve,<br/>outcome metrics & diagnostics</i>"]
+        STORE["store.py<br/><i>File-based JSON persistence</i>"]
+    end
+
+    subgraph STORAGE["Persistence"]
+        FS[("./data/<br/>{problem_id}.json")]
+    end
+
+    CC <-->|"tool calls / results<br/>(JSON over stdio)"| TOOLS
+    CC -.->|reads skill content| RESOURCES
+
+    MODEL --> MODELS
+    MODEL --> MET
+    MODEL --> STORE
+    SOLVE --> OPT
+    SOLVE --> MET
+    SOLVE --> STORE
+    EXPLORE --> EXP
+    EXPLORE --> STORE
+
+    OPT --> MODELS
+    EXP --> MODELS
+    MET --> MODELS
+    STORE --> FS
+```
+
+## 3. Problem State Lifecycle
+
+The state machine that bridges user actions (diagram 1) to data mutations (diagram 4). Shows when results go stale, runs get archived, and curated solutions are tested for survival.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Empty: model/create
+
+    Empty --> Framing: add objectives & options
+    Framing --> Framing: update objectives/options
+
+    Framing --> Scoring: first score added
+    Scoring --> Scoring: update scores\n(merge semantics)
+
+    Scoring --> Solvable: score matrix complete\n+ ≥2 objectives + ≥3 options
+    Solvable --> Solvable: add/update constraints,\nreference points, scenarios\n(non-structural, no stale flag)
+
+    Solvable --> Solved: solve/run\n→ NSGA-II/III produces Run
+    Solvable --> ScenarioSolved: solve/run_scenarios\n→ per-scenario Runs
+    Solvable --> Infeasible: solve/run\n→ no feasible solutions
+
+    Infeasible --> Solvable: relax constraints\nor remove scenario constraint overrides
+
+    ScenarioSolved --> Exploring: explore/scenario_results\n→ robust vs specific options,\nexpected values
+
+    Solved --> Exploring: explore/* calls\n(tradeoffs, compare, dominance)
+    Exploring --> Exploring: navigate frontier,\ncompare solutions,\nreference point analysis
+
+    Exploring --> Curating: explore/curate\n→ snapshot solution with\ncontent_signature
+    Curating --> Curating: curate more,\nrename, uncurate
+
+    Curating --> Feedback: explore/feedback\n→ rating, notes, stage\n→ linked via content_signature\n→ attaches to curated solution
+
+    state stale_fork <<fork>>
+    Solved --> stale_fork: update objectives, options,\nscores, constraints, or approach
+    ScenarioSolved --> stale_fork
+    Exploring --> stale_fork
+    Curating --> stale_fork
+    Feedback --> stale_fork
+
+    state stale_join <<join>>
+    stale_fork --> stale_join
+
+    stale_join --> Stale: results_stale = true\ncurrent Run archived to runs[]
+
+    Stale --> Solved: re-solve\n→ new Run replaces current\n→ results_stale = false
+    Stale --> ScenarioSolved: re-solve scenarios\n→ new ScenarioRun
+
+    note right of Stale
+        Curated solutions persist across re-runs.
+        content_signature used to check if
+        a curated pick survived in the new frontier
+        (in_current_frontier flag).
+        Feedback accumulates on curated solutions
+        via content_signature — survives re-runs
+        and problem variations.
+    end note
+
+    note right of Solved
+        Run: solutions[], quality (hypervolume,
+        spacing CV), constraints_snapshot.
+        Each solution: selected_options,
+        objective_values, allocations,
+        content_signature (MD5).
+    end note
+
+    note left of ScenarioSolved
+        ScenarioRun: dict of scenario_name → Run.
+        Each scenario independently optimized
+        with score overrides/adjustments
+        and constraint overrides applied.
+    end note
+```
+
+## 4. Data Flow
+
+What data is user-provided, system-collected, and engine-generated at each phase.
+
+```mermaid
+flowchart LR
+    subgraph PROVIDED["User-Provided Data"]
+        direction TB
+        P1["Problem framing<br/><i>name, domain, context,<br/>approach (binary/proportional)</i>"]
+        P2["Objectives<br/><i>name, direction, unit,<br/>aggregation (sum/avg/min/max)</i>"]
+        P3["Options<br/><i>name, description</i>"]
+        P4["Score matrix<br/><i>(option, objective) → value</i>"]
+        P5["Constraints<br/><i>cardinality, force include/exclude,<br/>objective bounds, exclusion pairs,<br/>dependencies, group limits</i>"]
+        P6["Reference points<br/><i>baseline (current portfolio +<br/>objective values) &<br/>aspirational (target outcomes)</i>"]
+        P7["Scenarios<br/><i>name, probability, description,<br/>score overrides, score adjustments<br/>(multiply/add), constraint overrides</i>"]
+        P8["Feedback<br/><i>rating (1-5), notes, stage,<br/>linked via content_signature<br/>(stable across runs)</i>"]
+        P9["Curation<br/><i>solution picks, custom names, notes,<br/>accumulated feedback history</i>"]
+    end
+
+    subgraph COLLECTED["System-Collected Metrics"]
+        direction TB
+        C1["Framing metrics<br/><i>objective/option/constraint counts,<br/>directions completeness</i>"]
+        C2["Data metrics<br/><i>score completeness %,<br/>missing scores list,<br/>variance by objective,<br/>dominated options</i>"]
+        C3["Solve metrics<br/><i>solution count, hypervolume,<br/>spacing CV, objective variation,<br/>option coverage</i>"]
+        C4["Outcome metrics<br/><i>selected solution, rating,<br/>feedback count</i>"]
+        C5["Diagnostics<br/><i>zero solutions, clustering,<br/>low variation, never-selected options,<br/>binding constraints</i>"]
+    end
+
+    subgraph GENERATED["Engine-Generated Results"]
+        direction TB
+        G1["Pareto frontier<br/><i>set of non-dominated solutions<br/>(dominance filtering via NSGA-II/III)</i>"]
+        G2["Solutions<br/><i>selected options, objective values,<br/>allocations (proportional),<br/>content signatures (MD5)</i>"]
+        G3["Quality & diversity<br/><i>normalized hypervolume (coverage),<br/>spacing CV (spread uniformity)</i>"]
+        G4["Tradeoff analysis<br/><i>correlations, extremes,<br/>balanced solution (min distance<br/>to ideal point),<br/>reference point comparisons</i>"]
+        G5["Scenario results<br/><i>per-scenario frontiers,<br/>robust options (all scenarios),<br/>scenario-specific options,<br/>expected values (prob-weighted)</i>"]
+        G6["Run history<br/><i>archived runs, constraint snapshots,<br/>frontier diffs, option coverage</i>"]
+        G7["Infeasibility analysis<br/><i>binding constraints,<br/>relaxation suggestions</i>"]
+        G8["Curation tracking<br/><i>in_current_frontier survival flag,<br/>cross-run signature matching,<br/>feedback history + avg rating</i>"]
+    end
+
+    P1 & P2 & P3 --> C1
+    P4 --> C2
+    P2 & P3 & P4 & P5 -->|"validate & optimize<br/>(NSGA-II/III)"| G1
+    G1 --> G2
+    G1 --> G3
+    G2 --> G4
+    P7 & P4 & P5 -->|"per-scenario optimization<br/>(adjustments → overrides applied)"| G5
+    P6 --> G4
+    G2 --> C3
+    P8 --> C4
+    P5 -->|"infeasible?"| G7
+    P9 -->|"snapshot + signature"| G8
+    G8 -.->|"survival check<br/>against new frontier"| G2
+
+    C1 & C2 -->|"returned with<br/>model updates"| AGENT1([Agent])
+    C3 & C5 -->|"returned with<br/>solve results"| AGENT1
+    G4 & G5 & G6 & G8 -->|"returned with<br/>explore results"| AGENT1
+```
