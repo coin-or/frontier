@@ -41,6 +41,11 @@ class Approach(str, Enum):
     proportional = "proportional"
 
 
+class OptimizeMode(str, Enum):
+    fast = "fast"
+    thorough = "thorough"
+
+
 class BoundOperator(str, Enum):
     min = "min"
     max = "max"
@@ -136,11 +141,20 @@ class ReferencePoint(BaseModel):
 # --- Scenarios ---
 
 
+class ScoreAdjustment(BaseModel):
+    """Adjust scores for an objective across all options in a scenario."""
+    objective: str
+    multiply: float | None = None  # e.g. 0.8 = reduce by 20%
+    add: float | None = None  # e.g. -5 = subtract 5 from all scores
+
+
 class Scenario(BaseModel):
     name: str
-    probability: float  # 0-1
+    probability: float | None = None  # optional; only needed for expected-value weighting
     description: str = ""
     score_overrides: list[Score] = []  # only changed scores; base matrix fills rest
+    score_adjustments: list[ScoreAdjustment] = []  # bulk adjustments by objective
+    constraint_overrides: list[Constraint] = []  # replaces base constraints when non-empty
 
 
 class ScenarioConfig(BaseModel):
@@ -187,6 +201,18 @@ class Run(BaseModel):
     constraints_snapshot: list[dict] = []
 
 
+# --- Feedback ---
+
+
+class Feedback(BaseModel):
+    content_signature: str | None = None  # stable link — survives re-runs
+    solution_id: int | None = None  # ephemeral index — convenience only
+    rating: int | None = None  # 1-5
+    notes: str = ""
+    stage: str = ""  # "exploration", "decision", "post-refinement"
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
 # --- Curated Solutions ---
 
 
@@ -199,17 +225,7 @@ class CuratedSolution(BaseModel):
     curated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     source_run_id: str = ""
     notes: str = ""
-
-
-# --- Feedback ---
-
-
-class Feedback(BaseModel):
-    solution_id: int | None = None
-    rating: int | None = None  # 1-5
-    notes: str = ""
-    stage: str = ""  # "exploration", "decision", "post-refinement"
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    feedback: list[Feedback] = []  # preference context — accumulated across runs
 
 
 # --- Problem ---

@@ -18,14 +18,17 @@ from frontier.engine.models import (
     ExclusionPairConstraint,
     Feedback,
     ForceExcludeConstraint,
+    _content_signature,
     ForceIncludeConstraint,
     GroupLimitConstraint,
     Objective,
     ObjectiveBoundConstraint,
+    OptimizeMode,
     Option,
     Problem,
     ReferencePoint,
     Scenario,
+    ScoreAdjustment,
     ScenarioConfig,
     ScenarioRun,
     Score,
@@ -242,15 +245,24 @@ def _model_update(params: dict) -> dict:
     if "scenario_config" in params:
         sc = params["scenario_config"]
         if isinstance(sc, dict):
-            # Parse nested scenarios with score overrides
+            # Parse nested scenarios with score overrides and adjustments
             scenarios = []
             for s in sc.get("scenarios", []):
                 overrides = [Score(**o) if isinstance(o, dict) else o for o in s.get("score_overrides", [])]
+                adjustments = [
+                    ScoreAdjustment(**a) if isinstance(a, dict) else a
+                    for a in s.get("score_adjustments", [])
+                ]
+                constraint_ov = [
+                    _parse_constraint(c) for c in s.get("constraint_overrides", [])
+                ]
                 scenarios.append(Scenario(
                     name=s["name"],
-                    probability=s["probability"],
+                    probability=s.get("probability"),  # optional
                     description=s.get("description", ""),
                     score_overrides=overrides,
+                    score_adjustments=adjustments,
+                    constraint_overrides=constraint_ov,
                 ))
             p.scenario_config = ScenarioConfig(enabled=sc.get("enabled", True), scenarios=scenarios)
         structural_change = True
@@ -346,7 +358,7 @@ def _parse_constraint(c: dict | Constraint) -> Constraint:
 
 
 @mcp.tool()
-def solve(action: str, problem_id: str) -> dict:
+def solve(action: str, problem_id: str, mode: str | None = None) -> dict:
     """Validate and run the optimizer.
 
     Read frontier://skills/optimization_strategy before running.
@@ -355,32 +367,45 @@ def solve(action: str, problem_id: str) -> dict:
       validate       — Check if problem is ready. Returns issues and missing scores.
       run            — Validate, then optimize. Returns full Pareto frontier inline.
       run_scenarios  — Run optimization independently per scenario. Requires scenario_config.
+
+    Args:
+      mode: "fast" (default) for quick exploration iterations, "thorough" for
+            final convergence when the problem is refined. Adapts population size,
+            generations, and operator parameters to problem complexity. Also selects
+            NSGA-III for 4+ objectives.
     """
     try:
         p = store.load(problem_id)
     except FileNotFoundError:
         return {"error": f"Problem {problem_id} not found."}
 
+    opt_mode = None
+    if mode is not None:
+        try:
+            opt_mode = OptimizeMode(mode)
+        except ValueError:
+            return {"error": f"Invalid mode '{mode}'. Use 'fast' or 'thorough'."}
+
     match action:
         case "validate":
             vr = optimizer.validate(p)
             return json.loads(vr.model_dump_json())
         case "run":
-            return _solve_run(p)
+            return _solve_run(p, opt_mode)
         case "run_scenarios":
-            return _solve_run_scenarios(p)
+            return _solve_run_scenarios(p, opt_mode)
         case _:
             return {"error": f"Unknown action: {action}. Use validate/run/run_scenarios."}
 
 
-def _solve_run(p: Problem) -> dict:
+def _solve_run(p: Problem, mode: OptimizeMode | None = None) -> dict:
     vr = optimizer.validate(p)
     if not vr.ready:
         vr_data = json.loads(vr.model_dump_json())
         return {"ready": False, "issues": vr_data["issues"], "missing_scores": vr_data["missing_scores"]}
 
     try:
-        run = optimizer.optimize(p)
+        run = optimizer.optimize(p, mode=mode)
     except Exception as e:
         return {"feasible": False, "error": str(e)}
 
@@ -414,14 +439,14 @@ def _solve_run(p: Problem) -> dict:
     }
 
 
-def _solve_run_scenarios(p: Problem) -> dict:
+def _solve_run_scenarios(p: Problem, mode: OptimizeMode | None = None) -> dict:
     vr = optimizer.validate(p)
     if not vr.ready:
         vr_data = json.loads(vr.model_dump_json())
         return {"ready": False, "issues": vr_data["issues"]}
 
     try:
-        scenario_results = optimizer.optimize_scenarios(p)
+        scenario_results = optimizer.optimize_scenarios(p, mode=mode)
     except ValueError as e:
         return {"error": str(e)}
 
@@ -468,7 +493,7 @@ def explore(
       compare    — Side-by-side comparison. Requires solution_ids (list of 2+ ints).
       solutions  — Full Pareto frontier listing.
       solution   — Single solution detail. Requires solution_id (int).
-      feedback   — Record user feedback. Params: solution_id?, rating? (1-5), notes?, stage?
+      feedback   — Record user feedback. Params: solution_id? or content_signature?, rating? (1-5), notes?, stage? Feedback links to content_signature (stable across runs) and attaches to curated solutions.
       compare_runs — Compare run history. Requires run_ids (list of 2+ run ID strings).
       scenario_results — Per-scenario analysis: robust options, scenario-specific options, expected values.
       curate     — Add solution to curated set. Params: solution_id, custom_name?, notes?
@@ -508,7 +533,7 @@ def explore(
             except ValueError as e:
                 return {"error": str(e)}
         case "feedback":
-            return _explore_feedback(p, solution_id, rating, notes, stage)
+            return _explore_feedback(p, solution_id, content_signature, rating, notes, stage)
         case "compare_runs":
             if not run_ids or len(run_ids) < 2:
                 return {"error": "run_ids must contain at least 2 run IDs for compare_runs."}
@@ -564,26 +589,54 @@ def explore(
 def _explore_feedback(
     p: Problem,
     solution_id: int | None,
+    content_signature: str | None,
     rating: int | None,
     notes: str | None,
     stage: str | None,
 ) -> dict:
-    """Record user feedback on solutions or the overall process."""
+    """Record user feedback on solutions or the overall process.
+
+    Feedback is linked to a content_signature (stable across runs). If only
+    solution_id is provided, the signature is computed from the current run.
+    Feedback is also appended to any curated solution with the same signature.
+    """
     if rating is not None and not (1 <= rating <= 5):
         return {"error": "rating must be 1-5."}
 
+    # Resolve content_signature from solution_id if not provided directly
+    sig = content_signature
+    if sig is None and solution_id is not None and p.run:
+        for s in p.run.solutions:
+            if s.solution_id == solution_id:
+                sig = s.content_signature or _content_signature(
+                    s.selected_options, s.allocations
+                )
+                break
+
     fb = Feedback(
+        content_signature=sig,
         solution_id=solution_id,
         rating=rating,
         notes=notes or "",
         stage=stage or "",
     )
+
+    # Store on problem-level feedback list
     p.feedback.append(fb)
+
+    # Also attach to matching curated solution (preference travels with curation)
+    if sig:
+        for cs in p.curated_solutions:
+            if cs.content_signature == sig:
+                cs.feedback.append(fb)
+                break
+
     p.updated_at = datetime.now(timezone.utc)
     store.save(p)
 
     return {
         "recorded": True,
+        "content_signature": sig,
         "feedback_count": len(p.feedback),
         "outcome": metrics.outcome_metrics(p),
     }

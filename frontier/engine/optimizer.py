@@ -1,9 +1,12 @@
-"""Optimizer: validate problem and run NSGA-II via pymoo."""
+"""Optimizer: validate problem and run NSGA-II/NSGA-III via pymoo."""
 
 from __future__ import annotations
 
+import math
+
 import numpy as np
 from pymoo.algorithms.moo.nsga2 import NSGA2
+from pymoo.algorithms.moo.nsga3 import NSGA3
 from pymoo.core.problem import Problem as PymooProblem
 from pymoo.operators.crossover.pntx import TwoPointCrossover
 from pymoo.operators.crossover.sbx import SBX
@@ -11,11 +14,13 @@ from pymoo.operators.mutation.bitflip import BitflipMutation
 from pymoo.operators.mutation.pm import PM
 from pymoo.operators.sampling.rnd import BinaryRandomSampling, FloatRandomSampling
 from pymoo.optimize import minimize as pymoo_minimize
+from pymoo.util.ref_dirs import get_reference_directions
 
 from .models import (
     Aggregation,
     Approach,
     BoundOperator,
+    OptimizeMode,
     Problem,
     QualityIndicators,
     Run,
@@ -220,50 +225,151 @@ def _build_score_matrix(problem: Problem) -> np.ndarray:
     return matrix
 
 
-def optimize(problem: Problem) -> Run:
-    """Validate and run NSGA-II. Returns a Run with solutions."""
+def _tune_parameters(problem: Problem, mode: OptimizeMode) -> tuple:
+    """Return (algorithm, n_gen) adapted to problem size and mode.
+
+    Scales directly from the two independent dimensions that matter:
+      1. Solution space size — driven by n_options and approach type.
+         Binary: 2^n values. Proportional: ~100^n (continuous, much larger).
+         We use log2 of the space to set pop/gen multipliers.
+      2. Objective count — independently drives algorithm selection and
+         population needs (more objectives need more population for coverage).
+
+    Mode controls the budget: fast for exploration, thorough for convergence.
+    """
+    n = len(problem.options)
+    n_obj = len(problem.objectives)
+    is_binary = problem.approach == Approach.binary
+    is_fast = mode == OptimizeMode.fast
+    use_nsga3 = n_obj >= 4
+
+    # --- Solution space drives pop_size and n_gen ---
+    # Binary space: 2^n. Proportional space: effectively continuous (~100^n).
+    # Use log2 of space as a scaling factor, capped to keep things sane.
+    # Binary: log2(2^n) = n. Proportional: log2(100^n) ≈ 6.6n.
+    if is_binary:
+        space_factor = n
+    else:
+        space_factor = 6.6 * n
+
+    # Population: scales with sqrt of space_factor (diminishing returns).
+    # More objectives need more population to cover the Pareto surface.
+    obj_multiplier = 1.0 + 0.3 * (n_obj - 2)  # 1.0 at 2 obj, 2.8 at 8 obj
+    mode_pop = 1.0 if is_fast else 1.8
+    pop_size = int(math.sqrt(space_factor) * 10 * obj_multiplier * mode_pop)
+
+    # Generations: scales with space_factor more aggressively than pop.
+    # Thorough mode gets substantially more generations for convergence.
+    mode_gen = 1.0 if is_fast else 2.5
+    gen_base = max(8, int(space_factor * 0.5))
+    n_gen = int(gen_base * obj_multiplier * mode_gen)
+
+    # Floors and caps
+    pop_size = max(50, min(pop_size, 2000))
+    n_gen = max(50, min(n_gen, 3000))
+
+    # --- Algorithm selection (objective count only) ---
+    if use_nsga3:
+        n_partitions = max(3, 12 - n_obj)
+        ref_dirs = get_reference_directions("das-dennis", n_obj, n_partitions=n_partitions)
+        pop_size = len(ref_dirs)  # pymoo requires pop_size == len(ref_dirs)
+        AlgClass = NSGA3
+        alg_kwargs: dict = {"ref_dirs": ref_dirs, "pop_size": pop_size}
+    else:
+        AlgClass = NSGA2
+        alg_kwargs = {"pop_size": pop_size}
+
+    # --- Operator adaptation (approach type only) ---
+    if is_binary:
+        # Mutation prob: ~1 bit flip per individual on average, bounded
+        mut_prob = max(0.01, min(0.25, 1.0 / n))
+        alg_kwargs.update(
+            sampling=BinaryRandomSampling(),
+            crossover=TwoPointCrossover(prob=0.9),
+            mutation=BitflipMutation(prob=mut_prob),
+            eliminate_duplicates=True,
+        )
+    else:
+        # Larger search spaces benefit from higher eta (more exploitation)
+        eta_scale = min(1.0, math.log2(max(n, 3)) / math.log2(200))
+        sbx_eta = int(10 + eta_scale * 20)   # 10-30
+        pm_eta = int(15 + eta_scale * 25)     # 15-40
+        alg_kwargs.update(
+            sampling=FloatRandomSampling(),
+            crossover=SBX(prob=0.9, eta=sbx_eta),
+            mutation=PM(eta=pm_eta),
+            eliminate_duplicates=True,
+        )
+
+    return AlgClass(**alg_kwargs), n_gen
+
+
+def optimize(problem: Problem, mode: OptimizeMode | None = None) -> Run:
+    """Validate and run multi-objective optimization. Returns a Run with solutions."""
+    if mode is None:
+        mode = OptimizeMode.fast
     vr = validate(problem)
     if not vr.ready:
         raise ValueError(f"Problem not ready: {[i.message for i in vr.issues]}")
 
     if problem.approach == Approach.proportional:
-        return _optimize_proportional(problem)
-    return _optimize_binary(problem)
+        return _optimize_proportional(problem, mode)
+    return _optimize_binary(problem, mode)
 
 
-def optimize_scenarios(problem: Problem) -> dict[str, Run]:
-    """Run optimization independently per scenario. Returns {scenario_name: Run}."""
-    from .models import ScenarioRun
+def optimize_scenarios(problem: Problem, mode: OptimizeMode | None = None) -> dict[str, Run]:
+    """Run optimization independently per scenario. Returns {scenario_name: Run}.
+
+    Each scenario is solved as a fully independent optimization — no probability
+    weighting required. Probabilities are optional and only used downstream in
+    explorer for expected-value analysis.
+
+    Scenarios run in parallel to stay within MCP tool-call timeouts.
+    """
+    from concurrent.futures import ThreadPoolExecutor
 
     if not problem.scenario_config or not problem.scenario_config.enabled:
         raise ValueError("Scenario config not enabled.")
     if not problem.scenario_config.scenarios:
         raise ValueError("No scenarios defined.")
 
-    # Validate probabilities sum to ~1.0
-    total_prob = sum(s.probability for s in problem.scenario_config.scenarios)
-    if abs(total_prob - 1.0) > 0.05:
-        raise ValueError(f"Scenario probabilities sum to {total_prob}, expected ~1.0.")
-
-    results = {}
-    for scenario in problem.scenario_config.scenarios:
-        # Build scenario-specific problem with overridden scores
+    def _build_and_solve(scenario: "Scenario") -> tuple[str, Run]:
         scenario_problem = problem.model_copy(deep=True)
-        override_map = {(s.option, s.objective): s.value for s in scenario.score_overrides}
-        for score in scenario_problem.scores:
-            key = (score.option, score.objective)
-            if key in override_map:
-                score.value = override_map[key]
 
-        # Clear scenario config to avoid recursion
+        # 1) Apply bulk score_adjustments (multiply/add) by objective
+        if scenario.score_adjustments:
+            adj_map = {a.objective: a for a in scenario.score_adjustments}
+            for score in scenario_problem.scores:
+                if score.objective in adj_map:
+                    adj = adj_map[score.objective]
+                    if adj.multiply is not None:
+                        score.value *= adj.multiply
+                    if adj.add is not None:
+                        score.value += adj.add
+
+        # 2) Apply explicit score_overrides (takes precedence)
+        if scenario.score_overrides:
+            override_map = {(s.option, s.objective): s.value for s in scenario.score_overrides}
+            for score in scenario_problem.scores:
+                key = (score.option, score.objective)
+                if key in override_map:
+                    score.value = override_map[key]
+
+        # 3) Apply constraint overrides (full replacement when provided)
+        if scenario.constraint_overrides:
+            scenario_problem.constraints = list(scenario.constraint_overrides)
+
         scenario_problem.scenario_config = None
-        run = optimize(scenario_problem)
-        results[scenario.name] = run
+        return scenario.name, optimize(scenario_problem, mode=mode)
+
+    with ThreadPoolExecutor(max_workers=len(problem.scenario_config.scenarios)) as pool:
+        futures = [pool.submit(_build_and_solve, s) for s in problem.scenario_config.scenarios]
+        results = dict(f.result() for f in futures)
 
     return results
 
 
-def _optimize_binary(problem: Problem) -> Run:
+def _optimize_binary(problem: Problem, mode: OptimizeMode) -> Run:
     """Binary mode: pick K of N options."""
     n_options = len(problem.options)
     opt_names = [o.name for o in problem.options]
@@ -275,18 +381,7 @@ def _optimize_binary(problem: Problem) -> Run:
         n_options=n_options, score_matrix=score_matrix, objectives=obj_list, **cp,
     )
 
-    if n_options <= 20:
-        pop_size, n_gen = 100, 200
-    else:
-        pop_size, n_gen = n_options * 5, n_options * 10
-
-    algorithm = NSGA2(
-        pop_size=pop_size,
-        sampling=BinaryRandomSampling(),
-        crossover=TwoPointCrossover(prob=0.9),
-        mutation=BitflipMutation(prob=1.0 / n_options),
-        eliminate_duplicates=True,
-    )
+    algorithm, n_gen = _tune_parameters(problem, mode)
 
     result = pymoo_minimize(
         pymoo_problem, algorithm, ("n_gen", n_gen), seed=42, verbose=False,
@@ -308,7 +403,7 @@ def _optimize_binary(problem: Problem) -> Run:
     return Run(solutions=solutions, quality=_compute_quality(result))
 
 
-def _optimize_proportional(problem: Problem) -> Run:
+def _optimize_proportional(problem: Problem, mode: OptimizeMode) -> Run:
     """Proportional mode: allocate integer percentages (0-100, sum to 100)."""
     n_options = len(problem.options)
     opt_names = [o.name for o in problem.options]
@@ -320,18 +415,7 @@ def _optimize_proportional(problem: Problem) -> Run:
         n_options=n_options, score_matrix=score_matrix, objectives=obj_list, **cp,
     )
 
-    if n_options <= 20:
-        pop_size, n_gen = 150, 300
-    else:
-        pop_size, n_gen = n_options * 8, n_options * 15
-
-    algorithm = NSGA2(
-        pop_size=pop_size,
-        sampling=FloatRandomSampling(),
-        crossover=SBX(prob=0.9, eta=15),
-        mutation=PM(eta=20),
-        eliminate_duplicates=True,
-    )
+    algorithm, n_gen = _tune_parameters(problem, mode)
 
     result = pymoo_minimize(
         pymoo_problem, algorithm, ("n_gen", n_gen), seed=42, verbose=False,
@@ -376,7 +460,6 @@ def _sort_and_reindex(solutions: list[Solution], obj_list: list) -> list[Solutio
             s.solution_id = i
             s.content_signature = _content_signature(s.selected_options, s.allocations)
     return solutions
-    return run
 
 
 class _FrontierProblem(PymooProblem):

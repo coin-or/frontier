@@ -280,6 +280,11 @@ def curate_solution(problem: Problem, solution_id: int, custom_name: str = "", n
         if cs.content_signature == sig:
             return {"error": f"Solution already curated as '{cs.custom_name or sig}'."}
 
+    # Pull in any existing feedback matching this signature
+    existing_feedback = [
+        fb for fb in problem.feedback if fb.content_signature == sig
+    ]
+
     curated = CuratedSolution(
         content_signature=sig,
         custom_name=custom_name,
@@ -288,6 +293,7 @@ def curate_solution(problem: Problem, solution_id: int, custom_name: str = "", n
         objective_values=sol.objective_values,
         source_run_id=run.run_id,
         notes=notes,
+        feedback=existing_feedback,
     )
     problem.curated_solutions.append(curated)
     return {
@@ -330,6 +336,12 @@ def list_curated(problem: Problem) -> dict:
     for cs in problem.curated_solutions:
         entry = cs.model_dump()
         entry["in_current_frontier"] = cs.content_signature in current_sigs
+        entry["feedback_count"] = len(cs.feedback)
+        if cs.feedback:
+            ratings = [fb.rating for fb in cs.feedback if fb.rating is not None]
+            entry["avg_rating"] = round(sum(ratings) / len(ratings), 1) if ratings else None
+        else:
+            entry["avg_rating"] = None
         curated.append(entry)
 
     return {
@@ -438,17 +450,25 @@ def get_scenario_results(problem: Problem) -> dict:
         elif len(present_in) > 0:
             scenario_specific[opt] = present_in
 
-    # Expected value solution: probability-weighted average of best objective values
+    # Expected value: probability-weighted if probabilities provided, else equal-weight
+    has_probabilities = all(
+        scenarios[name].probability is not None for name in scenario_runs
+    )
+    n_scenarios = len(scenario_runs)
+
     expected_values = {}
     for obj in obj_names:
         ev = 0.0
         for name, run in scenario_runs.items():
-            prob = scenarios[name].probability
+            if has_probabilities:
+                weight = scenarios[name].probability
+            else:
+                weight = 1.0 / n_scenarios  # equal weight
             vals = [s.objective_values.get(obj, 0) for s in run.solutions]
             if vals:
                 direction = next(o.direction.value for o in problem.objectives if o.name == obj)
                 best = max(vals) if direction == "maximize" else min(vals)
-                ev += prob * best
+                ev += weight * best
         expected_values[obj] = round(ev, 4)
 
     return {
@@ -456,6 +476,7 @@ def get_scenario_results(problem: Problem) -> dict:
         "robust_options": sorted(robust_options),
         "scenario_specific_options": scenario_specific,
         "expected_values": expected_values,
+        "weighting": "probability" if has_probabilities else "equal",
     }
 
 

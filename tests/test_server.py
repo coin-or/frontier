@@ -566,18 +566,52 @@ class TestScenarios:
         result = srv.explore(action="scenario_results", problem_id=pid)
         assert "error" in result
 
-    def test_scenarios_invalid_probabilities(self):
+    def test_scenarios_without_probabilities(self):
+        """Scenarios should run fine without probabilities — each is an independent solve."""
         pid = _build_solvable_problem()
         srv.model(action="update", problem_id=pid, scenario_config={
             "enabled": True,
             "scenarios": [
-                {"name": "A", "probability": 0.3},
-                {"name": "B", "probability": 0.3},
+                {"name": "A"},
+                {"name": "B"},
             ],
         })
         result = srv.solve(action="run_scenarios", problem_id=pid)
-        assert "error" in result
-        assert "probabilities" in result["error"].lower()
+        assert "error" not in result
+        assert result["scenarios_optimized"] == 2
+
+    def test_scenarios_with_score_adjustments(self):
+        """Score adjustments (multiply/add) should modify scores per scenario."""
+        pid = _build_solvable_problem()
+        srv.model(action="update", problem_id=pid, scenario_config={
+            "enabled": True,
+            "scenarios": [
+                {"name": "Base"},
+                {"name": "Downside", "score_adjustments": [
+                    {"objective": "Revenue", "multiply": 0.8},
+                ]},
+            ],
+        })
+        result = srv.solve(action="run_scenarios", problem_id=pid)
+        assert "error" not in result
+        assert result["scenarios_optimized"] == 2
+
+    def test_scenarios_with_constraint_overrides(self):
+        """Constraint overrides should replace base constraints for that scenario."""
+        pid = _build_solvable_problem()
+        srv.model(action="update", problem_id=pid, scenario_config={
+            "enabled": True,
+            "scenarios": [
+                {"name": "Base"},
+                {"name": "Constrained", "constraint_overrides": [
+                    {"type": "cardinality", "min": 1, "max": 2},
+                    {"type": "force_include", "option": "A"},
+                ]},
+            ],
+        })
+        result = srv.solve(action="run_scenarios", problem_id=pid)
+        assert "error" not in result
+        assert result["scenarios_optimized"] == 2
 
 
 class TestCuration:
@@ -665,6 +699,118 @@ class TestCuration:
         for sol in result["solutions"]:
             assert sol["content_signature"] != ""
             assert len(sol["content_signature"]) == 12
+
+
+class TestFeedbackLoop:
+    """Feedback links to content_signature and attaches to curated solutions."""
+
+    def test_feedback_computes_signature_from_solution_id(self):
+        pid = _build_solvable_problem()
+        srv.solve(action="run", problem_id=pid)
+        result = srv.explore(
+            action="feedback", problem_id=pid, solution_id=0, rating=4, notes="Looks good",
+        )
+        assert result["recorded"] is True
+        assert result["content_signature"] is not None
+        assert len(result["content_signature"]) == 12
+
+    def test_feedback_without_solution_has_no_signature(self):
+        pid = _build_solvable_problem()
+        srv.solve(action="run", problem_id=pid)
+        result = srv.explore(
+            action="feedback", problem_id=pid, rating=3, notes="General thoughts",
+        )
+        assert result["recorded"] is True
+        assert result["content_signature"] is None
+
+    def test_feedback_attaches_to_curated_solution(self):
+        """Feedback on a curated solution gets attached to its feedback list."""
+        pid = _build_solvable_problem()
+        srv.solve(action="run", problem_id=pid)
+        # Curate first
+        curate_r = srv.explore(
+            action="curate", problem_id=pid, solution_id=0, custom_name="Fav",
+        )
+        sig = curate_r["content_signature"]
+        # Then give feedback on same solution
+        srv.explore(
+            action="feedback", problem_id=pid, solution_id=0, rating=5, notes="Love it",
+        )
+        # Check curated solution has the feedback
+        curated = srv.explore(action="curated", problem_id=pid)
+        cs = curated["curated_solutions"][0]
+        assert cs["feedback_count"] == 1
+        assert cs["avg_rating"] == 5.0
+
+    def test_existing_feedback_pulled_into_curation(self):
+        """If feedback exists before curation, it's pulled in when curating."""
+        pid = _build_solvable_problem()
+        srv.solve(action="run", problem_id=pid)
+        # Give feedback first
+        srv.explore(
+            action="feedback", problem_id=pid, solution_id=0, rating=4, notes="Promising",
+        )
+        # Then curate same solution
+        srv.explore(
+            action="curate", problem_id=pid, solution_id=0, custom_name="Promising Pick",
+        )
+        # Check feedback was pulled in
+        curated = srv.explore(action="curated", problem_id=pid)
+        cs = curated["curated_solutions"][0]
+        assert cs["feedback_count"] == 1
+        assert cs["avg_rating"] == 4.0
+
+    def test_feedback_survives_rerun(self):
+        """Feedback persists across re-optimization via content_signature."""
+        pid = _build_solvable_problem()
+        srv.solve(action="run", problem_id=pid)
+        # Curate and give feedback
+        curate_r = srv.explore(
+            action="curate", problem_id=pid, solution_id=0, custom_name="Keeper",
+        )
+        sig = curate_r["content_signature"]
+        srv.explore(
+            action="feedback", problem_id=pid, solution_id=0, rating=5, notes="Best option",
+        )
+        # Re-solve
+        srv.solve(action="run", problem_id=pid)
+        # Curated solution still has its feedback
+        curated = srv.explore(action="curated", problem_id=pid)
+        cs = next(c for c in curated["curated_solutions"] if c["content_signature"] == sig)
+        assert cs["feedback_count"] == 1
+        assert cs["avg_rating"] == 5.0
+
+    def test_feedback_by_content_signature_directly(self):
+        """Feedback can be given via content_signature without solution_id."""
+        pid = _build_solvable_problem()
+        srv.solve(action="run", problem_id=pid)
+        curate_r = srv.explore(
+            action="curate", problem_id=pid, solution_id=0, custom_name="Direct",
+        )
+        sig = curate_r["content_signature"]
+        # Give feedback by signature
+        result = srv.explore(
+            action="feedback", problem_id=pid, content_signature=sig,
+            rating=3, notes="Reconsidering",
+        )
+        assert result["content_signature"] == sig
+        curated = srv.explore(action="curated", problem_id=pid)
+        assert curated["curated_solutions"][0]["feedback_count"] == 1
+
+    def test_multiple_feedback_accumulates(self):
+        """Multiple feedback entries accumulate on a curated solution."""
+        pid = _build_solvable_problem()
+        srv.solve(action="run", problem_id=pid)
+        curate_r = srv.explore(
+            action="curate", problem_id=pid, solution_id=0, custom_name="Multi",
+        )
+        sig = curate_r["content_signature"]
+        srv.explore(action="feedback", problem_id=pid, solution_id=0, rating=3, stage="exploration")
+        srv.explore(action="feedback", problem_id=pid, content_signature=sig, rating=5, stage="decision")
+        curated = srv.explore(action="curated", problem_id=pid)
+        cs = curated["curated_solutions"][0]
+        assert cs["feedback_count"] == 2
+        assert cs["avg_rating"] == 4.0  # (3+5)/2
 
 
 class TestUnknownActions:
