@@ -4,7 +4,7 @@
 
 ## The Downstream Translation
 
-Even a provably better solution is academic until it's translated into terms stakeholders can act on. Your job is the downstream translation — from solver outputs to business-actionable insights:
+Even a provably better solution is academic until it's translated into terms the decision maker can act on. Your job is the downstream translation — from solver outputs to actionable insights:
 
 | Solver output | Business meaning |
 |---|---|
@@ -18,8 +18,10 @@ Always present results through this lens. Users don't need to understand Pareto 
 
 ## Core Judgment
 
+These principles shape every interaction during exploration. Get these right first.
+
 ### Never Say "Best"
-There is no best solution on a Pareto frontier. Every solution is optimal — it's the best at its particular tradeoff. Present tradeoffs, not rankings.
+There is no best solution on a Pareto frontier — every solution is optimal at its particular tradeoff. Saying "best" implies a single answer exists, which undermines the user's ability to make an informed choice. Present tradeoffs, not rankings, so the user can decide what matters most to them.
 
 ### The Five Things Users Need
 
@@ -44,7 +46,7 @@ Quantify what you're giving up:
 
 ### Differentiating Options
 When comparing solutions, focus on what's different. Shared options are noise.
-- "Both solutions include SSO and Search. The difference is: Solution 3 picks Mobile App while Solution 7 picks Analytics Dashboard."
+- "Both solutions include options A and B. The difference is: Solution 3 picks C while Solution 7 picks D."
 - Lead with the options that differ, then explain the objective consequences.
 
 ### Allocation Presentation (Proportional Mode)
@@ -57,13 +59,9 @@ In proportional mode, solutions assign percentages rather than binary selections
 
 ### Aggregation-Aware Framing
 
-Tailor your language to the aggregation mode:
-- **Sum**: "This portfolio totals $340K in revenue across 5 features"
-- **Avg**: "The average satisfaction score across selected features is 8.2"
-- **Min**: "The weakest link in this portfolio is a reliability score of 4 — that's Feature B"
-- **Max**: "The standout performer in this portfolio scores 9.5 on innovation — that's Feature A"
+(See aggregation modes in `frontier://skills/problem_framing`.)
 
-For min-aggregated objectives, identify the bottleneck option: which selected option is dragging the portfolio score down? This is often more actionable than the score itself.
+Match your language to how the score was computed: totals for sum, averages for avg, weakest link for min, standout for max. For min-aggregated objectives, identify the bottleneck option by name — that's more actionable than the score itself.
 
 ### Objective Ranking Elicitation
 
@@ -102,39 +100,19 @@ Explain the tradeoff structure in plain language:
 - "Revenue and effort are strongly correlated in your data — the high-impact features are also the expensive ones. That's the core tension here."
 - "Satisfaction and revenue are weakly correlated — you can improve both without much sacrifice."
 
+## Presentation Refinements
+
+Apply these when the situation calls for them. They improve quality but are secondary to the critical judgment above.
+
 ### Frontier Visualization
 
-When presenting results from `explore`, use visualizations to make the tradeoff structure tangible. Choose the format based on what you're showing:
+Render visualizations inline as ASCII using Unicode characters (█░ for bars, ·∘ for scatter points, ①②③ for labels). Choose the format that best reveals the tradeoff structure:
 
-**Scatter plots (2D)** — Use for pairwise objective comparisons. Pick the pair to plot based on:
-1. **Most conflicting objectives** — lowest or negative correlation; this is where the real tradeoff lives
-2. **Most important to the user** — if they've stated priorities, plot those two
-3. **Inflection points** — if the frontier has a visible "knee" (diminishing returns), a scatter plot reveals it
-4. **Most salient given solutions under discussion** — if the user is comparing two solutions, plot the objectives where those solutions diverge most
+- **Scatter plots (2D)**: Plot the most conflicting pair of objectives — this is where the real tradeoff lives. Label extremes, balanced, and the user's shortlist.
+- **Parallel coordinates**: Compare 3-6 candidate solutions across all objectives at once. One column per objective, one row per solution, normalized to the objective's range.
+- **Comparison tables**: Prefer over charts when there are only 2-3 solutions — tables are clearer at small scale.
 
-Plot all Pareto solutions as points, label notable ones (extremes, balanced, user's shortlist). Axis labels should include direction (e.g., "Risk Score (lower = better)"). When objectives are highly correlated (>0.9), a scatter plot between them adds little — pick a more informative pair.
-
-Multiple scatter plots are fine — show 2-3 pairwise views to cover different slices of the tradeoff space.
-
-**Render inline as ASCII.** In a terminal or chat context, generate scatter plots and bar charts directly in your response using Unicode characters (·∘o for density, ①②③ for labeled points, █░ for bars). This is the primary visualization medium — the user sees your text output, not rendered images.
-
-**Parallel coordinates** — Use for comparing a subset of solutions across >2 objectives simultaneously. Best when:
-1. **User has narrowed to 3-6 candidate solutions** — show how they differ across all objectives at once
-2. **Showing diversity** — pick solutions that span different strategies (e.g., growth-oriented vs. conservative vs. balanced)
-3. **Reference point comparison** — if the user has a target or baseline, include it as a line so candidates are compared against it
-4. **Revealing hidden differentiation** — when solutions look similar on 2 objectives but diverge on others
-
-Format: one column per objective, one line per solution. Normalize to the objective's range on the frontier so lines are comparable. Label each line with the solution ID or a short name.
-
-```
-Example (3 solutions, 4 objectives):
-           Return  Risk    Cost    Quality
-Sol A:     ██████  ███──── █────── ████████
-Sol B:     ████──  █────── ███──── ██████──
-Sol C:     ██────  ██───── ██───── ██████──
-```
-
-**When NOT to visualize**: If there are only 2-3 solutions, a comparison table is clearer. If objectives are all highly correlated, a single scatter plot plus a table suffices.
+Pick the visualization that adds the most information. When objectives are highly correlated, a chart between them adds little — choose a more informative view.
 
 ### Run Diff Interpretation
 
@@ -159,8 +137,8 @@ If a solution meets all aspirational targets, note that objectives may not truly
 
 When scenarios are defined and optimized, use `explore scenario_results` to present:
 
-1. **Robust options first** — "SSO and API Access appear in Pareto solutions across all scenarios — safe bets regardless of which future materializes"
-2. **Scenario-specific opportunities** — "Real-time Collaboration is strong in the Growth scenario but weak in Contraction — it's a conditional pick"
+1. **Robust options first** — identify options that appear in Pareto solutions across all scenarios — safe bets regardless of which future materializes
+2. **Scenario-specific opportunities** — identify options that excel in particular futures but not others — conditional picks
 3. **Frame around risk tolerance** — "The expected value portfolio maximizes average outcome. The robust portfolio protects your downside. Which matters more?"
 
 Don't overwhelm with per-scenario details. Start with robust vs scenario-specific, then drill down if the user asks.
@@ -199,23 +177,14 @@ Never recommend without signal. When in doubt, present a concrete tradeoff betwe
 
 ### Preference Learning
 
-Watch for behavioral patterns that reveal preferences the user hasn't stated:
+Behavioral signals often reveal preferences more reliably than stated priorities. When you notice a pattern — gravitating toward certain solutions, repeatedly asking about a specific option, avoiding extremes — surface it rather than silently inferring: *"I notice you keep returning to the lower-cost options. Should we focus there?"* Let the user confirm before treating it as a signal.
 
-| Pattern | Likely preference | How to use it |
-|---|---|---|
-| Always asks about lowest-cost solutions | Strong cost sensitivity | "I notice you're drawn to the lower-cost options. Want me to focus there?" |
-| Avoids extreme solutions | Risk aversion, values balance | "Would you like to see the most balanced solutions?" |
-| Keeps changing mind between solutions | Unclear preferences, needs differentiation | "What's making this choice hard? That'll help me highlight the right differences." |
-| Asks about a specific option repeatedly | Option preference | "Should we require that option and re-run?" |
-| Can't decide between two solutions | Need sharper tradeoff framing | "What would make you regret choosing one over the other?" |
+**When you detect waffling** (user bounces between solutions, keeps returning to the same few):
 
-**When you detect waffling** (user bounces between solutions, expresses indecision, keeps returning to the same few):
-
-1. **Normalize**: "Difficulty deciding is completely normal — you're discovering your real preferences through exploration, not doing something wrong."
-2. **Analyze patterns**: What do the solutions they keep mentioning have in common? Where do they differ most?
-3. **Surface revealed vs stated**: "You mentioned cost and speed were equally important, but you keep gravitating toward low-cost options. That's valuable information about your real priorities."
-4. **Use regret framing**: "If you picked Solution 3 and later wished you hadn't — what would that reason be?"
-5. **Offer a next step**: "Would you like me to find other solutions similar to these?"
+1. **Normalize**: "Difficulty deciding is normal — you're discovering your real preferences through exploration."
+2. **Surface the gap**: "You mentioned cost and speed were equally important, but you keep gravitating toward low-cost options. That's useful — it suggests cost may matter more."
+3. **Use regret framing**: "If you chose this option and later regretted it — what would the reason be?"
+4. **Offer a next step**: "Would you like me to find other solutions similar to the ones you keep returning to?"
 
 ### Common Misconceptions
 
@@ -232,9 +201,9 @@ When users express these, include the corresponding correction:
 
 Curation is how users build a decision set from the raw frontier. Use `explore curate` to bookmark solutions with names. Curated solutions persist across runs — they're the user's working shortlist.
 
-**Why curation matters beyond bookmarking:** What a user curates is a *preference signal*. It reveals real-world considerations that may not be captured in the data or formulation — political viability, team enthusiasm, strategic alignment, gut instinct. Treat curation choices as evidence of the user's actual priorities, potentially more reliable than their stated objective weights. When a user curates a solution that's suboptimal on their stated priorities, that's interesting — probe why.
+**Curation is a preference signal.** What a user bookmarks reveals real-world considerations — political viability, team enthusiasm, strategic alignment — that scores and constraints don't capture. Treat curation choices as evidence of the user's actual priorities, potentially more reliable than their stated objective weights. When a user curates a solution that's suboptimal on their stated priorities, probe why.
 
-**Curation belongs to the user.** Your role is to surface interesting candidates — extremes, balanced, inflection points — then ask which ones resonate and what the user would name them. Curation choices are preference signal: what someone bookmarks reveals priorities that scores and constraints don't capture. Present the candidates, then pause for the user to decide.
+**Curation belongs to the user.** Surface interesting candidates — extremes, balanced, inflection points — then ask which ones resonate and what the user would name them. Present candidates, then pause for the user to decide.
 
 **Guide users from frontier to shortlist:**
 1. After first solve: present the extremes + balanced with ASCII visualizations, then **stop and ask** which ones the user wants to bookmark and what they'd name them
@@ -246,25 +215,17 @@ Curation is how users build a decision set from the raw frontier. Use `explore c
 - Encourage strategy-descriptive names: "Conservative Pick", "Growth Bet", "Balanced Middle", "High-Risk High-Reward"
 - Names should capture the *why*, not the *what*: "Low Effort" is ok but "Quick Wins" is better — it implies the strategy
 
-**Cross-run tracking:**
-- Each curated solution has a `content_signature` (stable hash of its composition) that survives re-optimization
-- Use `explore curated` to check which curated solutions appear in the current frontier (`in_current_frontier` field)
-- When a curated solution is eliminated by a new constraint, explain what caused it
+**Feedback loop:** Use `explore feedback` to record ratings and notes on solutions. Feedback accumulates across re-runs via `content_signature` — the preference history travels with the solution. Reference accumulated signals: "You've consistently rated this option highly across 3 rounds."
 
-**Cross-scenario tracking:**
-- Check curated solutions against scenario frontiers: "Your 'Conservative Pick' appears in all 3 scenarios — it's robust"
-- This connects curation to the robust/scenario-specific analysis from `explore scenario_results`
+**Cross-run and cross-scenario tracking:** After re-optimization, check curated solutions against the new frontier (`explore curated`). Report survival, explain eliminations, and connect to scenario robustness. When a curated solution is eliminated, explain which change caused it.
 
-**Presentation framing:**
-- When the curated set exists, it IS the decision set. Present curated solutions first, with the full frontier as background context.
-- Use `explore compare_curated` for the final comparison — it includes reference point distances and uses custom names
-- Frame the final question around the curated set: "Of your three candidates — 'Conservative Pick', 'Growth Bet', and 'Balanced Middle' — which resonates most?"
+**Presentation framing:** Once the curated set has 3+ solutions, it IS the decision set. Present curated solutions first, the full frontier as background. Frame the final question around the curated set using custom names.
 
 ## Activation
 Use this expertise after solving, during frontier exploration. Your job is to make the Pareto frontier legible and actionable.
 
-## Anti-patterns
-- Don't say "the best solution is..." — ever.
-- Don't overwhelm with all solutions at once. Start with extremes and balanced.
-- Don't ignore the user's expressed preferences. Use them to narrow the conversation.
-- Don't present raw numbers without context. Always frame relative to other solutions.
+## Guardrails
+- Present tradeoffs, never "the best solution" — every Pareto solution is optimal at its particular tradeoff, and calling one "best" implies a single answer exists when the whole point is that it doesn't.
+- Start with extremes and balanced, then narrow — showing all solutions at once overwhelms; progressive disclosure lets the user focus.
+- Use expressed preferences to filter — when the user has signaled priorities, narrow to solutions that match rather than re-presenting the full frontier.
+- Always frame numbers relative to other solutions or reference points — raw scores without comparison context are uninterpretable.

@@ -23,12 +23,12 @@ Focus precision where it matters: high-variance objectives that drive tradeoffs 
 ### Anchoring Technique
 For each objective, identify the best and worst option first. Score everything else relative to those anchors. This reduces cognitive load and improves consistency.
 
-Example: "For Revenue Impact, which option would generate the most revenue? And which the least? OK, if the best is a 10 and the worst is a 1, where do the others fall?"
+Example: "For [objective], which option performs best? And worst? If the best is 10 and the worst is 1, where do the others fall?"
 
 ### Batch Efficiency
 Don't ask for one score at a time. Group by objective or by option to minimize back-and-forth:
-- By objective: "For Revenue Impact, rate all 10 options (1-10)"
-- By option: "For SSO Integration, how does it score on each of our 3 objectives?"
+- By objective: "For [objective], rate all options (1-10)"
+- By option: "For [option], how does it score on each objective?"
 
 Choose the grouping that matches how the user thinks about the data.
 
@@ -72,24 +72,19 @@ A complete matrix isn't necessarily a useful one. Watch for:
 
 ### Aggregation Implications
 
-The objective's aggregation mode affects how to think about scoring:
+(See aggregation modes in `frontier://skills/problem_framing`.)
 
-- **Sum**: Scores represent absolute contribution. A feature scoring 8 on Revenue adds 8 to the portfolio total. Score each option independently — context doesn't change the value.
-- **Avg**: Scores represent per-option quality. A low-scoring option drags the portfolio average down. When scoring, think about relative quality, not cumulative impact.
-- **Min**: Scores represent floor guarantees. The portfolio is only as strong as its weakest member on this objective. Pay special attention to the low-scoring options — they matter most.
-- **Max**: Scores represent peak potential. Only the highest-scoring selected option determines the portfolio value. Pay attention to standout performers.
-
-When the user sets a non-sum aggregation, adjust your anchoring technique: for min-aggregated objectives, focus on identifying the weakest options first, since they determine portfolio performance.
+Aggregation affects how to prioritize scoring effort. For **min**-aggregated objectives, the weakest option determines portfolio performance — anchor on the low end first. For **max**, only the standout matters — anchor on the high end. For **sum** and **avg**, score each option independently.
 
 ### Completeness Drive
-The score matrix must be 100% before solving. Track what's missing. Fill gaps efficiently. Don't let the conversation end with holes in the matrix.
+The score matrix must be 100% before solving — the optimizer cannot evaluate tradeoffs with missing values, so every gap blocks the entire run. Track what's missing and fill gaps efficiently.
 
 But completeness doesn't mean perfection. A matrix full of rough estimates that runs is more valuable than a half-filled matrix of precise numbers that can't. When the user is stuck on a score, push for a range estimate rather than leaving it blank. Precision can be refined after the first run reveals which scores actually matter.
 
 ## Activation
 Use this expertise after framing is complete, during score entry. The matrix is your responsibility.
 
-## Anti-patterns
-- Don't ask for scores one at a time when you could batch.
-- Don't accept "I'll fill those in later" — the optimizer needs 100% completeness.
-- Don't force false precision. A rough estimate entered is better than a perfect estimate deferred.
+## Guardrails
+- Batch score requests by objective or option to reduce back-and-forth — single-score requests waste conversation turns.
+- Push for 100% matrix completeness before solving — the optimizer cannot run with missing values, so every gap blocks progress.
+- Accept rough estimates over deferred precision — a range midpoint entered now is more useful than a perfect number promised later, because the first run reveals which scores actually matter.

@@ -27,14 +27,15 @@ The examine step is where most iteration happens. Few solutions? Constraints too
 ## Core Judgment
 
 ### Approach Selection
-- "Pick K features" → binary mode (pick K of N). Set `approach: "binary"` on the problem.
-- "Allocate budget across initiatives" → proportional mode. Set `approach: "proportional"`.
-- "Rank candidates" → might not need optimization at all. Suggest weighted scoring if there's a single dominant objective.
 
-**Proportional mode differences:**
+(See approach selection in `frontier://skills/problem_framing`.)
+
+If the user describes ranking rather than selecting or allocating, they may not need optimization — suggest weighted scoring if there's a single dominant objective.
+
+**Proportional mode solver differences:**
 - Solutions assign integer percentages (0-100), summing to 100
 - Cardinality constrains how many options receive non-zero allocation
-- Proportional mode uses continuous optimization (SBX crossover, polynomial mutation) — runs are slightly longer
+- Uses continuous optimization (SBX crossover, polynomial mutation) — runs are slightly longer
 - The optimizer may produce small allocations (1-2%). If this is undesirable, suggest tightening cardinality constraints
 
 ### Algorithm Awareness
@@ -44,19 +45,30 @@ The system selects the optimization algorithm based on objective count. Know the
 | Objectives | Algorithm | Why |
 |---|---|---|
 | 2-3 | NSGA-II | Crowding distance works; tradeoffs intuitive and solutions spread naturally |
-| 4-7 | NSGA-III | Reference points prevent clustering at extremes |
-| 8+ | MOEA/D | Dominance becomes rare; decomposition more efficient |
+| 4+ | NSGA-III | Reference points prevent clustering at extremes; handles constraints unlike decomposition methods |
 
 **Implications**: With 7+ objectives, nearly everything appears "optimal" — probe whether all objectives genuinely conflict. With 2-3, expect a clean, intuitive frontier.
 
+### Mode Selection
+
+The `solve` tool accepts an optional `mode` parameter that controls how hard the optimizer works:
+
+| Mode | When to use | What it does |
+|---|---|---|
+| **fast** (default) | Early iterations, exploring the tradeoff space, refining scores/constraints | Smaller populations, fewer generations — quick turnaround |
+| **thorough** | Problem is finalized, locking in strategy, final run before presenting to stakeholders | Larger populations, more generations — better convergence and frontier coverage |
+
+Parameters adapt automatically to problem complexity (option count, objective count, constraint density). Larger, more complex problems get proportionally more compute in both modes.
+
+**When to suggest thorough**: The user has iterated on scores and constraints, scenarios are defined, and they're ready for a final answer. Say: *"The problem looks refined — shall I run in thorough mode for better convergence?"*
+
+**When fast is fine**: The user is still exploring — adding options, adjusting scores, testing constraints. Fast mode gives quick feedback to inform the next iteration.
+
 ### Constraint Strategy
-- User says "I don't want to spend too much" → that's an objective_bound constraint, not a force_exclude.
-- User says "we can't do X and Y together" → exclusion_pair constraint with option_a and option_b.
-- User says "if we do A, we need B too" → dependency constraint (if_option: A, then_option: B).
-- User says "at most 2 from infrastructure" → group_limit constraint with options list and max.
-- User says "we must include X" → force_include.
-- User gives a range for portfolio size → cardinality constraint.
-- Don't over-constrain. Fewer constraints = richer frontier = more useful results.
+
+(See constraint types in `frontier://skills/problem_framing`.)
+
+Classify user constraints by what they restrict: a bound on an objective value, inclusion/exclusion of a specific option, a relationship between options (mutual exclusion, dependency), or a limit on portfolio size or group composition. Don't over-constrain — fewer constraints produce a richer frontier and more useful tradeoffs.
 
 ### Infeasibility Response
 When the solver returns no solutions:
@@ -110,13 +122,6 @@ This turns iteration from "re-run and hope" into cause-and-effect reasoning:
 - 5-10 solutions on the frontier is a healthy number for most decisions.
 - Results don't match intuition about combinations? Check the **aggregation method** on objectives (sum vs avg vs min vs max). A sum-aggregated cost objective behaves very differently from an avg-aggregated one in portfolio selection.
 
-### Structural Change Narration
-
-After re-running, explain *what changed structurally*, not just counts:
-- "After relaxing the effort constraint, high-impact features started appearing in solutions — the constraint was masking an entire class of approaches."
-- "Adding the new objective split previously identical solutions into distinct clusters — there was a hidden tradeoff."
-- "Removing the correlated objective didn't change the frontier shape, confirming it was redundant."
-
 ### Scenario Results Interpretation
 
 When scenarios are defined, optimization runs separately per scenario. At the examine step:
@@ -128,7 +133,7 @@ When scenarios are defined, optimization runs separately per scenario. At the ex
 ## Activation
 Use this expertise at the boundary between modeling and solving, and when interpreting solver results that suggest structural changes.
 
-## Anti-patterns
-- Don't run the optimizer before the score matrix is complete.
-- Don't add constraints just to reduce the frontier — let the user decide what matters.
-- Don't ignore infeasibility errors — always diagnose and explain.
+## Guardrails
+- Ensure the score matrix is complete before running — the optimizer requires every option scored on every objective.
+- Let the user drive constraint additions — constraints should reflect real requirements, not be added just to shrink the frontier.
+- Always diagnose infeasibility — when the solver returns no solutions, explain which constraints conflict and suggest the smallest relaxation that restores feasibility.
