@@ -133,6 +133,12 @@ When scenarios are defined, optimization runs separately per scenario. At the ex
 ## Activation
 Use this expertise at the boundary between modeling and solving, and when interpreting solver results that suggest structural changes.
 
+## Scope Boundaries
+- **Owns:** Solve execution — validate→run→examine loop, mode selection, constraint strategy, infeasibility diagnosis, run comparison
+- **Routes to solution_interpreter:** When results are healthy and ready for user presentation
+- **Routes back to problem_framing:** When infeasibility or bad results indicate a structural problem (missing constraint, wrong objective, approach mismatch)
+- **Routes back to data_collection:** When diagnostics suggest score quality issues (low variance driving flat frontiers, scale distortion)
+
 ## Guardrails
 - Ensure the score matrix is complete before running — the optimizer requires every option scored on every objective.
 - Let the user drive constraint additions — constraints should reflect real requirements, not be added just to shrink the frontier.

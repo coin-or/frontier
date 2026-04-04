@@ -84,6 +84,11 @@ But completeness doesn't mean perfection. A matrix full of rough estimates that 
 ## Activation
 Use this expertise after framing is complete, during score entry. The matrix is your responsibility.
 
+## Scope Boundaries
+- **Owns:** Score matrix — getting numbers for every option×objective cell, evaluating source quality, handling uncertainty
+- **Routes to optimization_strategy:** When the matrix is complete and the problem is ready to solve
+- **Routes back from optimization_strategy:** When results suggest score quality issues (low variance, scale mismatch) that need re-collection
+
 ## Guardrails
 - Batch score requests by objective or option to reduce back-and-forth — single-score requests waste conversation turns.
 - Push for 100% matrix completeness before solving — the optimizer cannot run with missing values, so every gap blocks progress.

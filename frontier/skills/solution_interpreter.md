@@ -104,15 +104,54 @@ Explain the tradeoff structure in plain language:
 
 Apply these when the situation calls for them. They improve quality but are secondary to the critical judgment above.
 
+### Solution Quality Ladder
+
+Assess frontier quality before presenting results. Each level builds on the previous:
+
+| Level | Gate | Check | If failing |
+|---|---|---|---|
+| **Feasible** | ≥1 solution exists | solution_count > 0 | Infeasible — route to optimization_strategy for constraint diagnosis |
+| **Diverse** | Multiple distinct solutions | solution_count ≥ 3, solutions differ on ≥2 options | Over-constrained or objectives correlated — consider relaxing constraints or consolidating objectives |
+| **Actionable** | Solutions differ meaningfully | >2 options vary across frontier solutions | Problem may be too narrowly scoped — check if more options should be added |
+| **Robust** | Stable across parameter changes | Key solutions survive across scenarios or re-runs | Flag fragile solutions, suggest scenario analysis if not yet done |
+| **Credible** | Domain-sensible | User confirms selections make sense | Scores may need recalibration, or a constraint is missing |
+
+Present results once they pass the **Diverse** gate. Flag quality concerns but don't block exploration — users learn from imperfect results.
+
+### Root Cause Taxonomy
+
+When results look wrong, classify the symptom before suggesting fixes:
+
+| Symptom | Likely causes | Diagnostic |
+|---|---|---|
+| All options allocated equally | Objectives too similar (correlated), constraints forcing even distribution | Check correlations between objectives; review cardinality constraints |
+| Same options in ALL solutions | Other options dominated, data quality issues (missing or extreme scores) | Check scores for excluded options — are they consistently worse? |
+| One option dominates (>60% allocation) | Intended (scores best on most objectives), or missing group_limit | Compare to reference point; ask if concentration matches user expectation |
+| Very few solutions (<3) | Over-constrained, cardinality too tight | Identify which constraint to relax; check force_include/exclude interactions |
+| Flat frontier (objectives barely differ) | Objectives correlated, not truly conflicting | Run Conflict Test from problem_framing; consider consolidating |
+| Option never selected despite good scores | Dominated by a combination of others, or a constraint excludes it | Check if any constraint (force_exclude, exclusion_pair, group_limit) blocks it |
+
+### Marginal Analysis Interpretation
+
+The `explore marginal_analysis` action computes the marginal rate of exchange between conflicting objectives — how much of B is sacrificed per unit improvement in A between adjacent Pareto solutions. Use it to:
+
+- **Identify diminishing returns**: Where the cost of further improvement jumps sharply (the knee point)
+- **Guide the user's selection**: "Improving revenue past solution 3 costs 4x more effort per unit — that's likely the sweet spot"
+- **Anchor the conversation**: Marginal rates give concrete exchange rates for tradeoff questions ("Each additional $10K revenue costs 2 points of satisfaction")
+
+Present marginal analysis after the initial tradeoffs overview, especially when the user is weighing two conflicting objectives.
+
 ### Frontier Visualization
 
-Render visualizations inline as ASCII using Unicode characters (█░ for bars, ·∘ for scatter points, ①②③ for labels). Choose the format that best reveals the tradeoff structure:
+The explore tool renders ASCII visualizations inline with each response. The format depends on the action:
 
-- **Scatter plots (2D)**: Plot the most conflicting pair of objectives — this is where the real tradeoff lives. Label extremes, balanced, and the user's shortlist.
-- **Parallel coordinates**: Compare 3-6 candidate solutions across all objectives at once. One column per objective, one row per solution, normalized to the objective's range.
-- **Comparison tables**: Prefer over charts when there are only 2-3 solutions — tables are clearer at small scale.
+- **`tradeoffs`** → **2D scatter plot** of the most conflicting objective pair (highest |negative correlation|). Shows all frontier solutions as `·` on a grid, with labeled markers for extremes (`●`), balanced (`⚖`). Reveals WHERE solutions cluster, WHERE inflection points are, and the shape of the tradeoff curve. Axes are direction-aware — "better" always points right/up.
 
-Pick the visualization that adds the most information. When objectives are highly correlated, a chart between them adds little — choose a more informative view.
+- **`compare` / `compare_curated`** → **Parallel coordinates** — one row per solution, one column per objective (capped at 6 most differentiating), each normalized to its range with direction-aware orientation. Shows at a glance which solution wins on which objective and how they trade off. Use this for 2-6 candidate solutions or curated shortlists.
+
+- **`scenario_results`** → **Range comparison bars** per objective per scenario, showing how the feasible range shifts across futures, plus robustness counts and expected values.
+
+These visualizations are generated by the tool — you don't need to construct them. Present them as-is along with your narrative interpretation. Supplement with brief comparison tables when comparing only 2 solutions, where a table may be clearer than parallel coordinates.
 
 ### Run Diff Interpretation
 
@@ -126,10 +165,18 @@ Always connect the change to the user's action: "You added a force_include on SS
 
 ### Reference Point Narration
 
-When reference points exist, the explorer includes distance-to-reference metrics. Use them to contextualize:
-- "This solution is 15% better than your baseline on cost, but 5% short of your quality target"
-- "Compared to your current portfolio, this saves $12K but reduces satisfaction by 0.5 points"
-- Frame gaps as actionable: "The quality gap from your target is small — achievable with one more constraint relaxation"
+When reference points exist, the explorer includes distance-to-reference metrics. Use these templates to contextualize:
+
+**Baseline comparison** (status quo → solution):
+- "Your current allocation achieves [X cost] and [Y quality]. This solution achieves [Z cost] and [Q quality] — that's a [+/-]% improvement on cost at [+/-]% quality."
+- "Compared to your current portfolio, this saves [$X] but reduces satisfaction by [Y] points."
+
+**Aspirational comparison** (solution → target):
+- "Your target was [$M cost] and [N% quality]. This solution reaches [X% of cost target, Y% of quality target]. The gap is primarily in [which objective]."
+- Frame gaps as actionable: "The quality gap from your target is small — achievable with one more constraint relaxation."
+
+**Multi-solution framing** (when presenting 2-3 solutions against references):
+- "Solution A is closest to your current state (minimal disruption). Solution B reaches closer to your target (bigger change needed). Solution C balances both."
 
 If a solution meets all aspirational targets, note that objectives may not truly conflict at these target levels.
 
@@ -223,6 +270,11 @@ Curation is how users build a decision set from the raw frontier. Use `explore c
 
 ## Activation
 Use this expertise after solving, during frontier exploration. Your job is to make the Pareto frontier legible and actionable.
+
+## Scope Boundaries
+- **Owns:** Post-solve presentation — translating frontier results into actionable insights, preference elicitation, curation guidance
+- **Routes back to problem_framing:** When a user rejects a result on preference grounds — the rejection reveals a latent constraint or missing objective
+- **Routes back to optimization_strategy:** When results suggest structural issues (too few solutions, flat frontier) that need re-running with different settings
 
 ## Guardrails
 - Present tradeoffs, never "the best solution" — every Pareto solution is optimal at its particular tradeoff, and calling one "best" implies a single answer exists when the whole point is that it doesn't.
