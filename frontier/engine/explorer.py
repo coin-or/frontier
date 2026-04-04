@@ -68,6 +68,7 @@ def get_tradeoffs(problem: Problem) -> dict:
             balanced.objective_values, problem.reference_points, problem.objectives,
         )
 
+    result["visualization"] = _render_tradeoffs_viz(result, problem.objectives, solutions)
     return result
 
 
@@ -118,6 +119,12 @@ def compare_solutions(problem: Problem, solution_ids: list[int]) -> dict:
                 for s in selected
             }
         result["allocation_comparison"] = alloc_comparison
+
+    # Parallel coordinates visualization
+    sol_dicts = [{"solution_id": s.solution_id, "objective_values": s.objective_values}
+                 for s in selected]
+    labels = {s.solution_id: f"[{s.solution_id}]" for s in selected}
+    result["visualization"] = _render_parallel_coords(sol_dicts, problem.objectives, labels)
 
     return result
 
@@ -404,6 +411,12 @@ def compare_curated(problem: Problem, signatures: list[str]) -> dict:
                 sol_dict["objective_values"], problem.reference_points, problem.objectives,
             )
 
+    # Parallel coordinates visualization
+    sol_dicts = [{"content_signature": cs.content_signature, "objective_values": cs.objective_values}
+                 for cs in selected]
+    labels = {cs.content_signature: (cs.custom_name or cs.content_signature[:8]) for cs in selected}
+    result["visualization"] = _render_parallel_coords(sol_dicts, problem.objectives, labels)
+
     return result
 
 
@@ -471,13 +484,486 @@ def get_scenario_results(problem: Problem) -> dict:
                 ev += weight * best
         expected_values[obj] = round(ev, 4)
 
-    return {
+    result = {
         "per_scenario": per_scenario,
         "robust_options": sorted(robust_options),
         "scenario_specific_options": scenario_specific,
         "expected_values": expected_values,
         "weighting": "probability" if has_probabilities else "equal",
     }
+    result["visualization"] = _render_scenario_viz(result)
+    return result
+
+
+def marginal_analysis(problem: Problem) -> dict:
+    """Marginal rate analysis: cost-per-unit improvement between adjacent Pareto solutions.
+
+    For each negatively-correlated objective pair, sorts solutions by one objective
+    and computes the marginal rate of exchange. Detects knee points where the rate
+    jumps sharply — the point of diminishing returns.
+    """
+    run = _require_run(problem)
+    solutions = run.solutions
+    objectives = problem.objectives
+    obj_names = [o.name for o in objectives]
+
+    if len(solutions) < 3:
+        return {"pairs": [], "note": "Need at least 3 solutions for marginal analysis."}
+
+    # Compute pairwise correlations
+    matrix = np.array([
+        [s.objective_values[name] for name in obj_names]
+        for s in solutions
+    ])
+    corr = np.corrcoef(matrix.T)
+
+    pairs = []
+    for i in range(len(obj_names)):
+        for j in range(i + 1, len(obj_names)):
+            r = float(corr[i, j])
+            if r >= 0:
+                continue  # Only analyze conflicting pairs
+
+            obj_a = objectives[i]
+            obj_b = objectives[j]
+
+            # Sort solutions by objective A (in "better" direction)
+            reverse_a = obj_a.direction.value == "maximize"
+            sorted_sols = sorted(
+                solutions,
+                key=lambda s: s.objective_values[obj_a.name],
+                reverse=reverse_a,
+            )
+
+            # Compute marginal rates between adjacent solutions
+            rates = []
+            for k in range(len(sorted_sols) - 1):
+                s1 = sorted_sols[k]
+                s2 = sorted_sols[k + 1]
+                delta_a = s2.objective_values[obj_a.name] - s1.objective_values[obj_a.name]
+                delta_b = s2.objective_values[obj_b.name] - s1.objective_values[obj_b.name]
+
+                # Flip signs so deltas represent "improvement" in each objective
+                if obj_a.direction.value == "minimize":
+                    delta_a = -delta_a
+                if obj_b.direction.value == "minimize":
+                    delta_b = -delta_b
+
+                # Rate: how much B is sacrificed per unit of A gained
+                # (moving from s1 to s2, A gets worse, B gets better — or vice versa)
+                if abs(delta_a) > 1e-9:
+                    rate = abs(delta_b / delta_a)
+                else:
+                    rate = 0.0
+
+                rates.append({
+                    "from_id": s1.solution_id,
+                    "to_id": s2.solution_id,
+                    f"delta_{obj_a.name}": round(delta_a, 4),
+                    f"delta_{obj_b.name}": round(delta_b, 4),
+                    "rate": round(rate, 4),
+                })
+
+            # Detect knee: largest jump in marginal rate
+            knee = None
+            if len(rates) >= 2:
+                rate_values = [r["rate"] for r in rates]
+                max_jump = 0.0
+                knee_idx = 0
+                for k in range(len(rate_values) - 1):
+                    if rate_values[k] > 1e-9:
+                        jump = rate_values[k + 1] / rate_values[k]
+                    else:
+                        jump = rate_values[k + 1] if rate_values[k + 1] > 0 else 0.0
+                    if jump > max_jump:
+                        max_jump = jump
+                        knee_idx = k + 1
+
+                if max_jump >= 2.0:
+                    knee_sol_id = rates[knee_idx]["from_id"]
+                    knee = {
+                        "solution_id": knee_sol_id,
+                        "position": knee_idx,
+                        "jump_factor": round(max_jump, 1),
+                        "recommendation": (
+                            f"Knee at solution {knee_sol_id}: marginal cost of "
+                            f"{obj_b.name} per unit {obj_a.name} jumps {max_jump:.1f}x. "
+                            f"Further improvement past this point yields diminishing returns."
+                        ),
+                    }
+
+            pair_result = {
+                "objectives": [obj_a.name, obj_b.name],
+                "correlation": round(r, 2),
+                "rates": rates,
+                "knee": knee,
+            }
+
+            # ASCII visualization of marginal rates
+            pair_result["visualization"] = _render_marginal_rates(
+                rates, obj_a, obj_b, knee,
+            )
+            pairs.append(pair_result)
+
+    return {"pairs": pairs}
+
+
+def _render_marginal_rates(rates: list[dict], obj_a, obj_b, knee: dict | None) -> str:
+    """ASCII bar chart of marginal rates between adjacent solutions."""
+    if not rates:
+        return ""
+
+    lines = []
+    lines.append(f"─── Marginal Rates: {obj_b.name} cost per unit {obj_a.name} ───")
+    lines.append("")
+
+    rate_values = [r["rate"] for r in rates]
+    max_rate = max(rate_values) if rate_values else 1.0
+    if max_rate == 0:
+        max_rate = 1.0
+
+    BAR_W = 30
+    for idx, r in enumerate(rates):
+        from_id = r["from_id"]
+        to_id = r["to_id"]
+        rate = r["rate"]
+        filled = max(0, min(BAR_W, round(rate / max_rate * BAR_W)))
+        bar = "█" * filled + "░" * (BAR_W - filled)
+        marker = " ◀ KNEE" if knee and idx == knee["position"] else ""
+        lines.append(f"  [{from_id}]→[{to_id}]  |{bar}| {_fmt(rate)}{marker}")
+
+    lines.append("")
+    if knee:
+        lines.append(f"  ◀ Knee: marginal cost jumps {knee['jump_factor']:.1f}x at solution {knee['solution_id']}")
+    else:
+        lines.append("  No significant knee detected — marginal costs change gradually.")
+
+    return "\n".join(lines)
+
+
+# ─── ASCII Visualization Helpers ───
+
+
+def _normalize(value: float, lo: float, hi: float, direction: str) -> float:
+    """Normalize to 0.0–1.0 where 1.0 is 'better'.
+
+    For maximize: higher raw value → higher normalized.
+    For minimize: lower raw value → higher normalized (flipped).
+    """
+    if hi == lo:
+        return 0.5
+    raw = (value - lo) / (hi - lo)
+    return (1.0 - raw) if direction == "minimize" else raw
+
+
+def _bar(value: float, lo: float, hi: float, width: int = 30) -> str:
+    """Render a single normalized bar."""
+    if hi == lo:
+        filled = width // 2
+    else:
+        filled = max(0, min(width, round((value - lo) / (hi - lo) * width)))
+    return "█" * filled + "░" * (width - filled)
+
+
+def _fmt(v: float) -> str:
+    """Format a number compactly."""
+    if abs(v) >= 100:
+        return f"{v:.0f}"
+    if abs(v) >= 10:
+        return f"{v:.1f}"
+    return f"{v:.2f}"
+
+
+def _render_scatter(solutions, objectives, key_tradeoffs, extreme_solutions,
+                    balanced_solution) -> str:
+    """2D ASCII scatter plot of the most conflicting objective pair.
+
+    Grid-bins all solutions as · then overlays labeled points for extremes (●),
+    balanced (⚖). Shows frontier shape, inflection points, clustering.
+    """
+    WIDTH, HEIGHT = 50, 16
+
+    # Find most negatively correlated pair
+    if not key_tradeoffs:
+        return "  (scatter requires 2+ objectives with correlation data)"
+    best_pair = min(key_tradeoffs, key=lambda t: t["correlation"])
+    x_name, y_name = best_pair["objectives"]
+    r_val = best_pair["correlation"]
+
+    obj_map = {o.name: o for o in objectives}
+    x_obj, y_obj = obj_map[x_name], obj_map[y_name]
+    x_dir, y_dir = x_obj.direction.value, y_obj.direction.value
+    x_unit = f" ({x_obj.unit})" if x_obj.unit else ""
+    y_unit = f" ({y_obj.unit})" if y_obj.unit else ""
+
+    # Compute ranges
+    x_vals = [s.objective_values[x_name] for s in solutions]
+    y_vals = [s.objective_values[y_name] for s in solutions]
+    x_lo, x_hi = min(x_vals), max(x_vals)
+    y_lo, y_hi = min(y_vals), max(y_vals)
+
+    # Build grid (row 0 = top = high normalized y)
+    grid = [[" "] * WIDTH for _ in range(HEIGHT)]
+
+    def _to_grid(xv, yv):
+        nx = _normalize(xv, x_lo, x_hi, x_dir)
+        ny = _normalize(yv, y_lo, y_hi, y_dir)
+        col = max(0, min(WIDTH - 1, int(nx * (WIDTH - 1))))
+        row = max(0, min(HEIGHT - 1, HEIGHT - 1 - int(ny * (HEIGHT - 1))))
+        return row, col
+
+    # Plot all solutions as dots
+    for s in solutions:
+        r, c = _to_grid(s.objective_values[x_name], s.objective_values[y_name])
+        if grid[r][c] == " ":
+            grid[r][c] = "·"
+
+    # Collect labeled points
+    labels_right = []  # (row, col, label)
+
+    # Extremes for the plotted pair
+    x_ext_key = f"best_{x_name}"
+    y_ext_key = f"best_{y_name}"
+    bal_id = balanced_solution["solution_id"]
+    bal_vals = balanced_solution["objective_values"]
+
+    for s in solutions:
+        sid = s.solution_id
+        xv, yv = s.objective_values[x_name], s.objective_values[y_name]
+        r, c = _to_grid(xv, yv)
+        if x_ext_key in extreme_solutions and sid == extreme_solutions[x_ext_key]["solution_id"]:
+            grid[r][c] = "●"
+            labels_right.append((r, c, f"[{sid}] Best {x_name[:12]}"))
+        elif y_ext_key in extreme_solutions and sid == extreme_solutions[y_ext_key]["solution_id"]:
+            grid[r][c] = "●"
+            labels_right.append((r, c, f"[{sid}] Best {y_name[:12]}"))
+        elif sid == bal_id:
+            grid[r][c] = "⚖"
+            labels_right.append((r, c, f"[{sid}] Balanced"))
+
+    # Render
+    lines = []
+    lines.append(f"─── Frontier Scatter: {x_name} vs {y_name} (r={r_val:+.2f}) ───")
+    lines.append("")
+
+    # Y-axis label
+    y_better = "↑ better" if y_dir == "maximize" else "↑ better (lower)"
+    y_top = _fmt(y_hi if y_dir == "maximize" else y_lo)
+    y_bot = _fmt(y_lo if y_dir == "maximize" else y_hi)
+    y_label = f"{y_name}{y_unit}"
+    lines.append(f"  {y_label} {y_better}")
+
+    # Build label lookup by row for right-side labels
+    row_labels = {}
+    for r, c, lbl in labels_right:
+        row_labels[r] = lbl
+
+    for r in range(HEIGHT):
+        row_str = "".join(grid[r])
+        y_tick = ""
+        if r == 0:
+            y_tick = f"{y_top:>6s}"
+        elif r == HEIGHT - 1:
+            y_tick = f"{y_bot:>6s}"
+        else:
+            y_tick = "      "
+        label = f"  {row_labels[r]}" if r in row_labels else ""
+        lines.append(f"  {y_tick} |{row_str}|{label}")
+
+    # X-axis
+    x_better = "→ better" if x_dir == "maximize" else "→ better (lower)"
+    x_left = _fmt(x_lo if x_dir == "maximize" else x_hi)
+    x_right = _fmt(x_hi if x_dir == "maximize" else x_lo)
+    lines.append(f"         +{'─' * WIDTH}+ {x_better}")
+    lines.append(f"         {x_left}{' ' * (WIDTH - len(x_left) - len(x_right))}{x_right}")
+    x_label = f"{x_name}{x_unit}"
+    pad = (WIDTH - len(x_label)) // 2
+    lines.append(f"         {' ' * pad}{x_label}")
+    lines.append("")
+    lines.append("  ● extremes  ⚖ balanced  · frontier")
+
+    return "\n".join(lines)
+
+
+def _render_tradeoffs_viz(result: dict, objectives: list, solutions=None) -> str:
+    """Scatter plot of most conflicting pair + correlation summary."""
+    parts = []
+
+    # Scatter plot (needs full solutions list)
+    if solutions and len(objectives) >= 2 and result.get("key_tradeoffs"):
+        parts.append(_render_scatter(
+            solutions, objectives,
+            result["key_tradeoffs"],
+            result["extreme_solutions"],
+            result["balanced_solution"],
+        ))
+
+    # Correlation summary
+    if result.get("key_tradeoffs"):
+        lines = ["", "─── Correlations ───", ""]
+        for t in result["key_tradeoffs"]:
+            r = t["correlation"]
+            if abs(r) < 0.3:
+                continue
+            o1, o2 = t["objectives"]
+            if r > 0.7:
+                symbol, desc = "↗↗", "move together"
+            elif r > 0.3:
+                symbol, desc = "↗", "weakly aligned"
+            elif r < -0.7:
+                symbol, desc = "↗↙", "strong tradeoff"
+            else:
+                symbol, desc = "↗↘", "mild tradeoff"
+            lines.append(f"  {symbol} {o1} vs {o2}: r={r:+.2f} ({desc})")
+        parts.append("\n".join(lines))
+
+    return "\n".join(parts)
+
+
+def _render_parallel_coords(solutions_data: list[dict], objectives: list,
+                            labels: dict | None = None) -> str:
+    """Parallel coordinates: one row per solution, one column per objective.
+
+    Each objective gets a 12-char bar with a 2-char marker showing the
+    solution's normalized position. Direction-aware: right = better.
+
+    solutions_data: list of dicts with at least 'objective_values' key.
+    labels: maps an identifier to a display label (e.g. {0: "[0] Best Ret"}).
+    """
+    if not solutions_data or not objectives:
+        return ""
+
+    BAR_W = 12
+    labels = labels or {}
+
+    # Determine which objectives to show (cap at 6 most differentiating)
+    obj_list = list(objectives)
+    if len(obj_list) > 6:
+        # Pick 6 with highest variance across compared solutions
+        variances = []
+        for obj in obj_list:
+            vals = [sd["objective_values"].get(obj.name, 0) for sd in solutions_data]
+            v = max(vals) - min(vals) if vals else 0
+            variances.append((v, obj))
+        variances.sort(reverse=True)
+        obj_list = [o for _, o in variances[:6]]
+        omitted = len(objectives) - 6
+    else:
+        omitted = 0
+
+    # Compute ranges across compared solutions
+    ranges = {}
+    for obj in obj_list:
+        vals = [sd["objective_values"].get(obj.name, 0) for sd in solutions_data]
+        ranges[obj.name] = (min(vals), max(vals))
+
+    # Build header
+    lines = []
+    n_sols = len(solutions_data)
+    n_objs = len(obj_list)
+    lines.append(f"─── Parallel Coordinates: {n_sols} solutions x {n_objs} objectives ───")
+    lines.append("")
+
+    # Objective names row
+    name_row = f"  {'Solution':<18s}"
+    for obj in obj_list:
+        arrow = "→" if obj.direction.value == "maximize" else "←"
+        name = obj.name[:10]
+        name_row += f"  {name}{arrow:>{BAR_W - len(name)}s}"
+    lines.append(name_row)
+
+    # Scale row
+    scale_row = f"  {'':<18s}"
+    for obj in obj_list:
+        lo, hi = ranges[obj.name]
+        if obj.direction.value == "minimize":
+            scale_row += f"  {_fmt(hi):>{BAR_W // 2}s}─{_fmt(lo):<{BAR_W // 2}s}"
+        else:
+            scale_row += f"  {_fmt(lo):>{BAR_W // 2}s}─{_fmt(hi):<{BAR_W // 2}s}"
+    lines.append(scale_row)
+
+    lines.append(f"  {'─' * 18}{'─' * ((BAR_W + 2) * n_objs)}")
+
+    # Solution rows
+    for sd in solutions_data:
+        # Determine label
+        sid = sd.get("solution_id", sd.get("content_signature", ""))
+        label = labels.get(sid, str(sid)[:15])
+        label = label[:18]
+
+        row = f"  {label:<18s}"
+        for obj in obj_list:
+            lo, hi = ranges[obj.name]
+            val = sd["objective_values"].get(obj.name, 0)
+            n = _normalize(val, lo, hi, obj.direction.value)
+            pos = max(0, min(BAR_W - 2, int(n * (BAR_W - 2))))
+            bar = list("·" * BAR_W)
+            bar[pos] = "█"
+            bar[min(pos + 1, BAR_W - 1)] = "█"
+            row += f"  {''.join(bar)}"
+        lines.append(row)
+
+    if omitted:
+        lines.append(f"  ({omitted} more objectives omitted)")
+
+    return "\n".join(lines)
+
+
+def _render_scenario_viz(result: dict) -> str:
+    """ASCII side-by-side range comparison per scenario."""
+    lines = []
+    per_scenario = result["per_scenario"]
+    scenario_names = list(per_scenario.keys())
+    if not scenario_names:
+        return ""
+
+    # Get all objectives
+    obj_names = list(per_scenario[scenario_names[0]]["objective_ranges"].keys())
+
+    # Global min/max per objective across scenarios
+    global_ranges = {}
+    for obj in obj_names:
+        all_lo = min(per_scenario[s]["objective_ranges"][obj]["min"] for s in scenario_names)
+        all_hi = max(per_scenario[s]["objective_ranges"][obj]["max"] for s in scenario_names)
+        global_ranges[obj] = (all_lo, all_hi)
+
+    lines.append("─── Scenario Range Comparison ───")
+    lines.append("")
+
+    for obj in obj_names:
+        lo, hi = global_ranges[obj]
+        lines.append(f"  {obj}  [{lo:.2f} — {hi:.2f}]")
+        for s_name in scenario_names:
+            s_lo = per_scenario[s_name]["objective_ranges"][obj]["min"]
+            s_hi = per_scenario[s_name]["objective_ranges"][obj]["max"]
+            bar_lo = _bar(s_lo, lo, hi, width=30)
+            bar_hi = _bar(s_hi, lo, hi, width=30)
+            # Show range as a bracket
+            if hi == lo:
+                pos_lo, pos_hi = 15, 15
+            else:
+                pos_lo = max(0, min(30, round((s_lo - lo) / (hi - lo) * 30)))
+                pos_hi = max(0, min(30, round((s_hi - lo) / (hi - lo) * 30)))
+            range_bar = "·" * pos_lo + "█" * max(1, pos_hi - pos_lo) + "·" * (30 - pos_hi)
+            lines.append(f"    {s_name:30s} |{range_bar}| {s_lo:.2f}–{s_hi:.2f}")
+        lines.append("")
+
+    # Robust vs scenario-specific counts
+    robust = result.get("robust_options", [])
+    specific = result.get("scenario_specific_options", {})
+    lines.append("─── Option Robustness ───")
+    lines.append(f"  Robust (all scenarios):    {len(robust)} options")
+    lines.append(f"  Scenario-specific:         {len(specific)} options")
+    lines.append("")
+
+    # Expected values
+    ev = result.get("expected_values", {})
+    if ev:
+        lines.append("─── Expected Values (probability-weighted) ───")
+        for obj, val in ev.items():
+            lines.append(f"  {obj:25s} {val:.2f}")
+
+    return "\n".join(lines)
 
 
 def _require_run(problem: Problem) -> Run:

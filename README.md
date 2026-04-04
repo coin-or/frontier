@@ -2,6 +2,8 @@
 
 Multi-objective portfolio optimization engine, exposed as an MCP server.
 
+**Developer docs:** [`architecture.md`](architecture.md) — system architecture & data flow | [`best-practices.md`](best-practices.md) — skill & prompt design guidelines
+
 ## Setup
 
 ### Claude Code (terminal)

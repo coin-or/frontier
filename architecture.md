@@ -30,6 +30,7 @@ Frontier exposes 3 tools, each with multiple actions:
 | | `rename_curated` | Update a curated solution's custom name |
 | | `curated` | List all curated solutions with `in_current_frontier` survival flag |
 | | `compare_curated` | Compare curated solutions side-by-side by content signature |
+| | `marginal_analysis` | Marginal rate analysis: cost-per-unit between adjacent solutions, knee point detection |
 
 ### MCP Skills (Resources)
 

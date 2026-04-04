@@ -456,7 +456,7 @@ def _sort_and_reindex(solutions: list[Solution], obj_list: list) -> list[Solutio
         first_obj = obj_list[0].name
         reverse = obj_list[0].direction.value == "maximize"
         solutions.sort(key=lambda s: s.objective_values.get(first_obj, 0), reverse=reverse)
-        for i, s in enumerate(solutions):
+        for i, s in enumerate(solutions, start=1):
             s.solution_id = i
             s.content_signature = _content_signature(s.selected_options, s.allocations)
     return solutions

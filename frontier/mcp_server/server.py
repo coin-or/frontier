@@ -467,6 +467,32 @@ def _solve_run_scenarios(p: Problem, mode: OptimizeMode | None = None) -> dict:
     }
 
 
+def _format_explore(result: dict) -> dict:
+    """Compact explore output: visualization first, redundant bulk trimmed.
+
+    Keeps the dict return type (tests and consumers index into it) but trims
+    fields already covered by the visualization to prevent MCP truncation.
+    """
+    # Compact extreme_solutions — keep id + value, drop option lists
+    # (agent can use `explore solution <id>` for full detail)
+    if "extreme_solutions" in result:
+        result["extreme_solutions"] = {
+            name: {"solution_id": ext["solution_id"], "value": ext["value"]}
+            for name, ext in result["extreme_solutions"].items()
+        }
+
+    # Compact scenario_specific_options — group by scenario (less verbose)
+    if "scenario_specific_options" in result:
+        by_scenario: dict[str, list[str]] = {}
+        for opt, scenarios in result["scenario_specific_options"].items():
+            for s in scenarios:
+                by_scenario.setdefault(s, []).append(opt)
+        result["scenario_specific"] = by_scenario
+        del result["scenario_specific_options"]
+
+    return result
+
+
 # ─── Tool 3: explore ───
 
 
@@ -501,6 +527,7 @@ def explore(
       rename_curated — Update name. Params: content_signature, custom_name.
       curated    — List all curated solutions with survival status.
       compare_curated — Compare curated solutions. Params: signatures (list of 2+ content_signature strings).
+      marginal_analysis — Marginal rate analysis: cost-per-unit between adjacent solutions, knee detection.
     """
     try:
         p = store.load(problem_id)
@@ -510,14 +537,14 @@ def explore(
     match action:
         case "tradeoffs":
             try:
-                return explorer.get_tradeoffs(p)
+                return _format_explore(explorer.get_tradeoffs(p))
             except ValueError as e:
                 return {"error": str(e)}
         case "compare":
             if not solution_ids or len(solution_ids) < 2:
                 return {"error": "solution_ids must contain at least 2 IDs for compare."}
             try:
-                return explorer.compare_solutions(p, solution_ids)
+                return _format_explore(explorer.compare_solutions(p, solution_ids))
             except ValueError as e:
                 return {"error": str(e)}
         case "solutions":
@@ -543,7 +570,7 @@ def explore(
                 return {"error": str(e)}
         case "scenario_results":
             try:
-                return explorer.get_scenario_results(p)
+                return _format_explore(explorer.get_scenario_results(p))
             except ValueError as e:
                 return {"error": str(e)}
         case "curate":
@@ -579,7 +606,12 @@ def explore(
             if not signatures or len(signatures) < 2:
                 return {"error": "signatures must contain at least 2 content_signature strings."}
             try:
-                return explorer.compare_curated(p, signatures)
+                return _format_explore(explorer.compare_curated(p, signatures))
+            except ValueError as e:
+                return {"error": str(e)}
+        case "marginal_analysis":
+            try:
+                return explorer.marginal_analysis(p)
             except ValueError as e:
                 return {"error": str(e)}
         case _:
