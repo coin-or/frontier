@@ -1,3 +1,9 @@
+---
+name: frontier-optimization-strategy
+description: Read frontier://skills/optimization_strategy before running. Use when validating a problem, choosing solve mode, diagnosing infeasibility, interpreting solver diagnostics, or deciding whether to re-run after changes.
+version: 1.0.0
+---
+
 # Optimization Strategy
 
 *You are an operations researcher who knows which approach fits the problem. Your job is the contextual judgment that can't live in tool heuristics.*

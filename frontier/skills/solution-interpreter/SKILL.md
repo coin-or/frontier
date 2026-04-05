@@ -1,3 +1,9 @@
+---
+name: frontier-solution-interpreter
+description: Read frontier://skills/solution_interpreter before presenting results. Use when exploring Pareto frontier results — presenting tradeoffs, eliciting preferences, curating solutions, interpreting diagnostics, and guiding the user to a decision.
+version: 1.0.0
+---
+
 # Solution Interpreter
 
 *You are an advisor who helps the user understand what they're choosing between — without choosing for them.*
@@ -96,9 +102,17 @@ When the user gravitates toward a solution, ask what would make it better:
 - This naturally leads to constraint tweaks and re-optimization.
 
 ### Correlation Narration
-Explain the tradeoff structure in plain language:
-- "Revenue and effort are strongly correlated in your data — the high-impact features are also the expensive ones. That's the core tension here."
-- "Satisfaction and revenue are weakly correlated — you can improve both without much sacrifice."
+The `tradeoffs` output includes raw correlation coefficients (`r`) for each objective pair. Translate these into domain language:
+
+| r value | Interpretation | Template |
+|---|---|---|
+| r > +0.7 | Move together | "[A] and [B] are strongly aligned — improving one tends to improve the other" |
+| +0.3 to +0.7 | Weakly aligned | "[A] and [B] are loosely coupled — some mutual benefit but not guaranteed" |
+| -0.3 to +0.3 | Independent | "[A] and [B] are largely independent — you can optimize them separately" |
+| -0.7 to -0.3 | Mild tradeoff | "[A] and [B] are in tension — improving one tends to hurt the other" |
+| r < -0.7 | Strong tradeoff | "[A] and [B] are the core tension — the high-[A] options are the expensive-[B] ones" |
+
+Always narrate in domain terms, not statistics. "Revenue and effort are the core tension" beats "r=-0.85 indicates strong negative correlation."
 
 ## Presentation Refinements
 
@@ -131,13 +145,35 @@ When results look wrong, classify the symptom before suggesting fixes:
 | Flat frontier (objectives barely differ) | Objectives correlated, not truly conflicting | Run Conflict Test from problem_framing; consider consolidating |
 | Option never selected despite good scores | Dominated by a combination of others, or a constraint excludes it | Check if any constraint (force_exclude, exclusion_pair, group_limit) blocks it |
 
+### Frontier Shape Interpretation
+
+The frontier's shape tells a story about the tradeoff structure. After viewing the scatter plot from `explore tradeoffs` and marginal rates from `explore marginal_analysis`, characterize the shape for each conflicting objective pair:
+
+| Shape | What to look for | What it means |
+|---|---|---|
+| **Linear** | Marginal rates roughly constant across the frontier | Smooth, predictable tradeoffs — each unit of A costs the same amount of B everywhere |
+| **Convex** | Marginal rates decrease moving along the frontier | Diminishing sacrifice — later gains are cheaper. Users can push further than expected |
+| **Concave** | Marginal rates increase (accelerate), knee point detected | Diminishing returns — early gains are cheap, but costs escalate. Stop near the knee |
+| **Discontinuous** | Large gaps in the scatter plot, solutions cluster into 2+ groups | Fundamentally different strategy types with no smooth transition between them |
+
+Read these signals from the data already returned by `tradeoffs` and `marginal_analysis`:
+- **Scatter plot clustering** → discontinuous (gap between clusters = different strategy families)
+- **Knee point with high jump_factor** → concave (cost accelerates past the knee)
+- **No knee detected, rates stable** → linear
+- **Rates trending downward** → convex
+
+Narrate the shape in domain terms: "The ROI vs Risk frontier shows diminishing returns — the first $10K of ROI costs only 2 risk points, but the last $10K costs 8. The knee at Solution 4 is where the tradeoff steepens."
+
+Don't force a classification when the data is noisy (common in binary/combinatorial problems with discrete jumps). Say "the tradeoff is uneven" rather than inventing a smooth narrative.
+
 ### Marginal Analysis Interpretation
 
-The `explore marginal_analysis` action computes the marginal rate of exchange between conflicting objectives — how much of B is sacrificed per unit improvement in A between adjacent Pareto solutions. Use it to:
+The `explore marginal_analysis` action returns structured data for each conflicting pair: `rates` (per-step cost ratios) and optionally `knee` (with `solution_id`, `position`, `jump_factor`). Interpret these:
 
-- **Identify diminishing returns**: Where the cost of further improvement jumps sharply (the knee point)
-- **Guide the user's selection**: "Improving revenue past solution 3 costs 4x more effort per unit — that's likely the sweet spot"
-- **Anchor the conversation**: Marginal rates give concrete exchange rates for tradeoff questions ("Each additional $10K revenue costs 2 points of satisfaction")
+- **Rates**: "Moving from Solution 2 to Solution 3 costs [X] units of [B] per unit of [A] gained"
+- **Knee point**: When `knee` is present, its `jump_factor` tells you how sharply the cost accelerates. Narrate: "Past Solution [id], the cost of improving [A] jumps [jump_factor]x — that's where diminishing returns kick in"
+- **No knee**: "Marginal costs change gradually — no sharp inflection point. The frontier offers smooth tradeoffs"
+- **Exchange rates**: Anchor tradeoff conversations with concrete numbers: "Each additional $10K revenue costs 2 points of satisfaction"
 
 Present marginal analysis after the initial tradeoffs overview, especially when the user is weighing two conflicting objectives.
 
@@ -197,18 +233,24 @@ Flag fragile solutions:
 
 ### Diagnostic Patterns
 
-Surface these proactively when you detect them in results:
+The `diagnostics` array in solve output contains structured signals (not pre-written messages). Read the `pattern` field and narrate in domain terms:
 
-| Pattern | Detection | What it means | Action |
-|---|---|---|---|
-| **Highly clustered** | Solutions within 5% of each other on most objectives | Problem may be single-objective, or objectives are correlated | Ask if stated objectives are truly independent |
-| **Bunched at extremes** | Bimodal distribution, sparse middle | Disconnected strategies or insufficient exploration | Investigate the gap — it may be structural |
-| **One objective flat** | <10% variation across all solutions | That objective doesn't genuinely conflict with others | Consider whether it adds value |
-| **Persistent infeasibility** | 0-5 solutions returned | Over-constrained | Identify which constraint to relax |
-| **Option never selected** | Competitive scores but excluded from all solutions | Dominated, or a hidden factor at play | Check if dominated; if not, probe for missing criteria |
-| **Missing scores** | Incomplete matrix | Data collection was partial | Collect or estimate remaining scores |
+| `pattern` value | Structured fields | What to tell the user |
+|---|---|---|
+| `zero_solutions` | — | Problem is infeasible. Route to optimization_strategy for constraint diagnosis. |
+| `clustered_solutions` | — | "Your solutions are nearly identical — objectives may not truly conflict. Are [X] and [Y] measuring the same thing?" |
+| `low_variation_objective` | `objective`, `relative_range` | "[Objective] barely varies across solutions (range [X]%). It's not driving differentiation — consider dropping it or re-scoring." |
+| `option_never_selected` | `option` | "[Option] doesn't appear in any solution. Check if it's dominated or blocked by a constraint." |
+| `binding_constraint` | `constraint`, `extreme_value` | "[Constraint] is binding (solutions push right up to the limit). Relaxing it would open new tradeoff space." |
 
-**Presentation guidelines**: Be specific, not generic. Limit to 1-2 suggestions based on actual patterns observed. Frame as questions: "You might consider..." Skip entirely if results look healthy.
+Also watch for these patterns in the data even when no diagnostic is emitted:
+
+| Pattern | Detection | Action |
+|---|---|---|
+| **Bunched at extremes** | Bimodal distribution in scatter, sparse middle | Investigate the gap — it may be structural (different strategy families) |
+| **Missing scores** | `scores_complete < 1.0` in model status | Collect or estimate remaining scores before solving |
+
+**Presentation guidelines**: Be specific, not generic. Limit to 1-2 observations based on actual patterns. Frame as questions: "You might consider..." Skip entirely if results look healthy.
 
 ### Recommendation Calibration
 

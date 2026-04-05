@@ -592,11 +592,6 @@ def marginal_analysis(problem: Problem) -> dict:
                         "solution_id": knee_sol_id,
                         "position": knee_idx,
                         "jump_factor": round(max_jump, 1),
-                        "recommendation": (
-                            f"Knee at solution {knee_sol_id}: marginal cost of "
-                            f"{obj_b.name} per unit {obj_a.name} jumps {max_jump:.1f}x. "
-                            f"Further improvement past this point yields diminishing returns."
-                        ),
                     }
 
             pair_result = {
@@ -805,7 +800,7 @@ def _render_tradeoffs_viz(result: dict, objectives: list, solutions=None) -> str
             result["balanced_solution"],
         ))
 
-    # Correlation summary
+    # Correlation summary — raw values, LLM interprets via solution_interpreter skill
     if result.get("key_tradeoffs"):
         lines = ["", "─── Correlations ───", ""]
         for t in result["key_tradeoffs"]:
@@ -813,15 +808,7 @@ def _render_tradeoffs_viz(result: dict, objectives: list, solutions=None) -> str
             if abs(r) < 0.3:
                 continue
             o1, o2 = t["objectives"]
-            if r > 0.7:
-                symbol, desc = "↗↗", "move together"
-            elif r > 0.3:
-                symbol, desc = "↗", "weakly aligned"
-            elif r < -0.7:
-                symbol, desc = "↗↙", "strong tradeoff"
-            else:
-                symbol, desc = "↗↘", "mild tradeoff"
-            lines.append(f"  {symbol} {o1} vs {o2}: r={r:+.2f} ({desc})")
+            lines.append(f"  {o1} vs {o2}: r={r:+.2f}")
         parts.append("\n".join(lines))
 
     return "\n".join(parts)

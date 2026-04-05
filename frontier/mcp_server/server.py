@@ -59,22 +59,22 @@ SKILLS_DIR = Path(__file__).resolve().parent.parent / "skills"
 
 @mcp.resource("frontier://skills/problem_framing")
 def skill_problem_framing() -> str:
-    return (SKILLS_DIR / "problem_framing.md").read_text()
+    return (SKILLS_DIR / "problem-framing" / "SKILL.md").read_text()
 
 
 @mcp.resource("frontier://skills/data_collection")
 def skill_data_collection() -> str:
-    return (SKILLS_DIR / "data_collection.md").read_text()
+    return (SKILLS_DIR / "data-collection" / "SKILL.md").read_text()
 
 
 @mcp.resource("frontier://skills/optimization_strategy")
 def skill_optimization_strategy() -> str:
-    return (SKILLS_DIR / "optimization_strategy.md").read_text()
+    return (SKILLS_DIR / "optimization-strategy" / "SKILL.md").read_text()
 
 
 @mcp.resource("frontier://skills/solution_interpreter")
 def skill_solution_interpreter() -> str:
-    return (SKILLS_DIR / "solution_interpreter.md").read_text()
+    return (SKILLS_DIR / "solution-interpreter" / "SKILL.md").read_text()
 
 
 # ─── Tool 1: model ───

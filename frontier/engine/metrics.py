@@ -204,10 +204,6 @@ def diagnostics(problem: Problem) -> list[dict]:
             results.append({
                 "pattern": "zero_solutions",
                 "severity": "error",
-                "message": (
-                    "Optimization returned no solutions. "
-                    "The problem is likely over-constrained."
-                ),
             })
         return results
 
@@ -270,11 +266,6 @@ def _check_clustering(obj_stats: dict, results: list[dict]):
     results.append({
         "pattern": "clustered_solutions",
         "severity": "warning",
-        "message": (
-            "Solutions are very similar across all objectives. "
-            "Objectives may be correlated or the problem may be effectively "
-            "single-objective."
-        ),
     })
 
 
@@ -285,11 +276,8 @@ def _check_low_variation(obj_stats: dict, results: list[dict]):
             results.append({
                 "pattern": "low_variation_objective",
                 "severity": "info",
-                "message": (
-                    f"Objective '{obj_name}' shows <10% variation across "
-                    f"solutions (range: {stat['range']:.2f}). It may not "
-                    f"genuinely conflict with other objectives."
-                ),
+                "objective": obj_name,
+                "relative_range": round(stat["relative_range"], 4),
             })
 
 
@@ -309,10 +297,7 @@ def _check_option_coverage(problem, solutions, results):
         results.append({
             "pattern": "option_never_selected",
             "severity": "info",
-            "message": (
-                f"Option '{opt}' does not appear in any Pareto solution. "
-                f"It may be dominated — check if its scores are competitive."
-            ),
+            "option": opt,
         })
 
 
@@ -334,11 +319,8 @@ def _check_binding_constraints(problem, solutions, results):
                 results.append({
                     "pattern": "binding_constraint",
                     "severity": "info",
-                    "message": (
-                        f"Constraint '{obj_name} ≤ {bound_val}' is "
-                        f"binding (max across solutions: {extreme:.2f}). "
-                        f"Relaxing it could expand the solution space."
-                    ),
+                    "constraint": f"{obj_name} ≤ {bound_val}",
+                    "extreme_value": round(extreme, 2),
                 })
         elif constraint.operator == BoundOperator.min:
             extreme = min(values)
@@ -346,11 +328,8 @@ def _check_binding_constraints(problem, solutions, results):
                 results.append({
                     "pattern": "binding_constraint",
                     "severity": "info",
-                    "message": (
-                        f"Constraint '{obj_name} ≥ {bound_val}' is "
-                        f"binding (min across solutions: {extreme:.2f}). "
-                        f"Relaxing it could expand the solution space."
-                    ),
+                    "constraint": f"{obj_name} ≥ {bound_val}",
+                    "extreme_value": round(extreme, 2),
                 })
 
 

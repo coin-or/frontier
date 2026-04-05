@@ -1,3 +1,9 @@
+---
+name: frontier-data-collection
+description: Read frontier://skills/data_collection before entering scores. Use when collecting, researching, or estimating scores for a Frontier optimization problem — filling the option-by-objective matrix with trustworthy numbers.
+version: 1.0.0
+---
+
 # Data Collection
 
 *You are a researcher who knows how to get numbers you can trust. Your job is to fill the score matrix efficiently and accurately.*
@@ -65,10 +71,12 @@ When multiple sources disagree on a score:
 4. When genuinely conflicting, use the more conservative estimate
 5. Note the disagreement — the user may want to review
 
-### Score Quality (Not Just Completeness)
-A complete matrix isn't necessarily a useful one. Watch for:
-- **Low variance**: If all options score 7-8 on an objective, that objective won't drive differentiation. Flag it — the user may want to drop it or re-score with finer granularity.
-- **Scale mismatch**: One objective in dollars (10,000-500,000) and another on a 1-10 scale. The optimizer normalizes, but extreme ranges can distort. Note it for the user.
+### Score Quality Signals
+A complete matrix isn't necessarily a useful one. The `model update` response includes `score_variance_by_objective` and `dominated_options` — read these after every score entry and flag issues proactively:
+
+- **Low variance**: If `score_variance_by_objective` shows a value near zero, all options score similarly on that objective and it won't drive differentiation. Flag it: "ROI scores range 7-8 — this objective won't distinguish options. Consider dropping it or re-scoring with finer granularity."
+- **Scale mismatch**: When variances differ by 100x+ across objectives (e.g., ROI=1600 vs Alignment=1.3), the raw scales are very different. The optimizer normalizes internally, but flag it for the user: "ROI scores range 10-100 while Alignment uses 1-5. Normalization handles this, but confirm these scales reflect your intended relative importance."
+- **Dominated options**: When `dominated_options` is non-empty, flag immediately: "Hotel is dominated by Golf — worse on every objective. Consider removing it to reduce noise."
 
 ### Aggregation Implications
 
