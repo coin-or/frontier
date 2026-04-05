@@ -510,19 +510,26 @@ def marginal_analysis(problem: Problem) -> dict:
     if len(solutions) < 3:
         return {"pairs": [], "note": "Need at least 3 solutions for marginal analysis."}
 
-    # Compute pairwise correlations
+    # Compute pairwise correlations with direction-aware signs
+    # Flip minimize objectives so that "better" is always higher
     matrix = np.array([
         [s.objective_values[name] for name in obj_names]
         for s in solutions
     ])
-    corr = np.corrcoef(matrix.T)
+    # Direction-normalized matrix: flip minimize objectives so higher = better
+    dir_signs = np.array([
+        -1.0 if objectives[k].direction.value == "minimize" else 1.0
+        for k in range(len(obj_names))
+    ])
+    norm_matrix = matrix * dir_signs
+    corr = np.corrcoef(norm_matrix.T)
 
     pairs = []
     for i in range(len(obj_names)):
         for j in range(i + 1, len(obj_names)):
             r = float(corr[i, j])
             if r >= 0:
-                continue  # Only analyze conflicting pairs
+                continue  # Only analyze conflicting pairs (direction-aware)
 
             obj_a = objectives[i]
             obj_b = objectives[j]

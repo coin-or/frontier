@@ -12,9 +12,43 @@ from pymoo.operators.crossover.pntx import TwoPointCrossover
 from pymoo.operators.crossover.sbx import SBX
 from pymoo.operators.mutation.bitflip import BitflipMutation
 from pymoo.operators.mutation.pm import PM
+from pymoo.core.repair import Repair
+from pymoo.core.sampling import Sampling
 from pymoo.operators.sampling.rnd import BinaryRandomSampling, FloatRandomSampling
 from pymoo.optimize import minimize as pymoo_minimize
 from pymoo.util.ref_dirs import get_reference_directions
+
+
+class _SimplexSampling(Sampling):
+    """Sample initial populations on the simplex (allocations sum to 100)."""
+
+    def _do(self, problem, n_samples, **kwargs):
+        n_var = problem.n_var
+        # Dirichlet(alpha=1) generates uniform random points on the simplex
+        raw = np.random.dirichlet(np.ones(n_var), size=n_samples) * 100.0
+        # Round to integers while preserving sum = 100
+        X = np.floor(raw).astype(float)
+        remainders = raw - X
+        for i in range(n_samples):
+            diff = int(100 - X[i].sum())
+            if diff > 0:
+                # Distribute remaining units to largest remainders
+                indices = np.argsort(remainders[i])[::-1][:diff]
+                X[i, indices] += 1.0
+        return X
+
+
+class _SimplexRepair(Repair):
+    """After crossover/mutation, project solutions back onto the simplex (sum=100, non-negative)."""
+
+    def _do(self, problem, X, **kwargs):
+        # Clamp to non-negative
+        X = np.maximum(X, 0.0)
+        # Normalize each row to sum to 100
+        row_sums = X.sum(axis=1, keepdims=True)
+        row_sums = np.maximum(row_sums, 1e-9)  # avoid div by zero
+        X = X / row_sums * 100.0
+        return X
 
 from .models import (
     Aggregation,
@@ -295,9 +329,10 @@ def _tune_parameters(problem: Problem, mode: OptimizeMode) -> tuple:
         sbx_eta = int(10 + eta_scale * 20)   # 10-30
         pm_eta = int(15 + eta_scale * 25)     # 15-40
         alg_kwargs.update(
-            sampling=FloatRandomSampling(),
+            sampling=_SimplexSampling(),
             crossover=SBX(prob=0.9, eta=sbx_eta),
             mutation=PM(eta=pm_eta),
+            repair=_SimplexRepair(),
             eliminate_duplicates=True,
         )
 

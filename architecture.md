@@ -127,7 +127,7 @@ flowchart TB
         subgraph TOOLS["Tools (stdio)"]
             MODEL["model<br/><i>create | update | get | list | delete</i>"]
             SOLVE["solve<br/><i>validate | run | run_scenarios</i>"]
-            EXPLORE["explore<br/><i>tradeoffs | compare | solutions | solution<br/>feedback | compare_runs | scenario_results<br/>curate | uncurate | rename_curated<br/>curated | compare_curated</i>"]
+            EXPLORE["explore<br/><i>tradeoffs | compare | solutions | solution<br/>feedback | compare_runs | scenario_results<br/>curate | uncurate | rename_curated<br/>curated | compare_curated | marginal_analysis</i>"]
         end
         subgraph RESOURCES["Skills (MCP Resources)"]
             R1["problem_framing<br/><i>Objective/option/constraint guidance</i>"]
@@ -139,9 +139,9 @@ flowchart TB
 
     subgraph ENGINE["Engine Layer"]
         direction TB
-        MODELS["models.py<br/><i>Problem, Objective, Option, Score,<br/>Constraint (7 types), Solution,<br/>Run, Scenario, ScoreAdjustment,<br/>CuratedSolution (+ feedback history),<br/>ReferencePoint, Feedback</i>"]
+        MODELS["models.py<br/><i>Problem, Objective, Option, Score,<br/>Constraint (7 types), Solution,<br/>Run, QualityIndicators, Scenario,<br/>ScenarioConfig, ScenarioRun,<br/>ScoreAdjustment, CuratedSolution<br/>(+ feedback history), ReferencePoint,<br/>Feedback, ValidationResult</i>"]
         OPT["optimizer.py<br/><i>NSGA-II/III (pymoo)<br/>Binary & Proportional modes<br/>Adaptive parameter tuning<br/>Constraint encoding<br/>Scenario optimization</i>"]
-        EXP["explorer.py<br/><i>Tradeoff analysis, comparisons,<br/>balanced solution detection,<br/>scenario aggregation, curation,<br/>reference point analysis</i>"]
+        EXP["explorer.py<br/><i>Tradeoff analysis, comparisons,<br/>balanced solution detection,<br/>scenario aggregation, curation,<br/>reference point analysis,<br/>marginal rate analysis,<br/>built-in ASCII visualizations</i>"]
         MET["metrics.py<br/><i>Framing, data, solve,<br/>outcome metrics & diagnostics</i>"]
         STORE["store.py<br/><i>File-based JSON persistence</i>"]
     end
@@ -167,6 +167,16 @@ flowchart TB
     MET --> MODELS
     STORE --> FS
 ```
+
+### Visualization & Compaction Layers
+
+**Built-in visualizations** — `explorer.py` renders ASCII/text visualizations inline with explore results, avoiding a separate rendering step:
+- `_render_tradeoffs_viz` — scatter plot of objective pairs with labeled extremes
+- `_render_parallel_coords` — parallel coordinates chart for compare and compare_curated
+- `_render_scenario_viz` — robust vs scenario-specific option summary
+- `_render_marginal_rates` — cost-per-unit bar chart with knee marker
+
+**Response compaction** — `server.py/_format_explore` trims redundant bulk from explore output (e.g. strips option lists from extreme_solutions, restructures scenario_specific_options) to prevent MCP truncation while keeping the dict shape stable for consumers.
 
 ## 3. Problem State Lifecycle
 
