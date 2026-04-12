@@ -36,13 +36,13 @@ def get_tradeoffs(problem: Problem) -> dict:
     else:
         key_tradeoffs = []
 
-    # Extreme solutions: best per objective
+    # Extreme solutions: top performer per objective
     extreme_solutions = {}
     for obj in problem.objectives:
         name = obj.name
         reverse = obj.direction.value == "maximize"
         best = max(solutions, key=lambda s: s.objective_values[name]) if reverse else min(solutions, key=lambda s: s.objective_values[name])
-        extreme_solutions[f"best_{name}"] = {
+        extreme_solutions[f"extreme_{name}"] = {
             "solution_id": best.solution_id,
             "value": best.objective_values[name],
             "selected_options": best.selected_options,
@@ -98,8 +98,8 @@ def compare_solutions(problem: Problem, solution_ids: list[int]) -> dict:
         worst_id = min(vals, key=vals.get) if obj.direction.value == "maximize" else max(vals, key=vals.get)
         all_vals = list(vals.values())
         tradeoff_summary[name] = {
-            "best": best_id,
-            "worst": worst_id,
+            "leads": best_id,
+            "trails": worst_id,
             "range": [min(all_vals), max(all_vals)],
         }
 
@@ -384,8 +384,8 @@ def compare_curated(problem: Problem, signatures: list[str]) -> dict:
         worst_sig = min(vals, key=vals.get) if obj.direction.value == "maximize" else max(vals, key=vals.get)
         all_vals = list(vals.values())
         tradeoff_summary[name] = {
-            "best": best_sig,
-            "worst": worst_sig,
+            "leads": best_sig,
+            "trails": worst_sig,
             "range": [min(all_vals), max(all_vals)],
         }
 
@@ -724,8 +724,8 @@ def _render_scatter(solutions, objectives, key_tradeoffs, extreme_solutions,
     labels_right = []  # (row, col, label)
 
     # Extremes for the plotted pair
-    x_ext_key = f"best_{x_name}"
-    y_ext_key = f"best_{y_name}"
+    x_ext_key = f"extreme_{x_name}"
+    y_ext_key = f"extreme_{y_name}"
     bal_id = balanced_solution["solution_id"]
     bal_vals = balanced_solution["objective_values"]
 
@@ -735,10 +735,10 @@ def _render_scatter(solutions, objectives, key_tradeoffs, extreme_solutions,
         r, c = _to_grid(xv, yv)
         if x_ext_key in extreme_solutions and sid == extreme_solutions[x_ext_key]["solution_id"]:
             grid[r][c] = "●"
-            labels_right.append((r, c, f"[{sid}] Best {x_name[:12]}"))
+            labels_right.append((r, c, f"[{sid}] Top {x_name[:12]}"))
         elif y_ext_key in extreme_solutions and sid == extreme_solutions[y_ext_key]["solution_id"]:
             grid[r][c] = "●"
-            labels_right.append((r, c, f"[{sid}] Best {y_name[:12]}"))
+            labels_right.append((r, c, f"[{sid}] Top {y_name[:12]}"))
         elif sid == bal_id:
             grid[r][c] = "⚖"
             labels_right.append((r, c, f"[{sid}] Balanced"))

@@ -46,6 +46,35 @@ Positive guidance with reasoning — what to do and why.
 
 **Consistent section names.** Use the same heading names across files (`## Core Judgment`, `## Activation`, `## Guardrails`) so the LLM builds a structural expectation.
 
+### Agent Usability
+
+The ultimate quality gate for any skill. If an agent can't discover, navigate, adapt, and execute from the skill alone, the skill isn't done.
+
+- **Discovery:** Does the skill's description trigger for realistic user tasks (and not trigger for unrelated ones)?
+- **Navigation:** Can an agent find the right section in 1–2 lookups, not wandering?
+- **Pattern adaptation:** Given a novel problem, can an agent locate a relevant example and adapt it without hallucinating?
+- **Self-sufficiency:** Can an agent go from skill content to working output without external docs or guessing?
+- **Negative test:** Does the skill clearly redirect when the task is out of scope?
+
+### Progressive Disclosure
+
+Manage context window budget by layering information:
+
+- **SKILL.md** loads on trigger — keep it lean (under 2,000 words / 500 lines). Contains judgment and workflow.
+- **references/** loads only when explicitly read. Contains schemas, lookup tables, detailed examples.
+- References should be one level deep from SKILL.md (no deep nesting).
+
+### Conciseness
+
+- **No explaining the obvious:** Omit what the model already knows (general concepts, standard libraries). Every token should earn its place.
+- **Concise over exhaustive:** Stepwise guidance with a working example beats encyclopedic coverage. If content covers every edge case, most are better left to model judgment.
+- **Defaults over menus:** When multiple approaches apply, pick one as default with a brief escape hatch — not equal-weight lists.
+
+### Safety Patterns
+
+- **Confirmation gates:** For destructive or external-facing actions, pause and show proposed changes before executing.
+- **Validation loops:** For tasks with verifiable output, instruct the agent to validate its own work before moving on (run → fix → re-validate).
+
 ---
 
 ## 2. Prompt Best Practices (Anthropic)

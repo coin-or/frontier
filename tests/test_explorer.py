@@ -62,8 +62,8 @@ class TestGetTradeoffs:
 
     def test_extreme_solutions(self, solved_problem):
         result = get_tradeoffs(solved_problem)
-        assert "best_Revenue" in result["extreme_solutions"]
-        assert "best_Effort" in result["extreme_solutions"]
+        assert "extreme_Revenue" in result["extreme_solutions"]
+        assert "extreme_Effort" in result["extreme_solutions"]
 
     def test_balanced_solution_has_options(self, solved_problem):
         result = get_tradeoffs(solved_problem)

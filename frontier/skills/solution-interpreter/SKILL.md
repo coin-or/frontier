@@ -40,6 +40,18 @@ When explaining any solution, address these dimensions (mapping directly to the 
 
 You don't need all five every time. But when a user is weighing a decision, missing any of these leaves a gap in their understanding. Lead with the dimensions that matter most for their context — a budget-conscious user needs Performance and Limits; a risk-averse user needs Risks and Tradeoffs.
 
+### Recognize the User's Decision Mode
+
+The problem state tells you which mode the user is in — adapt your presentation accordingly:
+
+| Mode | State signals | Your role |
+|---|---|---|
+| **Exploring** | First solve, no curated solutions, browsing tradeoffs/compare | Present the full landscape — extremes, balanced, correlations, shape. Don't narrow prematurely. |
+| **Refining** | Re-solves on the same problem, constraint tweaks between runs, curated set exists but still changing | Focus on what changed. Use marginal analysis and run diffs. Suggest constraint tweaks. Track curated solution survival. |
+| **Confirming** | Reference points set before solving, or curated set stable across runs, or user comparing curated solutions against each other | Find solutions closest to targets. Compare against reference points. Present the curated set as the decision set. |
+
+Users naturally progress from exploring → refining → confirming within a session. A user who sets reference points up front may skip straight to confirming. A user who starts a problem variant (new objectives or options on a similar problem) resets to exploring.
+
 ### Presentation Order: Extremes → Balanced → Preference
 1. Start with the extremes: "This solution maximizes revenue but has the highest effort. This one minimizes effort but sacrifices revenue."
 2. Show the balanced middle: "This solution is the closest to ideal across all objectives."
@@ -76,7 +88,7 @@ Actively help users discover their priorities. Don't wait for them to volunteer 
 **Progressive narrowing:**
 1. Start: present extremes + balanced (overview)
 2. Probe: "If you could only improve one objective, which would it be?" → establishes primary priority
-3. Sharpen: "You'd gain 20% revenue but lose 10% satisfaction. Is that worth it?" → reveals implicit weights
+3. Sharpen: "You'd gain 20% revenue but lose 10% satisfaction. Is that worth it?" → reveals implicit priorities
 4. Confirm: "So revenue matters most, then effort, then satisfaction?" → lock in ranking
 
 **Marginal tradeoff questions** (the most revealing):
@@ -95,6 +107,12 @@ When you can identify dominated solutions, say so clearly:
 **Preference-conditional dominance**: After objective ranking, "Given that you prioritize revenue over effort, Solutions 2 and 5 are dominated by Solution 3 — it's better on your top priority and comparable on the rest. Want to remove them from consideration?"
 
 **When NOT to declare dominance**: If solutions are close (within 5%) on all objectives, the dominance claim is fragile — say "very similar" rather than "dominated."
+
+### Robustness Over Optimality
+When scenario analysis is available, lead with robust solutions — options that perform well across all futures. A 95%-optimal solution across every scenario is usually more valuable than one that's 100%-optimal in a single scenario. Frame this for the user:
+- "These options appear in Pareto solutions across all scenarios — they're safe bets regardless of which future materializes."
+- When two solutions are similar on objectives, the one that survives across more scenarios should be the default recommendation.
+- Only steer toward scenario-specific picks when the user has strong conviction about which future will materialize, or explicitly accepts the downside risk.
 
 ### Iteration Prompting
 When the user gravitates toward a solution, ask what would make it better:
@@ -117,6 +135,22 @@ Always narrate in domain terms, not statistics. "Revenue and effort are the core
 ## Presentation Refinements
 
 Apply these when the situation calls for them. They improve quality but are secondary to the critical judgment above.
+
+### Frontier Quality Metrics
+
+Every solve returns two quality indicators. Read them silently to calibrate your confidence, and surface concerns to the user in plain language.
+
+**For you (agent):**
+
+| Metric | Healthy | Concerning | Action |
+|---|---|---|---|
+| **Hypervolume** (0-1) | > 0.6 | < 0.4 | Suggest thorough mode or check for over-constraining |
+| **Spacing CV** | < 0.5 | > 1.0 | Note uneven coverage; some tradeoff regions may be underexplored |
+
+**For the user:** Don't show numbers. When quality is healthy, say nothing. When it's concerning, translate:
+- Low hypervolume → "The search may not have found all possible tradeoffs yet — want me to run a more thorough optimization?"
+- High spacing CV → "The solutions cluster in certain regions — there may be tradeoff zones we haven't explored"
+- Both healthy → skip entirely, present results with confidence
 
 ### Solution Quality Ladder
 
@@ -290,7 +324,7 @@ When users express these, include the corresponding correction:
 
 Curation is how users build a decision set from the raw frontier. Use `explore curate` to bookmark solutions with names. Curated solutions persist across runs — they're the user's working shortlist.
 
-**Curation is a preference signal.** What a user bookmarks reveals real-world considerations — political viability, team enthusiasm, strategic alignment — that scores and constraints don't capture. Treat curation choices as evidence of the user's actual priorities, potentially more reliable than their stated objective weights. When a user curates a solution that's suboptimal on their stated priorities, probe why.
+**Curation is a preference signal — including its absence.** What a user bookmarks reveals real-world considerations — political viability, team enthusiasm, strategic alignment — that scores and constraints don't capture. Treat curation choices as evidence of the user's actual priorities, potentially more reliable than their stated priorities. When a user curates a solution that's suboptimal on their stated priorities, probe why. When a user *hasn't* curated anything after exploring multiple solutions, that's also signal — the frontier may not contain what they're looking for. Surface it: "None of these grabbed you — what's missing? That might reveal a constraint or objective we haven't captured."
 
 **Curation belongs to the user.** Surface interesting candidates — extremes, balanced, inflection points — then ask which ones resonate and what the user would name them. Present candidates, then pause for the user to decide.
 
@@ -307,6 +341,8 @@ Curation is how users build a decision set from the raw frontier. Use `explore c
 **Feedback loop:** Use `explore feedback` to record ratings and notes on solutions. Feedback accumulates across re-runs via `content_signature` — the preference history travels with the solution. Reference accumulated signals: "You've consistently rated this option highly across 3 rounds."
 
 **Cross-run and cross-scenario tracking:** After re-optimization, check curated solutions against the new frontier (`explore curated`). Report survival, explain eliminations, and connect to scenario robustness. When a curated solution is eliminated, explain which change caused it.
+
+**Robustness as curation signal:** After scenario analysis, robust options — those appearing in Pareto solutions across all scenarios — are natural curation candidates. Surface them: "These options survive regardless of which future plays out — worth bookmarking as safe bets." When a curated solution is robust, note it; when one is scenario-specific, flag the risk.
 
 **Presentation framing:** Once the curated set has 3+ solutions, it IS the decision set. Present curated solutions first, the full frontier as background. Frame the final question around the curated set using custom names.
 
