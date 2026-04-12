@@ -1,4 +1,4 @@
-"""Frontier MCP server: 3 tools (model, solve, explore) + 4 skills."""
+"""Frontier MCP server: 4 tools (model, solve, explore, get_skill) + 4 skill resources."""
 
 from __future__ import annotations
 
@@ -39,12 +39,14 @@ mcp = FastMCP(
     "Frontier",
     instructions=(
         "Multi-objective portfolio optimization engine.\n\n"
-        "BEFORE using any tools, read the skill resources for guidance:\n"
-        "- frontier://skills/problem_framing — read before model/create\n"
-        "- frontier://skills/data_collection — read before entering scores\n"
-        "- frontier://skills/optimization_strategy — read before solve/run\n"
-        "- frontier://skills/solution_interpreter — read before explore/tradeoffs\n\n"
-        "Workflow: model → solve → explore. Skills tell you HOW to do each step well."
+        "WORKFLOW: model → solve → explore\n\n"
+        "IMPORTANT: Call get_skill() before each workflow stage for domain guidance:\n"
+        "  get_skill('problem_framing') — before model/create or model/update\n"
+        "  get_skill('data_collection') — before entering scores\n"
+        "  get_skill('optimization_strategy') — before solve/run\n"
+        "  get_skill('solution_interpreter') — before presenting results\n\n"
+        "Skills contain the domain expertise that drives workflow quality. "
+        "Do not skip them — they tell you HOW to do each step well."
     ),
     host=os.environ.get("MCP_HOST", "127.0.0.1"),
     port=int(os.environ.get("PORT", "8000")),
@@ -75,6 +77,39 @@ def skill_optimization_strategy() -> str:
 @mcp.resource("frontier://skills/solution_interpreter")
 def skill_solution_interpreter() -> str:
     return (SKILLS_DIR / "solution-interpreter" / "SKILL.md").read_text()
+
+
+# ─── Skill delivery tool (works with all MCP clients) ───
+
+_SKILL_MAP = {
+    "problem_framing": "problem-framing",
+    "data_collection": "data-collection",
+    "optimization_strategy": "optimization-strategy",
+    "solution_interpreter": "solution-interpreter",
+}
+
+
+@mcp.tool()
+def get_skill(skill_name: str) -> str:
+    """Retrieve workflow guidance for a specific stage.
+
+    Available skills:
+    - problem_framing — call before model/create or model/update
+    - data_collection — call before entering scores
+    - optimization_strategy — call before solve/run
+    - solution_interpreter — call before presenting results
+
+    Returns the full skill guide as markdown. Skills contain domain expertise
+    for translating business decisions into well-structured optimization
+    problems and interpreting results without bias.
+    """
+    dirname = _SKILL_MAP.get(skill_name)
+    if not dirname:
+        return f"Unknown skill: {skill_name}. Available: {list(_SKILL_MAP.keys())}"
+    path = SKILLS_DIR / dirname / "SKILL.md"
+    if not path.exists():
+        return f"Skill file not found: {skill_name}"
+    return path.read_text()
 
 
 # ─── Tool 1: model ───
@@ -110,6 +145,21 @@ def model(
       get     — Full problem state. Params: problem_id
       list    — All problems. No params.
       delete  — Remove problem. Params: problem_id
+
+    Key guidance (call get_skill('problem_framing') for full guide):
+    - Objectives: 2-4 is the sweet spot. If >4, consolidate.
+    - Ask "does quantity matter?" to choose binary vs proportional approach.
+    - Classify carefully: "budget" might be an objective OR a constraint.
+    - Hidden objectives surface through hedging language ("ideally", "if possible").
+    - 7 constraint types: cardinality, force_include, force_exclude, objective_bound,
+      exclusion_pair, dependency, group_limit.
+    - First formulation is a hypothesis — rough scores > no scores, fewer objectives > many.
+
+    Key guidance (call get_skill('data_collection') for full guide):
+    - Anchor scores with best/worst first, then fill in between.
+    - 1-10 scale is fine; ordinal ranking matters more than exact values.
+    - Push for 100% score matrix — rough estimates beat half-filled precision.
+    - Watch for low-variance objectives (won't differentiate) and scale mismatches.
     """
     params = {
         k: v for k, v in {
@@ -373,6 +423,13 @@ def solve(action: str, problem_id: str, mode: str | None = None) -> dict:
             final convergence when the problem is refined. Adapts population size,
             generations, and operator parameters to problem complexity. Also selects
             NSGA-III for 4+ objectives.
+
+    Key guidance (call get_skill('optimization_strategy') for full guide):
+    - Expect iteration: first run is exploration, not the answer.
+    - Use "fast" while refining scores/constraints, "thorough" when finalized.
+    - If zero solutions: check cardinality constraints and objective bounds for conflicts.
+    - After re-run: check explore/curated to see which curated solutions survived.
+    - 5-10 solutions is healthy; very few = constraints too tight.
     """
     try:
         p = store.load(problem_id)
@@ -528,6 +585,14 @@ def explore(
       curated    — List all curated solutions with survival status.
       compare_curated — Compare curated solutions. Params: signatures (list of 2+ content_signature strings).
       marginal_analysis — Marginal rate analysis: cost-per-unit between adjacent solutions, knee detection.
+
+    Key guidance (call get_skill('solution_interpreter') for full guide):
+    - Never say "best" — every Pareto solution is optimal at its tradeoff.
+    - Present extremes first, then balanced, then ask what the user gravitates toward.
+    - Quantify tradeoffs: "Solution A gains 20% revenue but costs 15% more risk."
+    - Elicit preferences via marginal tradeoff questions, not abstract weights.
+    - Curated solutions persist across re-runs via content_signature — check survival.
+    - Once 3+ curated: that IS the decision set, present curated first.
     """
     try:
         p = store.load(problem_id)

@@ -187,8 +187,8 @@ class TestDiagnostics:
         patterns = [d["pattern"] for d in diags]
         assert "option_never_selected" in patterns
         # C is never selected
-        msgs = [d["message"] for d in diags if d["pattern"] == "option_never_selected"]
-        assert any("C" in m for m in msgs)
+        flagged_opts = [d["option"] for d in diags if d["pattern"] == "option_never_selected"]
+        assert "C" in flagged_opts
 
     def test_low_variation_objective(self):
         """Objective with <10% variation gets flagged."""

@@ -65,17 +65,9 @@ Users rarely describe their problem in terms of "constraints" and "objectives." 
 
 **Start with**: "What makes a solution unacceptable?" — this reliably surfaces hard constraints. Then: "What would make one acceptable solution better than another?" — this surfaces objectives.
 
-#### Disambiguating Business Language
+#### Disambiguating Constraints from Objectives
 
-Common phrases are ambiguous between constraint and objective. Always clarify:
-
-| Business phrase | As constraint | As objective |
-|---|---|---|
-| "Keep costs under $X" | Hard budget: objective_bound ≤ X | Minimize cost (no hard cap) |
-| "Each region should get at least 100 units" | Hard minimum: force requirement | Soft target: penalize shortfall |
-| "Try to balance across regions" | Hard fairness: group_limit | Minimize imbalance |
-| "We need to cover all shifts" | Hard coverage: force_include | Maximize coverage |
-| "Don't use more than 3 suppliers" | Cardinality: max 3 | Minimize supplier count |
+Business language is often ambiguous between constraint and objective. Classify by consequence, not phrasing:
 
 **Decision rule:** If violating it makes the solution invalid or unacceptable → constraint. If it's a preference or "nice to have" → objective. When unclear, default to objective and test: *"If the optimizer found a solution that violates this but saves 20% on cost, would that be acceptable?"*
 

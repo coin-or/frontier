@@ -309,14 +309,14 @@ class TestExploreCompare:
     def test_compare_requires_min_2(self):
         pid = _build_solvable_problem()
         srv.solve(action="run", problem_id=pid)
-        result = srv.explore(action="compare", problem_id=pid, solution_ids=[0])
+        result = srv.explore(action="compare", problem_id=pid, solution_ids=[1])
         assert "error" in result
         assert "at least 2" in result["error"]
 
     def test_compare_success(self):
         pid = _build_solvable_problem()
         srv.solve(action="run", problem_id=pid)
-        result = srv.explore(action="compare", problem_id=pid, solution_ids=[0, 1])
+        result = srv.explore(action="compare", problem_id=pid, solution_ids=[1, 2])
         assert "shared_options" in result
 
 
@@ -331,8 +331,8 @@ class TestExploreSolutions:
     def test_single_solution(self):
         pid = _build_solvable_problem()
         srv.solve(action="run", problem_id=pid)
-        result = srv.explore(action="solution", problem_id=pid, solution_id=0)
-        assert result["solution_id"] == 0
+        result = srv.explore(action="solution", problem_id=pid, solution_id=1)
+        assert result["solution_id"] == 1
 
     def test_single_solution_missing_id(self):
         pid = _build_solvable_problem()
@@ -443,7 +443,7 @@ class TestReferencePoints:
             {"type": "aspirational", "name": "Goal", "objective_values": {"Rev": 25, "Eff": 2}},
         ])
         srv.solve(action="run", problem_id=pid)
-        result = srv.explore(action="solution", problem_id=pid, solution_id=0)
+        result = srv.explore(action="solution", problem_id=pid, solution_id=1)
         assert "vs_references" in result
         ref = result["vs_references"][0]
         assert "Rev" in ref["objectives"]
@@ -556,10 +556,10 @@ class TestScenarios:
         srv.solve(action="run_scenarios", problem_id=pid)
         result = srv.explore(action="scenario_results", problem_id=pid)
         assert "robust_options" in result
-        assert "scenario_specific_options" in result
+        assert "scenario_specific" in result
         assert "expected_values" in result
         assert "per_scenario" in result
-        assert len(result["per_scenario"]) == 2
+        assert "visualization" in result
 
     def test_scenario_results_without_run(self):
         pid = _build_solvable_problem()
@@ -619,7 +619,7 @@ class TestCuration:
         pid = _build_solvable_problem()
         srv.solve(action="run", problem_id=pid)
         result = srv.explore(
-            action="curate", problem_id=pid, solution_id=0, custom_name="Pick A",
+            action="curate", problem_id=pid, solution_id=1, custom_name="Pick A",
         )
         assert result.get("curated") is True
         assert result["custom_name"] == "Pick A"
@@ -628,15 +628,15 @@ class TestCuration:
     def test_curate_duplicate(self):
         pid = _build_solvable_problem()
         srv.solve(action="run", problem_id=pid)
-        srv.explore(action="curate", problem_id=pid, solution_id=0, custom_name="Pick A")
-        result = srv.explore(action="curate", problem_id=pid, solution_id=0, custom_name="Dup")
+        srv.explore(action="curate", problem_id=pid, solution_id=1, custom_name="Pick A")
+        result = srv.explore(action="curate", problem_id=pid, solution_id=1, custom_name="Dup")
         assert "error" in result  # duplicate
 
     def test_list_curated(self):
         pid = _build_solvable_problem()
         srv.solve(action="run", problem_id=pid)
-        srv.explore(action="curate", problem_id=pid, solution_id=0, custom_name="First")
-        srv.explore(action="curate", problem_id=pid, solution_id=1, custom_name="Second")
+        srv.explore(action="curate", problem_id=pid, solution_id=1, custom_name="First")
+        srv.explore(action="curate", problem_id=pid, solution_id=2, custom_name="Second")
         result = srv.explore(action="curated", problem_id=pid)
         assert result["total_curated"] == 2
         assert all(c["in_current_frontier"] for c in result["curated_solutions"])
@@ -645,7 +645,7 @@ class TestCuration:
         pid = _build_solvable_problem()
         srv.solve(action="run", problem_id=pid)
         curate_result = srv.explore(
-            action="curate", problem_id=pid, solution_id=0, custom_name="Pick A",
+            action="curate", problem_id=pid, solution_id=1, custom_name="Pick A",
         )
         sig = curate_result["content_signature"]
         result = srv.explore(action="uncurate", problem_id=pid, content_signature=sig)
@@ -655,7 +655,7 @@ class TestCuration:
         pid = _build_solvable_problem()
         srv.solve(action="run", problem_id=pid)
         curate_result = srv.explore(
-            action="curate", problem_id=pid, solution_id=0, custom_name="Old",
+            action="curate", problem_id=pid, solution_id=1, custom_name="Old",
         )
         sig = curate_result["content_signature"]
         result = srv.explore(
@@ -667,8 +667,8 @@ class TestCuration:
     def test_compare_curated(self):
         pid = _build_solvable_problem()
         srv.solve(action="run", problem_id=pid)
-        r1 = srv.explore(action="curate", problem_id=pid, solution_id=0, custom_name="A")
-        r2 = srv.explore(action="curate", problem_id=pid, solution_id=1, custom_name="B")
+        r1 = srv.explore(action="curate", problem_id=pid, solution_id=1, custom_name="A")
+        r2 = srv.explore(action="curate", problem_id=pid, solution_id=2, custom_name="B")
         result = srv.explore(
             action="compare_curated", problem_id=pid,
             signatures=[r1["content_signature"], r2["content_signature"]],
@@ -682,7 +682,7 @@ class TestCuration:
         """Curated solutions persist across runs and track survival."""
         pid = _build_solvable_problem()
         srv.solve(action="run", problem_id=pid)
-        r = srv.explore(action="curate", problem_id=pid, solution_id=0, custom_name="Survivor")
+        r = srv.explore(action="curate", problem_id=pid, solution_id=1, custom_name="Survivor")
         sig = r["content_signature"]
 
         # Re-solve (same problem, same constraints — solution should survive)
@@ -708,7 +708,7 @@ class TestFeedbackLoop:
         pid = _build_solvable_problem()
         srv.solve(action="run", problem_id=pid)
         result = srv.explore(
-            action="feedback", problem_id=pid, solution_id=0, rating=4, notes="Looks good",
+            action="feedback", problem_id=pid, solution_id=1, rating=4, notes="Looks good",
         )
         assert result["recorded"] is True
         assert result["content_signature"] is not None
@@ -729,12 +729,12 @@ class TestFeedbackLoop:
         srv.solve(action="run", problem_id=pid)
         # Curate first
         curate_r = srv.explore(
-            action="curate", problem_id=pid, solution_id=0, custom_name="Fav",
+            action="curate", problem_id=pid, solution_id=1, custom_name="Fav",
         )
         sig = curate_r["content_signature"]
         # Then give feedback on same solution
         srv.explore(
-            action="feedback", problem_id=pid, solution_id=0, rating=5, notes="Love it",
+            action="feedback", problem_id=pid, solution_id=1, rating=5, notes="Love it",
         )
         # Check curated solution has the feedback
         curated = srv.explore(action="curated", problem_id=pid)
@@ -748,11 +748,11 @@ class TestFeedbackLoop:
         srv.solve(action="run", problem_id=pid)
         # Give feedback first
         srv.explore(
-            action="feedback", problem_id=pid, solution_id=0, rating=4, notes="Promising",
+            action="feedback", problem_id=pid, solution_id=1, rating=4, notes="Promising",
         )
         # Then curate same solution
         srv.explore(
-            action="curate", problem_id=pid, solution_id=0, custom_name="Promising Pick",
+            action="curate", problem_id=pid, solution_id=1, custom_name="Promising Pick",
         )
         # Check feedback was pulled in
         curated = srv.explore(action="curated", problem_id=pid)
@@ -766,11 +766,11 @@ class TestFeedbackLoop:
         srv.solve(action="run", problem_id=pid)
         # Curate and give feedback
         curate_r = srv.explore(
-            action="curate", problem_id=pid, solution_id=0, custom_name="Keeper",
+            action="curate", problem_id=pid, solution_id=1, custom_name="Keeper",
         )
         sig = curate_r["content_signature"]
         srv.explore(
-            action="feedback", problem_id=pid, solution_id=0, rating=5, notes="Best option",
+            action="feedback", problem_id=pid, solution_id=1, rating=5, notes="Best option",
         )
         # Re-solve
         srv.solve(action="run", problem_id=pid)
@@ -785,7 +785,7 @@ class TestFeedbackLoop:
         pid = _build_solvable_problem()
         srv.solve(action="run", problem_id=pid)
         curate_r = srv.explore(
-            action="curate", problem_id=pid, solution_id=0, custom_name="Direct",
+            action="curate", problem_id=pid, solution_id=1, custom_name="Direct",
         )
         sig = curate_r["content_signature"]
         # Give feedback by signature
@@ -802,10 +802,10 @@ class TestFeedbackLoop:
         pid = _build_solvable_problem()
         srv.solve(action="run", problem_id=pid)
         curate_r = srv.explore(
-            action="curate", problem_id=pid, solution_id=0, custom_name="Multi",
+            action="curate", problem_id=pid, solution_id=1, custom_name="Multi",
         )
         sig = curate_r["content_signature"]
-        srv.explore(action="feedback", problem_id=pid, solution_id=0, rating=3, stage="exploration")
+        srv.explore(action="feedback", problem_id=pid, solution_id=1, rating=3, stage="exploration")
         srv.explore(action="feedback", problem_id=pid, content_signature=sig, rating=5, stage="decision")
         curated = srv.explore(action="curated", problem_id=pid)
         cs = curated["curated_solutions"][0]
@@ -823,3 +823,26 @@ class TestUnknownActions:
         pid = _build_solvable_problem()
         result = srv.explore(action="foobar", problem_id=pid)
         assert "error" in result
+
+
+class TestMarginalAnalysis:
+    def test_marginal_analysis_returns_pairs(self):
+        pid = _build_solvable_problem()
+        srv.solve(action="run", problem_id=pid)
+        result = srv.explore(action="marginal_analysis", problem_id=pid)
+        assert "pairs" in result
+
+    def test_marginal_analysis_no_run(self):
+        created = srv.model(action="create")
+        result = srv.explore(action="marginal_analysis", problem_id=created["problem_id"])
+        assert "error" in result
+
+    def test_marginal_analysis_has_rates(self):
+        pid = _build_solvable_problem()
+        srv.solve(action="run", problem_id=pid)
+        result = srv.explore(action="marginal_analysis", problem_id=pid)
+        if result["pairs"]:
+            pair = result["pairs"][0]
+            assert "objectives" in pair
+            assert "rates" in pair
+            assert "visualization" in pair

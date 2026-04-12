@@ -216,7 +216,7 @@ class TestOptimization:
     def test_solutions_reindexed(self):
         p = _make_problem()
         run = optimize(p)
-        for i, s in enumerate(run.solutions):
+        for i, s in enumerate(run.solutions, start=1):
             assert s.solution_id == i
 
     def test_quality_indicators(self):

@@ -73,7 +73,7 @@ class TestProportionalBasic:
     def test_solutions_sorted_and_indexed(self):
         p = _make_proportional()
         run = optimize(p)
-        for i, sol in enumerate(run.solutions):
+        for i, sol in enumerate(run.solutions, start=1):
             assert sol.solution_id == i
 
 

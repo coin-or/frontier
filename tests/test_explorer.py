@@ -85,7 +85,7 @@ class TestGetTradeoffs:
 
 class TestCompare:
     def test_compare_two_solutions(self, solved_problem):
-        result = compare_solutions(solved_problem, [0, 1])
+        result = compare_solutions(solved_problem, [1, 2])
         assert "solutions" in result
         assert "shared_options" in result
         assert "differentiating_options" in result
@@ -94,10 +94,10 @@ class TestCompare:
 
     def test_compare_nonexistent_solution(self, solved_problem):
         with pytest.raises(ValueError, match="not found"):
-            compare_solutions(solved_problem, [0, 9999])
+            compare_solutions(solved_problem, [1, 9999])
 
     def test_tradeoff_summary_has_all_objectives(self, solved_problem):
-        result = compare_solutions(solved_problem, [0, 1])
+        result = compare_solutions(solved_problem, [1, 2])
         assert "Revenue" in result["tradeoff_summary"]
         assert "Effort" in result["tradeoff_summary"]
 
@@ -120,8 +120,8 @@ class TestGetSolutions:
 
 class TestGetSolution:
     def test_returns_single_solution(self, solved_problem):
-        result = get_solution(solved_problem, 0)
-        assert result["solution_id"] == 0
+        result = get_solution(solved_problem, 1)
+        assert result["solution_id"] == 1
         assert "selected_options" in result
         assert "objective_values" in result
 

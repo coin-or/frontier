@@ -6,7 +6,7 @@
 
 ### MCP Tools
 
-Frontier exposes 3 tools, each with multiple actions:
+Frontier exposes 4 tools — 3 domain tools with multiple actions, plus a skill delivery tool:
 
 | Tool | Action | Purpose |
 |------|--------|---------|
@@ -31,10 +31,15 @@ Frontier exposes 3 tools, each with multiple actions:
 | | `curated` | List all curated solutions with `in_current_frontier` survival flag |
 | | `compare_curated` | Compare curated solutions side-by-side by content signature |
 | | `marginal_analysis` | Marginal rate analysis: cost-per-unit between adjacent solutions, knee point detection |
+| **get_skill** | *(single action)* | Retrieve workflow guidance by name. Returns full skill markdown. Works with all MCP clients (unlike resources, which require client-side resource support). Available skills: `problem_framing`, `data_collection`, `optimization_strategy`, `solution_interpreter`. |
 
-### MCP Skills (Resources)
+### MCP Skills (Resources + Tool)
 
-Skills are read-only markdown resources the agent consults for domain guidance:
+Skills are available two ways for maximum client compatibility:
+1. **`get_skill` tool** (universal) — works with any MCP client. Call `get_skill('problem_framing')` etc.
+2. **MCP resources** (backward compat) — `frontier://skills/*` URIs, for clients that support resource reads.
+
+Skills provide domain guidance the agent consults at each workflow stage:
 
 | Skill | Purpose |
 |-------|---------|
@@ -118,13 +123,14 @@ MCP tools, skills, engine internals, and how they connect to the agent client.
 
 ```mermaid
 flowchart TB
-    subgraph CLIENT["Agent Client (Claude Code / MCP Host)"]
+    subgraph CLIENT["Agent Client (Claude Code / Desktop / claude.ai / any MCP host)"]
         CC[Claude Agent]
     end
 
     subgraph MCP_LAYER["Frontier MCP Server"]
         direction TB
-        subgraph TOOLS["Tools (stdio)"]
+        subgraph TOOLS["Tools (stdio / SSE)"]
+            GETSKILL["get_skill<br/><i>Retrieve workflow guidance by name</i>"]
             MODEL["model<br/><i>create | update | get | list | delete</i>"]
             SOLVE["solve<br/><i>validate | run | run_scenarios</i>"]
             EXPLORE["explore<br/><i>tradeoffs | compare | solutions | solution<br/>feedback | compare_runs | scenario_results<br/>curate | uncurate | rename_curated<br/>curated | compare_curated | marginal_analysis</i>"]
@@ -150,8 +156,9 @@ flowchart TB
         FS[("./data/<br/>{problem_id}.json")]
     end
 
-    CC <-->|"tool calls / results<br/>(JSON over stdio)"| TOOLS
-    CC -.->|reads skill content| RESOURCES
+    CC <-->|"tool calls / results<br/>(JSON over stdio/SSE)"| TOOLS
+    CC -.->|"reads skill content<br/>(Claude Code only)"| RESOURCES
+    GETSKILL -.->|reads| RESOURCES
 
     MODEL --> MODELS
     MODEL --> MET

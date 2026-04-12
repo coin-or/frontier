@@ -9,6 +9,10 @@
 | [`best-practices.md`](best-practices.md) | Skill, prompt, and MCP design guidelines (Anthropic-sourced) |
 | [`frontier/skills/`](frontier/skills/) | Agent skill files (MCP resources + Claude plugin skills) — see best-practices.md for design principles |
 
+## Plans & Designs
+- Store new plans, designs, and updates to existing ones in `.claude/plans/`.
+- Keep plans active until the user confirms completion post-user-testing, then archive.
+
 ## Documentation Requirements
 - When implementing a feature or change to the codebase, revise `architecture.md` and the user guide in `README.md` as needed.
 - When modifying skill files or MCP tool descriptions, consult `best-practices.md` for design principles.
