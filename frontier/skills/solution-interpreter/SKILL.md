@@ -52,10 +52,13 @@ The problem state tells you which mode the user is in — adapt your presentatio
 
 Users naturally progress from exploring → refining → confirming within a session. A user who sets reference points up front may skip straight to confirming. A user who starts a problem variant (new objectives or options on a similar problem) resets to exploring.
 
-### Presentation Order: Extremes → Balanced → Preference
+### Presentation Order: Extremes → Balanced → Inflection → Preference
 1. Start with the extremes: "This solution maximizes revenue but has the highest effort. This one minimizes effort but sacrifices revenue."
 2. Show the balanced middle: "This solution is the closest to ideal across all objectives."
-3. Ask what the user gravitates toward: "Which of these feels closest to what you want?"
+3. Show inflection points (if present): "Past this solution, the cost of improving [A] jumps [X]x — this is where diminishing returns start."
+4. Ask what the user gravitates toward: "Which of these feels closest to what you want?"
+
+Inflection points from `tradeoffs` output (`inflection_point_candidates`) mark where the marginal tradeoff cost jumps sharply between two objectives. They're natural "stop here" recommendations — pushing past an inflection point means paying much more for each additional unit of improvement.
 
 ### Tradeoff Framing
 Quantify what you're giving up:
@@ -79,7 +82,7 @@ In proportional mode, solutions assign percentages rather than binary selections
 
 (See aggregation modes in `frontier://skills/problem_framing`.)
 
-Match your language to how the score was computed: totals for sum, averages for avg, weakest link for min, standout for max. For min-aggregated objectives, identify the bottleneck option by name — that's more actionable than the score itself.
+Match your language to how the score was computed: totals for sum, averages for avg, weakest link for min, standout for max, portfolio-level for quadratic. For min-aggregated objectives, identify the bottleneck option by name — that's more actionable than the score itself. For quadratic objectives, the portfolio value reflects pairwise interactions — highlight when a mix scores better than its individual components would suggest.
 
 ### Objective Ranking Elicitation
 
@@ -110,9 +113,10 @@ When you can identify dominated solutions, say so clearly:
 
 ### Robustness Over Optimality
 When scenario analysis is available, lead with robust solutions — options that perform well across all futures. A 95%-optimal solution across every scenario is usually more valuable than one that's 100%-optimal in a single scenario. Frame this for the user:
-- "These options appear in Pareto solutions across all scenarios — they're safe bets regardless of which future materializes."
-- When two solutions are similar on objectives, the one that survives across more scenarios should be the default recommendation.
-- Only steer toward scenario-specific picks when the user has strong conviction about which future will materialize, or explicitly accepts the downside risk.
+- When core options (>50% frequency, high allocation weight) appear consistently across all scenarios — they're safer bets.
+- When two solutions are similar on objectives, the one containing more core-tier options should be the default recommendation.
+- Only steer toward marginal or scenario-specific picks when the user has strong conviction about which future will materialize, or explicitly accepts the downside risk.
+- Use the `importance` score (frequency × weight) to rank: a core option at 40% allocation is more load-bearing than one at 2%.
 
 ### Iteration Prompting
 When the user gravitates toward a solution, ask what would make it better:
@@ -187,39 +191,39 @@ The frontier's shape tells a story about the tradeoff structure. After viewing t
 |---|---|---|
 | **Linear** | Marginal rates roughly constant across the frontier | Smooth, predictable tradeoffs — each unit of A costs the same amount of B everywhere |
 | **Convex** | Marginal rates decrease moving along the frontier | Diminishing sacrifice — later gains are cheaper. Users can push further than expected |
-| **Concave** | Marginal rates increase (accelerate), knee point detected | Diminishing returns — early gains are cheap, but costs escalate. Stop near the knee |
+| **Concave** | Marginal rates increase (accelerate), inflection point detected | Diminishing returns — early gains are cheap, but costs escalate. Stop near the inflection |
 | **Discontinuous** | Large gaps in the scatter plot, solutions cluster into 2+ groups | Fundamentally different strategy types with no smooth transition between them |
 
 Read these signals from the data already returned by `tradeoffs` and `marginal_analysis`:
 - **Scatter plot clustering** → discontinuous (gap between clusters = different strategy families)
-- **Knee point with high jump_factor** → concave (cost accelerates past the knee)
-- **No knee detected, rates stable** → linear
+- **Inflection point with high jump_factor** → concave (cost accelerates past the inflection)
+- **No inflection detected, rates stable** → linear
 - **Rates trending downward** → convex
 
-Narrate the shape in domain terms: "The ROI vs Risk frontier shows diminishing returns — the first $10K of ROI costs only 2 risk points, but the last $10K costs 8. The knee at Solution 4 is where the tradeoff steepens."
+Narrate the shape in domain terms: "The ROI vs Risk frontier shows diminishing returns — the first $10K of ROI costs only 2 risk points, but the last $10K costs 8. The inflection at Solution 4 is where the tradeoff steepens."
 
 Don't force a classification when the data is noisy (common in binary/combinatorial problems with discrete jumps). Say "the tradeoff is uneven" rather than inventing a smooth narrative.
 
 ### Marginal Analysis Interpretation
 
-The `explore marginal_analysis` action returns structured data for each conflicting pair: `rates` (per-step cost ratios) and optionally `knee` (with `solution_id`, `position`, `jump_factor`). Interpret these:
+The `explore marginal_analysis` action returns structured data for each conflicting pair: `rates` (per-step cost ratios) and optionally `inflection` (with `solution_id`, `position`, `jump_factor`). Interpret these:
 
 - **Rates**: "Moving from Solution 2 to Solution 3 costs [X] units of [B] per unit of [A] gained"
-- **Knee point**: When `knee` is present, its `jump_factor` tells you how sharply the cost accelerates. Narrate: "Past Solution [id], the cost of improving [A] jumps [jump_factor]x — that's where diminishing returns kick in"
-- **No knee**: "Marginal costs change gradually — no sharp inflection point. The frontier offers smooth tradeoffs"
+- **Inflection point**: When `inflection` is present, its `jump_factor` tells you how sharply the cost accelerates. Narrate: "Past Solution [id], the cost of improving [A] jumps [jump_factor]x — that's where diminishing returns kick in"
+- **No inflection**: "Marginal costs change gradually — the frontier offers smooth tradeoffs throughout"
 - **Exchange rates**: Anchor tradeoff conversations with concrete numbers: "Each additional $10K revenue costs 2 points of satisfaction"
 
-Present marginal analysis after the initial tradeoffs overview, especially when the user is weighing two conflicting objectives.
+Inflection points also appear in `tradeoffs` output as `inflection_point_candidates` — these are the same solutions, pre-computed for convenience. Use them in the initial presentation alongside balanced and extremes, without requiring a separate `marginal_analysis` call.
 
 ### Frontier Visualization
 
 The explore tool renders ASCII visualizations inline with each response. The format depends on the action:
 
-- **`tradeoffs`** → **2D scatter plot** of the most conflicting objective pair (highest |negative correlation|). Shows all frontier solutions as `·` on a grid, with labeled markers for extremes (`●`), balanced (`⚖`). Reveals WHERE solutions cluster, WHERE inflection points are, and the shape of the tradeoff curve. Axes are direction-aware — "better" always points right/up.
+- **`tradeoffs`** → **2D scatter plot** of the most conflicting objective pair (highest |negative correlation|). Shows all frontier solutions as `·` on a grid, with labeled markers for extremes (`●`), balanced (`⚖`), and inflection points (`◆`). Reveals WHERE solutions cluster, WHERE tradeoff costs jump, and the shape of the frontier. Axes are direction-aware — "better" always points right/up.
 
 - **`compare` / `compare_curated`** → **Parallel coordinates** — one row per solution, one column per objective (capped at 6 most differentiating), each normalized to its range with direction-aware orientation. Shows at a glance which solution wins on which objective and how they trade off. Use this for 2-6 candidate solutions or curated shortlists.
 
-- **`scenario_results`** → **Range comparison bars** per objective per scenario, showing how the feasible range shifts across futures, plus robustness counts and expected values.
+- **`scenario_results`** → **Range comparison bars** per objective per scenario, showing how the feasible range shifts across futures, plus **option robustness table** (ranked by importance with tiers) and expected values.
 
 These visualizations are generated by the tool — you don't need to construct them. Present them as-is along with your narrative interpretation. Supplement with brief comparison tables when comparing only 2 solutions, where a table may be clearer than parallel coordinates.
 
@@ -254,11 +258,16 @@ If a solution meets all aspirational targets, note that objectives may not truly
 
 When scenarios are defined and optimized, use `explore scenario_results` to present:
 
-1. **Robust options first** — identify options that appear in Pareto solutions across all scenarios — safe bets regardless of which future materializes
-2. **Scenario-specific opportunities** — identify options that excel in particular futures but not others — conditional picks
-3. **Frame around risk tolerance** — "The expected value portfolio maximizes average outcome. The robust portfolio protects your downside. Which matters more?"
+1. **Robust options by tier** — `option_robustness` returns options ranked by importance (frequency × avg allocation weight), with tiers:
+   - **Core** (>50% frequency in all scenarios): safe bets regardless of which future materializes. Lead with these.
+   - **Common** (>25% or present in all scenarios): likely to appear but not dominant — secondary picks.
+   - **Marginal** (<25% or missing from some scenarios): conditional picks dependent on scenario view.
+2. **Scenario-specific opportunities** — options in `scenario_specific` that excel in particular futures (grouped by scenario name → list of options). Frame: "If you believe [scenario] is likely, [option] becomes attractive."
+3. **Frame around risk tolerance** — "The core options protect your downside across all futures. The marginal options offer upside in specific scenarios. Which matters more?"
 
-Don't overwhelm with per-scenario details. Start with robust vs scenario-specific, then drill down if the user asks.
+Present the top 5-8 from `option_robustness` with their tier, frequency, and avg weight. Don't list every option — the tail is noise. Start with core vs scenario-specific, then drill down if the user asks.
+
+**Expected values caveat**: The `expected_values` in scenario_results are ideal-point values (best-per-objective across scenarios, probability-weighted). No single solution achieves all simultaneously. Present them as "theoretical ceiling" when useful, but always caveat.
 
 ### Sensitivity Intuition
 Flag fragile solutions:
@@ -342,7 +351,7 @@ Curation is how users build a decision set from the raw frontier. Use `explore c
 
 **Cross-run and cross-scenario tracking:** After re-optimization, check curated solutions against the new frontier (`explore curated`). Report survival, explain eliminations, and connect to scenario robustness. When a curated solution is eliminated, explain which change caused it.
 
-**Robustness as curation signal:** After scenario analysis, robust options — those appearing in Pareto solutions across all scenarios — are natural curation candidates. Surface them: "These options survive regardless of which future plays out — worth bookmarking as safe bets." When a curated solution is robust, note it; when one is scenario-specific, flag the risk.
+**Robustness as curation signal:** After scenario analysis, core-tier options (from `option_robustness`) are natural curation candidates. Surface them: "These core options survive at high frequency and weight across all scenarios — worth bookmarking as safe bets." When a curated solution contains mostly core-tier options, note it as robust; when it relies on marginal or scenario-specific options, flag the conditional risk.
 
 **Presentation framing:** Once the curated set has 3+ solutions, it IS the decision set. Present curated solutions first, the full frontier as background. Frame the final question around the curated set using custom names.
 

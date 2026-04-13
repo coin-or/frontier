@@ -846,8 +846,97 @@ class TestMarginalAnalysis:
         if result["pairs"]:
             pair = result["pairs"][0]
             assert "objectives" in pair
-            assert "rates" in pair
+            assert "steepest_transitions" in pair  # summary mode (default)
             assert "visualization" in pair
+        # detail=True returns full rates
+        detail_result = srv.explore(action="marginal_analysis", problem_id=pid, detail=True)
+        if detail_result["pairs"]:
+            pair = detail_result["pairs"][0]
+            assert "rates" in pair
+
+
+# ─── Quadratic aggregation ───
+
+
+class TestQuadraticAggregation:
+    """Test quadratic (interaction matrix) aggregation end-to-end."""
+
+    def test_quadratic_solve_produces_solutions(self):
+        """Proportional solve with a quadratic objective uses the interaction matrix."""
+        pid = srv.model(action="create", name="Quad Test", approach="proportional")["problem_id"]
+        srv.model(action="update", problem_id=pid, objectives=[
+            {"name": "Return", "direction": "maximize"},
+            {"name": "Risk", "direction": "minimize", "aggregation": "quadratic"},
+        ], options=["A", "B", "C"])
+        # Scores: A high return/high risk, B medium, C low return/low risk
+        srv.model(action="update", problem_id=pid, scores=[
+            {"option": "A", "objective": "Return", "value": 20},
+            {"option": "B", "objective": "Return", "value": 10},
+            {"option": "C", "objective": "Return", "value": 5},
+            # Individual risk scores (for display/marginal analysis)
+            {"option": "A", "objective": "Risk", "value": 25},
+            {"option": "B", "objective": "Risk", "value": 15},
+            {"option": "C", "objective": "Risk", "value": 5},
+        ])
+        # Covariance matrix: A and C are negatively correlated (diversification benefit)
+        cov = {
+            "A": {"A": 625, "B": 200, "C": -100},  # var(A)=25^2=625
+            "B": {"A": 200, "B": 225, "C": 50},     # var(B)=15^2=225
+            "C": {"A": -100, "B": 50, "C": 25},     # var(C)=5^2=25
+        }
+        srv.model(action="update", problem_id=pid, interaction_matrices=[
+            {"objective": "Risk", "entries": cov},
+        ])
+        result = srv.solve(action="run", problem_id=pid)
+        assert "error" not in result
+        assert len(result["solutions"]) >= 2
+
+    def test_quadratic_validation_missing_matrix(self):
+        """Quadratic objective without interaction matrix fails validation."""
+        pid = srv.model(action="create", name="Missing Matrix", approach="proportional")["problem_id"]
+        srv.model(action="update", problem_id=pid, objectives=[
+            {"name": "Return", "direction": "maximize"},
+            {"name": "Risk", "direction": "minimize", "aggregation": "quadratic"},
+        ], options=["A", "B", "C"])
+        srv.model(action="update", problem_id=pid, scores=[
+            {"option": o, "objective": obj, "value": 10}
+            for o in ["A", "B", "C"] for obj in ["Return", "Risk"]
+        ])
+        result = srv.solve(action="validate", problem_id=pid)
+        assert result["ready"] is False
+        assert any("interaction matrix" in i["message"] for i in result["issues"])
+
+    def test_quadratic_diversification_benefit(self):
+        """With negative correlation, mixed portfolio should have lower risk than concentrated."""
+        pid = srv.model(action="create", name="Diversification", approach="proportional")["problem_id"]
+        srv.model(action="update", problem_id=pid, objectives=[
+            {"name": "Return", "direction": "maximize"},
+            {"name": "Risk", "direction": "minimize", "aggregation": "quadratic"},
+        ], options=["Stock", "Bond", "Cash"])
+        srv.model(action="update", problem_id=pid, scores=[
+            {"option": "Stock", "objective": "Return", "value": 15},
+            {"option": "Bond", "objective": "Return", "value": 5},
+            {"option": "Cash", "objective": "Return", "value": 2},
+            {"option": "Stock", "objective": "Risk", "value": 20},
+            {"option": "Bond", "objective": "Risk", "value": 8},
+            {"option": "Cash", "objective": "Risk", "value": 1},
+        ])
+        # Covariance: stock-bond negatively correlated
+        cov = {
+            "Stock": {"Stock": 400, "Bond": -80, "Cash": 0},
+            "Bond": {"Stock": -80, "Bond": 64, "Cash": 0},
+            "Cash": {"Stock": 0, "Bond": 0, "Cash": 1},
+        }
+        srv.model(action="update", problem_id=pid, interaction_matrices=[
+            {"objective": "Risk", "entries": cov},
+        ], constraints=[{"type": "cardinality", "min": 2, "max": 3}])
+        result = srv.solve(action="run", problem_id=pid)
+        assert "error" not in result
+        # Get solutions and verify some have Risk below individual stock risk (20)
+        solutions = srv.explore(action="solutions", problem_id=pid)
+        risk_values = [s["objective_values"]["Risk"] for s in solutions["solutions"]]
+        # At least one solution should show diversification benefit (risk < 20)
+        assert min(risk_values) < 20, f"No diversification benefit found: {risk_values}"
 
 
 # ─── Skill auto-injection ───

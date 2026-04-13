@@ -35,6 +35,8 @@ from frontier.engine.models import (
     _content_signature,
     ForceIncludeConstraint,
     GroupLimitConstraint,
+    InteractionMatrix,
+    MaxAllocationConstraint,
     Objective,
     ObjectiveBoundConstraint,
     OptimizeMode,
@@ -61,7 +63,7 @@ mcp = FastMCP(
         "- Constraints: hard limits that eliminate solutions.\n"
         "- Ask: 'Is that a hard limit or a target?' to classify.\n"
         "- Approach: 'Does quantity matter?' → proportional. 'Yes/no per option?' → binary.\n"
-        "- Aggregation modes: sum (total, default), avg (portfolio average), min (weakest link), max (best/peak).\n"
+        "- Aggregation modes: sum (total, default), avg (portfolio average), min (weakest link), max (best/peak), quadratic (interaction-dependent, e.g. portfolio risk — requires interaction_matrix).\n"
         "- Hidden objectives: watch for 'ideally', 'if possible', 'assuming X stays reasonable'.\n\n"
         "## Constraint Schemas (pass to model/update constraints param)\n"
         '  cardinality:     {"type": "cardinality", "min": <int>, "max": <int>}\n'
@@ -70,7 +72,8 @@ mcp = FastMCP(
         '  objective_bound: {"type": "objective_bound", "objective": "<name>", "operator": "min"|"max", "value": <float>}\n'
         '  exclusion_pair:  {"type": "exclusion_pair", "option_a": "<name>", "option_b": "<name>"}\n'
         '  dependency:      {"type": "dependency", "if_option": "<name>", "then_option": "<name>"}\n'
-        '  group_limit:     {"type": "group_limit", "options": ["<name>", ...], "max": <int>}\n\n'
+        '  group_limit:     {"type": "group_limit", "options": ["<name>", ...], "max": <int>}\n'
+        '  max_allocation:    {"type": "max_allocation", "max": <int>}  (proportional only: cap any single option to max %)\n\n'
         "## Key Rules\n"
         "- Score matrix must be 100% complete before solve — every option on every objective.\n"
         "- Scores use merge semantics (upsert); objectives/options/constraints use full replacement.\n"
@@ -200,12 +203,13 @@ def model(
     domain: str | None = None,
     context: str | None = None,
     objectives: list[dict] | None = None,
-    options: list[dict] | None = None,
+    options: list[dict | str] | None = None,
     scores: list[dict] | None = None,
     constraints: list[dict] | None = None,
     approach: str | None = None,
     reference_points: list[dict] | None = None,
     scenario_config: dict | None = None,
+    interaction_matrices: list[dict] | None = None,
 ) -> dict:
     """Build and modify the optimization problem.
 
@@ -218,7 +222,8 @@ def model(
       update  — Modify problem. Params: problem_id (required), plus any of:
                 name, domain, context, objectives, options, scores, constraints,
                 approach ("binary" or "proportional"),
-                reference_points (list of {type, name?, objective_values, selected_options?}).
+                reference_points (list of {type, name?, objective_values, selected_options?}),
+                interaction_matrices (list of {objective, entries} for quadratic aggregation).
                 Scores use merge semantics; everything else is full replacement.
       get     — Full problem state. Params: problem_id
       list    — All problems. No params.
@@ -238,6 +243,11 @@ def model(
       {"type": "exclusion_pair", "option_a": "<name>", "option_b": "<name>"}
       {"type": "dependency", "if_option": "<name>", "then_option": "<name>"}
       {"type": "group_limit", "options": ["<name>", ...], "max": <int>}
+      {"type": "max_allocation", "max": <int>}  (proportional only: cap single option allocation)
+
+    Interaction matrix schema (for objectives with aggregation="quadratic"):
+      {"objective": "<name>", "entries": {"opt_a": {"opt_a": <float>, "opt_b": <float>, ...}, ...}}
+      Entries must be symmetric. For portfolio volatility, entries = covariance matrix.
     """
     params = {
         k: v for k, v in {
@@ -245,6 +255,7 @@ def model(
             "context": context, "objectives": objectives, "options": options,
             "scores": scores, "constraints": constraints, "approach": approach,
             "reference_points": reference_points, "scenario_config": scenario_config,
+            "interaction_matrices": interaction_matrices,
         }.items() if v is not None
     }
     match action:
@@ -276,7 +287,9 @@ def _model_create(params: dict) -> dict:
         ]
     if "options" in params:
         kwargs["options"] = [
-            Option(**o) if isinstance(o, dict) else o for o in params["options"]
+            Option(name=o) if isinstance(o, str) else
+            Option(**o) if isinstance(o, dict) else o
+            for o in params["options"]
         ]
     p = Problem(**kwargs)
     store.save(p)
@@ -329,12 +342,19 @@ def _model_update(params: dict) -> dict:
                 c for c in p.constraints
                 if not (c.type == "objective_bound" and c.objective in removed)
             ]
+            p.interaction_matrices = [
+                m for m in p.interaction_matrices if m.objective not in removed
+            ]
         structural_change = True
 
     # Options — full replacement
     if "options" in params:
         old_names = {o.name for o in p.options}
-        p.options = [Option(**o) if isinstance(o, dict) else o for o in params["options"]]
+        p.options = [
+            Option(name=o) if isinstance(o, str) else
+            Option(**o) if isinstance(o, dict) else o
+            for o in params["options"]
+        ]
         new_names = {o.name for o in p.options}
         # Drop scores and constraints referencing removed options
         removed = old_names - new_names
@@ -409,6 +429,15 @@ def _model_update(params: dict) -> dict:
                     constraint_overrides=constraint_ov,
                 ))
             p.scenario_config = ScenarioConfig(enabled=sc.get("enabled", True), scenarios=scenarios)
+        structural_change = True
+
+    # Interaction matrices — upsert by objective name
+    if "interaction_matrices" in params:
+        im_map = {m.objective: m for m in p.interaction_matrices}
+        for im_dict in params["interaction_matrices"]:
+            im = InteractionMatrix(**im_dict) if isinstance(im_dict, dict) else im_dict
+            im_map[im.objective] = im
+        p.interaction_matrices = list(im_map.values())
         structural_change = True
 
     # Reference points — full replacement (interpretive, no structural impact)
@@ -519,6 +548,8 @@ def _parse_constraint(c: dict | Constraint) -> Constraint:
             return DependencyConstraint(**c)
         case "group_limit":
             return GroupLimitConstraint(**c)
+        case "max_allocation":
+            return MaxAllocationConstraint(**c)
         case _:
             raise ValueError(f"Unknown constraint type: {ctype}")
 
@@ -613,6 +644,7 @@ def _solve_run(p: Problem, mode: OptimizeMode | None = None) -> dict:
     result = {
         "run_id": run.run_id,
         "solutions_found": len(run.solutions),
+        "total_pareto_found": run.total_pareto_found,
         "solutions": [json.loads(s.model_dump_json()) for s in run.solutions],
         "quality": json.loads(run.quality.model_dump_json()),
         "metrics": {
@@ -651,6 +683,7 @@ def _solve_run_scenarios(p: Problem, mode: OptimizeMode | None = None) -> dict:
     for name, run in scenario_results.items():
         summary[name] = {
             "solutions_found": len(run.solutions),
+            "total_pareto_found": run.total_pareto_found,
             "quality": json.loads(run.quality.model_dump_json()),
         }
 
@@ -702,6 +735,8 @@ def explore(
     custom_name: str | None = None,
     content_signature: str | None = None,
     signatures: list[str] | None = None,
+    scenario: str | None = None,
+    detail: bool = False,
 ) -> dict:
     """Navigate results after solving.
 
@@ -709,27 +744,41 @@ def explore(
     Call get_skill('solution_interpreter') to re-read.
 
     Actions:
-      tradeoffs  — Frontier overview: ranges, correlations, extremes, balanced solution.
+      tradeoffs  — Frontier overview: ranges, correlations, extremes, balanced solution, inflection points.
+                   Returns balanced_solution (ideal-point closest) plus inflection_point_candidates
+                   (solutions where marginal tradeoff cost jumps sharply — diminishing returns boundaries).
+                   Together these give multiple "balanced" perspectives on the frontier.
       compare    — Side-by-side comparison. Requires solution_ids (list of 2+ ints).
       solutions  — Full Pareto frontier listing.
       solution   — Single solution detail. Requires solution_id (int).
       feedback   — Record user feedback. Params: solution_id? or content_signature?, rating? (1-5), notes?, stage? Feedback links to content_signature (stable across runs) and attaches to curated solutions.
       compare_runs — Compare run history. Requires run_ids (list of 2+ run ID strings).
-      scenario_results — Per-scenario analysis: robust options, scenario-specific options, expected values.
+      scenario_results — Per-scenario robustness analysis with frequency-weighted option importance.
+                   Returns option_robustness (sorted by importance = avg_frequency × avg_weight),
+                   with tiers: core (>50% freq in all scenarios), common (>25%), marginal (<25%).
+                   Also: scenario-specific options, expected values (ideal-point, not achievable).
       curate     — Add solution to curated set. Params: solution_id, custom_name?, notes?
       uncurate   — Remove from curated set. Params: content_signature.
       rename_curated — Update name. Params: content_signature, custom_name.
       curated    — List all curated solutions with survival status.
       compare_curated — Compare curated solutions. Params: signatures (list of 2+ content_signature strings).
-      marginal_analysis — Marginal rate analysis: cost-per-unit between adjacent solutions, knee detection.
+      marginal_analysis — Marginal rate analysis: cost-per-unit between adjacent solutions, inflection point detection.
+                   Default: summary per pair (inflection, stats, top-5 steepest, truncated viz).
+                   Pass detail=true for full rates array + untruncated visualization.
+
+    Scenario param (optional):
+      Pass scenario="<name>" to inspect a specific scenario's results instead of the base case.
+      Works with: tradeoffs, compare, solutions, solution, curate, marginal_analysis.
+      Use scenario_results (no scenario param) for cross-scenario robustness analysis.
 
     Key guidance:
     - Never say "best" — every Pareto solution is optimal at its tradeoff.
-    - Present extremes first, then balanced, then ask what the user gravitates toward.
+    - Present extremes first, then balanced + inflection points, then ask what resonates.
     - Quantify tradeoffs: "Solution A gains 20% revenue but costs 15% more risk."
     - Elicit preferences via marginal tradeoff questions, not abstract weights.
     - Curated solutions persist across re-runs via content_signature — check survival.
     - Once 3+ curated: that IS the decision set, present curated first.
+    - With scenarios: use option_robustness tiers (core/common/marginal) to identify safe bets.
     """
     try:
         p = store.load(problem_id)
@@ -739,26 +788,26 @@ def explore(
     match action:
         case "tradeoffs":
             try:
-                return _format_explore(explorer.get_tradeoffs(p))
+                return _format_explore(explorer.get_tradeoffs(p, scenario=scenario))
             except ValueError as e:
                 return {"error": str(e)}
         case "compare":
             if not solution_ids or len(solution_ids) < 2:
                 return {"error": "solution_ids must contain at least 2 IDs for compare."}
             try:
-                return _format_explore(explorer.compare_solutions(p, solution_ids))
+                return _format_explore(explorer.compare_solutions(p, solution_ids, scenario=scenario))
             except ValueError as e:
                 return {"error": str(e)}
         case "solutions":
             try:
-                return explorer.get_solutions(p)
+                return explorer.get_solutions(p, scenario=scenario)
             except ValueError as e:
                 return {"error": str(e)}
         case "solution":
             if solution_id is None:
                 return {"error": "solution_id required for solution action."}
             try:
-                return explorer.get_solution(p, solution_id)
+                return explorer.get_solution(p, solution_id, scenario=scenario)
             except ValueError as e:
                 return {"error": str(e)}
         case "feedback":
@@ -779,7 +828,7 @@ def explore(
             if solution_id is None:
                 return {"error": "solution_id required for curate action."}
             try:
-                result = explorer.curate_solution(p, solution_id, custom_name or "", notes or "")
+                result = explorer.curate_solution(p, solution_id, custom_name or "", notes or "", scenario=scenario)
                 store.save(p)
                 return result
             except ValueError as e:
@@ -813,7 +862,7 @@ def explore(
                 return {"error": str(e)}
         case "marginal_analysis":
             try:
-                return explorer.marginal_analysis(p)
+                return explorer.marginal_analysis(p, scenario=scenario, detail=detail)
             except ValueError as e:
                 return {"error": str(e)}
         case _:

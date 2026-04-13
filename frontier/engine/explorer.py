@@ -7,9 +7,9 @@ import numpy as np
 from .models import CuratedSolution, Problem, Run, _content_signature
 
 
-def get_tradeoffs(problem: Problem) -> dict:
+def get_tradeoffs(problem: Problem, scenario: str | None = None) -> dict:
     """Frontier overview: ranges, correlations, extremes, balanced solution."""
-    run = _require_run(problem)
+    run = _require_run(problem, scenario)
     solutions = run.solutions
     obj_names = [o.name for o in problem.objectives]
 
@@ -51,6 +51,19 @@ def get_tradeoffs(problem: Problem) -> dict:
     # Balanced solution: min normalized distance to ideal point
     balanced = _find_balanced(solutions, problem.objectives)
 
+    # Inflection-point candidates: solutions where marginal tradeoff cost jumps
+    inflection_candidates = []
+    for inf in _find_inflection_solutions(solutions, problem.objectives):
+        s = inf["solution"]
+        if s.solution_id != balanced.solution_id:  # Don't duplicate balanced
+            inflection_candidates.append({
+                "solution_id": s.solution_id,
+                "objective_values": s.objective_values,
+                "selected_options": s.selected_options,
+                "inflection_pair": inf["pair"],
+                "jump_factor": inf["jump_factor"],
+            })
+
     result = {
         "total_solutions": len(solutions),
         "objective_ranges": obj_ranges,
@@ -61,6 +74,7 @@ def get_tradeoffs(problem: Problem) -> dict:
             "objective_values": balanced.objective_values,
             "selected_options": balanced.selected_options,
         },
+        "inflection_point_candidates": inflection_candidates,
     }
 
     if problem.reference_points:
@@ -72,9 +86,9 @@ def get_tradeoffs(problem: Problem) -> dict:
     return result
 
 
-def compare_solutions(problem: Problem, solution_ids: list[int]) -> dict:
+def compare_solutions(problem: Problem, solution_ids: list[int], scenario: str | None = None) -> dict:
     """Side-by-side comparison of specific solutions."""
-    run = _require_run(problem)
+    run = _require_run(problem, scenario)
     sol_map = {s.solution_id: s for s in run.solutions}
 
     selected = []
@@ -129,9 +143,9 @@ def compare_solutions(problem: Problem, solution_ids: list[int]) -> dict:
     return result
 
 
-def get_solutions(problem: Problem) -> dict:
+def get_solutions(problem: Problem, scenario: str | None = None) -> dict:
     """Full Pareto frontier, sorted by first objective."""
-    run = _require_run(problem)
+    run = _require_run(problem, scenario)
     return {
         "run_id": run.run_id,
         "total_solutions": len(run.solutions),
@@ -139,9 +153,9 @@ def get_solutions(problem: Problem) -> dict:
     }
 
 
-def get_solution(problem: Problem, solution_id: int) -> dict:
+def get_solution(problem: Problem, solution_id: int, scenario: str | None = None) -> dict:
     """Single solution detail by ID."""
-    run = _require_run(problem)
+    run = _require_run(problem, scenario)
     for s in run.solutions:
         if s.solution_id == solution_id:
             result = s.model_dump()
@@ -270,9 +284,9 @@ def _constraint_key(c: dict) -> str:
     return str(c)
 
 
-def curate_solution(problem: Problem, solution_id: int, custom_name: str = "", notes: str = "") -> dict:
+def curate_solution(problem: Problem, solution_id: int, custom_name: str = "", notes: str = "", scenario: str | None = None) -> dict:
     """Add a solution from the current frontier to the curated set."""
-    run = _require_run(problem)
+    run = _require_run(problem, scenario)
     sol = None
     for s in run.solutions:
         if s.solution_id == solution_id:
@@ -446,23 +460,67 @@ def get_scenario_results(problem: Problem) -> dict:
             "objective_ranges": ranges,
         }
 
-    # Robust options: appear in at least one Pareto solution in ALL scenarios
-    option_in_scenario = {}
-    for name, run in scenario_runs.items():
-        opts_in_any = set()
-        for sol in run.solutions:
-            opts_in_any.update(sol.selected_options)
-        option_in_scenario[name] = opts_in_any
+    # Robust options: frequency + allocation-weighted across scenarios
+    from collections import Counter
 
     all_scenario_names = list(scenario_runs.keys())
-    robust_options = []
+    # Per-scenario: count how often each option appears + total allocation weight
+    per_scenario_freq = {}  # {scenario: {opt: frequency 0-1}}
+    per_scenario_avg_weight = {}  # {scenario: {opt: avg_weight when present}}
+    for name, run in scenario_runs.items():
+        n_sols = len(run.solutions)
+        opt_count: Counter = Counter()
+        opt_weight_sum: Counter = Counter()
+        for sol in run.solutions:
+            for opt in sol.selected_options:
+                opt_count[opt] += 1
+                if sol.allocations:
+                    opt_weight_sum[opt] += sol.allocations.get(opt, 0)
+        per_scenario_freq[name] = {
+            opt: opt_count[opt] / n_sols if n_sols else 0 for opt in opt_count
+        }
+        per_scenario_avg_weight[name] = {
+            opt: opt_weight_sum[opt] / opt_count[opt] if opt_count[opt] else 0
+            for opt in opt_count
+        }
+
+    # Aggregate across scenarios: avg frequency, avg weight, importance score
+    option_robustness = []
     scenario_specific = {}
     for opt in opt_names:
-        present_in = [name for name in all_scenario_names if opt in option_in_scenario.get(name, set())]
-        if len(present_in) == len(all_scenario_names):
-            robust_options.append(opt)
-        elif len(present_in) > 0:
+        freqs = [per_scenario_freq[s].get(opt, 0) for s in all_scenario_names]
+        weights = [per_scenario_avg_weight[s].get(opt, 0) for s in all_scenario_names]
+        present_in = [s for s in all_scenario_names if per_scenario_freq[s].get(opt, 0) > 0]
+        avg_freq = sum(freqs) / len(freqs) if freqs else 0
+        avg_weight = sum(w for w in weights if w > 0) / max(len([w for w in weights if w > 0]), 1)
+        importance = round(avg_freq * avg_weight, 2)
+
+        if avg_freq > 0:
+            # Tier: core (>50% freq in all scenarios), common (>25% or in all),
+            # marginal (<25% or missing from some)
+            min_freq = min(freqs)
+            if min_freq > 0.5:
+                tier = "core"
+            elif min_freq > 0.25 or len(present_in) == len(all_scenario_names):
+                tier = "common"
+            else:
+                tier = "marginal"
+
+            option_robustness.append({
+                "option": opt,
+                "avg_frequency": round(avg_freq, 3),
+                "avg_weight": round(avg_weight, 1),
+                "importance": importance,
+                "tier": tier,
+                "scenarios_present": len(present_in),
+            })
+
+        if 0 < len(present_in) < len(all_scenario_names):
             scenario_specific[opt] = present_in
+
+    # Sort by importance descending
+    option_robustness.sort(key=lambda x: x["importance"], reverse=True)
+    robust_options = [r["option"] for r in option_robustness if r["tier"] == "core"]
 
     # Expected value: probability-weighted if probabilities provided, else equal-weight
     has_probabilities = all(
@@ -488,6 +546,7 @@ def get_scenario_results(problem: Problem) -> dict:
     result = {
         "per_scenario": per_scenario,
         "robust_options": sorted(robust_options),
+        "option_robustness": option_robustness,
         "scenario_specific_options": scenario_specific,
         "expected_values": expected_values,
         "weighting": "probability" if has_probabilities else "equal",
@@ -496,14 +555,17 @@ def get_scenario_results(problem: Problem) -> dict:
     return result
 
 
-def marginal_analysis(problem: Problem) -> dict:
+def marginal_analysis(problem: Problem, scenario: str | None = None, detail: bool = False) -> dict:
     """Marginal rate analysis: cost-per-unit improvement between adjacent Pareto solutions.
 
     For each negatively-correlated objective pair, sorts solutions by one objective
-    and computes the marginal rate of exchange. Detects knee points where the rate
+    and computes the marginal rate of exchange. Detects inflection points where the rate
     jumps sharply — the point of diminishing returns.
+
+    Default (detail=False): summary per pair — inflection, stats, top-5 steepest rates.
+    detail=True: includes full rates array and untruncated visualization.
     """
-    run = _require_run(problem)
+    run = _require_run(problem, scenario)
     solutions = run.solutions
     objectives = problem.objectives
     obj_names = [o.name for o in objectives]
@@ -572,12 +634,12 @@ def marginal_analysis(problem: Problem) -> dict:
                     "rate": round(rate, 4),
                 })
 
-            # Detect knee: largest jump in marginal rate
-            knee = None
+            # Detect inflection: largest jump in marginal rate
+            inflection = None
             if len(rates) >= 2:
                 rate_values = [r["rate"] for r in rates]
                 max_jump = 0.0
-                knee_idx = 0
+                inflection_idx = 0
                 for k in range(len(rate_values) - 1):
                     if rate_values[k] > 1e-9:
                         jump = rate_values[k + 1] / rate_values[k]
@@ -585,34 +647,56 @@ def marginal_analysis(problem: Problem) -> dict:
                         jump = rate_values[k + 1] if rate_values[k + 1] > 0 else 0.0
                     if jump > max_jump:
                         max_jump = jump
-                        knee_idx = k + 1
+                        inflection_idx = k + 1
 
                 if max_jump >= 2.0:
-                    knee_sol_id = rates[knee_idx]["from_id"]
-                    knee = {
-                        "solution_id": knee_sol_id,
-                        "position": knee_idx,
+                    inflection_sol_id = rates[inflection_idx]["from_id"]
+                    inflection = {
+                        "solution_id": inflection_sol_id,
+                        "position": inflection_idx,
                         "jump_factor": round(max_jump, 1),
                     }
 
             pair_result = {
                 "objectives": [obj_a.name, obj_b.name],
                 "correlation": round(r, 2),
-                "rates": rates,
-                "knee": knee,
+                "inflection": inflection,
             }
 
-            # ASCII visualization of marginal rates
-            pair_result["visualization"] = _render_marginal_rates(
-                rates, obj_a, obj_b, knee,
-            )
+            if detail:
+                # Full output: all rates + untruncated viz
+                pair_result["rates"] = rates
+                pair_result["visualization"] = _render_marginal_rates(
+                    rates, obj_a, obj_b, inflection,
+                )
+            else:
+                # Summary: stats + top-5 steepest + truncated viz
+                rate_values = [r["rate"] for r in rates]
+                pair_result["summary"] = {
+                    "total_transitions": len(rates),
+                    "rate_min": round(min(rate_values), 4) if rate_values else 0,
+                    "rate_max": round(max(rate_values), 4) if rate_values else 0,
+                    "rate_median": round(float(np.median(rate_values)), 4) if rate_values else 0,
+                }
+                # Top-5 steepest transitions (most expensive tradeoff steps)
+                top_rates = sorted(rates, key=lambda r: r["rate"], reverse=True)[:5]
+                pair_result["steepest_transitions"] = top_rates
+                # Truncated viz: ~20 rows around inflection
+                pair_result["visualization"] = _render_marginal_rates(
+                    rates, obj_a, obj_b, inflection, max_rows=20,
+                )
+
             pairs.append(pair_result)
 
     return {"pairs": pairs}
 
 
-def _render_marginal_rates(rates: list[dict], obj_a, obj_b, knee: dict | None) -> str:
-    """ASCII bar chart of marginal rates between adjacent solutions."""
+def _render_marginal_rates(rates: list[dict], obj_a, obj_b, inflection: dict | None,
+                           max_rows: int | None = None) -> str:
+    """ASCII bar chart of marginal rates between adjacent solutions.
+
+    max_rows: if set, truncate to max_rows centered on inflection point.
+    """
     if not rates:
         return ""
 
@@ -625,21 +709,40 @@ def _render_marginal_rates(rates: list[dict], obj_a, obj_b, knee: dict | None) -
     if max_rate == 0:
         max_rate = 1.0
 
+    # Determine which rows to show
+    if max_rows and len(rates) > max_rows:
+        # Center window on inflection point if available, else on middle
+        center = inflection["position"] if inflection else len(rates) // 2
+        half = max_rows // 2
+        start = max(0, center - half)
+        end = min(len(rates), start + max_rows)
+        start = max(0, end - max_rows)  # Adjust if near end
+        show_range = range(start, end)
+        truncated = True
+    else:
+        show_range = range(len(rates))
+        truncated = False
+
     BAR_W = 30
-    for idx, r in enumerate(rates):
+    if truncated and show_range.start > 0:
+        lines.append(f"  ... {show_range.start} earlier transitions omitted")
+    for idx in show_range:
+        r = rates[idx]
         from_id = r["from_id"]
         to_id = r["to_id"]
         rate = r["rate"]
         filled = max(0, min(BAR_W, round(rate / max_rate * BAR_W)))
         bar = "█" * filled + "░" * (BAR_W - filled)
-        marker = " ◀ KNEE" if knee and idx == knee["position"] else ""
+        marker = " ◀ INFLECTION" if inflection and idx == inflection["position"] else ""
         lines.append(f"  [{from_id}]→[{to_id}]  |{bar}| {_fmt(rate)}{marker}")
+    if truncated and show_range.stop < len(rates):
+        lines.append(f"  ... {len(rates) - show_range.stop} later transitions omitted")
 
     lines.append("")
-    if knee:
-        lines.append(f"  ◀ Knee: marginal cost jumps {knee['jump_factor']:.1f}x at solution {knee['solution_id']}")
+    if inflection:
+        lines.append(f"  ◀ Inflection: marginal cost jumps {inflection['jump_factor']:.1f}x at solution {inflection['solution_id']}")
     else:
-        lines.append("  No significant knee detected — marginal costs change gradually.")
+        lines.append("  No significant inflection detected — marginal costs change gradually.")
 
     return "\n".join(lines)
 
@@ -678,11 +781,11 @@ def _fmt(v: float) -> str:
 
 
 def _render_scatter(solutions, objectives, key_tradeoffs, extreme_solutions,
-                    balanced_solution) -> str:
+                    balanced_solution, inflection_candidates=None) -> str:
     """2D ASCII scatter plot of the most conflicting objective pair.
 
     Grid-bins all solutions as · then overlays labeled points for extremes (●),
-    balanced (⚖). Shows frontier shape, inflection points, clustering.
+    balanced (⚖), and inflection points (◆). Shows frontier shape and clustering.
     """
     WIDTH, HEIGHT = 50, 16
 
@@ -730,6 +833,8 @@ def _render_scatter(solutions, objectives, key_tradeoffs, extreme_solutions,
     bal_id = balanced_solution["solution_id"]
     bal_vals = balanced_solution["objective_values"]
 
+    inflection_ids = {k["solution_id"] for k in (inflection_candidates or [])}
+
     for s in solutions:
         sid = s.solution_id
         xv, yv = s.objective_values[x_name], s.objective_values[y_name]
@@ -743,6 +848,9 @@ def _render_scatter(solutions, objectives, key_tradeoffs, extreme_solutions,
         elif sid == bal_id:
             grid[r][c] = "⚖"
             labels_right.append((r, c, f"[{sid}] Balanced"))
+        elif sid in inflection_ids:
+            grid[r][c] = "◆"
+            labels_right.append((r, c, f"[{sid}] Inflection"))
 
     # Render
     lines = []
@@ -783,7 +891,7 @@ def _render_scatter(solutions, objectives, key_tradeoffs, extreme_solutions,
     pad = (WIDTH - len(x_label)) // 2
     lines.append(f"         {' ' * pad}{x_label}")
     lines.append("")
-    lines.append("  ● extremes  ⚖ balanced  · frontier")
+    lines.append("  ● extreme  ⚖ balanced  ◆ inflection  · frontier")
 
     return "\n".join(lines)
 
@@ -799,6 +907,7 @@ def _render_tradeoffs_viz(result: dict, objectives: list, solutions=None) -> str
             result["key_tradeoffs"],
             result["extreme_solutions"],
             result["balanced_solution"],
+            inflection_candidates=result.get("inflection_point_candidates"),
         ))
 
     # Correlation summary — raw values, LLM interprets via solution_interpreter skill
@@ -943,30 +1052,136 @@ def _render_scenario_viz(result: dict) -> str:
             lines.append(f"    {s_name:30s} |{range_bar}| {s_lo:.2f}–{s_hi:.2f}")
         lines.append("")
 
-    # Robust vs scenario-specific counts
-    robust = result.get("robust_options", [])
-    specific = result.get("scenario_specific_options", {})
-    lines.append("─── Option Robustness ───")
-    lines.append(f"  Robust (all scenarios):    {len(robust)} options")
-    lines.append(f"  Scenario-specific:         {len(specific)} options")
+    # Option robustness (frequency + allocation-weighted)
+    robustness = result.get("option_robustness", [])
+    lines.append("─── Option Robustness (frequency × avg weight) ───")
+    if robustness:
+        lines.append(f"  {'Option':20s} {'Tier':10s} {'Freq':>6s} {'Wt%':>6s} {'Score':>7s} {'In':>4s}")
+        lines.append(f"  {'─'*20} {'─'*10} {'─'*6} {'─'*6} {'─'*7} {'─'*4}")
+        for r in robustness[:15]:  # Top 15
+            lines.append(
+                f"  {r['option']:20s} {r['tier']:10s} "
+                f"{r['avg_frequency']:6.1%} {r['avg_weight']:5.1f}% "
+                f"{r['importance']:7.1f} {r['scenarios_present']:3d}/{len(per_scenario)}"
+            )
+        if len(robustness) > 15:
+            lines.append(f"  ... and {len(robustness) - 15} more")
+    else:
+        lines.append("  No options found in solutions.")
     lines.append("")
+
+    specific = result.get("scenario_specific_options", {})
+    if specific:
+        lines.append(f"  Scenario-specific: {len(specific)} options (appear in some but not all)")
+        for opt, scenarios in sorted(specific.items()):
+            lines.append(f"    {opt}: {', '.join(scenarios)}")
+        lines.append("")
 
     # Expected values
     ev = result.get("expected_values", {})
     if ev:
-        lines.append("─── Expected Values (probability-weighted) ───")
+        lines.append("─── Expected Values (probability-weighted best-per-scenario) ───")
+        lines.append("  ⚠ These are ideal-point values — no single solution achieves all simultaneously.")
         for obj, val in ev.items():
             lines.append(f"  {obj:25s} {val:.2f}")
 
     return "\n".join(lines)
 
 
-def _require_run(problem: Problem) -> Run:
+def _require_run(problem: Problem, scenario: str | None = None) -> Run:
+    if scenario:
+        if not problem.scenario_run or not problem.scenario_run.scenario_runs:
+            raise ValueError("No scenario runs found. Use solve run_scenarios first.")
+        if scenario not in problem.scenario_run.scenario_runs:
+            available = list(problem.scenario_run.scenario_runs.keys())
+            raise ValueError(f"Scenario '{scenario}' not found. Available: {available}")
+        run = problem.scenario_run.scenario_runs[scenario]
+        if not run.solutions:
+            raise ValueError(f"Scenario '{scenario}' has no solutions.")
+        return run
     if problem.run is None:
         raise ValueError("No run found. Use solve first.")
     if not problem.run.solutions:
         raise ValueError("Run has no solutions.")
     return problem.run
+
+
+def _find_inflection_solutions(solutions, objectives) -> list[dict]:
+    """Find inflection-point solutions from marginal rate analysis.
+
+    Returns a list of {solution, pair, jump_factor} for each conflicting
+    objective pair that has a detected inflection. Lightweight — only computes
+    rates and inflection detection, not the full marginal analysis output.
+    """
+    obj_names = [o.name for o in objectives]
+    if len(solutions) < 3 or len(obj_names) < 2:
+        return []
+
+    matrix = np.array([
+        [s.objective_values[name] for name in obj_names]
+        for s in solutions
+    ])
+    dir_signs = np.array([
+        -1.0 if o.direction.value == "minimize" else 1.0
+        for o in objectives
+    ])
+    norm_matrix = matrix * dir_signs
+    corr = np.corrcoef(norm_matrix.T)
+
+    knees = []
+    seen_ids = set()
+    for i in range(len(obj_names)):
+        for j in range(i + 1, len(obj_names)):
+            r = float(corr[i, j])
+            if r >= 0:
+                continue  # Only conflicting pairs
+
+            obj_a, obj_b = objectives[i], objectives[j]
+            reverse_a = obj_a.direction.value == "maximize"
+            sorted_sols = sorted(
+                solutions,
+                key=lambda s: s.objective_values[obj_a.name],
+                reverse=reverse_a,
+            )
+
+            # Compute marginal rates
+            rates = []
+            for k in range(len(sorted_sols) - 1):
+                s1, s2 = sorted_sols[k], sorted_sols[k + 1]
+                delta_a = s2.objective_values[obj_a.name] - s1.objective_values[obj_a.name]
+                delta_b = s2.objective_values[obj_b.name] - s1.objective_values[obj_b.name]
+                if obj_a.direction.value == "minimize":
+                    delta_a = -delta_a
+                if obj_b.direction.value == "minimize":
+                    delta_b = -delta_b
+                rate = abs(delta_b / delta_a) if abs(delta_a) > 1e-9 else 0.0
+                rates.append((rate, sorted_sols[k]))
+
+            # Detect inflection: largest jump in marginal rate
+            if len(rates) >= 2:
+                max_jump, inflection_idx = 0.0, 0
+                for k in range(len(rates) - 1):
+                    prev_rate = rates[k][0]
+                    next_rate = rates[k + 1][0]
+                    if prev_rate > 1e-9:
+                        jump = next_rate / prev_rate
+                    else:
+                        jump = next_rate if next_rate > 0 else 0.0
+                    if jump > max_jump:
+                        max_jump = jump
+                        inflection_idx = k + 1  # Matches marginal_analysis convention
+
+                if max_jump >= 2.0:
+                    inflection_sol = rates[inflection_idx][1]
+                    if inflection_sol.solution_id not in seen_ids:
+                        seen_ids.add(inflection_sol.solution_id)
+                        knees.append({
+                            "solution": inflection_sol,
+                            "pair": f"{obj_a.name} vs {obj_b.name}",
+                            "jump_factor": round(max_jump, 1),
+                        })
+
+    return knees
 
 
 def _find_balanced(solutions, objectives) -> object:

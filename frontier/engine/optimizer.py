@@ -39,7 +39,11 @@ class _SimplexSampling(Sampling):
 
 
 class _SimplexRepair(Repair):
-    """After crossover/mutation, project solutions back onto the simplex (sum=100, non-negative)."""
+    """After crossover/mutation, project solutions back onto the simplex (sum=100, non-negative).
+
+    When the pymoo problem has a max_allocation attribute, iteratively clamp
+    and redistribute so no variable exceeds the cap while preserving sum=100.
+    """
 
     def _do(self, problem, X, **kwargs):
         # Clamp to non-negative
@@ -48,6 +52,23 @@ class _SimplexRepair(Repair):
         row_sums = X.sum(axis=1, keepdims=True)
         row_sums = np.maximum(row_sums, 1e-9)  # avoid div by zero
         X = X / row_sums * 100.0
+
+        # Enforce max_allocation: clamp and redistribute excess
+        cap = getattr(problem, "max_allocation", None)
+        if cap is not None:
+            for _ in range(5):  # iterate until stable (typically 1-2 passes)
+                excess = np.maximum(X - cap, 0.0)
+                total_excess = excess.sum(axis=1, keepdims=True)
+                if np.all(total_excess < 0.01):
+                    break
+                X = np.minimum(X, cap)
+                # Redistribute excess proportionally to under-cap variables
+                under_cap = X < cap - 0.01
+                under_cap_sum = np.where(under_cap, X, 0.0).sum(axis=1, keepdims=True)
+                under_cap_sum = np.maximum(under_cap_sum, 1e-9)
+                redistribution = np.where(under_cap, X / under_cap_sum * total_excess, 0.0)
+                X = X + redistribution
+
         return X
 
 from .models import (
@@ -166,6 +187,17 @@ def validate(problem: Problem) -> ValidationResult:
                     severity="error",
                     message=f"group_limit max ({c.max}) must be non-negative.",
                 ))
+        elif c.type == "max_allocation":
+            if not (1 <= c.max <= 100):
+                issues.append(ValidationIssue(
+                    severity="error",
+                    message=f"max_allocation must be between 1 and 100, got {c.max}.",
+                ))
+            if problem.approach != Approach.proportional:
+                issues.append(ValidationIssue(
+                    severity="warning",
+                    message="max_allocation constraint only applies to proportional mode; ignored in binary mode.",
+                ))
 
     # Check force_include + force_exclude conflict
     forced_in = {c.option for c in problem.constraints if c.type == "force_include"}
@@ -197,6 +229,32 @@ def validate(problem: Problem) -> ValidationResult:
                     message=f"force_include count ({len(forced_in)}) exceeds cardinality max ({c.max}).",
                 ))
 
+    # Validate interaction matrices for quadratic objectives
+    im_map = {m.objective: m for m in problem.interaction_matrices}
+    for obj in problem.objectives:
+        if obj.aggregation == Aggregation.quadratic:
+            if obj.name not in im_map:
+                issues.append(ValidationIssue(
+                    severity="error",
+                    message=f"Objective '{obj.name}' uses quadratic aggregation but has no interaction matrix.",
+                ))
+            else:
+                im = im_map[obj.name]
+                # Check all options are covered
+                im_opts = set(im.entries.keys())
+                missing = opt_names - im_opts
+                if missing:
+                    issues.append(ValidationIssue(
+                        severity="error",
+                        message=f"Interaction matrix for '{obj.name}' missing options: {missing}.",
+                    ))
+    for im in problem.interaction_matrices:
+        if im.objective not in obj_names:
+            issues.append(ValidationIssue(
+                severity="warning",
+                message=f"Interaction matrix references unknown objective '{im.objective}'.",
+            ))
+
     ready = all(i.severity != "error" for i in issues)
     return ValidationResult(ready=ready, issues=issues, missing_scores=missing_scores)
 
@@ -215,6 +273,7 @@ def _parse_constraints(problem: Problem) -> dict:
     exclusion_pairs: list[tuple[int, int]] = []
     dependencies: list[tuple[int, int]] = []  # (if_idx, then_idx)
     group_limits: list[tuple[list[int], int]] = []  # (group_indices, max)
+    max_allocation: int | None = None  # max allocation % per option (proportional only)
 
     for c in problem.constraints:
         if c.type == "force_include":
@@ -234,6 +293,8 @@ def _parse_constraints(problem: Problem) -> dict:
         elif c.type == "group_limit":
             group_indices = [opt_index[o] for o in c.options]
             group_limits.append((group_indices, c.max))
+        elif c.type == "max_allocation":
+            max_allocation = c.max
 
     return {
         "forced_in": forced_in_idx,
@@ -244,6 +305,7 @@ def _parse_constraints(problem: Problem) -> dict:
         "exclusion_pairs": exclusion_pairs,
         "dependencies": dependencies,
         "group_limits": group_limits,
+        "max_allocation": max_allocation,
     }
 
 
@@ -257,6 +319,31 @@ def _build_score_matrix(problem: Problem) -> np.ndarray:
         for j, obj in enumerate(obj_list):
             matrix[i, j] = score_map[(opt, obj.name)]
     return matrix
+
+
+def _build_interaction_matrices(problem: Problem) -> dict[int, np.ndarray]:
+    """Build numpy interaction matrices for quadratic objectives.
+
+    Returns dict mapping objective index → (n_options, n_options) numpy array.
+    Only includes objectives with quadratic aggregation that have a matching matrix.
+    """
+    opt_names = [o.name for o in problem.options]
+    opt_index = {name: i for i, name in enumerate(opt_names)}
+    n = len(opt_names)
+    matrix_map = {m.objective: m for m in problem.interaction_matrices}
+
+    result = {}
+    for j, obj in enumerate(problem.objectives):
+        if obj.aggregation == Aggregation.quadratic and obj.name in matrix_map:
+            im = matrix_map[obj.name]
+            M = np.zeros((n, n))
+            for a, row in im.entries.items():
+                if a in opt_index:
+                    for b, val in row.items():
+                        if b in opt_index:
+                            M[opt_index[a], opt_index[b]] = val
+            result[j] = M
+    return result
 
 
 def _tune_parameters(problem: Problem, mode: OptimizeMode) -> tuple:
@@ -411,9 +498,11 @@ def _optimize_binary(problem: Problem, mode: OptimizeMode) -> Run:
     obj_list = problem.objectives
     score_matrix = _build_score_matrix(problem)
     cp = _parse_constraints(problem)
+    im = _build_interaction_matrices(problem)
 
     pymoo_problem = _FrontierProblem(
-        n_options=n_options, score_matrix=score_matrix, objectives=obj_list, **cp,
+        n_options=n_options, score_matrix=score_matrix, objectives=obj_list,
+        interaction_matrices=im, **cp,
     )
 
     algorithm, n_gen = _tune_parameters(problem, mode)
@@ -434,8 +523,9 @@ def _optimize_binary(problem: Problem, mode: OptimizeMode) -> Run:
                 solution_id=idx, selected_options=selected, objective_values=obj_values,
             ))
 
+    solutions, total_found = _prune_pareto(solutions, obj_list)
     solutions = _sort_and_reindex(solutions, obj_list)
-    return Run(solutions=solutions, quality=_compute_quality(result), mode=mode)
+    return Run(solutions=solutions, total_pareto_found=total_found, quality=_compute_quality(result), mode=mode)
 
 
 def _optimize_proportional(problem: Problem, mode: OptimizeMode) -> Run:
@@ -445,9 +535,11 @@ def _optimize_proportional(problem: Problem, mode: OptimizeMode) -> Run:
     obj_list = problem.objectives
     score_matrix = _build_score_matrix(problem)
     cp = _parse_constraints(problem)
+    im = _build_interaction_matrices(problem)
 
     pymoo_problem = _ProportionalProblem(
-        n_options=n_options, score_matrix=score_matrix, objectives=obj_list, **cp,
+        n_options=n_options, score_matrix=score_matrix, objectives=obj_list,
+        interaction_matrices=im, **cp,
     )
 
     algorithm, n_gen = _tune_parameters(problem, mode)
@@ -461,10 +553,27 @@ def _optimize_proportional(problem: Problem, mode: OptimizeMode) -> Run:
         for idx, (x, f) in enumerate(zip(result.X, result.F)):
             # Round to integers and normalize to sum to 100
             raw = np.maximum(np.round(x), 0).astype(int)
-            # Redistribute rounding error to largest allocation
+            # Clamp to max_allocation before redistributing
+            if cp.get("max_allocation") is not None:
+                raw = np.minimum(raw, cp["max_allocation"])
+            # Redistribute rounding error across eligible variables
             diff = 100 - raw.sum()
-            if diff != 0 and raw.max() > 0:
-                raw[np.argmax(raw)] += diff
+            if diff != 0:
+                cap = cp.get("max_allocation") or 100
+                if diff > 0:
+                    # Need to add: distribute to variables with most headroom
+                    for _ in range(abs(diff)):
+                        headroom = cap - raw
+                        headroom[raw == 0] = 0  # don't create new holdings here
+                        if headroom.max() <= 0:
+                            break
+                        raw[np.argmax(headroom)] += 1
+                else:
+                    # Need to remove: take from largest allocations
+                    for _ in range(abs(diff)):
+                        if raw.max() <= 0:
+                            break
+                        raw[np.argmax(raw)] -= 1
 
             allocs = {opt_names[i]: int(raw[i]) for i in range(n_options)}
             selected = [opt_names[i] for i in range(n_options) if raw[i] > 0]
@@ -481,8 +590,72 @@ def _optimize_proportional(problem: Problem, mode: OptimizeMode) -> Run:
                 allocations=allocs,
             ))
 
+    solutions, total_found = _prune_pareto(solutions, obj_list)
     solutions = _sort_and_reindex(solutions, obj_list)
-    return Run(solutions=solutions, quality=_compute_quality(result), mode=mode)
+    return Run(solutions=solutions, total_pareto_found=total_found, quality=_compute_quality(result), mode=mode)
+
+
+MAX_PARETO_SOLUTIONS = 100
+
+
+def _prune_pareto(solutions: list[Solution], obj_list: list, max_n: int = MAX_PARETO_SOLUTIONS) -> tuple[list[Solution], int]:
+    """Prune a Pareto front to max_n solutions, preserving extremes + even spacing.
+
+    Returns (pruned_solutions, total_found_before_pruning).
+    """
+    total = len(solutions)
+    if total <= max_n:
+        return solutions, total
+
+    obj_names = [o.name for o in obj_list]
+
+    # Always keep extreme solutions (best per objective)
+    keep_indices: set[int] = set()
+    for obj in obj_list:
+        name = obj.name
+        if obj.direction.value == "maximize":
+            best_idx = max(range(total), key=lambda i: solutions[i].objective_values.get(name, 0))
+        else:
+            best_idx = min(range(total), key=lambda i: solutions[i].objective_values.get(name, 0))
+        keep_indices.add(best_idx)
+
+    # Fill remaining slots with farthest-point sampling in normalized objective space
+    remaining = max_n - len(keep_indices)
+    if remaining > 0 and len(obj_names) > 0:
+        matrix = np.array([
+            [s.objective_values.get(name, 0) for name in obj_names]
+            for s in solutions
+        ])
+        # Normalize to [0, 1]
+        col_min = matrix.min(axis=0)
+        col_max = matrix.max(axis=0)
+        spread = col_max - col_min
+        spread[spread == 0] = 1.0
+        norm = (matrix - col_min) / spread
+
+        # Greedy farthest-point sampling from the kept set
+        available = set(range(total)) - keep_indices
+        kept_list = list(keep_indices)
+
+        for _ in range(remaining):
+            if not available:
+                break
+            # For each available point, find min distance to any kept point
+            best_candidate, best_min_dist = -1, -1.0
+            kept_points = norm[kept_list]
+            for idx in available:
+                dists = np.linalg.norm(kept_points - norm[idx], axis=1)
+                min_dist = dists.min()
+                if min_dist > best_min_dist:
+                    best_min_dist = min_dist
+                    best_candidate = idx
+            if best_candidate >= 0:
+                keep_indices.add(best_candidate)
+                kept_list.append(best_candidate)
+                available.discard(best_candidate)
+
+    pruned = [solutions[i] for i in sorted(keep_indices)]
+    return pruned, total
 
 
 def _sort_and_reindex(solutions: list[Solution], obj_list: list) -> list[Solution]:
@@ -513,6 +686,8 @@ class _FrontierProblem(PymooProblem):
         exclusion_pairs: list[tuple[int, int]] | None = None,
         dependencies: list[tuple[int, int]] | None = None,
         group_limits: list[tuple[list[int], int]] | None = None,
+        max_allocation: int | None = None,  # ignored for binary mode
+        interaction_matrices: dict[int, np.ndarray] | None = None,
     ):
         exclusion_pairs = exclusion_pairs or []
         dependencies = dependencies or []
@@ -544,6 +719,7 @@ class _FrontierProblem(PymooProblem):
         self.exclusion_pairs = exclusion_pairs
         self.dependencies = dependencies
         self.group_limits = group_limits
+        self.interaction_matrices = interaction_matrices or {}
 
     def _aggregate_objective(self, X_bin: np.ndarray, j: int) -> np.ndarray:
         """Compute objective j values for all population members using the correct aggregation."""
@@ -573,6 +749,17 @@ class _FrontierProblem(PymooProblem):
                     vals[i] = self.score_matrix[selected, j].max()
                 else:
                     vals[i] = 0.0
+            return vals
+        elif agg == Aggregation.quadratic:
+            M = self.interaction_matrices[j]
+            vals = np.zeros(n_pop)
+            for i in range(n_pop):
+                selected = X_bin[i] > 0.5
+                n_sel = selected.sum()
+                if n_sel > 0:
+                    w = np.zeros(X_bin.shape[1])
+                    w[selected] = 1.0 / n_sel  # equal weight
+                    vals[i] = np.sqrt(max(w @ M @ w, 0.0))
             return vals
         else:
             return X_bin @ self.score_matrix[:, j]  # fallback to sum
@@ -651,6 +838,8 @@ class _ProportionalProblem(PymooProblem):
         exclusion_pairs: list[tuple[int, int]] | None = None,
         dependencies: list[tuple[int, int]] | None = None,
         group_limits: list[tuple[list[int], int]] | None = None,
+        max_allocation: int | None = None,
+        interaction_matrices: dict[int, np.ndarray] | None = None,
     ):
         exclusion_pairs = exclusion_pairs or []
         dependencies = dependencies or []
@@ -658,13 +847,17 @@ class _ProportionalProblem(PymooProblem):
 
         n_ieq = 2 + 2 + len(forced_in) + len(forced_out) + len(obj_bounds)
         n_ieq += len(exclusion_pairs) + len(dependencies) + len(group_limits)
+        if max_allocation is not None:
+            n_ieq += n_options  # one constraint per option
+
+        xu = max_allocation if max_allocation is not None else 100
 
         super().__init__(
             n_var=n_options,
             n_obj=len(objectives),
             n_ieq_constr=n_ieq,
             xl=0,
-            xu=100,
+            xu=xu,
         )
         self.score_matrix = score_matrix
         self.objectives = objectives
@@ -676,6 +869,8 @@ class _ProportionalProblem(PymooProblem):
         self.exclusion_pairs = exclusion_pairs
         self.dependencies = dependencies
         self.group_limits = group_limits
+        self.max_allocation = max_allocation
+        self.interaction_matrices = interaction_matrices or {}
 
     def _aggregate_objective(self, X: np.ndarray, j: int) -> np.ndarray:
         """Compute objective j for proportional allocations."""
@@ -710,6 +905,12 @@ class _ProportionalProblem(PymooProblem):
                 else:
                     vals[i] = 0.0
             return vals
+        elif agg == Aggregation.quadratic:
+            M = self.interaction_matrices[j]
+            # sqrt(w^T M w) — vectorized via einsum
+            Mw = fracs @ M  # (n_pop, n_var)
+            raw = np.einsum('ij,ij->i', Mw, fracs)
+            return np.sqrt(np.maximum(raw, 0.0))  # clamp for numerical safety
         else:
             return fracs @ self.score_matrix[:, j]
 
@@ -771,6 +972,11 @@ class _ProportionalProblem(PymooProblem):
             group_sum = sum(allocated[:, i] for i in group_indices)
             G.append(group_sum - max_count)
 
+        # Max position: each allocation <= max_allocation
+        if self.max_allocation is not None:
+            for i in range(X.shape[1]):
+                G.append(X[:, i] - self.max_allocation)
+
         out["G"] = np.column_stack(G) if G else np.zeros((n_pop, 0))
 
 
@@ -808,6 +1014,9 @@ def analyze_infeasibility(problem: Problem) -> dict:
         elif c.type == "objective_bound":
             obj_bounds.append((c.objective, c.operator, c.value))
 
+    # Build interaction matrix lookup for quadratic objectives
+    im_map = {m.objective: m for m in problem.interaction_matrices}
+
     def _aggregate_for_portfolio(selected: set[str], obj_name: str) -> float:
         """Compute aggregated objective value for a portfolio, respecting aggregation mode."""
         scores = [score_map.get((o, obj_name), 0) for o in selected]
@@ -822,6 +1031,18 @@ def analyze_infeasibility(problem: Problem) -> dict:
             return min(scores)
         elif agg == Aggregation.max:
             return max(scores)
+        elif agg == Aggregation.quadratic:
+            if obj_name not in im_map:
+                return sum(scores) / len(scores)  # fallback
+            im = im_map[obj_name]
+            sel = list(selected)
+            n = len(sel)
+            w = 1.0 / n
+            total = 0.0
+            for a in sel:
+                for b in sel:
+                    total += w * w * im.entries.get(a, {}).get(b, 0.0)
+            return total ** 0.5 if total > 0 else 0.0
         return sum(scores)
 
     def portfolio_feasible(selected: set[str], skip_constraint=None) -> bool:
@@ -915,6 +1136,9 @@ def analyze_infeasibility(problem: Problem) -> dict:
             constraint_labels.append(
                 (f"group_limit:{','.join(c.options)}:{c.max}", c.model_dump())
             )
+        elif c.type == "max_allocation":
+            # max_allocation is proportional-only; skip in binary feasibility analysis
+            pass
 
     # Test each constraint: does removing it make the problem feasible?
     binding = []

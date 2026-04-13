@@ -82,7 +82,7 @@ A complete matrix isn't necessarily a useful one. The `model update` response in
 
 (See aggregation modes in `frontier://skills/problem_framing`.)
 
-Aggregation affects how to prioritize scoring effort. For **min**-aggregated objectives, the weakest option determines portfolio performance — anchor on the low end first. For **max**, only the standout matters — anchor on the high end. For **sum** and **avg**, score each option independently.
+Aggregation affects how to prioritize scoring effort. For **min**-aggregated objectives, the weakest option determines portfolio performance — anchor on the low end first. For **max**, only the standout matters — anchor on the high end. For **sum** and **avg**, score each option independently. For **quadratic**, individual scores are still needed (for display and marginal analysis), but you also need a pairwise interaction matrix — pass via `interaction_matrices` param on `model/update`.
 
 ### Completeness Drive
 The score matrix must be 100% before solving — the optimizer cannot evaluate tradeoffs with missing values, so every gap blocks the entire run. Track what's missing and fill gaps efficiently.

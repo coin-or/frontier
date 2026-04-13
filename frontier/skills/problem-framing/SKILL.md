@@ -131,8 +131,11 @@ Each objective has an aggregation mode that determines how individual option sco
 | `avg` | Average across selected options | Satisfaction, quality — portfolio consistency matters |
 | `min` | Worst individual option score | Reliability, security — weakest link matters |
 | `max` | Best individual option score | Peak performance, showcase capability |
+| `quadratic` | √(w^T M w) using interaction matrix | Risk, volatility, synergy — value depends on pairwise interactions |
 
 **Most objectives use sum.** Only change aggregation when the semantics genuinely differ. Ask: *"Does picking more options increase this value (sum), or does the portfolio quality depend on its weakest member (min) or average (avg)?"*
+
+**Quadratic** is for when the portfolio value depends on pairwise interactions (e.g., risk reduced by diversification). Requires an `interaction_matrices` entry with the pairwise matrix. Individual scores are still needed for display.
 
 ### Scope Calibration
 - Is this actually a portfolio selection problem? "Pick K of N" or "allocate across N" — if neither fits, this might not need Frontier.

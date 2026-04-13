@@ -27,6 +27,7 @@ class ConstraintType(str, Enum):
     exclusion_pair = "exclusion_pair"
     dependency = "dependency"
     group_limit = "group_limit"
+    max_allocation = "max_allocation"
 
 
 class Aggregation(str, Enum):
@@ -34,6 +35,7 @@ class Aggregation(str, Enum):
     avg = "avg"
     min = "min"
     max = "max"
+    quadratic = "quadratic"
 
 
 class Approach(str, Enum):
@@ -70,6 +72,16 @@ class Score(BaseModel):
     option: str
     objective: str
     value: float
+
+
+class InteractionMatrix(BaseModel):
+    """Pairwise interaction matrix for quadratic aggregation.
+
+    entries[option_a][option_b] = interaction value (must be symmetric).
+    For portfolio volatility, this is the covariance matrix.
+    """
+    objective: str
+    entries: dict[str, dict[str, float]]
 
 
 # --- Constraints ---
@@ -116,6 +128,11 @@ class GroupLimitConstraint(BaseModel):
     max: int
 
 
+class MaxAllocationConstraint(BaseModel):
+    type: Literal["max_allocation"] = "max_allocation"
+    max: int  # maximum allocation percentage for any single option (1-100)
+
+
 Constraint = (
     CardinalityConstraint
     | ForceIncludeConstraint
@@ -124,6 +141,7 @@ Constraint = (
     | ExclusionPairConstraint
     | DependencyConstraint
     | GroupLimitConstraint
+    | MaxAllocationConstraint
 )
 
 
@@ -198,6 +216,7 @@ class Run(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     mode: OptimizeMode = OptimizeMode.fast
     solutions: list[Solution] = []
+    total_pareto_found: int = 0  # Pre-pruning count; 0 means no pruning occurred
     quality: QualityIndicators = QualityIndicators()
     constraints_snapshot: list[dict] = []
 
@@ -250,6 +269,7 @@ class Problem(BaseModel):
     options: list[Option] = []
     scores: list[Score] = []
     constraints: list[Constraint] = []
+    interaction_matrices: list[InteractionMatrix] = []
     reference_points: list[ReferencePoint] = []
     scenario_config: ScenarioConfig | None = None
     scenario_run: ScenarioRun | None = None

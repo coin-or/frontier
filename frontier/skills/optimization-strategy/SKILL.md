@@ -126,7 +126,7 @@ This turns iteration from "re-run and hope" into cause-and-effect reasoning:
 - "The frontier gave you 12 solutions. That's a lot of tradeoff space. Want to add a constraint to narrow it?"
 - "Only 2 solutions survived. Your constraints might be too tight."
 - 5-10 solutions on the frontier is a healthy number for most decisions.
-- Results don't match intuition about combinations? Check the **aggregation method** on objectives (sum vs avg vs min vs max). A sum-aggregated cost objective behaves very differently from an avg-aggregated one in portfolio selection.
+- Results don't match intuition about combinations? Check the **aggregation method** on objectives (sum vs avg vs min vs max vs quadratic). A sum-aggregated cost objective behaves very differently from an avg-aggregated one. If an objective depends on interactions between options, use quadratic aggregation with an interaction matrix.
 
 ### Scenario Results Interpretation
 
