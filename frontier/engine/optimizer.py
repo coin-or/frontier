@@ -435,7 +435,7 @@ def _optimize_binary(problem: Problem, mode: OptimizeMode) -> Run:
             ))
 
     solutions = _sort_and_reindex(solutions, obj_list)
-    return Run(solutions=solutions, quality=_compute_quality(result))
+    return Run(solutions=solutions, quality=_compute_quality(result), mode=mode)
 
 
 def _optimize_proportional(problem: Problem, mode: OptimizeMode) -> Run:
@@ -482,7 +482,7 @@ def _optimize_proportional(problem: Problem, mode: OptimizeMode) -> Run:
             ))
 
     solutions = _sort_and_reindex(solutions, obj_list)
-    return Run(solutions=solutions, quality=_compute_quality(result))
+    return Run(solutions=solutions, quality=_compute_quality(result), mode=mode)
 
 
 def _sort_and_reindex(solutions: list[Solution], obj_list: list) -> list[Solution]:

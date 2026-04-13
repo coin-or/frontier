@@ -1,7 +1,21 @@
-"""Frontier MCP server: 4 tools (model, solve, explore, get_skill) + 4 skill resources."""
+"""Frontier MCP server: 4 tools (model, solve, explore, get_skill) + 4 skill resources.
+
+Skill auto-injection: tool responses include the relevant skill content for
+the *next* workflow phase, so agents always receive guidance at the right time
+without needing to manually call get_skill().
+
+Injection map:
+  MCP connect (server instructions) → condensed problem_framing + constraint schemas
+  model/create response             → data_collection skill
+  model/update (objectives/options)  → data_collection skill (if not already injected)
+  model/update (scores hit 100%)     → optimization_strategy skill
+  solve/run response                → solution_interpreter skill (always, on every solve)
+  solve/validate (ready=true)       → optimization_strategy skill (if not already injected)
+"""
 
 from __future__ import annotations
 
+import functools
 import json
 import os
 from datetime import datetime, timezone
@@ -39,14 +53,29 @@ mcp = FastMCP(
     "Frontier",
     instructions=(
         "Multi-objective portfolio optimization engine.\n\n"
-        "WORKFLOW: model → solve → explore\n\n"
-        "IMPORTANT: Call get_skill() before each workflow stage for domain guidance:\n"
-        "  get_skill('problem_framing') — before model/create or model/update\n"
-        "  get_skill('data_collection') — before entering scores\n"
-        "  get_skill('optimization_strategy') — before solve/run\n"
-        "  get_skill('solution_interpreter') — before presenting results\n\n"
-        "Skills contain the domain expertise that drives workflow quality. "
-        "Do not skip them — they tell you HOW to do each step well."
+        "WORKFLOW: model/create → model/update (objectives, options, scores, constraints) → solve/run → explore\n\n"
+        "Skills (domain guides) are auto-injected into tool responses at phase transitions. "
+        "You can also call get_skill() to re-read any skill.\n\n"
+        "## Problem Framing Essentials\n"
+        "- Objectives: things to maximize or minimize with no hard cutoff. 2-4 is ideal.\n"
+        "- Constraints: hard limits that eliminate solutions.\n"
+        "- Ask: 'Is that a hard limit or a target?' to classify.\n"
+        "- Approach: 'Does quantity matter?' → proportional. 'Yes/no per option?' → binary.\n"
+        "- Aggregation modes: sum (total, default), avg (portfolio average), min (weakest link), max (best/peak).\n"
+        "- Hidden objectives: watch for 'ideally', 'if possible', 'assuming X stays reasonable'.\n\n"
+        "## Constraint Schemas (pass to model/update constraints param)\n"
+        '  cardinality:     {"type": "cardinality", "min": <int>, "max": <int>}\n'
+        '  force_include:   {"type": "force_include", "option": "<name>"}\n'
+        '  force_exclude:   {"type": "force_exclude", "option": "<name>"}\n'
+        '  objective_bound: {"type": "objective_bound", "objective": "<name>", "operator": "min"|"max", "value": <float>}\n'
+        '  exclusion_pair:  {"type": "exclusion_pair", "option_a": "<name>", "option_b": "<name>"}\n'
+        '  dependency:      {"type": "dependency", "if_option": "<name>", "then_option": "<name>"}\n'
+        '  group_limit:     {"type": "group_limit", "options": ["<name>", ...], "max": <int>}\n\n'
+        "## Key Rules\n"
+        "- Score matrix must be 100% complete before solve — every option on every objective.\n"
+        "- Scores use merge semantics (upsert); objectives/options/constraints use full replacement.\n"
+        "- Never say 'best' — every Pareto solution is optimal at its tradeoff.\n"
+        "- Present extremes first, then balanced, then ask user preference."
     ),
     host=os.environ.get("MCP_HOST", "127.0.0.1"),
     port=int(os.environ.get("PORT", "8000")),
@@ -54,6 +83,52 @@ mcp = FastMCP(
 store = Store()
 
 SKILLS_DIR = Path(__file__).resolve().parent.parent / "skills"
+
+
+# ─── Skill auto-injection helpers ───
+
+
+# Per-problem tracking of which skills have been injected, to avoid redundancy.
+_injected_skills: dict[str, set[str]] = {}
+
+
+def _mark_injected(problem_id: str, skill_name: str) -> None:
+    _injected_skills.setdefault(problem_id, set()).add(skill_name)
+
+
+def _reset_injection(problem_id: str, skill_name: str) -> None:
+    if problem_id in _injected_skills:
+        _injected_skills[problem_id].discard(skill_name)
+
+
+def _reset_all_injections(problem_id: str) -> None:
+    _injected_skills.pop(problem_id, None)
+
+
+def _was_injected(problem_id: str, skill_name: str) -> bool:
+    return skill_name in _injected_skills.get(problem_id, set())
+
+
+@functools.lru_cache(maxsize=4)
+def _load_skill(skill_name: str) -> str:
+    """Load skill content from disk, cached across calls."""
+    dirname = _SKILL_MAP.get(skill_name)
+    if not dirname:
+        return ""
+    path = SKILLS_DIR / dirname / "SKILL.md"
+    return path.read_text() if path.exists() else ""
+
+
+def _inject_skill(result: dict, skill_name: str, reason: str) -> dict:
+    """Append skill content to a tool response under a standard key."""
+    content = _load_skill(skill_name)
+    if content:
+        result["_skill_guidance"] = {
+            "skill": skill_name,
+            "reason": reason,
+            "content": content,
+        }
+    return result
 
 
 # ─── Skills as resources ───
@@ -93,15 +168,17 @@ _SKILL_MAP = {
 def get_skill(skill_name: str) -> str:
     """Retrieve workflow guidance for a specific stage.
 
-    Available skills:
-    - problem_framing — call before model/create or model/update
-    - data_collection — call before entering scores
-    - optimization_strategy — call before solve/run
-    - solution_interpreter — call before presenting results
+    NOTE: Skills are auto-injected into tool responses at phase transitions.
+    Use this tool only if you need to re-read a skill or access it outside
+    the normal workflow sequence.
 
-    Returns the full skill guide as markdown. Skills contain domain expertise
-    for translating business decisions into well-structured optimization
-    problems and interpreting results without bias.
+    Available skills:
+    - problem_framing — structuring objectives, options, constraints, approach
+    - data_collection — scoring best practices, anchoring, completeness
+    - optimization_strategy — mode selection, constraint strategy, iteration
+    - solution_interpreter — presenting tradeoffs, eliciting preferences, curation
+
+    Returns the full skill guide as markdown.
     """
     dirname = _SKILL_MAP.get(skill_name)
     if not dirname:
@@ -132,11 +209,12 @@ def model(
 ) -> dict:
     """Build and modify the optimization problem.
 
-    Read frontier://skills/problem_framing before creating a problem.
-    Read frontier://skills/data_collection before entering scores.
+    Skills are auto-injected into responses at phase transitions.
+    Call get_skill() to re-read any skill manually.
 
     Actions:
-      create  — Start a new problem. Params: name?, domain?, context?, approach?
+      create  — Start a new problem. Params: name?, domain?, context?, approach?,
+                objectives?, options? (all optional; add via update later).
       update  — Modify problem. Params: problem_id (required), plus any of:
                 name, domain, context, objectives, options, scores, constraints,
                 approach ("binary" or "proportional"),
@@ -146,20 +224,20 @@ def model(
       list    — All problems. No params.
       delete  — Remove problem. Params: problem_id
 
-    Key guidance (call get_skill('problem_framing') for full guide):
+    Key guidance:
     - Objectives: 2-4 is the sweet spot. If >4, consolidate.
     - Ask "does quantity matter?" to choose binary vs proportional approach.
     - Classify carefully: "budget" might be an objective OR a constraint.
-    - Hidden objectives surface through hedging language ("ideally", "if possible").
-    - 7 constraint types: cardinality, force_include, force_exclude, objective_bound,
-      exclusion_pair, dependency, group_limit.
     - First formulation is a hypothesis — rough scores > no scores, fewer objectives > many.
 
-    Key guidance (call get_skill('data_collection') for full guide):
-    - Anchor scores with best/worst first, then fill in between.
-    - 1-10 scale is fine; ordinal ranking matters more than exact values.
-    - Push for 100% score matrix — rough estimates beat half-filled precision.
-    - Watch for low-variance objectives (won't differentiate) and scale mismatches.
+    Constraint schemas (pass to constraints param as list of dicts):
+      {"type": "cardinality", "min": <int>, "max": <int>}
+      {"type": "force_include", "option": "<name>"}
+      {"type": "force_exclude", "option": "<name>"}
+      {"type": "objective_bound", "objective": "<name>", "operator": "min"|"max", "value": <float>}
+      {"type": "exclusion_pair", "option_a": "<name>", "option_b": "<name>"}
+      {"type": "dependency", "if_option": "<name>", "then_option": "<name>"}
+      {"type": "group_limit", "options": ["<name>", ...], "max": <int>}
     """
     params = {
         k: v for k, v in {
@@ -192,14 +270,30 @@ def _model_create(params: dict) -> dict:
     )
     if "approach" in params:
         kwargs["approach"] = Approach(params["approach"])
+    if "objectives" in params:
+        kwargs["objectives"] = [
+            Objective(**o) if isinstance(o, dict) else o for o in params["objectives"]
+        ]
+    if "options" in params:
+        kwargs["options"] = [
+            Option(**o) if isinstance(o, dict) else o for o in params["options"]
+        ]
     p = Problem(**kwargs)
     store.save(p)
-    return {
+    result = {
         "problem_id": p.problem_id,
         "name": p.name,
         "domain": p.domain,
         "created_at": p.created_at.isoformat(),
+        "objectives": len(p.objectives),
+        "options": len(p.options),
     }
+    # Next step is scoring — inject data_collection guidance
+    _inject_skill(result, "data_collection",
+        "Problem created. Use this guide when entering scores — "
+        "it covers anchoring, batch efficiency, and completeness.")
+    _mark_injected(p.problem_id, "data_collection")
+    return result
 
 
 def _model_update(params: dict) -> dict:
@@ -352,6 +446,30 @@ def _model_update(params: dict) -> dict:
             "data": metrics.data_metrics(p),
         }
 
+    # ─── Skill auto-injection based on what changed ───
+    added_objectives = "objectives" in params
+    added_options = "options" in params
+    scores_complete = result["status"]["scores_complete"]
+
+    # If structure was (re)defined, inject data_collection for scoring guidance
+    if (added_objectives or added_options) and not _was_injected(pid, "data_collection"):
+        _inject_skill(result, "data_collection",
+            "Objectives/options defined. Use this guide for scoring — "
+            "anchor best/worst first, batch by objective, push for 100% completeness.")
+        _mark_injected(pid, "data_collection")
+
+    # If scores just reached 100%, inject optimization_strategy for solve guidance
+    elif scores_complete == 1.0 and not _was_injected(pid, "optimization_strategy"):
+        _inject_skill(result, "optimization_strategy",
+            "Score matrix is 100% complete. Use this guide before running solve — "
+            "it covers mode selection, constraint strategy, and iteration expectations.")
+        _mark_injected(pid, "optimization_strategy")
+
+    # Reset optimization_strategy injection on structural changes so it can
+    # re-fire when scores next reach 100% after model restructuring
+    if structural_change and "scores" not in params:
+        _reset_injection(pid, "optimization_strategy")
+
     return result
 
 
@@ -378,6 +496,7 @@ def _model_delete(params: dict) -> dict:
         store.delete(pid)
     except FileNotFoundError:
         return {"error": f"Problem {pid} not found."}
+    _reset_all_injections(pid)
     return {"deleted": pid}
 
 
@@ -411,11 +530,12 @@ def _parse_constraint(c: dict | Constraint) -> Constraint:
 def solve(action: str, problem_id: str, mode: str | None = None) -> dict:
     """Validate and run the optimizer.
 
-    Read frontier://skills/optimization_strategy before running.
+    optimization_strategy skill is auto-injected when scores reach 100% or
+    validation passes. Call get_skill('optimization_strategy') to re-read.
 
     Actions:
       validate       — Check if problem is ready. Returns issues and missing scores.
-      run            — Validate, then optimize. Returns full Pareto frontier inline.
+      run            — Validate, then optimize. Returns Pareto frontier + solution_interpreter skill.
       run_scenarios  — Run optimization independently per scenario. Requires scenario_config.
 
     Args:
@@ -424,7 +544,7 @@ def solve(action: str, problem_id: str, mode: str | None = None) -> dict:
             generations, and operator parameters to problem complexity. Also selects
             NSGA-III for 4+ objectives.
 
-    Key guidance (call get_skill('optimization_strategy') for full guide):
+    Key guidance:
     - Expect iteration: first run is exploration, not the answer.
     - Use "fast" while refining scores/constraints, "thorough" when finalized.
     - If zero solutions: check cardinality constraints and objective bounds for conflicts.
@@ -446,7 +566,13 @@ def solve(action: str, problem_id: str, mode: str | None = None) -> dict:
     match action:
         case "validate":
             vr = optimizer.validate(p)
-            return json.loads(vr.model_dump_json())
+            result = json.loads(vr.model_dump_json())
+            # If ready to solve, inject optimization_strategy
+            if vr.ready and not _was_injected(problem_id, "optimization_strategy"):
+                _inject_skill(result, "optimization_strategy",
+                    "Problem validates as ready. Review this guide before running solve.")
+                _mark_injected(problem_id, "optimization_strategy")
+            return result
         case "run":
             return _solve_run(p, opt_mode)
         case "run_scenarios":
@@ -484,7 +610,7 @@ def _solve_run(p: Problem, mode: OptimizeMode | None = None) -> dict:
     p.results_stale = False
     store.save(p)
 
-    return {
+    result = {
         "run_id": run.run_id,
         "solutions_found": len(run.solutions),
         "solutions": [json.loads(s.model_dump_json()) for s in run.solutions],
@@ -494,6 +620,16 @@ def _solve_run(p: Problem, mode: OptimizeMode | None = None) -> dict:
             "diagnostics": metrics.diagnostics(p),
         },
     }
+
+    # Always inject solution_interpreter after a successful solve —
+    # the agent needs presentation guidance each time it has new results.
+    _inject_skill(result, "solution_interpreter",
+        "Optimization complete. Use this guide to present results — "
+        "never say 'best', start with extremes and balanced, quantify tradeoffs.")
+    # Reset optimization_strategy so it can re-fire on the next model change cycle
+    _reset_injection(p.problem_id, "optimization_strategy")
+
+    return result
 
 
 def _solve_run_scenarios(p: Problem, mode: OptimizeMode | None = None) -> dict:
@@ -569,7 +705,8 @@ def explore(
 ) -> dict:
     """Navigate results after solving.
 
-    Read frontier://skills/solution_interpreter before presenting results.
+    solution_interpreter skill is auto-injected with solve/run results.
+    Call get_skill('solution_interpreter') to re-read.
 
     Actions:
       tradeoffs  — Frontier overview: ranges, correlations, extremes, balanced solution.
@@ -586,7 +723,7 @@ def explore(
       compare_curated — Compare curated solutions. Params: signatures (list of 2+ content_signature strings).
       marginal_analysis — Marginal rate analysis: cost-per-unit between adjacent solutions, knee detection.
 
-    Key guidance (call get_skill('solution_interpreter') for full guide):
+    Key guidance:
     - Never say "best" — every Pareto solution is optimal at its tradeoff.
     - Present extremes first, then balanced, then ask what the user gravitates toward.
     - Quantify tradeoffs: "Solution A gains 20% revenue but costs 15% more risk."

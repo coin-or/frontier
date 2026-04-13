@@ -196,6 +196,7 @@ class QualityIndicators(BaseModel):
 class Run(BaseModel):
     run_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    mode: OptimizeMode = OptimizeMode.fast
     solutions: list[Solution] = []
     quality: QualityIndicators = QualityIndicators()
     constraints_snapshot: list[dict] = []

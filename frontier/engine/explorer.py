@@ -229,6 +229,7 @@ def compare_runs(problem: Problem, run_ids: list[str]) -> dict:
                 ranges[name] = {"min": None, "max": None}
         frontier_diffs.append({
             "run_id": run.run_id,
+            "mode": run.mode.value,
             "solution_count": len(run.solutions),
             "objective_ranges": ranges,
             "created_at": run.created_at.isoformat(),

@@ -17,6 +17,8 @@ def tmp_store(monkeypatch):
     with tempfile.TemporaryDirectory() as tmpdir:
         s = Store(tmpdir)
         monkeypatch.setattr(srv, "store", s)
+        # Clear injection tracking between tests
+        srv._injected_skills.clear()
         yield s
 
 
@@ -846,3 +848,269 @@ class TestMarginalAnalysis:
             assert "objectives" in pair
             assert "rates" in pair
             assert "visualization" in pair
+
+
+# ─── Skill auto-injection ───
+
+
+class TestCreateAcceptsObjectivesAndOptions:
+    """Bug fix: model/create now accepts objectives and options params."""
+
+    def test_create_with_objectives(self):
+        result = srv.model(action="create", name="Test", objectives=[
+            {"name": "Rev", "direction": "maximize"},
+            {"name": "Eff", "direction": "minimize"},
+        ])
+        assert result["objectives"] == 2
+        p = srv.model(action="get", problem_id=result["problem_id"])
+        assert len(p["objectives"]) == 2
+
+    def test_create_with_options(self):
+        result = srv.model(action="create", name="Test", options=[
+            {"name": "A"}, {"name": "B"}, {"name": "C"},
+        ])
+        assert result["options"] == 3
+        p = srv.model(action="get", problem_id=result["problem_id"])
+        assert len(p["options"]) == 3
+
+    def test_create_with_objectives_and_options(self):
+        result = srv.model(action="create", name="Test",
+            objectives=[
+                {"name": "Rev", "direction": "maximize"},
+                {"name": "Eff", "direction": "minimize"},
+            ],
+            options=[{"name": "A"}, {"name": "B"}],
+        )
+        assert result["objectives"] == 2
+        assert result["options"] == 2
+
+
+class TestSkillInjectionOnCreate:
+    def test_create_injects_data_collection(self):
+        result = srv.model(action="create", name="Test")
+        assert "_skill_guidance" in result
+        assert result["_skill_guidance"]["skill"] == "data_collection"
+        assert "content" in result["_skill_guidance"]
+        assert len(result["_skill_guidance"]["content"]) > 100  # actual skill content
+
+
+class TestSkillInjectionOnUpdate:
+    def test_update_objectives_injects_data_collection_when_not_yet_injected(self):
+        """If data_collection wasn't already injected (e.g. tracking cleared),
+        an objectives update should inject it."""
+        created = srv.model(action="create")
+        pid = created["problem_id"]
+        # Create already injected data_collection — clear it to test update path
+        srv._injected_skills[pid].discard("data_collection")
+        result = srv.model(action="update", problem_id=pid, objectives=[
+            {"name": "Rev", "direction": "maximize"},
+            {"name": "Eff", "direction": "minimize"},
+        ])
+        assert "_skill_guidance" in result
+        assert result["_skill_guidance"]["skill"] == "data_collection"
+
+    def test_update_options_injects_data_collection_when_not_yet_injected(self):
+        created = srv.model(action="create")
+        pid = created["problem_id"]
+        srv._injected_skills[pid].discard("data_collection")
+        result = srv.model(action="update", problem_id=pid, options=[
+            {"name": "A"}, {"name": "B"}, {"name": "C"},
+        ])
+        assert "_skill_guidance" in result
+        assert result["_skill_guidance"]["skill"] == "data_collection"
+
+    def test_create_already_injects_so_update_does_not_reinject(self):
+        """model/create injects data_collection, so a subsequent update with
+        objectives/options should NOT re-inject."""
+        created = srv.model(action="create")
+        pid = created["problem_id"]
+        assert created["_skill_guidance"]["skill"] == "data_collection"
+        # Update should NOT re-inject
+        result = srv.model(action="update", problem_id=pid, objectives=[
+            {"name": "Rev", "direction": "maximize"},
+            {"name": "Eff", "direction": "minimize"},
+        ])
+        assert "_skill_guidance" not in result
+
+    def test_scores_complete_injects_optimization_strategy(self):
+        created = srv.model(action="create")
+        pid = created["problem_id"]
+        srv.model(action="update", problem_id=pid,
+            objectives=[{"name": "Rev", "direction": "maximize"},
+                        {"name": "Eff", "direction": "minimize"}],
+            options=[{"name": "A"}, {"name": "B"}, {"name": "C"}])
+        # Partial scores — no injection
+        result = srv.model(action="update", problem_id=pid, scores=[
+            {"option": "A", "objective": "Rev", "value": 5},
+            {"option": "A", "objective": "Eff", "value": 3},
+        ])
+        assert "_skill_guidance" not in result
+
+        # Complete scores — should inject optimization_strategy
+        result = srv.model(action="update", problem_id=pid, scores=[
+            {"option": "B", "objective": "Rev", "value": 7},
+            {"option": "B", "objective": "Eff", "value": 2},
+            {"option": "C", "objective": "Rev", "value": 9},
+            {"option": "C", "objective": "Eff", "value": 6},
+        ])
+        assert "_skill_guidance" in result
+        assert result["_skill_guidance"]["skill"] == "optimization_strategy"
+
+    def test_optimization_strategy_not_reinjected_on_more_scores(self):
+        created = srv.model(action="create")
+        pid = created["problem_id"]
+        srv.model(action="update", problem_id=pid,
+            objectives=[{"name": "Rev", "direction": "maximize"},
+                        {"name": "Eff", "direction": "minimize"}],
+            options=[{"name": "A"}, {"name": "B"}, {"name": "C"}],
+            scores=[
+                {"option": "A", "objective": "Rev", "value": 5},
+                {"option": "A", "objective": "Eff", "value": 3},
+                {"option": "B", "objective": "Rev", "value": 7},
+                {"option": "B", "objective": "Eff", "value": 2},
+                {"option": "C", "objective": "Rev", "value": 9},
+                {"option": "C", "objective": "Eff", "value": 6},
+            ])
+        # Upsert a score — should NOT re-inject
+        result = srv.model(action="update", problem_id=pid, scores=[
+            {"option": "A", "objective": "Rev", "value": 99},
+        ])
+        assert "_skill_guidance" not in result
+
+    def test_structural_change_resets_optimization_strategy(self):
+        """After objectives change, optimization_strategy should re-fire when scores hit 100%."""
+        created = srv.model(action="create")
+        pid = created["problem_id"]
+        srv.model(action="update", problem_id=pid,
+            objectives=[{"name": "Rev", "direction": "maximize"},
+                        {"name": "Eff", "direction": "minimize"}],
+            options=[{"name": "A"}, {"name": "B"}],
+            scores=[
+                {"option": "A", "objective": "Rev", "value": 5},
+                {"option": "A", "objective": "Eff", "value": 3},
+                {"option": "B", "objective": "Rev", "value": 7},
+                {"option": "B", "objective": "Eff", "value": 2},
+            ])
+        # optimization_strategy was injected at 100%. Now change objectives.
+        srv.model(action="update", problem_id=pid, objectives=[
+            {"name": "Rev", "direction": "maximize"},
+            {"name": "Risk", "direction": "minimize"},
+        ])
+        # Re-score to 100%
+        result = srv.model(action="update", problem_id=pid, scores=[
+            {"option": "A", "objective": "Rev", "value": 5},
+            {"option": "A", "objective": "Risk", "value": 3},
+            {"option": "B", "objective": "Rev", "value": 7},
+            {"option": "B", "objective": "Risk", "value": 2},
+        ])
+        assert "_skill_guidance" in result
+        assert result["_skill_guidance"]["skill"] == "optimization_strategy"
+
+    def test_scores_and_objectives_same_call_prioritizes_data_collection(self):
+        """When objectives AND scores arrive in the same call and data_collection
+        hasn't been injected yet, data_collection takes priority over optimization_strategy."""
+        created = srv.model(action="create")
+        pid = created["problem_id"]
+        # Clear the data_collection injection from create so we can test the elif logic
+        srv._injected_skills[pid].discard("data_collection")
+        result = srv.model(action="update", problem_id=pid,
+            objectives=[{"name": "Rev", "direction": "maximize"},
+                        {"name": "Eff", "direction": "minimize"}],
+            options=[{"name": "A"}, {"name": "B"}],
+            scores=[
+                {"option": "A", "objective": "Rev", "value": 5},
+                {"option": "A", "objective": "Eff", "value": 3},
+                {"option": "B", "objective": "Rev", "value": 7},
+                {"option": "B", "objective": "Eff", "value": 2},
+            ])
+        # data_collection takes priority because objectives were added in same call
+        assert "_skill_guidance" in result
+        assert result["_skill_guidance"]["skill"] == "data_collection"
+
+    def test_scores_and_objectives_same_call_when_data_collection_already_injected(self):
+        """When data_collection was already injected (from create), a combined
+        objectives+scores update that hits 100% should inject optimization_strategy."""
+        created = srv.model(action="create")
+        pid = created["problem_id"]
+        # data_collection already injected by create
+        result = srv.model(action="update", problem_id=pid,
+            objectives=[{"name": "Rev", "direction": "maximize"},
+                        {"name": "Eff", "direction": "minimize"}],
+            options=[{"name": "A"}, {"name": "B"}],
+            scores=[
+                {"option": "A", "objective": "Rev", "value": 5},
+                {"option": "A", "objective": "Eff", "value": 3},
+                {"option": "B", "objective": "Rev", "value": 7},
+                {"option": "B", "objective": "Eff", "value": 2},
+            ])
+        # data_collection already marked → elif falls through to optimization_strategy
+        assert "_skill_guidance" in result
+        assert result["_skill_guidance"]["skill"] == "optimization_strategy"
+
+
+class TestSkillInjectionOnSolve:
+    def test_solve_run_injects_solution_interpreter(self):
+        pid = _build_solvable_problem()
+        result = srv.solve(action="run", problem_id=pid)
+        assert "_skill_guidance" in result
+        assert result["_skill_guidance"]["skill"] == "solution_interpreter"
+
+    def test_solve_rerun_reinjects_solution_interpreter(self):
+        """Every successful solve injects solution_interpreter — no dedup."""
+        pid = _build_solvable_problem()
+        result1 = srv.solve(action="run", problem_id=pid)
+        assert result1["_skill_guidance"]["skill"] == "solution_interpreter"
+        result2 = srv.solve(action="run", problem_id=pid)
+        assert result2["_skill_guidance"]["skill"] == "solution_interpreter"
+
+    def test_solve_validation_failure_no_injection(self):
+        created = srv.model(action="create")
+        pid = created["problem_id"]
+        result = srv.solve(action="run", problem_id=pid)
+        assert "_skill_guidance" not in result
+
+    def test_validate_ready_injects_optimization_strategy(self):
+        pid = _build_solvable_problem()
+        # _build_solvable_problem already triggers optimization_strategy via
+        # model/update at 100% scores. Clear it to test the validate path.
+        srv._injected_skills[pid].discard("optimization_strategy")
+        result = srv.solve(action="validate", problem_id=pid)
+        assert result["ready"] is True
+        assert "_skill_guidance" in result
+        assert result["_skill_guidance"]["skill"] == "optimization_strategy"
+
+    def test_validate_not_ready_no_injection(self):
+        created = srv.model(action="create")
+        pid = created["problem_id"]
+        result = srv.solve(action="validate", problem_id=pid)
+        assert result["ready"] is False
+        assert "_skill_guidance" not in result
+
+    def test_validate_does_not_reinject_if_already_injected(self):
+        """If optimization_strategy was already injected (e.g. from 100% scores),
+        validate should NOT re-inject."""
+        pid = _build_solvable_problem()
+        # optimization_strategy already injected by _build_solvable_problem
+        result = srv.solve(action="validate", problem_id=pid)
+        assert result["ready"] is True
+        assert "_skill_guidance" not in result
+
+    def test_solve_resets_optimization_strategy_for_next_cycle(self):
+        """After solve, model changes should allow optimization_strategy to re-inject."""
+        pid = _build_solvable_problem()
+        srv.solve(action="run", problem_id=pid)
+        # solve resets optimization_strategy. Validate should re-inject.
+        result = srv.solve(action="validate", problem_id=pid)
+        assert result["ready"] is True
+        assert "_skill_guidance" in result
+        assert result["_skill_guidance"]["skill"] == "optimization_strategy"
+
+
+class TestSkillInjectionOnDelete:
+    def test_delete_clears_injection_tracking(self):
+        created = srv.model(action="create")
+        pid = created["problem_id"]
+        # Create injects data_collection, marking it as injected
+        assert srv._was_injected(pid, "data_collection")
+        srv.model(action="delete", problem_id=pid)
+        assert not srv._was_injected(pid, "data_collection")
