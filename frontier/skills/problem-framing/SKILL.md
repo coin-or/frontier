@@ -17,6 +17,27 @@ Before diving into problem framing, ask the user which mode they prefer:
 
 Both modes converge on the same outcome — a well-structured problem. The difference is pacing.
 
+## Decision Question
+
+Before framing objectives, capture the user's driving question — the decision they're actually trying to make. This is the anchor for the entire session.
+
+**Ask**: *"What decision are you trying to make?"* or *"What question are you trying to answer?"*
+
+The answer reveals problem structure:
+- **"How much of each..."** → allocation question → proportional approach
+- **"Which ones should we..."** → selection question → binary approach
+- **"What's the best tradeoff between..."** → tradeoff question → confirms multi-objective framing
+- **"Which is the best..."** → ranking question → may not need optimization at all
+
+If the user jumps straight to options or scores without articulating the question, slow down: *"Before we model this — what's the decision you're trying to make? What would a good answer look like?"*
+
+Store the question in `context` when calling `model create`. It serves three purposes:
+1. **Guides framing** — objectives, constraints, and approach should all serve the question
+2. **Detects drift** — if mid-session work stops connecting to the original question, something shifted
+3. **Grounds results** — at solve time, `solution_interpreter` uses the question to contextualize what the frontier means for the user's actual decision
+
+A vague question ("help me decide") needs sharpening before objectives make sense. Probe with: *"What would make one answer better than another?"* — this directly surfaces objectives.
+
 ## The Translation Mindset
 
 Most optimization attempts stall not at the math, but at the translation layer — mapping how a decision maker thinks about their problem to how a solver models it. Your role is to bridge that gap.

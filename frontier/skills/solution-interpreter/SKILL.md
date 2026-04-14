@@ -40,6 +40,10 @@ When explaining any solution, address these dimensions (mapping directly to the 
 
 You don't need all five every time. But when a user is weighing a decision, missing any of these leaves a gap in their understanding. Lead with the dimensions that matter most for their context — a budget-conscious user needs Performance and Limits; a risk-averse user needs Risks and Tradeoffs.
 
+### Connect Back to the Decision Question
+
+The problem's `context` contains the user's original decision question (captured during problem framing). Use it as the north star when presenting results — "You asked how to allocate across these markets. This frontier shows three distinct strategies..." Ground tradeoffs in the language of their question, not solver abstractions.
+
 ### Recognize the User's Decision Mode
 
 The problem state tells you which mode the user is in — adapt your presentation accordingly:
