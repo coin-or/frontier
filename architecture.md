@@ -12,13 +12,13 @@ Frontier exposes 4 tools — 3 domain tools with multiple actions, plus a skill 
 |------|--------|---------|
 | **model** | `create` | Start a new optimization problem (name, domain, context, approach) |
 | | `update` | Add/modify objectives, options, scores, constraints, reference points, scenarios. Merge semantics for scores; full replacement for everything else. Marks results stale on structural changes. |
-| | `get` | Return full problem state as JSON |
+| | `get` | Return problem state. Optional `section` param for targeted slices: summary, objectives, options, scores, constraints, matrices, scenarios, run, runs, curated, references. Without section: full dump. |
 | | `list` | List all problems with metadata snapshots |
 | | `delete` | Remove a problem and its data file |
 | **solve** | `validate` | Pre-flight check: ≥2 objectives, ≥3 options, complete score matrix, feasible constraints |
-| | `run` | Validate then optimize. Returns Pareto frontier with quality indicators. Optional `mode`: "fast" (default, quick iterations) or "thorough" (final convergence). Auto-selects NSGA-II (2-3 obj) or NSGA-III (4+ obj). Parameters adapt to solution space size and objective count. |
-| | `run_scenarios` | Independently optimize each scenario with score overrides/adjustments. Accepts optional `mode`. |
-| **explore** | `tradeoffs` | Frontier overview: objective ranges, correlations, extremes, balanced solution (ideal-point closest), inflection-point candidates (diminishing-returns boundaries), vs references |
+| | `run` | Validate then optimize. Returns compact result — `objective_ranges`, `preview` (per-objective extremes + balanced solution by id/objective_values only), `quality`, `metrics`, and `next_steps` pointer. Full solution detail retrievable via `explore solutions` / `explore solution <id>`. Optional `mode`: "fast" (default, quick iterations) or "thorough" (final convergence). Optional `max_solutions` caps Pareto set size (default 100). Auto-selects NSGA-II (2-3 obj) or NSGA-III (4+ obj). Parameters adapt to solution space size and objective count. |
+| | `run_scenarios` | Independently optimize each scenario with score overrides/adjustments. Accepts optional `mode` and `max_solutions`. |
+| **explore** | `tradeoffs` | Frontier overview: objective ranges, correlations, extremes, balanced solution (ideal-point closest), inflection-point candidates (diminishing-returns boundaries), frontier shape classification per conflicting pair (linear / concave / convex / discontinuous, with confidence), vs references |
 | | `compare` | Side-by-side comparison of 2+ solutions (shared/differentiating options, tradeoff summary) |
 | | `solutions` | Full Pareto frontier listing |
 | | `solution` | Single solution detail with reference point analysis |
@@ -46,7 +46,7 @@ Skills provide domain guidance the agent consults at each workflow stage:
 | **problem_framing** | Translate decision language into objectives/options/constraints. Covers objective vs constraint classification (principle-based, not keyword matching), hidden objective detection, approach selection (binary vs proportional — "does quantity matter?"), aggregation modes (canonical definition — sum/avg/min/max/quadratic), interaction matrices for quadratic aggregation, reference points, scenario definition, question anchors for guiding problem exploration. Cross-referenced by other skills. |
 | **data_collection** | Guide score elicitation. Covers data readiness levels, anchoring techniques, batch efficiency, source evaluation, conflict resolution, score quality signals (variance, scale mismatch), aggregation implications on scoring (cross-references problem_framing), completeness drive. |
 | **optimization_strategy** | Drive solve progression. Covers iteration expectations, validate→run→examine flow, constraint strategy (cross-references problem_framing for types), infeasibility response, binding constraint detection, curated solution survival tracking, run comparison, scenario interpretation, stale results and re-run judgment. |
-| **solution_interpreter** | Present results without bias. Core Judgment (always apply): "never say best", five explanation dimensions, presentation order, tradeoff framing, objective ranking elicitation, dominance explanation. Presentation Refinements (situational): visualization, run diffs, reference point narration, scenario presentation, diagnostics, preference learning, curation guidance. |
+| **solution_interpreter** | Present results without bias. Core Judgment (always apply): "never say best", five explanation dimensions, presentation order, tradeoff framing, objective ranking elicitation, dominance explanation, question anchor (connect results back to user's original decision question). Presentation Refinements (situational): visualization, run diffs, reference point narration, scenario presentation, diagnostics, preference learning, curation guidance. |
 
 ---
 
@@ -145,7 +145,7 @@ flowchart TB
 
     subgraph ENGINE["Engine Layer"]
         direction TB
-        MODELS["models.py<br/><i>Problem, Objective, Option, Score,<br/>Constraint (8 types incl. max_allocation),<br/>InteractionMatrix, Solution,<br/>Run, QualityIndicators, Scenario,<br/>ScenarioConfig, ScenarioRun,<br/>ScoreAdjustment, CuratedSolution<br/>(+ feedback history), ReferencePoint,<br/>Feedback, ValidationResult</i>"]
+        MODELS["models.py<br/><i>Problem, Objective, Option, Score,<br/>Constraint (8 types incl. max_allocation),<br/>InteractionMatrix, InteractionScaleGroup,<br/>Run (mode, total_pareto_found), QualityIndicators,<br/>Scenario (incl. interaction_matrix_overrides),<br/>ScenarioConfig, ScenarioRun,<br/>ScoreAdjustment, CuratedSolution<br/>(+ feedback history), ReferencePoint,<br/>Feedback, ValidationResult</i>"]
         OPT["optimizer.py<br/><i>NSGA-II/III (pymoo)<br/>Binary & Proportional modes<br/>Adaptive parameter tuning<br/>Constraint encoding (8 types)<br/>Quadratic aggregation (interaction matrices)<br/>Scenario optimization<br/>Infeasibility analysis</i>"]
         EXP["explorer.py<br/><i>Tradeoff analysis, comparisons,<br/>balanced solution detection,<br/>scenario aggregation, curation,<br/>reference point analysis,<br/>marginal rate analysis,<br/>built-in ASCII visualizations</i>"]
         MET["metrics.py<br/><i>Framing, data, solve,<br/>outcome metrics & diagnostics</i>"]
@@ -181,12 +181,14 @@ Tool responses include the relevant skill content for the *next* workflow phase,
 
 | Trigger | Injected Skill |
 |---------|---------------|
-| MCP connect (server instructions) | Condensed `problem_framing` + constraint schemas |
+| MCP connect (server instructions) | Condensed `problem_framing` + constraint schemas + scores schema |
 | `model/create` response | `data_collection` |
 | `model/update` (objectives/options) | `data_collection` (if not already injected) |
 | `model/update` (scores hit 100%) | `optimization_strategy` |
 | `solve/validate` (ready=true) | `optimization_strategy` (if not already injected) |
 | `solve/run` response | `solution_interpreter` (always, on every solve) |
+
+Re-injection of `optimization_strategy` only fires on problem *shape* changes (objectives or options). Refinements (constraints, interaction_matrices, scenarios, reference_points, approach flip, score updates) don't re-trigger — the methodology guidance hasn't changed.
 
 ### Visualization & Compaction Layers
 
@@ -196,7 +198,11 @@ Tool responses include the relevant skill content for the *next* workflow phase,
 - `_render_scenario_viz` — robust vs scenario-specific option summary
 - `_render_marginal_rates` — cost-per-unit bar chart with knee marker
 
-**Response compaction** — `server.py/_format_explore` trims redundant bulk from explore output (e.g. strips option lists from extreme_solutions, restructures scenario_specific_options) to prevent MCP truncation while keeping the dict shape stable for consumers.
+**Response compaction** — `server.py/_format_explore` trims redundant bulk from explore output (e.g. strips option lists from extreme_solutions, restructures scenario_specific_options) to prevent MCP truncation while keeping the dict shape stable for consumers. `solve/run` responses are also compacted: full solution bodies are not returned inline — only objective ranges plus a preview (extremes + balanced by id/values), with a `next_steps` pointer to `explore` for full detail.
+
+### Evaluation Framework
+
+`dev_temp/eval/` contains structured comparison runs — Frontier vs LLM-only vs pyomo/pymoo solver on portfolio optimization scenarios (base and multi-scenario). Each run produces `results.json`, `results.md`, `curated.md`, and `issues.md` per approach, plus a `comparison.md` synthesizing outcomes and automated plot generation (`plots/generate_plots.py`). These artifacts are used to validate the gap Frontier closes between unaided LLM reasoning and structured optimization.
 
 ## 3. Problem State Lifecycle
 
@@ -305,7 +311,7 @@ flowchart LR
         G1["Pareto frontier<br/><i>set of non-dominated solutions<br/>(dominance filtering via NSGA-II/III)</i>"]
         G2["Solutions<br/><i>selected options, objective values,<br/>allocations (proportional),<br/>content signatures (MD5)</i>"]
         G3["Quality & diversity<br/><i>normalized hypervolume (coverage),<br/>spacing CV (spread uniformity)</i>"]
-        G4["Tradeoff analysis<br/><i>correlations, extremes,<br/>balanced solution (min distance<br/>to ideal point),<br/>reference point comparisons</i>"]
+        G4["Tradeoff analysis<br/><i>correlations, extremes,<br/>balanced solution (min distance<br/>to ideal point),<br/>frontier shape per pair<br/>(linear/concave/convex/discontinuous),<br/>reference point comparisons</i>"]
         G5["Scenario results<br/><i>per-scenario frontiers,<br/>robust options (all scenarios),<br/>scenario-specific options,<br/>expected values (prob-weighted)</i>"]
         G6["Run history<br/><i>archived runs, constraint snapshots,<br/>frontier diffs, option coverage</i>"]
         G7["Infeasibility analysis<br/><i>binding constraints,<br/>relaxation suggestions</i>"]

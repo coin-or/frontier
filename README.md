@@ -46,23 +46,24 @@ The `get_skill` tool delivers domain expertise that guides the agent through eac
 
 ### Problem Definition (`model`)
 
-- **Objectives** (2-7) with aggregation modes (sum, avg, min, max)
+- **Objectives** (2-7) with aggregation modes (sum, avg, min, max, quadratic)
 - **Options** scored against each objective; binary (select/reject) or proportional (allocate %) approach
-- **7 constraint types**: cardinality, force include/exclude, objective bounds, exclusion pairs, dependencies, group limits
+- **8 constraint types**: cardinality, force include/exclude, objective bounds, exclusion pairs, dependencies, group limits, max allocation (proportional only)
+- **Interaction matrices** for quadratic aggregation (e.g. covariance matrices for portfolio risk), with scale groups for regime shifts
 - **Reference points**: baseline and aspirational for contextual comparison
-- **Scenarios**: probability-weighted alternative scores for uncertainty analysis
+- **Scenarios**: probability-weighted alternative scores and interaction matrices for uncertainty analysis
 
 ### Optimization (`solve`)
 
 - **NSGA-II** (2-3 objectives) and **NSGA-III** (4+ objectives) via pymoo
-- **Fast mode** for iterative exploration, **thorough mode** for final convergence; quality indicators (hypervolume, spacing) with each run
+- **Fast mode** for iterative exploration, **thorough mode** for final convergence; `max_solutions` caps the Pareto set size (default 100). Quality indicators (hypervolume, spacing) with each run
 - **Scenario optimization**: independent runs per scenario with score overrides/adjustments
 - **Infeasibility analysis**: when no feasible solutions exist, identifies conflicting constraints with relaxation suggestions
 - **Run history**: archived runs with constraint snapshots for comparison
 
 ### Exploration (`explore`)
 
-- **Tradeoff analysis**: objective ranges, correlations, extremes, balanced solution, reference point comparisons
+- **Tradeoff analysis**: objective ranges, correlations, extremes, balanced solution, frontier shape per pair (linear / concave / convex / discontinuous), reference point comparisons
 - **Solution comparison**: side-by-side with shared/differentiating options and tradeoff summaries
 - **Marginal analysis**: cost-per-unit rates between adjacent solutions with knee-point detection
 - **Scenario results**: robust options (all scenarios), scenario-specific options, probability-weighted expected values
