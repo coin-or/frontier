@@ -112,6 +112,22 @@ class TestGetSolutions:
         result = get_solutions(solved_problem)
         assert "run_id" in result
 
+    def test_compact_by_default(self, solved_problem):
+        """Default response is compact: no selected_options or allocations fields."""
+        result = get_solutions(solved_problem)
+        assert result["detail"] is False
+        sol = result["solutions"][0]
+        assert "objective_values" in sol
+        assert "solution_id" in sol
+        assert "selected_options" not in sol
+
+    def test_detail_returns_full(self, solved_problem):
+        """detail=True returns full Solution dump including selected_options."""
+        result = get_solutions(solved_problem, detail=True)
+        assert result["detail"] is True
+        sol = result["solutions"][0]
+        assert "selected_options" in sol
+
     def test_no_run_raises(self):
         p = Problem()
         with pytest.raises(ValueError, match="No run found"):

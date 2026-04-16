@@ -146,13 +146,31 @@ def compare_solutions(problem: Problem, solution_ids: list[int], scenario: str |
     return result
 
 
-def get_solutions(problem: Problem, scenario: str | None = None) -> dict:
-    """Full Pareto frontier, sorted by first objective."""
+def get_solutions(problem: Problem, scenario: str | None = None, detail: bool = False) -> dict:
+    """Pareto frontier, sorted by first objective.
+
+    Default (detail=False): compact — `{solution_id, objective_values, content_signature}` per solution.
+    detail=True: full dump including `selected_options` and `allocations`.
+
+    For full single-solution detail prefer `get_solution(problem, solution_id)`.
+    """
     run = _require_run(problem, scenario)
+    if detail:
+        sols = [s.model_dump() for s in run.solutions]
+    else:
+        sols = [
+            {
+                "solution_id": s.solution_id,
+                "objective_values": s.objective_values,
+                "content_signature": s.content_signature,
+            }
+            for s in run.solutions
+        ]
     return {
         "run_id": run.run_id,
         "total_solutions": len(run.solutions),
-        "solutions": [s.model_dump() for s in run.solutions],
+        "detail": detail,
+        "solutions": sols,
     }
 
 

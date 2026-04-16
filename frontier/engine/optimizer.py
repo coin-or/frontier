@@ -481,6 +481,13 @@ def optimize_scenarios(problem: Problem, mode: OptimizeMode | None = None, max_s
         if scenario.constraint_overrides:
             scenario_problem.constraints = list(scenario.constraint_overrides)
 
+        # 4) Apply interaction_matrix overrides (upsert by objective name)
+        if scenario.interaction_matrix_overrides:
+            im_map = {m.objective: m for m in scenario_problem.interaction_matrices}
+            for override in scenario.interaction_matrix_overrides:
+                im_map[override.objective] = override
+            scenario_problem.interaction_matrices = list(im_map.values())
+
         scenario_problem.scenario_config = None
         return scenario.name, optimize(scenario_problem, mode=mode, max_solutions=max_solutions)
 
@@ -597,7 +604,7 @@ def _optimize_proportional(problem: Problem, mode: OptimizeMode, max_solutions: 
     return Run(solutions=solutions, total_pareto_found=total_found, quality=_compute_quality(result), mode=mode)
 
 
-MAX_PARETO_SOLUTIONS = 100
+MAX_PARETO_SOLUTIONS = 1000  # Safety valve; pymoo pop_size bounds Pareto size in practice.
 
 
 def _prune_pareto(solutions: list[Solution], obj_list: list, max_n: int = MAX_PARETO_SOLUTIONS) -> tuple[list[Solution], int]:

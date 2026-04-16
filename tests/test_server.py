@@ -220,6 +220,30 @@ class TestModelGet:
         result = srv.model(action="get", problem_id=pid)
         assert result["name"] == "Fetch Me"
 
+    def test_get_summary_section(self):
+        pid = _build_solvable_problem()
+        result = srv.model(action="get", problem_id=pid, section="summary")
+        assert result["section"] == "summary"
+        assert result["objectives_count"] == 2
+        assert result["options_count"] == 4
+        assert result["scores_count"] == 8
+        # Summary must not contain the heavy fields
+        assert "scores" not in result
+        assert "run" not in result
+
+    def test_get_scores_section(self):
+        pid = _build_solvable_problem()
+        result = srv.model(action="get", problem_id=pid, section="scores")
+        assert result["section"] == "scores"
+        assert len(result["scores"]) == 8
+        # Should not include other heavy fields
+        assert "constraints" not in result
+
+    def test_get_unknown_section(self):
+        pid = _build_solvable_problem()
+        result = srv.model(action="get", problem_id=pid, section="nonsense")
+        assert "error" in result
+
 
 class TestUnknownAction:
     def test_unknown_model_action(self):
@@ -274,8 +298,12 @@ class TestSolveRun:
         result = srv.solve(action="run", problem_id=pid)
         assert "run_id" in result
         assert result["solutions_found"] > 0
-        assert len(result["solutions"]) > 0
         assert "quality" in result
+        # Compact response: no full solutions array, but objective_ranges + preview present
+        assert "solutions" not in result
+        assert "objective_ranges" in result
+        assert "preview" in result
+        assert "extremes" in result["preview"]
 
     def test_run_validation_failure_includes_missing_scores(self):
         created = srv.model(action="create")
@@ -615,6 +643,79 @@ class TestScenarios:
         assert "error" not in result
         assert result["scenarios_optimized"] == 2
 
+    def test_scenarios_with_interaction_matrix_overrides(self):
+        """Per-scenario interaction matrix overrides should change portfolio-level quadratic
+        aggregation independently per scenario. Correlation regime shifts (e.g. recession)
+        can be modelled by supplying a different covariance matrix for that scenario.
+        """
+        # Build a 3-option, 2-objective proportional problem with quadratic Volatility.
+        created = srv.model(action="create", approach="proportional")
+        pid = created["problem_id"]
+        srv.model(
+            action="update", problem_id=pid,
+            objectives=[
+                {"name": "Return", "direction": "maximize", "aggregation": "sum"},
+                {"name": "Volatility", "direction": "minimize", "aggregation": "quadratic"},
+            ],
+            options=[{"name": "A"}, {"name": "B"}, {"name": "C"}],
+            scores=[
+                {"option": "A", "objective": "Return", "value": 10},
+                {"option": "B", "objective": "Return", "value": 8},
+                {"option": "C", "objective": "Return", "value": 6},
+                {"option": "A", "objective": "Volatility", "value": 20},
+                {"option": "B", "objective": "Volatility", "value": 20},
+                {"option": "C", "objective": "Volatility", "value": 20},
+            ],
+            constraints=[
+                {"type": "cardinality", "min": 2, "max": 3},
+                {"type": "max_allocation", "max": 60},
+            ],
+        )
+        # Base: diagonal-only matrix (low correlation → diversification possible)
+        base_matrix = {
+            "objective": "Volatility",
+            "entries": {
+                "A": {"A": 400.0, "B": 0.0, "C": 0.0},
+                "B": {"A": 0.0, "B": 400.0, "C": 0.0},
+                "C": {"A": 0.0, "B": 0.0, "C": 400.0},
+            },
+        }
+        srv.model(action="update", problem_id=pid, interaction_matrices=[base_matrix])
+
+        # Full-correlation override: off-diagonals = variance (correlation = 1)
+        full_corr_matrix = {
+            "objective": "Volatility",
+            "entries": {
+                "A": {"A": 400.0, "B": 400.0, "C": 400.0},
+                "B": {"A": 400.0, "B": 400.0, "C": 400.0},
+                "C": {"A": 400.0, "B": 400.0, "C": 400.0},
+            },
+        }
+        srv.model(action="update", problem_id=pid, scenario_config={
+            "enabled": True,
+            "scenarios": [
+                {"name": "Diversifiable"},  # uses base matrix
+                {"name": "FullCorrelation", "interaction_matrix_overrides": [full_corr_matrix]},
+            ],
+        })
+        result = srv.solve(action="run_scenarios", problem_id=pid, mode="fast")
+        assert "error" not in result
+        assert result["scenarios_optimized"] == 2
+
+        # Fetch min-vol extremes from each scenario.
+        diverse = srv.explore(action="tradeoffs", problem_id=pid, scenario="Diversifiable")
+        correlated = srv.explore(action="tradeoffs", problem_id=pid, scenario="FullCorrelation")
+
+        min_vol_diverse = diverse["objective_ranges"]["Volatility"]["min"]
+        min_vol_correlated = correlated["objective_ranges"]["Volatility"]["min"]
+
+        # With zero correlation a diversified portfolio achieves sqrt(0.4^2 + 0.4^2 + 0.2^2)*sqrt(400) ≈ 12;
+        # with full correlation every portfolio hits sqrt(400) = 20. Correlation should raise min vol.
+        assert min_vol_correlated > min_vol_diverse, (
+            f"Full-correlation scenario should have higher min vol than diversifiable base. "
+            f"Got diverse={min_vol_diverse}, correlated={min_vol_correlated}"
+        )
+
 
 class TestCuration:
     def test_curate_solution(self):
@@ -889,7 +990,7 @@ class TestQuadraticAggregation:
         ])
         result = srv.solve(action="run", problem_id=pid)
         assert "error" not in result
-        assert len(result["solutions"]) >= 2
+        assert result["solutions_found"] >= 2
 
     def test_quadratic_validation_missing_matrix(self):
         """Quadratic objective without interaction matrix fails validation."""
@@ -1094,6 +1195,39 @@ class TestSkillInjectionOnUpdate:
         ])
         assert "_skill_guidance" in result
         assert result["_skill_guidance"]["skill"] == "optimization_strategy"
+
+    def test_non_shape_changes_do_not_reset_optimization_strategy(self):
+        """Adding a constraint, interaction matrix, or scenario_config between scores→100%
+        and solve/validate should NOT re-fire optimization_strategy. Only objective/option
+        shape changes invalidate the methodology guidance."""
+        created = srv.model(action="create")
+        pid = created["problem_id"]
+        srv.model(action="update", problem_id=pid,
+            objectives=[{"name": "Rev", "direction": "maximize"},
+                        {"name": "Eff", "direction": "minimize"}],
+            options=[{"name": "A"}, {"name": "B"}, {"name": "C"}],
+            scores=[
+                {"option": "A", "objective": "Rev", "value": 5},
+                {"option": "A", "objective": "Eff", "value": 3},
+                {"option": "B", "objective": "Rev", "value": 7},
+                {"option": "B", "objective": "Eff", "value": 2},
+                {"option": "C", "objective": "Rev", "value": 9},
+                {"option": "C", "objective": "Eff", "value": 6},
+            ])  # optimization_strategy injected here (scores → 100%)
+
+        # Add a constraint — must NOT re-fire
+        result = srv.model(action="update", problem_id=pid,
+            constraints=[{"type": "cardinality", "min": 1, "max": 2}])
+        assert "_skill_guidance" not in result
+
+        # Add a reference point — must NOT re-fire
+        result = srv.model(action="update", problem_id=pid,
+            reference_points=[{"type": "baseline", "objective_values": {"Rev": 5, "Eff": 3}}])
+        assert "_skill_guidance" not in result
+
+        # Validate — must NOT re-fire either (already injected)
+        result = srv.solve(action="validate", problem_id=pid)
+        assert "_skill_guidance" not in result
 
     def test_scores_and_objectives_same_call_prioritizes_data_collection(self):
         """When objectives AND scores arrive in the same call and data_collection

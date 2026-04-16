@@ -60,11 +60,17 @@ mcp = FastMCP(
         "You can also call get_skill() to re-read any skill.\n\n"
         "## Problem Framing Essentials\n"
         "- Objectives: things to maximize or minimize with no hard cutoff. 2-4 is ideal.\n"
+        "  Schema: {\"name\": \"<name>\", \"direction\": \"maximize\"|\"minimize\", \"aggregation\": \"sum\"|\"avg\"|\"min\"|\"max\"|\"quadratic\"}\n"
         "- Constraints: hard limits that eliminate solutions.\n"
         "- Ask: 'Is that a hard limit or a target?' to classify.\n"
         "- Approach: 'Does quantity matter?' → proportional. 'Yes/no per option?' → binary.\n"
         "- Aggregation modes: sum (total, default), avg (portfolio average), min (weakest link), max (best/peak), quadratic (interaction-dependent, e.g. portfolio risk — requires interaction_matrix).\n"
         "- Hidden objectives: watch for 'ideally', 'if possible', 'assuming X stays reasonable'.\n\n"
+        "## Scores Schema\n"
+        "Scores are a FLAT list of triples (not nested dicts):\n"
+        "  [{\"option\": \"<name>\", \"objective\": \"<name>\", \"value\": <float>}, ...]\n"
+        "One entry per (option, objective) pair. Upsert semantics — re-sending a key replaces the prior value.\n"
+        "Must cover every option × objective combination before solve (100% completeness).\n\n"
         "## Constraint Schemas (pass to model/update constraints param)\n"
         '  cardinality:     {"type": "cardinality", "min": <int>, "max": <int>}\n'
         '  force_include:   {"type": "force_include", "option": "<name>"}\n'
@@ -210,6 +216,7 @@ def model(
     reference_points: list[dict] | None = None,
     scenario_config: dict | None = None,
     interaction_matrices: list[dict] | None = None,
+    section: str | None = None,
 ) -> dict:
     """Build and modify the optimization problem.
 
@@ -225,7 +232,13 @@ def model(
                 reference_points (list of {type, name?, objective_values, selected_options?}),
                 interaction_matrices (list of {objective, entries} for quadratic aggregation).
                 Scores use merge semantics; everything else is full replacement.
-      get     — Full problem state. Params: problem_id
+      get     — Problem state. Params: problem_id, section? (optional).
+                Without section: full dump (can exceed token cap for large models).
+                With section: targeted slice. Valid sections:
+                  summary (counts + status flags — always small),
+                  objectives, options, scores, constraints, matrices,
+                  scenarios, run, runs, curated, references.
+                Prefer section="summary" for a lightweight overview, then drill down.
       list    — All problems. No params.
       delete  — Remove problem. Params: problem_id
 
@@ -248,6 +261,19 @@ def model(
     Interaction matrix schema (for objectives with aggregation="quadratic"):
       {"objective": "<name>", "entries": {"opt_a": {"opt_a": <float>, "opt_b": <float>, ...}, ...}}
       Entries must be symmetric. For portfolio volatility, entries = covariance matrix.
+
+    Scenario schema (pass to scenario_config.scenarios as list of dicts):
+      {
+        "name": "<name>",
+        "probability": <float 0-1>,                  # optional
+        "description": "<text>",                     # optional
+        "score_overrides": [{"option", "objective", "value"}],
+        "score_adjustments": [{"objective", "multiply"?, "add"?}],
+        "constraint_overrides": [<constraint dict>], # full replacement when non-empty
+        "interaction_matrix_overrides": [{"objective", "entries"}]  # upserts by objective name;
+                                                                     # use for correlation regime shifts
+                                                                     # (e.g. recession — correlations rise)
+      }
     """
     params = {
         k: v for k, v in {
@@ -255,7 +281,7 @@ def model(
             "context": context, "objectives": objectives, "options": options,
             "scores": scores, "constraints": constraints, "approach": approach,
             "reference_points": reference_points, "scenario_config": scenario_config,
-            "interaction_matrices": interaction_matrices,
+            "interaction_matrices": interaction_matrices, "section": section,
         }.items() if v is not None
     }
     match action:
@@ -420,6 +446,10 @@ def _model_update(params: dict) -> dict:
                 constraint_ov = [
                     _parse_constraint(c) for c in s.get("constraint_overrides", [])
                 ]
+                matrix_ov = [
+                    InteractionMatrix(**m) if isinstance(m, dict) else m
+                    for m in s.get("interaction_matrix_overrides", [])
+                ]
                 scenarios.append(Scenario(
                     name=s["name"],
                     probability=s.get("probability"),  # optional
@@ -427,6 +457,7 @@ def _model_update(params: dict) -> dict:
                     score_overrides=overrides,
                     score_adjustments=adjustments,
                     constraint_overrides=constraint_ov,
+                    interaction_matrix_overrides=matrix_ov,
                 ))
             p.scenario_config = ScenarioConfig(enabled=sc.get("enabled", True), scenarios=scenarios)
         structural_change = True
@@ -494,9 +525,14 @@ def _model_update(params: dict) -> dict:
             "it covers mode selection, constraint strategy, and iteration expectations.")
         _mark_injected(pid, "optimization_strategy")
 
-    # Reset optimization_strategy injection on structural changes so it can
-    # re-fire when scores next reach 100% after model restructuring
-    if structural_change and "scores" not in params:
+    # Reset optimization_strategy injection only when the problem's *shape* changes
+    # (objectives or options) — those invalidate the methodology guidance.
+    # Refinements (constraints, interaction_matrices, scenarios, reference_points,
+    # approach flip, score updates) don't warrant re-firing the skill.
+    # Skip reset when scores are in the same call — that means the inject block above
+    # already fired fresh guidance for the current shape.
+    problem_shape_change = ("objectives" in params or "options" in params) and "scores" not in params
+    if problem_shape_change:
         _reset_injection(pid, "optimization_strategy")
 
     return result
@@ -510,7 +546,64 @@ def _model_get(params: dict) -> dict:
         p = store.load(pid)
     except FileNotFoundError:
         return {"error": f"Problem {pid} not found."}
+
+    section = params.get("section")
+    if section:
+        return _model_get_section(p, section)
+
     return json.loads(p.model_dump_json())
+
+
+def _model_get_section(p: Problem, section: str) -> dict:
+    """Return a targeted slice of the Problem for progressive inspection.
+
+    Sections: summary, objectives, options, scores, constraints, matrices,
+    scenarios, run, runs, curated, references.
+    """
+    header = {"problem_id": p.problem_id, "section": section}
+    match section:
+        case "summary":
+            return {
+                **header,
+                "name": p.name,
+                "domain": p.domain,
+                "approach": p.approach.value,
+                "objectives_count": len(p.objectives),
+                "options_count": len(p.options),
+                "scores_count": len(p.scores),
+                "constraints_count": len(p.constraints),
+                "interaction_matrices_count": len(p.interaction_matrices),
+                "scenarios_count": len(p.scenario_config.scenarios) if p.scenario_config else 0,
+                "has_run": p.run is not None,
+                "has_scenario_run": p.scenario_run is not None,
+                "results_stale": p.results_stale,
+                "curated_count": len(p.curated_solutions),
+            }
+        case "objectives":
+            return {**header, "objectives": [json.loads(o.model_dump_json()) for o in p.objectives]}
+        case "options":
+            return {**header, "options": [json.loads(o.model_dump_json()) for o in p.options]}
+        case "scores":
+            return {**header, "scores": [json.loads(s.model_dump_json()) for s in p.scores]}
+        case "constraints":
+            return {**header, "constraints": [json.loads(c.model_dump_json()) for c in p.constraints]}
+        case "matrices":
+            return {**header, "interaction_matrices": [json.loads(m.model_dump_json()) for m in p.interaction_matrices]}
+        case "scenarios":
+            return {
+                **header,
+                "scenario_config": json.loads(p.scenario_config.model_dump_json()) if p.scenario_config else None,
+            }
+        case "run":
+            return {**header, "run": json.loads(p.run.model_dump_json()) if p.run else None}
+        case "runs":
+            return {**header, "runs": [json.loads(r.model_dump_json()) for r in p.runs]}
+        case "curated":
+            return {**header, "curated": [json.loads(c.model_dump_json()) for c in p.curated_solutions]}
+        case "references":
+            return {**header, "reference_points": [json.loads(r.model_dump_json()) for r in p.reference_points]}
+        case _:
+            return {"error": f"Unknown section: {section}. Valid: summary, objectives, options, scores, constraints, matrices, scenarios, run, runs, curated, references."}
 
 
 def _model_list() -> list:
@@ -647,12 +740,18 @@ def _solve_run(p: Problem, mode: OptimizeMode | None = None, max_solutions: int 
         "run_id": run.run_id,
         "solutions_found": len(run.solutions),
         "total_pareto_found": run.total_pareto_found,
-        "solutions": [json.loads(s.model_dump_json()) for s in run.solutions],
+        "objective_ranges": _objective_ranges(run.solutions, p.objectives),
+        "preview": _solve_preview(run.solutions, p.objectives),
         "quality": json.loads(run.quality.model_dump_json()),
         "metrics": {
             "solve": metrics.solve_metrics(p),
             "diagnostics": metrics.diagnostics(p),
         },
+        "next_steps": (
+            "Use `explore tradeoffs` for frontier overview, `explore solutions` for the full list "
+            "(add detail=true for allocations), `explore solution <id>` for any single solution, "
+            "or `explore curate` to pin strategies."
+        ),
     }
 
     # Always inject solution_interpreter after a successful solve —
@@ -664,6 +763,50 @@ def _solve_run(p: Problem, mode: OptimizeMode | None = None, max_solutions: int 
     _reset_injection(p.problem_id, "optimization_strategy")
 
     return result
+
+
+def _objective_ranges(solutions: list, objectives: list) -> dict:
+    """min/max per objective across the Pareto set."""
+    if not solutions:
+        return {}
+    ranges = {}
+    for obj in objectives:
+        vals = [s.objective_values.get(obj.name) for s in solutions if obj.name in s.objective_values]
+        if vals:
+            ranges[obj.name] = {"min": round(min(vals), 4), "max": round(max(vals), 4)}
+    return ranges
+
+
+def _solve_preview(solutions: list, objectives: list) -> dict:
+    """Compact preview: extremes per objective + balanced solution, by id + objective_values only.
+
+    Full solution detail (allocations, selected_options) retrievable via `explore solution <id>`.
+    """
+    if not solutions:
+        return {}
+    extremes = {}
+    for obj in objectives:
+        name = obj.name
+        reverse = obj.direction.value == "maximize"
+        best = max(solutions, key=lambda s: s.objective_values.get(name, 0)) if reverse \
+            else min(solutions, key=lambda s: s.objective_values.get(name, 0))
+        extremes[f"extreme_{name}"] = {
+            "solution_id": best.solution_id,
+            "objective_values": best.objective_values,
+        }
+
+    preview: dict = {"extremes": extremes}
+    try:
+        from frontier.engine.explorer import _find_balanced
+        balanced = _find_balanced(solutions, objectives)
+        if balanced is not None:
+            preview["balanced"] = {
+                "solution_id": balanced.solution_id,
+                "objective_values": balanced.objective_values,
+            }
+    except Exception:
+        pass
+    return preview
 
 
 def _solve_run_scenarios(p: Problem, mode: OptimizeMode | None = None, max_solutions: int | None = None) -> dict:
@@ -751,7 +894,9 @@ def explore(
                    (solutions where marginal tradeoff cost jumps sharply — diminishing returns boundaries).
                    Together these give multiple "balanced" perspectives on the frontier.
       compare    — Side-by-side comparison. Requires solution_ids (list of 2+ ints).
-      solutions  — Full Pareto frontier listing.
+      solutions  — Pareto frontier listing.
+                   Default: compact — solution_id + objective_values + content_signature per solution.
+                   Pass detail=true for full dump including selected_options and allocations.
       solution   — Single solution detail. Requires solution_id (int).
       feedback   — Record user feedback. Params: solution_id? or content_signature?, rating? (1-5), notes?, stage? Feedback links to content_signature (stable across runs) and attaches to curated solutions.
       compare_runs — Compare run history. Requires run_ids (list of 2+ run ID strings).
@@ -802,7 +947,7 @@ def explore(
                 return {"error": str(e)}
         case "solutions":
             try:
-                return explorer.get_solutions(p, scenario=scenario)
+                return explorer.get_solutions(p, scenario=scenario, detail=detail)
             except ValueError as e:
                 return {"error": str(e)}
         case "solution":

@@ -24,13 +24,13 @@ Frontier exposes 4 tools — 3 domain tools with multiple actions, plus a skill 
 | | `solution` | Single solution detail with reference point analysis |
 | | `feedback` | Record user feedback: solution_id or content_signature, rating (1-5), notes, stage. Links to content_signature (stable across runs) and attaches to matching curated solution. |
 | | `compare_runs` | Diff run history: criteria changes, frontier diffs, option coverage |
-| | `scenario_results` | Per-scenario analysis: robust options, scenario-specific options, expected values |
+| | `scenario_results` | Per-scenario analysis with frequency-weighted option importance. Returns option_robustness sorted by importance (avg_frequency x avg_weight) with tiers: core (>50% in all scenarios), common (>25%), marginal (<25%). Also: scenario-specific options, expected values (ideal-point, probability-weighted). |
 | | `curate` | Add a solution to the curated set with custom name and notes |
 | | `uncurate` | Remove a solution from the curated set by content signature |
 | | `rename_curated` | Update a curated solution's custom name |
 | | `curated` | List all curated solutions with `in_current_frontier` survival flag |
 | | `compare_curated` | Compare curated solutions side-by-side by content signature |
-| | `marginal_analysis` | Marginal rate analysis: cost-per-unit between adjacent solutions, knee point detection |
+| | `marginal_analysis` | Marginal rate analysis: cost-per-unit between adjacent solutions, inflection point detection (where marginal cost jumps sharply). Default summary; `detail=true` for per-pair breakdown. |
 | **get_skill** | *(single action)* | Retrieve workflow guidance by name. Returns full skill markdown. Works with all MCP clients (unlike resources, which require client-side resource support). Available skills: `problem_framing`, `data_collection`, `optimization_strategy`, `solution_interpreter`. |
 
 ### MCP Skills (Resources + Tool)
@@ -43,7 +43,7 @@ Skills provide domain guidance the agent consults at each workflow stage:
 
 | Skill | Purpose |
 |-------|---------|
-| **problem_framing** | Translate decision language into objectives/options/constraints. Covers objective vs constraint classification (principle-based, not keyword matching), hidden objective detection, approach selection (binary vs proportional — "does quantity matter?"), aggregation modes (canonical definition — sum/avg/min/max), reference points, scenario definition. Cross-referenced by other skills. |
+| **problem_framing** | Translate decision language into objectives/options/constraints. Covers objective vs constraint classification (principle-based, not keyword matching), hidden objective detection, approach selection (binary vs proportional — "does quantity matter?"), aggregation modes (canonical definition — sum/avg/min/max/quadratic), interaction matrices for quadratic aggregation, reference points, scenario definition, question anchors for guiding problem exploration. Cross-referenced by other skills. |
 | **data_collection** | Guide score elicitation. Covers data readiness levels, anchoring techniques, batch efficiency, source evaluation, conflict resolution, score quality signals (variance, scale mismatch), aggregation implications on scoring (cross-references problem_framing), completeness drive. |
 | **optimization_strategy** | Drive solve progression. Covers iteration expectations, validate→run→examine flow, constraint strategy (cross-references problem_framing for types), infeasibility response, binding constraint detection, curated solution survival tracking, run comparison, scenario interpretation, stale results and re-run judgment. |
 | **solution_interpreter** | Present results without bias. Core Judgment (always apply): "never say best", five explanation dimensions, presentation order, tradeoff framing, objective ranking elicitation, dominance explanation. Presentation Refinements (situational): visualization, run diffs, reference point narration, scenario presentation, diagnostics, preference learning, curation guidance. |
@@ -145,8 +145,8 @@ flowchart TB
 
     subgraph ENGINE["Engine Layer"]
         direction TB
-        MODELS["models.py<br/><i>Problem, Objective, Option, Score,<br/>Constraint (7 types), Solution,<br/>Run, QualityIndicators, Scenario,<br/>ScenarioConfig, ScenarioRun,<br/>ScoreAdjustment, CuratedSolution<br/>(+ feedback history), ReferencePoint,<br/>Feedback, ValidationResult</i>"]
-        OPT["optimizer.py<br/><i>NSGA-II/III (pymoo)<br/>Binary & Proportional modes<br/>Adaptive parameter tuning<br/>Constraint encoding<br/>Scenario optimization</i>"]
+        MODELS["models.py<br/><i>Problem, Objective, Option, Score,<br/>Constraint (8 types incl. max_allocation),<br/>InteractionMatrix, Solution,<br/>Run, QualityIndicators, Scenario,<br/>ScenarioConfig, ScenarioRun,<br/>ScoreAdjustment, CuratedSolution<br/>(+ feedback history), ReferencePoint,<br/>Feedback, ValidationResult</i>"]
+        OPT["optimizer.py<br/><i>NSGA-II/III (pymoo)<br/>Binary & Proportional modes<br/>Adaptive parameter tuning<br/>Constraint encoding (8 types)<br/>Quadratic aggregation (interaction matrices)<br/>Scenario optimization<br/>Infeasibility analysis</i>"]
         EXP["explorer.py<br/><i>Tradeoff analysis, comparisons,<br/>balanced solution detection,<br/>scenario aggregation, curation,<br/>reference point analysis,<br/>marginal rate analysis,<br/>built-in ASCII visualizations</i>"]
         MET["metrics.py<br/><i>Framing, data, solve,<br/>outcome metrics & diagnostics</i>"]
         STORE["store.py<br/><i>File-based JSON persistence</i>"]
@@ -174,6 +174,19 @@ flowchart TB
     MET --> MODELS
     STORE --> FS
 ```
+
+### Skill Auto-Injection
+
+Tool responses include the relevant skill content for the *next* workflow phase, so agents receive guidance at the right time without manually calling `get_skill()`. This is the primary delivery mechanism — `get_skill` exists as a manual fallback.
+
+| Trigger | Injected Skill |
+|---------|---------------|
+| MCP connect (server instructions) | Condensed `problem_framing` + constraint schemas |
+| `model/create` response | `data_collection` |
+| `model/update` (objectives/options) | `data_collection` (if not already injected) |
+| `model/update` (scores hit 100%) | `optimization_strategy` |
+| `solve/validate` (ready=true) | `optimization_strategy` (if not already injected) |
+| `solve/run` response | `solution_interpreter` (always, on every solve) |
 
 ### Visualization & Compaction Layers
 

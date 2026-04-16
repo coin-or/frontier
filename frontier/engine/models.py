@@ -173,6 +173,7 @@ class Scenario(BaseModel):
     score_overrides: list[Score] = []  # only changed scores; base matrix fills rest
     score_adjustments: list[ScoreAdjustment] = []  # bulk adjustments by objective
     constraint_overrides: list[Constraint] = []  # replaces base constraints when non-empty
+    interaction_matrix_overrides: list[InteractionMatrix] = []  # upserts per objective; base matrices fill rest
 
 
 class ScenarioConfig(BaseModel):
