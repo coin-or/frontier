@@ -393,8 +393,17 @@ def list_curated(problem: Problem) -> dict:
     }
 
 
-def compare_curated(problem: Problem, signatures: list[str]) -> dict:
-    """Side-by-side comparison of curated solutions."""
+def compare_curated(problem: Problem, signatures: list[str], detail: bool = False) -> dict:
+    """Side-by-side comparison of curated solutions.
+
+    Default (detail=False): compact — omits per-solution `selected_options` and
+    `allocations`. The `shared_options` and `differentiating_options` summary
+    fields already convey the structural differences.
+
+    detail=True: include full `selected_options` and `allocations` per solution.
+    Use for artifact assembly or deep dives; for large proportional problems,
+    pair with the `full_result_path` file written by solve instead.
+    """
     sig_map = {cs.content_signature: cs for cs in problem.curated_solutions}
 
     selected = []
@@ -425,20 +434,23 @@ def compare_curated(problem: Problem, signatures: list[str]) -> dict:
             "range": [min(all_vals), max(all_vals)],
         }
 
+    def _sol_entry(cs):
+        entry = {
+            "content_signature": cs.content_signature,
+            "custom_name": cs.custom_name,
+            "objective_values": cs.objective_values,
+        }
+        if detail:
+            entry["selected_options"] = cs.selected_options
+            entry["allocations"] = cs.allocations
+        return entry
+
     result = {
-        "solutions": [
-            {
-                "content_signature": cs.content_signature,
-                "custom_name": cs.custom_name,
-                "selected_options": cs.selected_options,
-                "objective_values": cs.objective_values,
-                "allocations": cs.allocations,
-            }
-            for cs in selected
-        ],
+        "solutions": [_sol_entry(cs) for cs in selected],
         "shared_options": sorted(shared),
         "differentiating_options": sorted(differentiating),
         "tradeoff_summary": tradeoff_summary,
+        "detail": detail,
     }
 
     if problem.reference_points:
@@ -594,120 +606,73 @@ def marginal_analysis(problem: Problem, scenario: str | None = None, detail: boo
     if len(solutions) < 3:
         return {"pairs": [], "note": "Need at least 3 solutions for marginal analysis."}
 
-    # Compute pairwise correlations with direction-aware signs
-    # Flip minimize objectives so that "better" is always higher
-    matrix = np.array([
-        [s.objective_values[name] for name in obj_names]
-        for s in solutions
-    ])
-    # Direction-normalized matrix: flip minimize objectives so higher = better
-    dir_signs = np.array([
-        -1.0 if objectives[k].direction.value == "minimize" else 1.0
-        for k in range(len(obj_names))
-    ])
-    norm_matrix = matrix * dir_signs
-    corr = np.corrcoef(norm_matrix.T)
-
     pairs = []
-    for i in range(len(obj_names)):
-        for j in range(i + 1, len(obj_names)):
-            r = float(corr[i, j])
-            if r >= 0:
-                continue  # Only analyze conflicting pairs (direction-aware)
+    for i, j, r in _conflicting_pair_indices(solutions, objectives):
+        obj_a = objectives[i]
+        obj_b = objectives[j]
 
-            obj_a = objectives[i]
-            obj_b = objectives[j]
+        # Sort solutions by objective A (in "better" direction)
+        reverse_a = obj_a.direction.value == "maximize"
+        sorted_sols = sorted(
+            solutions,
+            key=lambda s: s.objective_values[obj_a.name],
+            reverse=reverse_a,
+        )
 
-            # Sort solutions by objective A (in "better" direction)
-            reverse_a = obj_a.direction.value == "maximize"
-            sorted_sols = sorted(
-                solutions,
-                key=lambda s: s.objective_values[obj_a.name],
-                reverse=reverse_a,
-            )
+        # Compute marginal rates between adjacent solutions
+        raw_rates = _compute_pair_rates(sorted_sols, obj_a, obj_b)
+        rates = [
+            {
+                "from_id": rr["from_sol"].solution_id,
+                "to_id": rr["to_sol"].solution_id,
+                f"delta_{obj_a.name}": round(rr["delta_a"], 4),
+                f"delta_{obj_b.name}": round(rr["delta_b"], 4),
+                "rate": round(rr["rate"], 4),
+            }
+            for rr in raw_rates
+        ]
 
-            # Compute marginal rates between adjacent solutions
-            rates = []
-            for k in range(len(sorted_sols) - 1):
-                s1 = sorted_sols[k]
-                s2 = sorted_sols[k + 1]
-                delta_a = s2.objective_values[obj_a.name] - s1.objective_values[obj_a.name]
-                delta_b = s2.objective_values[obj_b.name] - s1.objective_values[obj_b.name]
-
-                # Flip signs so deltas represent "improvement" in each objective
-                if obj_a.direction.value == "minimize":
-                    delta_a = -delta_a
-                if obj_b.direction.value == "minimize":
-                    delta_b = -delta_b
-
-                # Rate: how much B is sacrificed per unit of A gained
-                # (moving from s1 to s2, A gets worse, B gets better — or vice versa)
-                if abs(delta_a) > 1e-9:
-                    rate = abs(delta_b / delta_a)
-                else:
-                    rate = 0.0
-
-                rates.append({
-                    "from_id": s1.solution_id,
-                    "to_id": s2.solution_id,
-                    f"delta_{obj_a.name}": round(delta_a, 4),
-                    f"delta_{obj_b.name}": round(delta_b, 4),
-                    "rate": round(rate, 4),
-                })
-
-            # Detect inflection: largest jump in marginal rate
+        # Detect inflection: largest jump in marginal rate
+        detected = _detect_inflection([rr["rate"] for rr in raw_rates])
+        if detected is None:
             inflection = None
-            if len(rates) >= 2:
-                rate_values = [r["rate"] for r in rates]
-                max_jump = 0.0
-                inflection_idx = 0
-                for k in range(len(rate_values) - 1):
-                    if rate_values[k] > 1e-9:
-                        jump = rate_values[k + 1] / rate_values[k]
-                    else:
-                        jump = rate_values[k + 1] if rate_values[k + 1] > 0 else 0.0
-                    if jump > max_jump:
-                        max_jump = jump
-                        inflection_idx = k + 1
-
-                if max_jump >= 2.0:
-                    inflection_sol_id = rates[inflection_idx]["from_id"]
-                    inflection = {
-                        "solution_id": inflection_sol_id,
-                        "position": inflection_idx,
-                        "jump_factor": round(max_jump, 1),
-                    }
-
-            pair_result = {
-                "objectives": [obj_a.name, obj_b.name],
-                "correlation": round(r, 2),
-                "inflection": inflection,
+        else:
+            inflection = {
+                "solution_id": raw_rates[detected["position"]]["from_sol"].solution_id,
+                "position": detected["position"],
+                "jump_factor": detected["jump_factor"],
             }
 
-            if detail:
-                # Full output: all rates + untruncated viz
-                pair_result["rates"] = rates
-                pair_result["visualization"] = _render_marginal_rates(
-                    rates, obj_a, obj_b, inflection,
-                )
-            else:
-                # Summary: stats + top-5 steepest + truncated viz
-                rate_values = [r["rate"] for r in rates]
-                pair_result["summary"] = {
-                    "total_transitions": len(rates),
-                    "rate_min": round(min(rate_values), 4) if rate_values else 0,
-                    "rate_max": round(max(rate_values), 4) if rate_values else 0,
-                    "rate_median": round(float(np.median(rate_values)), 4) if rate_values else 0,
-                }
-                # Top-5 steepest transitions (most expensive tradeoff steps)
-                top_rates = sorted(rates, key=lambda r: r["rate"], reverse=True)[:5]
-                pair_result["steepest_transitions"] = top_rates
-                # Truncated viz: ~20 rows around inflection
-                pair_result["visualization"] = _render_marginal_rates(
-                    rates, obj_a, obj_b, inflection, max_rows=20,
-                )
+        pair_result = {
+            "objectives": [obj_a.name, obj_b.name],
+            "correlation": round(r, 2),
+            "inflection": inflection,
+        }
 
-            pairs.append(pair_result)
+        if detail:
+            # Full output: all rates + untruncated viz
+            pair_result["rates"] = rates
+            pair_result["visualization"] = _render_marginal_rates(
+                rates, obj_a, obj_b, inflection,
+            )
+        else:
+            # Summary: stats + top-5 steepest + truncated viz
+            rate_values = [r["rate"] for r in rates]
+            pair_result["summary"] = {
+                "total_transitions": len(rates),
+                "rate_min": round(min(rate_values), 4) if rate_values else 0,
+                "rate_max": round(max(rate_values), 4) if rate_values else 0,
+                "rate_median": round(float(np.median(rate_values)), 4) if rate_values else 0,
+            }
+            # Top-5 steepest transitions (most expensive tradeoff steps)
+            top_rates = sorted(rates, key=lambda r: r["rate"], reverse=True)[:5]
+            pair_result["steepest_transitions"] = top_rates
+            # Truncated viz: ~20 rows around inflection
+            pair_result["visualization"] = _render_marginal_rates(
+                rates, obj_a, obj_b, inflection, max_rows=20,
+            )
+
+        pairs.append(pair_result)
 
     return {"pairs": pairs}
 
@@ -1228,17 +1193,65 @@ def _classify_frontier_shapes(solutions, objectives) -> list[dict]:
     return shapes
 
 
-def _find_inflection_solutions(solutions, objectives) -> list[dict]:
-    """Find inflection-point solutions from marginal rate analysis.
+def _compute_pair_rates(sorted_sols, obj_a, obj_b) -> list[dict]:
+    """Compute direction-normalized marginal rates between adjacent sorted solutions.
 
-    Returns a list of {solution, pair, jump_factor} for each conflicting
-    objective pair that has a detected inflection. Lightweight — only computes
-    rates and inflection detection, not the full marginal analysis output.
+    Returns list of dicts with from_sol, to_sol, delta_a, delta_b, rate — rich
+    enough for both marginal_analysis display and inflection detection.
+    """
+    rates = []
+    for k in range(len(sorted_sols) - 1):
+        s1, s2 = sorted_sols[k], sorted_sols[k + 1]
+        delta_a = s2.objective_values[obj_a.name] - s1.objective_values[obj_a.name]
+        delta_b = s2.objective_values[obj_b.name] - s1.objective_values[obj_b.name]
+        if obj_a.direction.value == "minimize":
+            delta_a = -delta_a
+        if obj_b.direction.value == "minimize":
+            delta_b = -delta_b
+        rate = abs(delta_b / delta_a) if abs(delta_a) > 1e-9 else 0.0
+        rates.append({
+            "from_sol": s1,
+            "to_sol": s2,
+            "delta_a": delta_a,
+            "delta_b": delta_b,
+            "rate": rate,
+        })
+    return rates
+
+
+def _detect_inflection(rate_values: list[float], threshold: float = 2.0) -> dict | None:
+    """Find the largest jump in marginal rate across adjacent rates.
+
+    Returns {position, jump_factor} if max jump >= threshold, else None.
+    Position is the index into the rate list where the jump lands (i.e. k+1).
+    """
+    if len(rate_values) < 2:
+        return None
+    max_jump, inflection_idx = 0.0, 0
+    for k in range(len(rate_values) - 1):
+        prev_rate = rate_values[k]
+        next_rate = rate_values[k + 1]
+        if prev_rate > 1e-9:
+            jump = next_rate / prev_rate
+        else:
+            jump = next_rate if next_rate > 0 else 0.0
+        if jump > max_jump:
+            max_jump = jump
+            inflection_idx = k + 1
+    if max_jump >= threshold:
+        return {"position": inflection_idx, "jump_factor": round(max_jump, 1)}
+    return None
+
+
+def _conflicting_pair_indices(solutions, objectives) -> list[tuple[int, int, float]]:
+    """Return (i, j, correlation) for each conflicting objective pair.
+
+    Direction-normalized: flips minimize objectives so higher = better before
+    computing correlation. Only pairs with negative correlation are returned.
     """
     obj_names = [o.name for o in objectives]
     if len(solutions) < 3 or len(obj_names) < 2:
         return []
-
     matrix = np.array([
         [s.objective_values[name] for name in obj_names]
         for s in solutions
@@ -1249,60 +1262,45 @@ def _find_inflection_solutions(solutions, objectives) -> list[dict]:
     ])
     norm_matrix = matrix * dir_signs
     corr = np.corrcoef(norm_matrix.T)
-
-    knees = []
-    seen_ids = set()
+    pairs = []
     for i in range(len(obj_names)):
         for j in range(i + 1, len(obj_names)):
             r = float(corr[i, j])
-            if r >= 0:
-                continue  # Only conflicting pairs
+            if r < 0:
+                pairs.append((i, j, r))
+    return pairs
 
-            obj_a, obj_b = objectives[i], objectives[j]
-            reverse_a = obj_a.direction.value == "maximize"
-            sorted_sols = sorted(
-                solutions,
-                key=lambda s: s.objective_values[obj_a.name],
-                reverse=reverse_a,
-            )
 
-            # Compute marginal rates
-            rates = []
-            for k in range(len(sorted_sols) - 1):
-                s1, s2 = sorted_sols[k], sorted_sols[k + 1]
-                delta_a = s2.objective_values[obj_a.name] - s1.objective_values[obj_a.name]
-                delta_b = s2.objective_values[obj_b.name] - s1.objective_values[obj_b.name]
-                if obj_a.direction.value == "minimize":
-                    delta_a = -delta_a
-                if obj_b.direction.value == "minimize":
-                    delta_b = -delta_b
-                rate = abs(delta_b / delta_a) if abs(delta_a) > 1e-9 else 0.0
-                rates.append((rate, sorted_sols[k]))
+def _find_inflection_solutions(solutions, objectives) -> list[dict]:
+    """Find inflection-point solutions from marginal rate analysis.
 
-            # Detect inflection: largest jump in marginal rate
-            if len(rates) >= 2:
-                max_jump, inflection_idx = 0.0, 0
-                for k in range(len(rates) - 1):
-                    prev_rate = rates[k][0]
-                    next_rate = rates[k + 1][0]
-                    if prev_rate > 1e-9:
-                        jump = next_rate / prev_rate
-                    else:
-                        jump = next_rate if next_rate > 0 else 0.0
-                    if jump > max_jump:
-                        max_jump = jump
-                        inflection_idx = k + 1  # Matches marginal_analysis convention
-
-                if max_jump >= 2.0:
-                    inflection_sol = rates[inflection_idx][1]
-                    if inflection_sol.solution_id not in seen_ids:
-                        seen_ids.add(inflection_sol.solution_id)
-                        knees.append({
-                            "solution": inflection_sol,
-                            "pair": f"{obj_a.name} vs {obj_b.name}",
-                            "jump_factor": round(max_jump, 1),
-                        })
-
+    Returns a list of {solution, pair, jump_factor} for each conflicting
+    objective pair that has a detected inflection. Shares rate computation
+    and inflection detection with marginal_analysis.
+    """
+    knees = []
+    seen_ids = set()
+    for i, j, _r in _conflicting_pair_indices(solutions, objectives):
+        obj_a, obj_b = objectives[i], objectives[j]
+        reverse_a = obj_a.direction.value == "maximize"
+        sorted_sols = sorted(
+            solutions,
+            key=lambda s: s.objective_values[obj_a.name],
+            reverse=reverse_a,
+        )
+        rates = _compute_pair_rates(sorted_sols, obj_a, obj_b)
+        inflection = _detect_inflection([r["rate"] for r in rates])
+        if inflection is None:
+            continue
+        inflection_sol = rates[inflection["position"]]["from_sol"]
+        if inflection_sol.solution_id in seen_ids:
+            continue
+        seen_ids.add(inflection_sol.solution_id)
+        knees.append({
+            "solution": inflection_sol,
+            "pair": f"{obj_a.name} vs {obj_b.name}",
+            "jump_factor": inflection["jump_factor"],
+        })
     return knees
 
 

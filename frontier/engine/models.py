@@ -74,14 +74,37 @@ class Score(BaseModel):
     value: float
 
 
+class InteractionScaleGroup(BaseModel):
+    """Scale interactions among a group of options by a factor.
+
+    Used in scenario overrides to express regime shifts (e.g. "equity-equity
+    correlations rise 50% in recession") without re-uploading a full matrix.
+    """
+    options: list[str]
+    factor: float
+
+
 class InteractionMatrix(BaseModel):
     """Pairwise interaction matrix for quadratic aggregation.
 
     entries[option_a][option_b] = interaction value (must be symmetric).
     For portfolio volatility, this is the covariance matrix.
+
+    Modes (meaningful primarily in scenario overrides; base matrix uses default):
+    - "replace": full matrix replacement (default). Base case always uses this.
+    - "upsert": sparse cell upsert — merge ``entries`` into the base matrix,
+      preserving cells not mentioned. Symmetry auto-enforced (writing (a,b)
+      also writes (b,a)).
+
+    ``scale_groups`` (optional): applied AFTER replace/upsert. For each group,
+    multiply off-diagonal entries where both endpoints are in the group by
+    ``factor``. Composable with either mode. Set factor=0 to zero correlations
+    within a group; negative factors flip the sign.
     """
     objective: str
-    entries: dict[str, dict[str, float]]
+    entries: dict[str, dict[str, float]] = {}
+    mode: Literal["replace", "upsert"] = "replace"
+    scale_groups: list[InteractionScaleGroup] = []
 
 
 # --- Constraints ---

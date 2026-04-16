@@ -572,3 +572,212 @@ class TestPruning:
         p = _make_problem()
         run = optimize(p, max_solutions=3)
         assert len(run.solutions) <= 3
+
+
+# ─── Matrix override helper (Fix 3) ───
+
+
+class TestApplyMatrixOverride:
+    """_apply_matrix_override: replace | upsert | scale_groups composition."""
+
+    def _base(self):
+        from frontier.engine.models import InteractionMatrix
+        return InteractionMatrix(
+            objective="Vol",
+            entries={
+                "A": {"A": 1.0, "B": 0.2, "C": 0.1},
+                "B": {"A": 0.2, "B": 1.0, "C": 0.3},
+                "C": {"A": 0.1, "B": 0.3, "C": 1.0},
+            },
+        )
+
+    def test_replace_is_default(self):
+        from frontier.engine.models import InteractionMatrix
+        from frontier.engine.optimizer import _apply_matrix_override
+
+        override = InteractionMatrix(
+            objective="Vol",
+            entries={"A": {"A": 2.0, "B": 0.9}, "B": {"A": 0.9, "B": 2.0}},
+        )
+        merged = _apply_matrix_override(self._base(), override)
+        # Full replacement: base's "C" row is gone
+        assert "C" not in merged.entries
+        assert merged.entries["A"]["B"] == 0.9
+
+    def test_upsert_merges_cells_with_symmetry(self):
+        from frontier.engine.models import InteractionMatrix
+        from frontier.engine.optimizer import _apply_matrix_override
+
+        override = InteractionMatrix(
+            objective="Vol",
+            mode="upsert",
+            entries={"A": {"B": 0.9}},  # only (A,B) specified
+        )
+        merged = _apply_matrix_override(self._base(), override)
+        # Symmetry auto-enforced
+        assert merged.entries["A"]["B"] == 0.9
+        assert merged.entries["B"]["A"] == 0.9
+        # Unchanged cells survive
+        assert merged.entries["A"]["C"] == 0.1
+        assert merged.entries["C"]["B"] == 0.3
+
+    def test_upsert_with_no_base_creates_fresh_matrix(self):
+        from frontier.engine.models import InteractionMatrix
+        from frontier.engine.optimizer import _apply_matrix_override
+
+        override = InteractionMatrix(
+            objective="Vol",
+            mode="upsert",
+            entries={"A": {"B": 0.5}},
+        )
+        merged = _apply_matrix_override(None, override)
+        assert merged.entries["A"]["B"] == 0.5
+        assert merged.entries["B"]["A"] == 0.5
+
+    def test_scale_groups_multiplies_off_diagonals_within_group(self):
+        from frontier.engine.models import InteractionMatrix, InteractionScaleGroup
+        from frontier.engine.optimizer import _apply_matrix_override
+
+        override = InteractionMatrix(
+            objective="Vol",
+            mode="upsert",
+            entries={},
+            scale_groups=[InteractionScaleGroup(options=["A", "B"], factor=2.0)],
+        )
+        merged = _apply_matrix_override(self._base(), override)
+        # A-B off-diagonal × 2
+        assert merged.entries["A"]["B"] == pytest.approx(0.4)
+        assert merged.entries["B"]["A"] == pytest.approx(0.4)
+        # Diagonal untouched
+        assert merged.entries["A"]["A"] == 1.0
+        # Outside-group (A-C, B-C) untouched
+        assert merged.entries["A"]["C"] == 0.1
+        assert merged.entries["B"]["C"] == 0.3
+
+    def test_replace_then_scale_groups_compose(self):
+        from frontier.engine.models import InteractionMatrix, InteractionScaleGroup
+        from frontier.engine.optimizer import _apply_matrix_override
+
+        override = InteractionMatrix(
+            objective="Vol",
+            mode="replace",
+            entries={
+                "A": {"A": 1.0, "B": 0.5},
+                "B": {"A": 0.5, "B": 1.0},
+            },
+            scale_groups=[InteractionScaleGroup(options=["A", "B"], factor=0.0)],
+        )
+        merged = _apply_matrix_override(self._base(), override)
+        # Replace set A-B to 0.5, then scale by 0 → off-diagonals zero
+        assert merged.entries["A"]["B"] == 0.0
+        assert merged.entries["B"]["A"] == 0.0
+        # Diagonals preserved
+        assert merged.entries["A"]["A"] == 1.0
+
+
+# ─── Extreme-point seeding (Fix 2) ───
+
+
+class TestExtremeSeeds:
+    """_compute_extreme_seeds: greedy corner seeds per objective."""
+
+    def test_seeds_are_built_per_objective(self):
+        """One seed per objective, respecting cardinality + group limits."""
+        from frontier.engine.optimizer import _compute_extreme_seeds, _parse_constraints, _build_score_matrix
+
+        p = _make_problem(constraints=[CardinalityConstraint(min=2, max=3)])
+        score_matrix = _build_score_matrix(p)
+        cp = _parse_constraints(p)
+        seeds = _compute_extreme_seeds(p, score_matrix, cp)
+
+        assert seeds.shape[0] == len(p.objectives)
+        assert seeds.shape[1] == len(p.options)
+        # Binary mode: values are 0 or 1
+        unique = set(seeds.flatten().tolist())
+        assert unique.issubset({0.0, 1.0})
+        # Each seed has between 2 and 3 non-zero entries (cardinality)
+        for seed in seeds:
+            count = int(seed.sum())
+            assert 2 <= count <= 3
+
+    def test_proportional_seeds_sum_to_100_and_respect_cap(self):
+        """Proportional seeds: allocations sum to 100 and no allocation exceeds max_allocation."""
+        from frontier.engine.models import MaxAllocationConstraint
+        from frontier.engine.optimizer import _compute_extreme_seeds, _parse_constraints, _build_score_matrix
+
+        p = Problem(
+            approach="proportional",
+            objectives=[
+                Objective(name="Return", direction="maximize"),
+                Objective(name="Risk", direction="minimize"),
+            ],
+            options=[Option(name=n) for n in ["A", "B", "C", "D", "E"]],
+            scores=[
+                Score(option="A", objective="Return", value=10),
+                Score(option="B", objective="Return", value=8),
+                Score(option="C", objective="Return", value=6),
+                Score(option="D", objective="Return", value=4),
+                Score(option="E", objective="Return", value=2),
+                Score(option="A", objective="Risk", value=5),
+                Score(option="B", objective="Risk", value=4),
+                Score(option="C", objective="Risk", value=3),
+                Score(option="D", objective="Risk", value=2),
+                Score(option="E", objective="Risk", value=1),
+            ],
+            constraints=[
+                CardinalityConstraint(min=3, max=5),
+                MaxAllocationConstraint(max=40),
+            ],
+        )
+        score_matrix = _build_score_matrix(p)
+        cp = _parse_constraints(p)
+        seeds = _compute_extreme_seeds(p, score_matrix, cp)
+
+        assert len(seeds) == 2
+        for seed in seeds:
+            # Allocations sum to exactly 100
+            assert int(seed.sum()) == 100
+            # No allocation exceeds cap
+            assert seed.max() <= 40
+            # At least min cardinality non-zero entries
+            assert int((seed > 0).sum()) >= 3
+
+    def test_seeds_respect_group_limits(self):
+        """Seeds respect group_limit: no more than max options from the group."""
+        from frontier.engine.optimizer import _compute_extreme_seeds, _parse_constraints, _build_score_matrix
+
+        # A, B, C are in a group with max=1. Even though they might rank highest for an objective,
+        # the seed should only include one.
+        p = _make_problem(constraints=[
+            CardinalityConstraint(min=2, max=4),
+            GroupLimitConstraint(options=["A", "B", "C"], max=1),
+        ])
+        score_matrix = _build_score_matrix(p)
+        cp = _parse_constraints(p)
+        seeds = _compute_extreme_seeds(p, score_matrix, cp)
+
+        for seed in seeds:
+            selected_from_group = sum(
+                int(seed[i] > 0) for i, o in enumerate(p.options) if o.name in ("A", "B", "C")
+            )
+            assert selected_from_group <= 1
+
+    def test_no_seeds_when_cardinality_infeasible(self):
+        """If constraints block ever reaching cardinality_min, return empty seeds (optimizer falls back)."""
+        from frontier.engine.optimizer import _compute_extreme_seeds, _parse_constraints, _build_score_matrix
+
+        # Force-exclude everything reachable → cardinality_min unreachable
+        p = _make_problem(constraints=[
+            CardinalityConstraint(min=2, max=2),
+            ForceExcludeConstraint(option="A"),
+            ForceExcludeConstraint(option="B"),
+            ForceExcludeConstraint(option="C"),
+            ForceExcludeConstraint(option="D"),
+            ForceExcludeConstraint(option="E"),
+        ])
+        score_matrix = _build_score_matrix(p)
+        cp = _parse_constraints(p)
+        seeds = _compute_extreme_seeds(p, score_matrix, cp)
+
+        # All options excluded → no seed meets cardinality_min
+        assert seeds.shape[0] == 0

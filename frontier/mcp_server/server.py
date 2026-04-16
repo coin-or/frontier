@@ -56,35 +56,18 @@ mcp = FastMCP(
     instructions=(
         "Multi-objective portfolio optimization engine.\n\n"
         "WORKFLOW: model/create → model/update (objectives, options, scores, constraints) → solve/run → explore\n\n"
-        "Skills (domain guides) are auto-injected into tool responses at phase transitions. "
-        "You can also call get_skill() to re-read any skill.\n\n"
-        "## Problem Framing Essentials\n"
-        "- Objectives: things to maximize or minimize with no hard cutoff. 2-4 is ideal.\n"
-        "  Schema: {\"name\": \"<name>\", \"direction\": \"maximize\"|\"minimize\", \"aggregation\": \"sum\"|\"avg\"|\"min\"|\"max\"|\"quadratic\"}\n"
-        "- Constraints: hard limits that eliminate solutions.\n"
-        "- Ask: 'Is that a hard limit or a target?' to classify.\n"
-        "- Approach: 'Does quantity matter?' → proportional. 'Yes/no per option?' → binary.\n"
-        "- Aggregation modes: sum (total, default), avg (portfolio average), min (weakest link), max (best/peak), quadratic (interaction-dependent, e.g. portfolio risk — requires interaction_matrix).\n"
-        "- Hidden objectives: watch for 'ideally', 'if possible', 'assuming X stays reasonable'.\n\n"
+        "Domain skills — problem_framing, data_collection, optimization_strategy, solution_interpreter — "
+        "are the canonical guides. They auto-inject into tool responses at phase transitions; "
+        "call get_skill() to re-read.\n\n"
         "## Scores Schema\n"
-        "Scores are a FLAT list of triples (not nested dicts):\n"
-        "  [{\"option\": \"<name>\", \"objective\": \"<name>\", \"value\": <float>}, ...]\n"
-        "One entry per (option, objective) pair. Upsert semantics — re-sending a key replaces the prior value.\n"
-        "Must cover every option × objective combination before solve (100% completeness).\n\n"
-        "## Constraint Schemas (pass to model/update constraints param)\n"
-        '  cardinality:     {"type": "cardinality", "min": <int>, "max": <int>}\n'
-        '  force_include:   {"type": "force_include", "option": "<name>"}\n'
-        '  force_exclude:   {"type": "force_exclude", "option": "<name>"}\n'
-        '  objective_bound: {"type": "objective_bound", "objective": "<name>", "operator": "min"|"max", "value": <float>}\n'
-        '  exclusion_pair:  {"type": "exclusion_pair", "option_a": "<name>", "option_b": "<name>"}\n'
-        '  dependency:      {"type": "dependency", "if_option": "<name>", "then_option": "<name>"}\n'
-        '  group_limit:     {"type": "group_limit", "options": ["<name>", ...], "max": <int>}\n'
-        '  max_allocation:    {"type": "max_allocation", "max": <int>}  (proportional only: cap any single option to max %)\n\n'
+        "Flat list of triples: [{\"option\": \"<name>\", \"objective\": \"<name>\", \"value\": <float>}, ...]\n"
+        "Upsert by (option, objective). Every option × objective combination must be scored before solve.\n\n"
+        "## Objective Schema\n"
+        "{\"name\": \"<name>\", \"direction\": \"maximize\"|\"minimize\", \"aggregation\": \"sum\"|\"avg\"|\"min\"|\"max\"|\"quadratic\"}\n\n"
         "## Key Rules\n"
-        "- Score matrix must be 100% complete before solve — every option on every objective.\n"
-        "- Scores use merge semantics (upsert); objectives/options/constraints use full replacement.\n"
+        "- Scores merge (upsert); objectives / options / constraints use full replacement.\n"
         "- Never say 'best' — every Pareto solution is optimal at its tradeoff.\n"
-        "- Present extremes first, then balanced, then ask user preference."
+        "- Constraint schemas: see the `model` tool docstring for the full set."
     ),
     host=os.environ.get("MCP_HOST", "127.0.0.1"),
     port=int(os.environ.get("PORT", "8000")),
@@ -261,6 +244,19 @@ def model(
     Interaction matrix schema (for objectives with aggregation="quadratic"):
       {"objective": "<name>", "entries": {"opt_a": {"opt_a": <float>, "opt_b": <float>, ...}, ...}}
       Entries must be symmetric. For portfolio volatility, entries = covariance matrix.
+      Base-matrix uploads always use default mode="replace" with the full matrix.
+
+    Interaction matrix override schema (for scenario overrides — composable fields):
+      {
+        "objective": "<name>",
+        "mode": "replace" | "upsert",              # default "replace"
+        "entries": {"opt_a": {"opt_b": <float>}},  # replace: full matrix; upsert: only changed cells
+        "scale_groups": [{"options": ["a", "b", ...], "factor": <float>}]  # optional; applied after mode
+      }
+      - mode="upsert": merge the listed cells into the base matrix; symmetry auto-enforced.
+      - scale_groups: multiply off-diagonals within each group by factor.
+        Use for regime shifts (e.g. recession: equity correlations × 1.5).
+        Compose with upsert cells for precise + broad overrides.
 
     Scenario schema (pass to scenario_config.scenarios as list of dicts):
       {
@@ -270,9 +266,7 @@ def model(
         "score_overrides": [{"option", "objective", "value"}],
         "score_adjustments": [{"objective", "multiply"?, "add"?}],
         "constraint_overrides": [<constraint dict>], # full replacement when non-empty
-        "interaction_matrix_overrides": [{"objective", "entries"}]  # upserts by objective name;
-                                                                     # use for correlation regime shifts
-                                                                     # (e.g. recession — correlations rise)
+        "interaction_matrix_overrides": [<matrix override dict>]  # see schema above
       }
     """
     params = {
@@ -506,6 +500,22 @@ def _model_update(params: dict) -> dict:
             "data": metrics.data_metrics(p),
         }
 
+        # Surface validation issues that are NOT about incomplete scoring
+        # (incomplete scores are expected during setup). Catches broken
+        # constraints, unknown option references, etc. — fail-fast.
+        try:
+            vr = optimizer.validate(p)
+            non_noise = [
+                json.loads(i.model_dump_json())
+                for i in vr.issues
+                if "Score matrix incomplete" not in i.message
+            ]
+            if non_noise:
+                result["validation_issues"] = non_noise
+        except Exception:
+            # Never block a model update on validation errors — they're advisory
+            pass
+
     # ─── Skill auto-injection based on what changed ───
     added_objectives = "objectives" in params
     added_options = "options" in params
@@ -580,28 +590,28 @@ def _model_get_section(p: Problem, section: str) -> dict:
                 "curated_count": len(p.curated_solutions),
             }
         case "objectives":
-            return {**header, "objectives": [json.loads(o.model_dump_json()) for o in p.objectives]}
+            return {**header, "objectives": [o.model_dump(mode="json") for o in p.objectives]}
         case "options":
-            return {**header, "options": [json.loads(o.model_dump_json()) for o in p.options]}
+            return {**header, "options": [o.model_dump(mode="json") for o in p.options]}
         case "scores":
-            return {**header, "scores": [json.loads(s.model_dump_json()) for s in p.scores]}
+            return {**header, "scores": [s.model_dump(mode="json") for s in p.scores]}
         case "constraints":
-            return {**header, "constraints": [json.loads(c.model_dump_json()) for c in p.constraints]}
+            return {**header, "constraints": [c.model_dump(mode="json") for c in p.constraints]}
         case "matrices":
-            return {**header, "interaction_matrices": [json.loads(m.model_dump_json()) for m in p.interaction_matrices]}
+            return {**header, "interaction_matrices": [m.model_dump(mode="json") for m in p.interaction_matrices]}
         case "scenarios":
             return {
                 **header,
-                "scenario_config": json.loads(p.scenario_config.model_dump_json()) if p.scenario_config else None,
+                "scenario_config": p.scenario_config.model_dump(mode="json") if p.scenario_config else None,
             }
         case "run":
-            return {**header, "run": json.loads(p.run.model_dump_json()) if p.run else None}
+            return {**header, "run": p.run.model_dump(mode="json") if p.run else None}
         case "runs":
-            return {**header, "runs": [json.loads(r.model_dump_json()) for r in p.runs]}
+            return {**header, "runs": [r.model_dump(mode="json") for r in p.runs]}
         case "curated":
-            return {**header, "curated": [json.loads(c.model_dump_json()) for c in p.curated_solutions]}
+            return {**header, "curated": [c.model_dump(mode="json") for c in p.curated_solutions]}
         case "references":
-            return {**header, "reference_points": [json.loads(r.model_dump_json()) for r in p.reference_points]}
+            return {**header, "reference_points": [r.model_dump(mode="json") for r in p.reference_points]}
         case _:
             return {"error": f"Unknown section: {section}. Valid: summary, objectives, options, scores, constraints, matrices, scenarios, run, runs, curated, references."}
 
@@ -736,6 +746,20 @@ def _solve_run(p: Problem, mode: OptimizeMode | None = None, max_solutions: int 
     p.results_stale = False
     store.save(p)
 
+    # Persist the full run result to disk so agents can consume it without
+    # pulling the whole payload into context. Path is returned in the response.
+    full_payload = {
+        "run_id": run.run_id,
+        "problem_id": p.problem_id,
+        "solutions_found": len(run.solutions),
+        "total_pareto_found": run.total_pareto_found,
+        "solutions": [json.loads(s.model_dump_json()) for s in run.solutions],
+        "quality": json.loads(run.quality.model_dump_json()),
+        "constraints_snapshot": run.constraints_snapshot,
+        "mode": run.mode.value if run.mode else None,
+    }
+    full_result_path = store.write_run_result(p.problem_id, run.run_id, full_payload)
+
     result = {
         "run_id": run.run_id,
         "solutions_found": len(run.solutions),
@@ -747,10 +771,14 @@ def _solve_run(p: Problem, mode: OptimizeMode | None = None, max_solutions: int 
             "solve": metrics.solve_metrics(p),
             "diagnostics": metrics.diagnostics(p),
         },
+        "full_result_path": str(full_result_path),
         "next_steps": (
-            "Use `explore tradeoffs` for frontier overview, `explore solutions` for the full list "
-            "(add detail=true for allocations), `explore solution <id>` for any single solution, "
-            "or `explore curate` to pin strategies."
+            "Use `explore tradeoffs` for the frontier overview, `explore solution <id>` for a "
+            "single solution's detail, and `explore curate` to pin strategies. For bulk export "
+            "or assembling artifacts that need every solution with allocations, read the file at "
+            "`full_result_path` directly — it contains all solutions without token overhead. "
+            "(`explore solutions` is available with optional detail=true but `full_result_path` "
+            "is the preferred path for anything beyond a few dozen solutions.)"
         ),
     }
 
@@ -825,16 +853,39 @@ def _solve_run_scenarios(p: Problem, mode: OptimizeMode | None = None, max_solut
     store.save(p)
 
     summary = {}
+    result_paths: dict[str, str] = {}
     for name, run in scenario_results.items():
+        full_payload = {
+            "run_id": run.run_id,
+            "problem_id": p.problem_id,
+            "scenario": name,
+            "solutions_found": len(run.solutions),
+            "total_pareto_found": run.total_pareto_found,
+            "solutions": [json.loads(s.model_dump_json()) for s in run.solutions],
+            "quality": json.loads(run.quality.model_dump_json()),
+            "mode": run.mode.value if run.mode else None,
+        }
+        path = store.write_run_result(p.problem_id, run.run_id, full_payload, scenario=name)
+        result_paths[name] = str(path)
+
         summary[name] = {
             "solutions_found": len(run.solutions),
             "total_pareto_found": run.total_pareto_found,
             "quality": json.loads(run.quality.model_dump_json()),
+            "full_result_path": str(path),
         }
 
     return {
         "scenarios_optimized": len(scenario_results),
         "results": summary,
+        "full_result_paths": result_paths,
+        "next_steps": (
+            "Per-scenario full solution sets are on disk at the paths in `full_result_paths`. "
+            "For interactive navigation use `explore` with scenario=<name> (tradeoffs, solution, "
+            "curate, marginal_analysis, scenario_results). For assembling artifacts that need "
+            "every solution per scenario, read the files at `full_result_paths` directly — this "
+            "is the preferred path for bulk export (no token overhead)."
+        ),
     }
 
 
@@ -909,6 +960,8 @@ def explore(
       rename_curated — Update name. Params: content_signature, custom_name.
       curated    — List all curated solutions with survival status.
       compare_curated — Compare curated solutions. Params: signatures (list of 2+ content_signature strings).
+                   Default: compact — shared/differentiating option sets + objective values per solution.
+                   Pass detail=true for full selected_options and allocations per solution.
       marginal_analysis — Marginal rate analysis: cost-per-unit between adjacent solutions, inflection point detection.
                    Default: summary per pair (inflection, stats, top-5 steepest, truncated viz).
                    Pass detail=true for full rates array + untruncated visualization.
@@ -1004,7 +1057,7 @@ def explore(
             if not signatures or len(signatures) < 2:
                 return {"error": "signatures must contain at least 2 content_signature strings."}
             try:
-                return _format_explore(explorer.compare_curated(p, signatures))
+                return _format_explore(explorer.compare_curated(p, signatures, detail=detail))
             except ValueError as e:
                 return {"error": str(e)}
         case "marginal_analysis":

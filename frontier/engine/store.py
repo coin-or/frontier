@@ -61,6 +61,25 @@ class Store:
     def exists(self, problem_id: str) -> bool:
         return self._path(problem_id).exists()
 
+    def write_run_result(self, problem_id: str, run_id: str, payload: dict, scenario: str | None = None) -> Path:
+        """Write a solve run's full result to a JSON file and return the path.
+
+        Layout: ``<data_dir>/runs/<problem_id>/[<scenario>/]<run_id>.json``.
+        For scenario runs, caller passes the scenario name and one file is written per scenario.
+        """
+        runs_dir = self.data_dir / "runs" / problem_id
+        if scenario:
+            runs_dir = runs_dir / _safe_slug(scenario)
+        runs_dir.mkdir(parents=True, exist_ok=True)
+        path = runs_dir / f"{run_id}.json"
+        path.write_text(json.dumps(payload, indent=2))
+        return path
+
+
+def _safe_slug(name: str) -> str:
+    """Filesystem-safe slug from an arbitrary string."""
+    return "".join(ch if ch.isalnum() or ch in ("-", "_") else "_" for ch in name)
+
 
 def _scores_completeness(p: Problem) -> float:
     total = len(p.objectives) * len(p.options)

@@ -20,21 +20,69 @@ from pymoo.util.ref_dirs import get_reference_directions
 
 
 class _SimplexSampling(Sampling):
-    """Sample initial populations on the simplex (allocations sum to 100)."""
+    """Sample initial populations on the simplex (allocations sum to 100).
+
+    Optionally prepends ``seed_population`` (an (n_seed, n_var) array) to the
+    random sample; remaining slots are filled by uniform simplex sampling.
+    Seeds + random collectively produce ``n_samples`` individuals.
+    """
+
+    def __init__(self, seed_population: np.ndarray | None = None):
+        super().__init__()
+        self.seed_population = seed_population
 
     def _do(self, problem, n_samples, **kwargs):
         n_var = problem.n_var
-        # Dirichlet(alpha=1) generates uniform random points on the simplex
-        raw = np.random.dirichlet(np.ones(n_var), size=n_samples) * 100.0
-        # Round to integers while preserving sum = 100
+        seeds = self.seed_population
+        n_seed = 0
+        if seeds is not None and len(seeds) > 0:
+            # Clip seeds to n_samples and to correct width
+            seeds = np.asarray(seeds, dtype=float)
+            if seeds.shape[1] != n_var:
+                seeds = None  # shape mismatch → drop seeds silently
+            else:
+                seeds = seeds[:n_samples]
+                n_seed = len(seeds)
+        n_random = n_samples - n_seed
+        raw = np.random.dirichlet(np.ones(n_var), size=n_random) * 100.0
         X = np.floor(raw).astype(float)
         remainders = raw - X
-        for i in range(n_samples):
+        for i in range(n_random):
             diff = int(100 - X[i].sum())
             if diff > 0:
-                # Distribute remaining units to largest remainders
                 indices = np.argsort(remainders[i])[::-1][:diff]
                 X[i, indices] += 1.0
+        if n_seed > 0:
+            X = np.concatenate([seeds, X], axis=0)
+        return X
+
+
+class _SeededBinarySampling(Sampling):
+    """Binary-mode initial population with optional seed individuals prepended.
+
+    Returns a bool array — pymoo's BitflipMutation expects bool for ``~X``.
+    """
+
+    def __init__(self, seed_population: np.ndarray | None = None):
+        super().__init__()
+        self.seed_population = seed_population
+
+    def _do(self, problem, n_samples, **kwargs):
+        n_var = problem.n_var
+        seeds = self.seed_population
+        n_seed = 0
+        if seeds is not None and len(seeds) > 0:
+            seeds = np.asarray(seeds) > 0.5  # coerce to bool
+            if seeds.shape[1] != n_var:
+                seeds = None
+                n_seed = 0
+            else:
+                seeds = seeds[:n_samples]
+                n_seed = len(seeds)
+        n_random = n_samples - n_seed
+        X = np.random.rand(n_random, n_var) < 0.5  # bool
+        if n_seed > 0:
+            X = np.concatenate([seeds, X], axis=0)
         return X
 
 
@@ -75,6 +123,7 @@ from .models import (
     Aggregation,
     Approach,
     BoundOperator,
+    InteractionMatrix,
     OptimizeMode,
     Problem,
     QualityIndicators,
@@ -346,7 +395,110 @@ def _build_interaction_matrices(problem: Problem) -> dict[int, np.ndarray]:
     return result
 
 
-def _tune_parameters(problem: Problem, mode: OptimizeMode) -> tuple:
+def _compute_extreme_seeds(problem: Problem, score_matrix: np.ndarray, cp: dict) -> np.ndarray:
+    """Build one seed individual per objective, biased toward that objective's extreme.
+
+    Greedy heuristic: rank options by their score for objective j (descending if
+    maximize, ascending if minimize), then select a set of top-K options that
+    respects constraints (forced_in/out, cardinality, group_limits). Build a
+    portfolio from that set:
+      - binary: 1 for selected, 0 otherwise.
+      - proportional: evenly distribute 100% across selected, capped at max_allocation.
+
+    Seeds are near-extreme starting points — NSGA polishes them. Works for any
+    aggregation (sum/avg/quadratic) because NSGA will refine; the seed just needs
+    to be closer to the corner than random. Single-objective fitness is never
+    computed here; this is a heuristic, not a sub-solver.
+
+    Returns an (n_seeds, n_options) float array. n_seeds ≤ len(objectives).
+    """
+    opt_names = [o.name for o in problem.options]
+    n_options = len(opt_names)
+    obj_list = problem.objectives
+    is_binary = problem.approach == Approach.binary
+
+    forced_in = cp.get("forced_in", set())
+    forced_out = cp.get("forced_out", set())
+    card_min = cp.get("cardinality_min", 1)
+    card_max = cp.get("cardinality_max", n_options)
+    group_limits = cp.get("group_limits", [])
+    max_allocation = cp.get("max_allocation")  # may be None
+
+    # For proportional: target K holdings that spend the full budget at cap.
+    # If max_allocation=30 and sum=100, we need at least ceil(100/30)=4 holdings.
+    # For binary, K is bounded only by cardinality.
+    if is_binary:
+        target_k = card_max
+    else:
+        if max_allocation:
+            min_k_for_budget = int(np.ceil(100.0 / max_allocation))
+            target_k = max(card_min, min_k_for_budget)
+            target_k = min(target_k, card_max)
+        else:
+            target_k = max(card_min, min(6, card_max))  # small default
+
+    seeds = []
+    for j, obj in enumerate(obj_list):
+        order = np.argsort(-score_matrix[:, j]) if obj.direction.value == "maximize" else np.argsort(score_matrix[:, j])
+
+        selected = list(forced_in)
+        group_counts = [0 for _ in group_limits]
+        # Pre-count forced-ins against group caps
+        for g_idx, (g_indices, _g_max) in enumerate(group_limits):
+            group_counts[g_idx] = sum(1 for idx in selected if idx in g_indices)
+
+        for idx in order:
+            if len(selected) >= target_k:
+                break
+            if idx in forced_out or idx in selected:
+                continue
+            # Check group caps
+            ok = True
+            for g_idx, (g_indices, g_max) in enumerate(group_limits):
+                if idx in g_indices and group_counts[g_idx] >= g_max:
+                    ok = False
+                    break
+            if not ok:
+                continue
+            selected.append(int(idx))
+            for g_idx, (g_indices, _g_max) in enumerate(group_limits):
+                if idx in g_indices:
+                    group_counts[g_idx] += 1
+
+        # If we couldn't reach cardinality_min due to tight constraints, skip this seed
+        if len(selected) < card_min:
+            continue
+
+        if is_binary:
+            vec = np.zeros(n_options, dtype=float)
+            vec[selected] = 1.0
+        else:
+            vec = np.zeros(n_options, dtype=float)
+            k = len(selected)
+            cap = max_allocation if max_allocation is not None else 100
+            # Start with equal allocation, capped
+            base_alloc = min(cap, 100 // k)
+            for idx in selected:
+                vec[idx] = base_alloc
+            # Distribute remaining units to highest-ranked options up to cap
+            used = int(vec.sum())
+            remaining = 100 - used
+            for idx in order:
+                if remaining <= 0:
+                    break
+                if idx in selected and vec[idx] < cap:
+                    delta = min(cap - int(vec[idx]), remaining)
+                    vec[idx] += delta
+                    remaining -= delta
+
+        seeds.append(vec)
+
+    if not seeds:
+        return np.empty((0, n_options))
+    return np.array(seeds, dtype=float)
+
+
+def _tune_parameters(problem: Problem, mode: OptimizeMode, seed_population: np.ndarray | None = None) -> tuple:
     """Return (algorithm, n_gen) adapted to problem size and mode.
 
     Scales directly from the two independent dimensions that matter:
@@ -404,8 +556,9 @@ def _tune_parameters(problem: Problem, mode: OptimizeMode) -> tuple:
     if is_binary:
         # Mutation prob: ~1 bit flip per individual on average, bounded
         mut_prob = max(0.01, min(0.25, 1.0 / n))
+        sampling = _SeededBinarySampling(seed_population) if seed_population is not None else BinaryRandomSampling()
         alg_kwargs.update(
-            sampling=BinaryRandomSampling(),
+            sampling=sampling,
             crossover=TwoPointCrossover(prob=0.9),
             mutation=BitflipMutation(prob=mut_prob),
             eliminate_duplicates=True,
@@ -416,7 +569,7 @@ def _tune_parameters(problem: Problem, mode: OptimizeMode) -> tuple:
         sbx_eta = int(10 + eta_scale * 20)   # 10-30
         pm_eta = int(15 + eta_scale * 25)     # 15-40
         alg_kwargs.update(
-            sampling=_SimplexSampling(),
+            sampling=_SimplexSampling(seed_population),
             crossover=SBX(prob=0.9, eta=sbx_eta),
             mutation=PM(eta=pm_eta),
             repair=_SimplexRepair(),
@@ -437,6 +590,54 @@ def optimize(problem: Problem, mode: OptimizeMode | None = None, max_solutions: 
     if problem.approach == Approach.proportional:
         return _optimize_proportional(problem, mode, max_solutions=max_solutions)
     return _optimize_binary(problem, mode, max_solutions=max_solutions)
+
+
+def _apply_matrix_override(base: "InteractionMatrix | None", override: "InteractionMatrix") -> "InteractionMatrix":
+    """Apply a scenario override to a base interaction matrix.
+
+    Modes:
+    - "replace" (default): discard the base, use override.entries directly.
+    - "upsert": start from base.entries (empty if no base), merge override.entries,
+      enforcing symmetry (writing (a, b) also writes (b, a)).
+
+    scale_groups (applied after replace/upsert, composable):
+    - For each group, multiply off-diagonal entries where both endpoints are
+      in the group by ``factor``. Diagonal entries are untouched.
+    """
+    import copy
+
+    if override.mode == "upsert":
+        if base is None:
+            merged = {}
+        else:
+            merged = copy.deepcopy(base.entries)
+        # Apply sparse cells with symmetry
+        for row_key, cells in override.entries.items():
+            for col_key, value in cells.items():
+                merged.setdefault(row_key, {})[col_key] = value
+                merged.setdefault(col_key, {})[row_key] = value
+    else:
+        # replace: override.entries is authoritative
+        merged = copy.deepcopy(override.entries)
+
+    # Apply scale_groups
+    for group in override.scale_groups:
+        options_in_group = set(group.options)
+        for a in options_in_group:
+            if a not in merged:
+                continue
+            for b, value in list(merged[a].items()):
+                if b == a:
+                    continue  # skip diagonal
+                if b in options_in_group:
+                    merged[a][b] = value * group.factor
+
+    return InteractionMatrix(
+        objective=override.objective,
+        entries=merged,
+        mode="replace",  # merged result is authoritative
+        scale_groups=[],
+    )
 
 
 def optimize_scenarios(problem: Problem, mode: OptimizeMode | None = None, max_solutions: int | None = None) -> dict[str, Run]:
@@ -481,12 +682,15 @@ def optimize_scenarios(problem: Problem, mode: OptimizeMode | None = None, max_s
         if scenario.constraint_overrides:
             scenario_problem.constraints = list(scenario.constraint_overrides)
 
-        # 4) Apply interaction_matrix overrides (upsert by objective name)
+        # 4) Apply interaction_matrix overrides: replace / upsert / scale_groups,
+        # composable per override. See _apply_matrix_override.
         if scenario.interaction_matrix_overrides:
-            im_map = {m.objective: m for m in scenario_problem.interaction_matrices}
+            base_by_obj = {m.objective: m for m in scenario_problem.interaction_matrices}
             for override in scenario.interaction_matrix_overrides:
-                im_map[override.objective] = override
-            scenario_problem.interaction_matrices = list(im_map.values())
+                base = base_by_obj.get(override.objective)
+                merged = _apply_matrix_override(base, override)
+                base_by_obj[override.objective] = merged
+            scenario_problem.interaction_matrices = list(base_by_obj.values())
 
         scenario_problem.scenario_config = None
         return scenario.name, optimize(scenario_problem, mode=mode, max_solutions=max_solutions)
@@ -512,7 +716,8 @@ def _optimize_binary(problem: Problem, mode: OptimizeMode, max_solutions: int | 
         interaction_matrices=im, **cp,
     )
 
-    algorithm, n_gen = _tune_parameters(problem, mode)
+    seeds = _compute_extreme_seeds(problem, score_matrix, cp)
+    algorithm, n_gen = _tune_parameters(problem, mode, seed_population=seeds if len(seeds) > 0 else None)
 
     result = pymoo_minimize(
         pymoo_problem, algorithm, ("n_gen", n_gen), seed=42, verbose=False,
@@ -550,7 +755,8 @@ def _optimize_proportional(problem: Problem, mode: OptimizeMode, max_solutions: 
         interaction_matrices=im, **cp,
     )
 
-    algorithm, n_gen = _tune_parameters(problem, mode)
+    seeds = _compute_extreme_seeds(problem, score_matrix, cp)
+    algorithm, n_gen = _tune_parameters(problem, mode, seed_population=seeds if len(seeds) > 0 else None)
 
     result = pymoo_minimize(
         pymoo_problem, algorithm, ("n_gen", n_gen), seed=42, verbose=False,

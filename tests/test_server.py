@@ -159,6 +159,33 @@ class TestModelUpdate:
         result = srv.model(action="update", problem_id="nonexistent")
         assert "error" in result
 
+    def test_update_surfaces_validation_issues_but_not_incomplete_scores(self):
+        """Adjacent fix #6: model/update returns validation_issues list on structural
+        change, but filters out the incomplete-scores noise. A genuinely broken
+        constraint (force_include on unknown option) is surfaced."""
+        created = srv.model(action="create")
+        pid = created["problem_id"]
+        srv.model(action="update", problem_id=pid,
+                  objectives=[{"name": "Rev", "direction": "maximize"},
+                              {"name": "Eff", "direction": "minimize"}],
+                  options=[{"name": "A"}, {"name": "B"}, {"name": "C"}])
+
+        # No scores yet — would be an "incomplete score matrix" validation error.
+        # That should NOT appear in validation_issues (it's expected during setup).
+        result = srv.model(action="update", problem_id=pid,
+            constraints=[{"type": "cardinality", "min": 1, "max": 2}])
+        # incomplete-scores noise filtered out
+        if "validation_issues" in result:
+            for issue in result["validation_issues"]:
+                assert "Score matrix incomplete" not in issue["message"]
+
+        # Now trigger a genuine error: force_include on an unknown option
+        result = srv.model(action="update", problem_id=pid,
+            constraints=[{"type": "force_include", "option": "NONEXISTENT"}])
+        assert "validation_issues" in result
+        messages = [i["message"] for i in result["validation_issues"]]
+        assert any("NONEXISTENT" in m for m in messages)
+
     def test_update_missing_problem_id(self):
         result = srv.model(action="update")
         assert "error" in result
@@ -304,6 +331,25 @@ class TestSolveRun:
         assert "objective_ranges" in result
         assert "preview" in result
         assert "extremes" in result["preview"]
+
+    def test_run_writes_full_result_file(self):
+        """Fix 1: every solve writes the complete result to disk and returns the path."""
+        import json as _json
+        from pathlib import Path
+
+        pid = _build_solvable_problem()
+        result = srv.solve(action="run", problem_id=pid)
+        assert "full_result_path" in result
+        path = Path(result["full_result_path"])
+        assert path.exists(), f"{path} was not written"
+        payload = _json.loads(path.read_text())
+        # File contains all solutions the response omits
+        assert "solutions" in payload
+        assert len(payload["solutions"]) == result["solutions_found"]
+        # First solution has full structure
+        sol = payload["solutions"][0]
+        assert "solution_id" in sol
+        assert "objective_values" in sol
 
     def test_run_validation_failure_includes_missing_scores(self):
         created = srv.model(action="create")
@@ -554,6 +600,9 @@ class TestScenarios:
         assert len(p["scenario_config"]["scenarios"]) == 2
 
     def test_run_scenarios(self):
+        import json as _json
+        from pathlib import Path
+
         pid = _build_solvable_problem()
         srv.model(action="update", problem_id=pid, scenario_config={
             "enabled": True,
@@ -571,6 +620,15 @@ class TestScenarios:
         assert "Base" in result["results"]
         assert "Alt" in result["results"]
         assert result["results"]["Base"]["solutions_found"] > 0
+        # Fix 1: per-scenario full result files written to disk
+        assert "full_result_paths" in result
+        assert set(result["full_result_paths"].keys()) == {"Base", "Alt"}
+        for name, path_str in result["full_result_paths"].items():
+            path = Path(path_str)
+            assert path.exists()
+            payload = _json.loads(path.read_text())
+            assert payload["scenario"] == name
+            assert len(payload["solutions"]) == result["results"][name]["solutions_found"]
 
     def test_scenario_results(self):
         pid = _build_solvable_problem()
@@ -716,6 +774,80 @@ class TestScenarios:
             f"Got diverse={min_vol_diverse}, correlated={min_vol_correlated}"
         )
 
+    def test_scenarios_with_scale_groups_override(self):
+        """Fix 3: scale_groups on a scenario scales off-diagonal interactions in-group
+        without requiring a full-matrix re-upload.
+
+        Shape the problem so equities are correlated modestly in base; scale their
+        correlations ×3 in a 'stress' scenario and confirm min-vol rises.
+        """
+        created = srv.model(action="create", approach="proportional")
+        pid = created["problem_id"]
+        srv.model(
+            action="update", problem_id=pid,
+            objectives=[
+                {"name": "Return", "direction": "maximize", "aggregation": "sum"},
+                {"name": "Volatility", "direction": "minimize", "aggregation": "quadratic"},
+            ],
+            options=[{"name": "E1"}, {"name": "E2"}, {"name": "E3"}, {"name": "Bond"}],
+            scores=[
+                # Similar returns on equities, lower on bond
+                {"option": "E1", "objective": "Return", "value": 10},
+                {"option": "E2", "objective": "Return", "value": 10},
+                {"option": "E3", "objective": "Return", "value": 10},
+                {"option": "Bond", "objective": "Return", "value": 4},
+                # Dummy individual vols
+                {"option": "E1", "objective": "Volatility", "value": 20},
+                {"option": "E2", "objective": "Volatility", "value": 20},
+                {"option": "E3", "objective": "Volatility", "value": 20},
+                {"option": "Bond", "objective": "Volatility", "value": 5},
+            ],
+            constraints=[
+                {"type": "cardinality", "min": 2, "max": 4},
+                {"type": "max_allocation", "max": 50},
+            ],
+        )
+        # Base matrix: modest equity-equity covariance; equity-bond near zero
+        base_matrix = {
+            "objective": "Volatility",
+            "entries": {
+                "E1": {"E1": 400.0, "E2": 100.0, "E3": 100.0, "Bond": 0.0},
+                "E2": {"E1": 100.0, "E2": 400.0, "E3": 100.0, "Bond": 0.0},
+                "E3": {"E1": 100.0, "E2": 100.0, "E3": 400.0, "Bond": 0.0},
+                "Bond": {"E1": 0.0, "E2": 0.0, "E3": 0.0, "Bond": 25.0},
+            },
+        }
+        srv.model(action="update", problem_id=pid, interaction_matrices=[base_matrix])
+
+        # Scenario: scale equity-equity off-diagonals ×3 (stress). Base → factor 1.0 (no change).
+        srv.model(action="update", problem_id=pid, scenario_config={
+            "enabled": True,
+            "scenarios": [
+                {"name": "Base"},
+                {"name": "Stress", "interaction_matrix_overrides": [{
+                    "objective": "Volatility",
+                    "mode": "upsert",
+                    "entries": {},  # don't change any specific cells
+                    "scale_groups": [{"options": ["E1", "E2", "E3"], "factor": 3.0}],
+                }]},
+            ],
+        })
+        result = srv.solve(action="run_scenarios", problem_id=pid, mode="fast")
+        assert "error" not in result
+
+        base = srv.explore(action="tradeoffs", problem_id=pid, scenario="Base")
+        stress = srv.explore(action="tradeoffs", problem_id=pid, scenario="Stress")
+
+        min_vol_base = base["objective_ranges"]["Volatility"]["min"]
+        min_vol_stress = stress["objective_ranges"]["Volatility"]["min"]
+
+        # Higher equity-equity correlations → higher min-vol frontier for equity-heavy portfolios
+        # The stress min-vol may still route through bonds, but cannot be lower than base.
+        assert min_vol_stress >= min_vol_base - 0.01, (
+            f"Stress scenario should not produce lower min vol than base. "
+            f"Base={min_vol_base}, Stress={min_vol_stress}"
+        )
+
 
 class TestCuration:
     def test_curate_solution(self):
@@ -780,6 +912,25 @@ class TestCuration:
         assert "differentiating_options" in result
         assert len(result["solutions"]) == 2
         assert result["solutions"][0]["custom_name"] == "A"
+        # Default compact: no selected_options or allocations per solution
+        assert result["detail"] is False
+        for sol in result["solutions"]:
+            assert "selected_options" not in sol
+            assert "allocations" not in sol
+
+    def test_compare_curated_detail(self):
+        pid = _build_solvable_problem()
+        srv.solve(action="run", problem_id=pid)
+        r1 = srv.explore(action="curate", problem_id=pid, solution_id=1, custom_name="A")
+        r2 = srv.explore(action="curate", problem_id=pid, solution_id=2, custom_name="B")
+        result = srv.explore(
+            action="compare_curated", problem_id=pid,
+            signatures=[r1["content_signature"], r2["content_signature"]],
+            detail=True,
+        )
+        assert result["detail"] is True
+        for sol in result["solutions"]:
+            assert "selected_options" in sol
 
     def test_curated_survives_resolve(self):
         """Curated solutions persist across runs and track survival."""
