@@ -82,6 +82,9 @@ def get_tradeoffs(problem: Problem, scenario: str | None = None) -> dict:
             balanced.objective_values, problem.reference_points, problem.objectives,
         )
 
+    # Frontier shape classification per conflicting objective pair
+    result["frontier_shape"] = _classify_frontier_shapes(solutions, problem.objectives)
+
     result["visualization"] = _render_tradeoffs_viz(result, problem.objectives, solutions)
     return result
 
@@ -1104,6 +1107,107 @@ def _require_run(problem: Problem, scenario: str | None = None) -> Run:
     if not problem.run.solutions:
         raise ValueError("Run has no solutions.")
     return problem.run
+
+
+def _classify_frontier_shapes(solutions, objectives) -> list[dict]:
+    """Classify tradeoff shape (linear/concave/convex/discontinuous) per conflicting pair.
+
+    Only analyzes pairs with negative correlation and >= 5 solutions.
+    """
+    from scipy.stats import spearmanr
+
+    obj_names = [o.name for o in objectives]
+    if len(solutions) < 5 or len(obj_names) < 2:
+        return []
+
+    matrix = np.array([
+        [s.objective_values[name] for name in obj_names]
+        for s in solutions
+    ])
+    dir_signs = np.array([
+        -1.0 if o.direction.value == "minimize" else 1.0
+        for o in objectives
+    ])
+    norm_matrix = matrix * dir_signs
+    corr = np.corrcoef(norm_matrix.T)
+
+    shapes = []
+    for i in range(len(obj_names)):
+        for j in range(i + 1, len(obj_names)):
+            r = float(corr[i, j])
+            if r >= -0.2:
+                continue  # Only conflicting pairs
+
+            obj_a, obj_b = objectives[i], objectives[j]
+            reverse_a = obj_a.direction.value == "maximize"
+            sorted_sols = sorted(
+                solutions,
+                key=lambda s: s.objective_values[obj_a.name],
+                reverse=reverse_a,
+            )
+
+            # Compute marginal rates between adjacent solutions
+            rates = []
+            spacings = []
+            for k in range(len(sorted_sols) - 1):
+                s1, s2 = sorted_sols[k], sorted_sols[k + 1]
+                delta_a = s2.objective_values[obj_a.name] - s1.objective_values[obj_a.name]
+                delta_b = s2.objective_values[obj_b.name] - s1.objective_values[obj_b.name]
+                if obj_a.direction.value == "minimize":
+                    delta_a = -delta_a
+                if obj_b.direction.value == "minimize":
+                    delta_b = -delta_b
+                rate = abs(delta_b / delta_a) if abs(delta_a) > 1e-9 else 0.0
+                rates.append(rate)
+                spacing = abs(delta_a)
+                spacings.append(spacing)
+
+            if len(rates) < 3:
+                continue
+
+            rates_arr = np.array(rates)
+            spacings_arr = np.array(spacings)
+
+            # Check for discontinuous: large gaps in objective space (> 3× median spacing)
+            median_spacing = np.median(spacings_arr)
+            if median_spacing > 1e-9:
+                max_gap = spacings_arr.max()
+                if max_gap > 3.0 * median_spacing:
+                    shapes.append({
+                        "objectives": [obj_a.name, obj_b.name],
+                        "shape": "discontinuous",
+                        "confidence": round(min(float(max_gap / median_spacing) / 10.0, 1.0), 2),
+                    })
+                    continue
+
+            # Rate trend: Spearman correlation of rate vs position
+            positions = np.arange(len(rates_arr))
+            rho, _ = spearmanr(positions, rates_arr)
+
+            # Rate stability: coefficient of variation
+            rate_mean = rates_arr.mean()
+            rate_cv = float(rates_arr.std() / rate_mean) if rate_mean > 1e-9 else 0.0
+
+            if rate_cv < 0.3:
+                shape = "linear"
+                confidence = round(1.0 - rate_cv, 2)
+            elif rho > 0.3:
+                shape = "concave"  # rates increasing → diminishing returns
+                confidence = round(min(abs(rho), 1.0), 2)
+            elif rho < -0.3:
+                shape = "convex"  # rates decreasing → diminishing sacrifice
+                confidence = round(min(abs(rho), 1.0), 2)
+            else:
+                shape = "linear"
+                confidence = round(max(0.3, 1.0 - rate_cv), 2)
+
+            shapes.append({
+                "objectives": [obj_a.name, obj_b.name],
+                "shape": shape,
+                "confidence": confidence,
+            })
+
+    return shapes
 
 
 def _find_inflection_solutions(solutions, objectives) -> list[dict]:

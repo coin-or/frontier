@@ -426,7 +426,7 @@ def _tune_parameters(problem: Problem, mode: OptimizeMode) -> tuple:
     return AlgClass(**alg_kwargs), n_gen
 
 
-def optimize(problem: Problem, mode: OptimizeMode | None = None) -> Run:
+def optimize(problem: Problem, mode: OptimizeMode | None = None, max_solutions: int | None = None) -> Run:
     """Validate and run multi-objective optimization. Returns a Run with solutions."""
     if mode is None:
         mode = OptimizeMode.fast
@@ -435,11 +435,11 @@ def optimize(problem: Problem, mode: OptimizeMode | None = None) -> Run:
         raise ValueError(f"Problem not ready: {[i.message for i in vr.issues]}")
 
     if problem.approach == Approach.proportional:
-        return _optimize_proportional(problem, mode)
-    return _optimize_binary(problem, mode)
+        return _optimize_proportional(problem, mode, max_solutions=max_solutions)
+    return _optimize_binary(problem, mode, max_solutions=max_solutions)
 
 
-def optimize_scenarios(problem: Problem, mode: OptimizeMode | None = None) -> dict[str, Run]:
+def optimize_scenarios(problem: Problem, mode: OptimizeMode | None = None, max_solutions: int | None = None) -> dict[str, Run]:
     """Run optimization independently per scenario. Returns {scenario_name: Run}.
 
     Each scenario is solved as a fully independent optimization — no probability
@@ -482,7 +482,7 @@ def optimize_scenarios(problem: Problem, mode: OptimizeMode | None = None) -> di
             scenario_problem.constraints = list(scenario.constraint_overrides)
 
         scenario_problem.scenario_config = None
-        return scenario.name, optimize(scenario_problem, mode=mode)
+        return scenario.name, optimize(scenario_problem, mode=mode, max_solutions=max_solutions)
 
     with ThreadPoolExecutor(max_workers=len(problem.scenario_config.scenarios)) as pool:
         futures = [pool.submit(_build_and_solve, s) for s in problem.scenario_config.scenarios]
@@ -491,7 +491,7 @@ def optimize_scenarios(problem: Problem, mode: OptimizeMode | None = None) -> di
     return results
 
 
-def _optimize_binary(problem: Problem, mode: OptimizeMode) -> Run:
+def _optimize_binary(problem: Problem, mode: OptimizeMode, max_solutions: int | None = None) -> Run:
     """Binary mode: pick K of N options."""
     n_options = len(problem.options)
     opt_names = [o.name for o in problem.options]
@@ -523,12 +523,13 @@ def _optimize_binary(problem: Problem, mode: OptimizeMode) -> Run:
                 solution_id=idx, selected_options=selected, objective_values=obj_values,
             ))
 
-    solutions, total_found = _prune_pareto(solutions, obj_list)
+    max_n = max_solutions or MAX_PARETO_SOLUTIONS
+    solutions, total_found = _prune_pareto(solutions, obj_list, max_n=max_n)
     solutions = _sort_and_reindex(solutions, obj_list)
     return Run(solutions=solutions, total_pareto_found=total_found, quality=_compute_quality(result), mode=mode)
 
 
-def _optimize_proportional(problem: Problem, mode: OptimizeMode) -> Run:
+def _optimize_proportional(problem: Problem, mode: OptimizeMode, max_solutions: int | None = None) -> Run:
     """Proportional mode: allocate integer percentages (0-100, sum to 100)."""
     n_options = len(problem.options)
     opt_names = [o.name for o in problem.options]
@@ -590,7 +591,8 @@ def _optimize_proportional(problem: Problem, mode: OptimizeMode) -> Run:
                 allocations=allocs,
             ))
 
-    solutions, total_found = _prune_pareto(solutions, obj_list)
+    max_n = max_solutions or MAX_PARETO_SOLUTIONS
+    solutions, total_found = _prune_pareto(solutions, obj_list, max_n=max_n)
     solutions = _sort_and_reindex(solutions, obj_list)
     return Run(solutions=solutions, total_pareto_found=total_found, quality=_compute_quality(result), mode=mode)
 

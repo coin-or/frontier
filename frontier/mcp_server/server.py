@@ -558,7 +558,7 @@ def _parse_constraint(c: dict | Constraint) -> Constraint:
 
 
 @mcp.tool()
-def solve(action: str, problem_id: str, mode: str | None = None) -> dict:
+def solve(action: str, problem_id: str, mode: str | None = None, max_solutions: int | None = None) -> dict:
     """Validate and run the optimizer.
 
     optimization_strategy skill is auto-injected when scores reach 100% or
@@ -574,6 +574,8 @@ def solve(action: str, problem_id: str, mode: str | None = None) -> dict:
             final convergence when the problem is refined. Adapts population size,
             generations, and operator parameters to problem complexity. Also selects
             NSGA-III for 4+ objectives.
+      max_solutions: Cap the number of Pareto solutions returned (default 100).
+            Useful for proportional mode which can produce large frontiers.
 
     Key guidance:
     - Expect iteration: first run is exploration, not the answer.
@@ -605,21 +607,21 @@ def solve(action: str, problem_id: str, mode: str | None = None) -> dict:
                 _mark_injected(problem_id, "optimization_strategy")
             return result
         case "run":
-            return _solve_run(p, opt_mode)
+            return _solve_run(p, opt_mode, max_solutions=max_solutions)
         case "run_scenarios":
-            return _solve_run_scenarios(p, opt_mode)
+            return _solve_run_scenarios(p, opt_mode, max_solutions=max_solutions)
         case _:
             return {"error": f"Unknown action: {action}. Use validate/run/run_scenarios."}
 
 
-def _solve_run(p: Problem, mode: OptimizeMode | None = None) -> dict:
+def _solve_run(p: Problem, mode: OptimizeMode | None = None, max_solutions: int | None = None) -> dict:
     vr = optimizer.validate(p)
     if not vr.ready:
         vr_data = json.loads(vr.model_dump_json())
         return {"ready": False, "issues": vr_data["issues"], "missing_scores": vr_data["missing_scores"]}
 
     try:
-        run = optimizer.optimize(p, mode=mode)
+        run = optimizer.optimize(p, mode=mode, max_solutions=max_solutions)
     except Exception as e:
         return {"feasible": False, "error": str(e)}
 
@@ -664,14 +666,14 @@ def _solve_run(p: Problem, mode: OptimizeMode | None = None) -> dict:
     return result
 
 
-def _solve_run_scenarios(p: Problem, mode: OptimizeMode | None = None) -> dict:
+def _solve_run_scenarios(p: Problem, mode: OptimizeMode | None = None, max_solutions: int | None = None) -> dict:
     vr = optimizer.validate(p)
     if not vr.ready:
         vr_data = json.loads(vr.model_dump_json())
         return {"ready": False, "issues": vr_data["issues"]}
 
     try:
-        scenario_results = optimizer.optimize_scenarios(p, mode=mode)
+        scenario_results = optimizer.optimize_scenarios(p, mode=mode, max_solutions=max_solutions)
     except ValueError as e:
         return {"error": str(e)}
 

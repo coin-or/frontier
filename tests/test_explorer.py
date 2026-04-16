@@ -128,3 +128,18 @@ class TestGetSolution:
     def test_nonexistent_id_raises(self, solved_problem):
         with pytest.raises(ValueError, match="not found"):
             get_solution(solved_problem, 9999)
+
+
+class TestFrontierShape:
+    def test_tradeoffs_include_frontier_shape(self, solved_problem):
+        result = get_tradeoffs(solved_problem)
+        assert "frontier_shape" in result
+
+    def test_shape_entries_have_required_fields(self, solved_problem):
+        result = get_tradeoffs(solved_problem)
+        for entry in result["frontier_shape"]:
+            assert "objectives" in entry
+            assert "shape" in entry
+            assert entry["shape"] in ("linear", "concave", "convex", "discontinuous")
+            assert "confidence" in entry
+            assert 0.0 <= entry["confidence"] <= 1.0

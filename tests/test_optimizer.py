@@ -530,3 +530,45 @@ class TestGroupLimit:
         ])
         vr = validate(p)
         assert not vr.ready
+
+
+# ─── Binding constraint detection ───
+
+
+class TestBindingDetection:
+    def test_cardinality_binding_detected(self):
+        """Cardinality at max should surface as binding."""
+        from frontier.engine import metrics
+        p = _make_problem(constraints=[CardinalityConstraint(min=2, max=2)])
+        run = optimize(p)
+        p.run = run
+
+        diags = metrics.diagnostics(p)
+        binding = [d for d in diags if d["pattern"] == "binding_constraint"]
+        assert any("cardinality" in d["constraint"] for d in binding)
+
+    def test_group_limit_binding_detected(self):
+        """Group limit at max should surface as binding."""
+        from frontier.engine import metrics
+        p = _make_problem(constraints=[
+            CardinalityConstraint(min=2, max=3),
+            GroupLimitConstraint(options=["A", "B", "C"], max=1),
+        ])
+        run = optimize(p)
+        p.run = run
+
+        diags = metrics.diagnostics(p)
+        binding = [d for d in diags if d["pattern"] == "binding_constraint"]
+        # At least one binding constraint should be found (cardinality or group)
+        assert len(binding) > 0
+
+
+# ─── Pruning ───
+
+
+class TestPruning:
+    def test_max_solutions_parameter(self):
+        """max_solutions caps the number of returned solutions."""
+        p = _make_problem()
+        run = optimize(p, max_solutions=3)
+        assert len(run.solutions) <= 3

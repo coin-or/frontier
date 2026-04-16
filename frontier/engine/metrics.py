@@ -14,8 +14,10 @@ from statistics import variance
 
 from .models import (
     BoundOperator,
+    CardinalityConstraint,
     Direction,
     ForceExcludeConstraint,
+    GroupLimitConstraint,
     ObjectiveBoundConstraint,
     Problem,
     Solution,
@@ -302,35 +304,76 @@ def _check_option_coverage(problem, solutions, results):
 
 
 def _check_binding_constraints(problem, solutions, results):
-    """Detect constraints that are binding on all solutions."""
+    """Detect constraints that are binding on any solution."""
     for constraint in problem.constraints:
-        if not isinstance(constraint, ObjectiveBoundConstraint):
-            continue
+        if isinstance(constraint, ObjectiveBoundConstraint):
+            _check_binding_objective_bound(constraint, solutions, results)
+        elif isinstance(constraint, CardinalityConstraint):
+            _check_binding_cardinality(constraint, solutions, results)
+        elif isinstance(constraint, GroupLimitConstraint):
+            _check_binding_group_limit(constraint, solutions, results)
 
-        obj_name = constraint.objective
-        bound_val = constraint.value
-        values = _obj_values(solutions, obj_name)
-        if not values:
-            continue
 
-        if constraint.operator == BoundOperator.max:
-            extreme = max(values)
-            if extreme >= bound_val * 0.95:
-                results.append({
-                    "pattern": "binding_constraint",
-                    "severity": "info",
-                    "constraint": f"{obj_name} ≤ {bound_val}",
-                    "extreme_value": round(extreme, 2),
-                })
-        elif constraint.operator == BoundOperator.min:
-            extreme = min(values)
-            if extreme <= bound_val * 1.05:
-                results.append({
-                    "pattern": "binding_constraint",
-                    "severity": "info",
-                    "constraint": f"{obj_name} ≥ {bound_val}",
-                    "extreme_value": round(extreme, 2),
-                })
+def _check_binding_objective_bound(constraint, solutions, results):
+    obj_name = constraint.objective
+    bound_val = constraint.value
+    values = _obj_values(solutions, obj_name)
+    if not values:
+        return
+
+    if constraint.operator == BoundOperator.max:
+        extreme = max(values)
+        if extreme >= bound_val * 0.95:
+            results.append({
+                "pattern": "binding_constraint",
+                "severity": "info",
+                "constraint": f"{obj_name} ≤ {bound_val}",
+                "extreme_value": round(extreme, 2),
+            })
+    elif constraint.operator == BoundOperator.min:
+        extreme = min(values)
+        if extreme <= bound_val * 1.05:
+            results.append({
+                "pattern": "binding_constraint",
+                "severity": "info",
+                "constraint": f"{obj_name} ≥ {bound_val}",
+                "extreme_value": round(extreme, 2),
+            })
+
+
+def _check_binding_cardinality(constraint, solutions, results):
+    for sol in solutions:
+        count = len(sol.selected_options)
+        if count == constraint.max:
+            results.append({
+                "pattern": "binding_constraint",
+                "severity": "info",
+                "constraint": f"cardinality ≤ {constraint.max}",
+                "actual_value": count,
+            })
+            return
+        if count == constraint.min and constraint.min > 1:
+            results.append({
+                "pattern": "binding_constraint",
+                "severity": "info",
+                "constraint": f"cardinality ≥ {constraint.min}",
+                "actual_value": count,
+            })
+            return
+
+
+def _check_binding_group_limit(constraint, solutions, results):
+    group_set = set(constraint.options)
+    for sol in solutions:
+        count = len(group_set.intersection(sol.selected_options))
+        if count == constraint.max:
+            results.append({
+                "pattern": "binding_constraint",
+                "severity": "info",
+                "constraint": f"group_limit({', '.join(constraint.options)}) ≤ {constraint.max}",
+                "actual_value": count,
+            })
+            return
 
 
 # --- Shared helpers ---
