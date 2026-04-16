@@ -1,0 +1,3016 @@
+{
+  "all_results": [
+    {
+      "scenario": "base",
+      "n_solutions": 41,
+      "solve_time_s": 2.82,
+      "solutions": [
+        {
+          "allocations": {
+            "VGSH": 25,
+            "TIP": 25,
+            "HYG": 24,
+            "GSG": 1,
+            "DBA": 25
+          },
+          "return_pct": 4.5,
+          "volatility_pct": 7.35,
+          "yield_pct": 4.1,
+          "n_holdings": 5
+        },
+        {
+          "allocations": {
+            "EWJ": 5,
+            "BND": 1,
+            "VGSH": 5,
+            "VDE": 29,
+            "GLD": 29,
+            "GSG": 29,
+            "DBA": 2
+          },
+          "return_pct": 17.46,
+          "volatility_pct": 19.15,
+          "yield_pct": 1.18,
+          "n_holdings": 7
+        },
+        {
+          "allocations": {
+            "VOO": 1,
+            "EWJ": 33,
+            "HYG": 33,
+            "EMB": 33
+          },
+          "return_pct": 4.59,
+          "volatility_pct": 11.37,
+          "yield_pct": 5.07,
+          "n_holdings": 4
+        },
+        {
+          "allocations": {
+            "EWJ": 29,
+            "HYG": 28,
+            "EMB": 8,
+            "VDE": 1,
+            "VNQI": 5,
+            "DBA": 29
+          },
+          "return_pct": 6.8,
+          "volatility_pct": 12.3,
+          "yield_pct": 4.55,
+          "n_holdings": 6
+        },
+        {
+          "allocations": {
+            "BND": 4,
+            "VGSH": 5,
+            "HYG": 30,
+            "EMB": 30,
+            "DBA": 30,
+            "IGF": 1
+          },
+          "return_pct": 5.15,
+          "volatility_pct": 9.69,
+          "yield_pct": 4.69,
+          "n_holdings": 6
+        },
+        {
+          "allocations": {
+            "BND": 9,
+            "VGSH": 23,
+            "TIP": 23,
+            "GLD": 23,
+            "DBA": 22
+          },
+          "return_pct": 7.61,
+          "volatility_pct": 8.96,
+          "yield_pct": 2.79,
+          "n_holdings": 5
+        },
+        {
+          "allocations": {
+            "BND": 3,
+            "VGSH": 27,
+            "GLD": 35,
+            "DBA": 35
+          },
+          "return_pct": 11.21,
+          "volatility_pct": 10.63,
+          "yield_pct": 2.36,
+          "n_holdings": 4
+        },
+        {
+          "allocations": {
+            "EWJ": 17,
+            "VGSH": 16,
+            "HYG": 16,
+            "VDE": 17,
+            "GLD": 17,
+            "GSG": 1,
+            "DBA": 16
+          },
+          "return_pct": 11.25,
+          "volatility_pct": 13.64,
+          "yield_pct": 3.23,
+          "n_holdings": 7
+        },
+        {
+          "allocations": {
+            "BND": 29,
+            "VGSH": 29,
+            "TIP": 29,
+            "GLD": 6,
+            "DBA": 7
+          },
+          "return_pct": 2.85,
+          "volatility_pct": 6.26,
+          "yield_pct": 3.51,
+          "n_holdings": 5
+        },
+        {
+          "allocations": {
+            "EWJ": 22,
+            "HYG": 2,
+            "VDE": 22,
+            "GLD": 23,
+            "GSG": 9,
+            "DBA": 22
+          },
+          "return_pct": 15.0,
+          "volatility_pct": 17.54,
+          "yield_pct": 2.31,
+          "n_holdings": 6
+        },
+        {
+          "allocations": {
+            "VGSH": 33,
+            "TIP": 33,
+            "HYG": 33,
+            "DBA": 1
+          },
+          "return_pct": 2.35,
+          "volatility_pct": 5.64,
+          "yield_pct": 4.42,
+          "n_holdings": 4
+        },
+        {
+          "allocations": {
+            "BND": 2,
+            "VGSH": 30,
+            "TIP": 1,
+            "HYG": 29,
+            "GLD": 9,
+            "DBA": 29
+          },
+          "return_pct": 6.59,
+          "volatility_pct": 8.11,
+          "yield_pct": 3.97,
+          "n_holdings": 6
+        },
+        {
+          "allocations": {
+            "VEA": 3,
+            "VGSH": 22,
+            "HYG": 21,
+            "EMB": 10,
+            "GLD": 22,
+            "DBA": 22
+          },
+          "return_pct": 8.4,
+          "volatility_pct": 9.87,
+          "yield_pct": 3.44,
+          "n_holdings": 6
+        },
+        {
+          "allocations": {
+            "VGK": 1,
+            "VGSH": 33,
+            "HYG": 33,
+            "EMB": 33
+          },
+          "return_pct": 2.59,
+          "volatility_pct": 6.96,
+          "yield_pct": 4.96,
+          "n_holdings": 4
+        },
+        {
+          "allocations": {
+            "EWJ": 23,
+            "VGSH": 23,
+            "HYG": 23,
+            "EMB": 5,
+            "VDE": 23,
+            "VFH": 2,
+            "DBA": 1
+          },
+          "return_pct": 8.56,
+          "volatility_pct": 13.06,
+          "yield_pct": 4.1,
+          "n_holdings": 7
+        },
+        {
+          "allocations": {
+            "EWJ": 33,
+            "HYG": 1,
+            "EMB": 33,
+            "VDE": 33
+          },
+          "return_pct": 10.5,
+          "volatility_pct": 17.47,
+          "yield_pct": 3.92,
+          "n_holdings": 4
+        },
+        {
+          "allocations": {
+            "EWJ": 4,
+            "BND": 16,
+            "VGSH": 16,
+            "HYG": 16,
+            "VDE": 16,
+            "DBA": 16,
+            "IGF": 16
+          },
+          "return_pct": 8.29,
+          "volatility_pct": 11.94,
+          "yield_pct": 3.74,
+          "n_holdings": 7
+        },
+        {
+          "allocations": {
+            "EWJ": 20,
+            "HYG": 19,
+            "VDE": 20,
+            "GLD": 20,
+            "GSG": 2,
+            "DBA": 19
+          },
+          "return_pct": 13.04,
+          "volatility_pct": 15.83,
+          "yield_pct": 3.07,
+          "n_holdings": 6
+        },
+        {
+          "allocations": {
+            "BND": 2,
+            "VGSH": 18,
+            "HYG": 18,
+            "VDE": 8,
+            "GLD": 18,
+            "GSG": 18,
+            "DBA": 18
+          },
+          "return_pct": 11.17,
+          "volatility_pct": 12.63,
+          "yield_pct": 2.63,
+          "n_holdings": 7
+        },
+        {
+          "allocations": {
+            "EWJ": 6,
+            "VGSH": 2,
+            "HYG": 23,
+            "VDE": 23,
+            "DBA": 23,
+            "IGF": 23
+          },
+          "return_pct": 11.5,
+          "volatility_pct": 15.24,
+          "yield_pct": 3.66,
+          "n_holdings": 6
+        },
+        {
+          "allocations": {
+            "BND": 24,
+            "VGSH": 25,
+            "HYG": 24,
+            "EMB": 1,
+            "VDE": 1,
+            "GLD": 25
+          },
+          "return_pct": 6.66,
+          "volatility_pct": 8.35,
+          "yield_pct": 3.41,
+          "n_holdings": 6
+        },
+        {
+          "allocations": {
+            "BND": 25,
+            "VGSH": 25,
+            "HYG": 25,
+            "EMB": 25
+          },
+          "return_pct": 1.96,
+          "volatility_pct": 6.76,
+          "yield_pct": 4.71,
+          "n_holdings": 4
+        },
+        {
+          "allocations": {
+            "EWJ": 10,
+            "VGSH": 30,
+            "HYG": 30,
+            "EMB": 30
+          },
+          "return_pct": 3.06,
+          "volatility_pct": 7.73,
+          "yield_pct": 4.92,
+          "n_holdings": 4
+        },
+        {
+          "allocations": {
+            "EWJ": 10,
+            "HYG": 22,
+            "EMB": 22,
+            "VDE": 23,
+            "IGF": 23
+          },
+          "return_pct": 9.68,
+          "volatility_pct": 15.24,
+          "yield_pct": 4.05,
+          "n_holdings": 5
+        },
+        {
+          "allocations": {
+            "BND": 2,
+            "VGSH": 19,
+            "VDE": 20,
+            "GLD": 20,
+            "DBA": 19,
+            "IGF": 20
+          },
+          "return_pct": 13.0,
+          "volatility_pct": 14.43,
+          "yield_pct": 2.51,
+          "n_holdings": 6
+        },
+        {
+          "allocations": {
+            "VGK": 1,
+            "EWJ": 1,
+            "VGSH": 26,
+            "HYG": 26,
+            "EMB": 26,
+            "DBA": 20
+          },
+          "return_pct": 4.28,
+          "volatility_pct": 8.12,
+          "yield_pct": 4.63,
+          "n_holdings": 6
+        },
+        {
+          "allocations": {
+            "EWJ": 2,
+            "BND": 16,
+            "VGSH": 16,
+            "TIP": 2,
+            "HYG": 16,
+            "VDE": 16,
+            "GLD": 16,
+            "DBA": 16
+          },
+          "return_pct": 9.56,
+          "volatility_pct": 11.85,
+          "yield_pct": 3.25,
+          "n_holdings": 8
+        },
+        {
+          "allocations": {
+            "VGSH": 21,
+            "HYG": 21,
+            "EMB": 21,
+            "VDE": 15,
+            "DBA": 21,
+            "IGF": 1
+          },
+          "return_pct": 7.27,
+          "volatility_pct": 11.02,
+          "yield_pct": 4.21,
+          "n_holdings": 6
+        },
+        {
+          "allocations": {
+            "VO": 1,
+            "VGSH": 42,
+            "VGLT": 1,
+            "TIP": 5,
+            "HYG": 41,
+            "VHT": 4,
+            "GLD": 6
+          },
+          "return_pct": 3.8,
+          "volatility_pct": 6.35,
+          "yield_pct": 4.37,
+          "n_holdings": 7
+        },
+        {
+          "allocations": {
+            "VOO": 1,
+            "VGSH": 20,
+            "VDE": 20,
+            "GLD": 20,
+            "GSG": 20,
+            "DBA": 19
+          },
+          "return_pct": 14.08,
+          "volatility_pct": 15.29,
+          "yield_pct": 1.89,
+          "n_holdings": 6
+        },
+        {
+          "allocations": {
+            "HYG": 4,
+            "VDE": 32,
+            "DBA": 32,
+            "IGF": 32
+          },
+          "return_pct": 14.2,
+          "volatility_pct": 17.63,
+          "yield_pct": 2.98,
+          "n_holdings": 4
+        },
+        {
+          "allocations": {
+            "VGSH": 10,
+            "TIP": 1,
+            "GLD": 44,
+            "DBA": 45
+          },
+          "return_pct": 13.76,
+          "volatility_pct": 12.78,
+          "yield_pct": 1.94,
+          "n_holdings": 4
+        },
+        {
+          "allocations": {
+            "BND": 30,
+            "VGSH": 30,
+            "HYG": 29,
+            "EMB": 11
+          },
+          "return_pct": 1.96,
+          "volatility_pct": 6.05,
+          "yield_pct": 4.63,
+          "n_holdings": 4
+        },
+        {
+          "allocations": {
+            "VEA": 1,
+            "EWJ": 25,
+            "VGSH": 25,
+            "HYG": 24,
+            "DBA": 25
+          },
+          "return_pct": 6.11,
+          "volatility_pct": 9.57,
+          "yield_pct": 4.35,
+          "n_holdings": 5
+        },
+        {
+          "allocations": {
+            "BND": 25,
+            "VGSH": 26,
+            "TIP": 26,
+            "HYG": 4,
+            "GLD": 10,
+            "DBA": 9
+          },
+          "return_pct": 3.92,
+          "volatility_pct": 6.93,
+          "yield_pct": 3.44,
+          "n_holdings": 6
+        },
+        {
+          "allocations": {
+            "VGSH": 23,
+            "HYG": 23,
+            "EMB": 3,
+            "GLD": 5,
+            "DBA": 23,
+            "IGF": 23
+          },
+          "return_pct": 7.39,
+          "volatility_pct": 9.76,
+          "yield_pct": 3.87,
+          "n_holdings": 6
+        },
+        {
+          "allocations": {
+            "VWO": 1,
+            "EWJ": 23,
+            "VGSH": 7,
+            "HYG": 23,
+            "EMB": 23,
+            "DBA": 23
+          },
+          "return_pct": 5.75,
+          "volatility_pct": 10.93,
+          "yield_pct": 4.6,
+          "n_holdings": 6
+        },
+        {
+          "allocations": {
+            "EWJ": 24,
+            "VGSH": 3,
+            "HYG": 24,
+            "EMB": 25,
+            "VDE": 24
+          },
+          "return_pct": 8.62,
+          "volatility_pct": 14.71,
+          "yield_pct": 4.39,
+          "n_holdings": 5
+        },
+        {
+          "allocations": {
+            "EWJ": 5,
+            "VGSH": 32,
+            "HYG": 31,
+            "DBA": 32
+          },
+          "return_pct": 5.61,
+          "volatility_pct": 7.84,
+          "yield_pct": 4.38,
+          "n_holdings": 4
+        },
+        {
+          "allocations": {
+            "EWJ": 17,
+            "VGSH": 16,
+            "HYG": 16,
+            "VDE": 17,
+            "VFH": 1,
+            "DBA": 16,
+            "IGF": 17
+          },
+          "return_pct": 9.68,
+          "volatility_pct": 13.54,
+          "yield_pct": 3.75,
+          "n_holdings": 7
+        },
+        {
+          "allocations": {
+            "VGSH": 23,
+            "TIP": 23,
+            "VDE": 8,
+            "VDC": 1,
+            "GLD": 23,
+            "DBA": 22
+          },
+          "return_pct": 9.42,
+          "volatility_pct": 10.64,
+          "yield_pct": 2.64,
+          "n_holdings": 6
+        }
+      ],
+      "scenario_data": {
+        "returns": {
+          "VOO": 11.98,
+          "VUG": 12.23,
+          "VTV": 10.35,
+          "VO": 6.72,
+          "VB": 5.96,
+          "SCHD": 7.45,
+          "VEA": 8.82,
+          "VWO": 4.49,
+          "VGK": 8.47,
+          "EWJ": 7.78,
+          "MCHI": -4.96,
+          "BND": 0.23,
+          "VGSH": 1.83,
+          "VGLT": -5.0,
+          "TIP": 1.06,
+          "HYG": 3.91,
+          "EMB": 1.85,
+          "VGT": 16.19,
+          "VHT": 4.24,
+          "VDE": 22.08,
+          "VFH": 8.41,
+          "VPU": 10.6,
+          "VDC": 6.52,
+          "VOX": 7.69,
+          "VNQ": 2.39,
+          "VNQI": -0.58,
+          "GLD": 19.88,
+          "GSG": 15.86,
+          "DBA": 10.71,
+          "IGF": 11.11
+        },
+        "vols": {
+          "VOO": 15.63,
+          "VUG": 19.84,
+          "VTV": 14.46,
+          "VO": 17.14,
+          "VB": 19.05,
+          "SCHD": 15.35,
+          "VEA": 16.76,
+          "VWO": 15.38,
+          "VGK": 18.14,
+          "EWJ": 15.64,
+          "MCHI": 28.65,
+          "BND": 6.51,
+          "VGSH": 2.2,
+          "VGLT": 13.82,
+          "TIP": 6.63,
+          "HYG": 7.89,
+          "EMB": 10.46,
+          "VGT": 21.47,
+          "VHT": 14.83,
+          "VDE": 26.59,
+          "VFH": 19.1,
+          "VPU": 16.83,
+          "VDC": 13.92,
+          "VOX": 19.08,
+          "VNQ": 19.67,
+          "VNQI": 18.22,
+          "GLD": 15.91,
+          "GSG": 19.4,
+          "DBA": 12.2,
+          "IGF": 15.32
+        },
+        "yields": {
+          "VOO": 1.19,
+          "VUG": 0.46,
+          "VTV": 2.02,
+          "VO": 1.51,
+          "VB": 1.34,
+          "SCHD": 3.44,
+          "VEA": 2.94,
+          "VWO": 2.71,
+          "VGK": 3.01,
+          "EWJ": 4.33,
+          "MCHI": 2.27,
+          "BND": 3.91,
+          "VGSH": 3.95,
+          "VGLT": 4.49,
+          "TIP": 3.45,
+          "HYG": 5.88,
+          "EMB": 5.11,
+          "VGT": 0.44,
+          "VHT": 1.72,
+          "VDE": 2.27,
+          "VFH": 1.61,
+          "VPU": 2.57,
+          "VDC": 2.15,
+          "VOX": 1.05,
+          "VNQ": 3.93,
+          "VNQI": 4.87,
+          "GLD": 0.0,
+          "GSG": 0.0,
+          "DBA": 3.35,
+          "IGF": 2.96
+        }
+      }
+    },
+    {
+      "scenario": "rate_cuts",
+      "n_solutions": 42,
+      "solve_time_s": 2.77,
+      "solutions": [
+        {
+          "allocations": {
+            "VO": 1,
+            "BND": 20,
+            "VGSH": 20,
+            "HYG": 19,
+            "EMB": 20,
+            "DBA": 20
+          },
+          "return_pct": 3.75,
+          "volatility_pct": 7.93,
+          "yield_pct": 3.28,
+          "n_holdings": 6
+        },
+        {
+          "allocations": {
+            "VTV": 12,
+            "SCHD": 12,
+            "EWJ": 12,
+            "BND": 6,
+            "VGSH": 11,
+            "VGLT": 11,
+            "HYG": 12,
+            "EMB": 12,
+            "DBA": 12
+          },
+          "return_pct": 7.06,
+          "volatility_pct": 10.73,
+          "yield_pct": 3.31,
+          "n_holdings": 9
+        },
+        {
+          "allocations": {
+            "VOO": 13,
+            "VTV": 11,
+            "EWJ": 5,
+            "BND": 7,
+            "VGSH": 13,
+            "TIP": 12,
+            "HYG": 13,
+            "GLD": 13,
+            "DBA": 13
+          },
+          "return_pct": 8.88,
+          "volatility_pct": 10.18,
+          "yield_pct": 2.4,
+          "n_holdings": 9
+        },
+        {
+          "allocations": {
+            "VTV": 17,
+            "SCHD": 17,
+            "VEA": 16,
+            "EWJ": 16,
+            "VDE": 17,
+            "DBA": 17
+          },
+          "return_pct": 12.96,
+          "volatility_pct": 15.82,
+          "yield_pct": 3.05,
+          "n_holdings": 6
+        },
+        {
+          "allocations": {
+            "VTV": 19,
+            "SCHD": 4,
+            "EWJ": 19,
+            "VDE": 19,
+            "GLD": 19,
+            "DBA": 20
+          },
+          "return_pct": 14.98,
+          "volatility_pct": 16.21,
+          "yield_pct": 2.45,
+          "n_holdings": 6
+        },
+        {
+          "allocations": {
+            "SCHD": 14,
+            "VEA": 14,
+            "VGK": 14,
+            "EWJ": 14,
+            "VGLT": 2,
+            "VDE": 14,
+            "VNQI": 14,
+            "DBA": 14
+          },
+          "return_pct": 10.59,
+          "volatility_pct": 16.56,
+          "yield_pct": 3.45,
+          "n_holdings": 8
+        },
+        {
+          "allocations": {
+            "SCHD": 12,
+            "VEA": 5,
+            "EWJ": 12,
+            "BND": 11,
+            "VGSH": 12,
+            "HYG": 12,
+            "EMB": 12,
+            "VNQI": 12,
+            "DBA": 12
+          },
+          "return_pct": 5.1,
+          "volatility_pct": 10.93,
+          "yield_pct": 3.62,
+          "n_holdings": 9
+        },
+        {
+          "allocations": {
+            "BND": 23,
+            "VGSH": 23,
+            "TIP": 23,
+            "HYG": 23,
+            "GLD": 2,
+            "DBA": 6
+          },
+          "return_pct": 2.66,
+          "volatility_pct": 6.39,
+          "yield_pct": 2.97,
+          "n_holdings": 6
+        },
+        {
+          "allocations": {
+            "VTV": 9,
+            "SCHD": 9,
+            "VEA": 9,
+            "VGK": 9,
+            "EWJ": 10,
+            "VGSH": 9,
+            "VGLT": 9,
+            "HYG": 9,
+            "VDE": 9,
+            "VNQI": 9,
+            "DBA": 9
+          },
+          "return_pct": 9.25,
+          "volatility_pct": 13.93,
+          "yield_pct": 3.31,
+          "n_holdings": 11
+        },
+        {
+          "allocations": {
+            "VOO": 18,
+            "VUG": 2,
+            "VTV": 18,
+            "VO": 1,
+            "BND": 18,
+            "VGSH": 18,
+            "TIP": 4,
+            "HYG": 3,
+            "GLD": 18
+          },
+          "return_pct": 9.74,
+          "volatility_pct": 10.32,
+          "yield_pct": 1.81,
+          "n_holdings": 9
+        },
+        {
+          "allocations": {
+            "BND": 33,
+            "VGSH": 33,
+            "TIP": 33,
+            "GSG": 1
+          },
+          "return_pct": 1.19,
+          "volatility_pct": 5.26,
+          "yield_pct": 2.61,
+          "n_holdings": 4
+        },
+        {
+          "allocations": {
+            "VTV": 16,
+            "BND": 15,
+            "VGSH": 16,
+            "TIP": 16,
+            "HYG": 15,
+            "VNQI": 6,
+            "DBA": 16
+          },
+          "return_pct": 4.92,
+          "volatility_pct": 8.7,
+          "yield_pct": 3.01,
+          "n_holdings": 7
+        },
+        {
+          "allocations": {
+            "SCHD": 20,
+            "EWJ": 20,
+            "VDE": 20,
+            "GLD": 20,
+            "DBA": 20
+          },
+          "return_pct": 14.49,
+          "volatility_pct": 16.52,
+          "yield_pct": 2.68,
+          "n_holdings": 5
+        },
+        {
+          "allocations": {
+            "VOO": 11,
+            "VTV": 5,
+            "SCHD": 11,
+            "VEA": 11,
+            "VGK": 11,
+            "EWJ": 11,
+            "BND": 1,
+            "HYG": 11,
+            "VDE": 6,
+            "DBA": 11,
+            "IGF": 11
+          },
+          "return_pct": 11.19,
+          "volatility_pct": 14.28,
+          "yield_pct": 3.05,
+          "n_holdings": 11
+        },
+        {
+          "allocations": {
+            "VUG": 2,
+            "VTV": 15,
+            "VEA": 2,
+            "EWJ": 15,
+            "BND": 14,
+            "VGSH": 14,
+            "VGLT": 1,
+            "TIP": 1,
+            "HYG": 14,
+            "VDE": 6,
+            "DBA": 14,
+            "IGF": 2
+          },
+          "return_pct": 8.06,
+          "volatility_pct": 10.86,
+          "yield_pct": 3.09,
+          "n_holdings": 12
+        },
+        {
+          "allocations": {
+            "VOO": 2,
+            "EWJ": 16,
+            "BND": 16,
+            "VGSH": 16,
+            "HYG": 16,
+            "EMB": 16,
+            "GSG": 2,
+            "DBA": 16
+          },
+          "return_pct": 5.21,
+          "volatility_pct": 9.2,
+          "yield_pct": 3.36,
+          "n_holdings": 8
+        },
+        {
+          "allocations": {
+            "VOO": 14,
+            "VUG": 1,
+            "VTV": 14,
+            "VEA": 1,
+            "EWJ": 14,
+            "VGSH": 14,
+            "HYG": 14,
+            "GLD": 14,
+            "DBA": 14
+          },
+          "return_pct": 10.84,
+          "volatility_pct": 11.44,
+          "yield_pct": 2.52,
+          "n_holdings": 9
+        },
+        {
+          "allocations": {
+            "SCHD": 14,
+            "VEA": 14,
+            "EWJ": 13,
+            "VGLT": 3,
+            "HYG": 14,
+            "EMB": 14,
+            "VNQI": 14,
+            "DBA": 14
+          },
+          "return_pct": 6.74,
+          "volatility_pct": 13.12,
+          "yield_pct": 3.78,
+          "n_holdings": 8
+        },
+        {
+          "allocations": {
+            "VTV": 5,
+            "SCHD": 10,
+            "VEA": 10,
+            "VGK": 10,
+            "EWJ": 11,
+            "VGLT": 11,
+            "VDE": 11,
+            "VNQI": 10,
+            "DBA": 11,
+            "IGF": 11
+          },
+          "return_pct": 10.65,
+          "volatility_pct": 16.02,
+          "yield_pct": 3.29,
+          "n_holdings": 10
+        },
+        {
+          "allocations": {
+            "SCHD": 16,
+            "VEA": 16,
+            "VGK": 2,
+            "EWJ": 16,
+            "VGLT": 16,
+            "HYG": 16,
+            "VNQI": 2,
+            "DBA": 16
+          },
+          "return_pct": 8.83,
+          "volatility_pct": 12.99,
+          "yield_pct": 3.57,
+          "n_holdings": 8
+        },
+        {
+          "allocations": {
+            "SCHD": 12,
+            "VEA": 12,
+            "VGK": 1,
+            "EWJ": 12,
+            "VGLT": 4,
+            "HYG": 12,
+            "VDE": 11,
+            "VNQI": 12,
+            "DBA": 12,
+            "IGF": 12
+          },
+          "return_pct": 9.63,
+          "volatility_pct": 15.23,
+          "yield_pct": 3.53,
+          "n_holdings": 10
+        },
+        {
+          "allocations": {
+            "VOO": 1,
+            "VTV": 13,
+            "VEA": 2,
+            "EWJ": 13,
+            "BND": 13,
+            "VGSH": 13,
+            "TIP": 14,
+            "HYG": 13,
+            "VDE": 3,
+            "DBA": 13,
+            "IGF": 2
+          },
+          "return_pct": 6.65,
+          "volatility_pct": 9.74,
+          "yield_pct": 3.05,
+          "n_holdings": 11
+        },
+        {
+          "allocations": {
+            "VOO": 17,
+            "BND": 16,
+            "VGSH": 17,
+            "TIP": 16,
+            "HYG": 17,
+            "DBA": 17
+          },
+          "return_pct": 5.65,
+          "volatility_pct": 8.28,
+          "yield_pct": 2.77,
+          "n_holdings": 6
+        },
+        {
+          "allocations": {
+            "BND": 25,
+            "VGSH": 25,
+            "TIP": 25,
+            "HYG": 25
+          },
+          "return_pct": 1.76,
+          "volatility_pct": 5.81,
+          "yield_pct": 3.01,
+          "n_holdings": 4
+        },
+        {
+          "allocations": {
+            "SCHD": 12,
+            "EWJ": 12,
+            "VGSH": 12,
+            "VGLT": 3,
+            "HYG": 12,
+            "EMB": 12,
+            "VHT": 1,
+            "VNQ": 12,
+            "VNQI": 12,
+            "DBA": 12
+          },
+          "return_pct": 5.07,
+          "volatility_pct": 12.39,
+          "yield_pct": 3.76,
+          "n_holdings": 10
+        },
+        {
+          "allocations": {
+            "VOO": 14,
+            "VUG": 13,
+            "VTV": 13,
+            "SCHD": 5,
+            "VEA": 14,
+            "VGK": 14,
+            "VDE": 14,
+            "GLD": 13
+          },
+          "return_pct": 15.3,
+          "volatility_pct": 16.86,
+          "yield_pct": 1.81,
+          "n_holdings": 8
+        },
+        {
+          "allocations": {
+            "VEA": 12,
+            "VGK": 12,
+            "EWJ": 12,
+            "VGSH": 12,
+            "VGLT": 13,
+            "HYG": 13,
+            "VHT": 1,
+            "DBA": 13,
+            "IGF": 12
+          },
+          "return_pct": 8.45,
+          "volatility_pct": 12.12,
+          "yield_pct": 3.32,
+          "n_holdings": 9
+        },
+        {
+          "allocations": {
+            "VTV": 13,
+            "VEA": 1,
+            "EWJ": 12,
+            "BND": 12,
+            "VGSH": 12,
+            "TIP": 13,
+            "HYG": 13,
+            "GLD": 12,
+            "DBA": 12
+          },
+          "return_pct": 7.64,
+          "volatility_pct": 9.84,
+          "yield_pct": 2.72,
+          "n_holdings": 9
+        },
+        {
+          "allocations": {
+            "VOO": 20,
+            "VTV": 19,
+            "VGSH": 20,
+            "TIP": 20,
+            "HYG": 20,
+            "GLD": 1
+          },
+          "return_pct": 7.23,
+          "volatility_pct": 8.79,
+          "yield_pct": 2.48,
+          "n_holdings": 6
+        },
+        {
+          "allocations": {
+            "VOO": 9,
+            "VTV": 9,
+            "SCHD": 9,
+            "VEA": 9,
+            "EWJ": 9,
+            "VGSH": 9,
+            "TIP": 9,
+            "HYG": 9,
+            "EMB": 9,
+            "VGT": 1,
+            "GLD": 9,
+            "DBA": 9
+          },
+          "return_pct": 9.12,
+          "volatility_pct": 11.5,
+          "yield_pct": 2.72,
+          "n_holdings": 12
+        },
+        {
+          "allocations": {
+            "SCHD": 10,
+            "VGK": 10,
+            "EWJ": 10,
+            "VGSH": 10,
+            "VGLT": 10,
+            "HYG": 10,
+            "EMB": 11,
+            "VNQI": 10,
+            "DBA": 10,
+            "IGF": 9
+          },
+          "return_pct": 6.67,
+          "volatility_pct": 12.38,
+          "yield_pct": 3.56,
+          "n_holdings": 10
+        },
+        {
+          "allocations": {
+            "VOO": 10,
+            "VTV": 9,
+            "SCHD": 10,
+            "VEA": 10,
+            "EWJ": 10,
+            "VGSH": 1,
+            "HYG": 10,
+            "VDE": 10,
+            "GLD": 10,
+            "DBA": 10,
+            "IGF": 10
+          },
+          "return_pct": 12.68,
+          "volatility_pct": 14.69,
+          "yield_pct": 2.67,
+          "n_holdings": 11
+        },
+        {
+          "allocations": {
+            "VUG": 2,
+            "VTV": 20,
+            "VGK": 1,
+            "EWJ": 1,
+            "BND": 20,
+            "VGSH": 20,
+            "TIP": 12,
+            "HYG": 3,
+            "VDE": 1,
+            "GLD": 20
+          },
+          "return_pct": 8.07,
+          "volatility_pct": 9.49,
+          "yield_pct": 2.02,
+          "n_holdings": 10
+        },
+        {
+          "allocations": {
+            "VOO": 12,
+            "VUG": 3,
+            "VTV": 12,
+            "SCHD": 12,
+            "VEA": 12,
+            "EWJ": 11,
+            "HYG": 3,
+            "VDE": 11,
+            "VFH": 1,
+            "GLD": 12,
+            "DBA": 11
+          },
+          "return_pct": 13.81,
+          "volatility_pct": 15.41,
+          "yield_pct": 2.4,
+          "n_holdings": 11
+        },
+        {
+          "allocations": {
+            "VOO": 9,
+            "VTV": 8,
+            "SCHD": 8,
+            "VEA": 8,
+            "VGK": 9,
+            "EWJ": 9,
+            "VGSH": 9,
+            "HYG": 9,
+            "EMB": 9,
+            "VDE": 4,
+            "DBA": 9,
+            "IGF": 9
+          },
+          "return_pct": 9.6,
+          "volatility_pct": 12.75,
+          "yield_pct": 3.04,
+          "n_holdings": 12
+        },
+        {
+          "allocations": {
+            "EWJ": 16,
+            "BND": 16,
+            "VGSH": 16,
+            "HYG": 16,
+            "EMB": 17,
+            "VNQI": 3,
+            "DBA": 16
+          },
+          "return_pct": 4.58,
+          "volatility_pct": 9.18,
+          "yield_pct": 3.52,
+          "n_holdings": 7
+        },
+        {
+          "allocations": {
+            "VOO": 13,
+            "VUG": 12,
+            "VTV": 12,
+            "SCHD": 12,
+            "EWJ": 1,
+            "VGSH": 12,
+            "VDE": 13,
+            "GLD": 13,
+            "IGF": 12
+          },
+          "return_pct": 13.82,
+          "volatility_pct": 14.96,
+          "yield_pct": 1.89,
+          "n_holdings": 9
+        },
+        {
+          "allocations": {
+            "VOO": 21,
+            "VUG": 1,
+            "VTV": 21,
+            "VEA": 7,
+            "VGSH": 21,
+            "TIP": 7,
+            "EMB": 1,
+            "GLD": 21
+          },
+          "return_pct": 11.71,
+          "volatility_pct": 11.29,
+          "yield_pct": 1.67,
+          "n_holdings": 8
+        },
+        {
+          "allocations": {
+            "SCHD": 13,
+            "EWJ": 13,
+            "BND": 7,
+            "VGSH": 13,
+            "TIP": 1,
+            "HYG": 14,
+            "EMB": 13,
+            "VNQI": 13,
+            "DBA": 13
+          },
+          "return_pct": 4.94,
+          "volatility_pct": 10.85,
+          "yield_pct": 3.7,
+          "n_holdings": 9
+        },
+        {
+          "allocations": {
+            "VOO": 10,
+            "VTV": 10,
+            "SCHD": 2,
+            "VGK": 10,
+            "EWJ": 10,
+            "VGSH": 10,
+            "HYG": 10,
+            "EMB": 10,
+            "VDE": 10,
+            "GLD": 8,
+            "DBA": 10
+          },
+          "return_pct": 10.84,
+          "volatility_pct": 13.23,
+          "yield_pct": 2.73,
+          "n_holdings": 11
+        },
+        {
+          "allocations": {
+            "VOO": 13,
+            "VTV": 13,
+            "EWJ": 12,
+            "VGSH": 12,
+            "HYG": 12,
+            "VDE": 12,
+            "GLD": 13,
+            "DBA": 13
+          },
+          "return_pct": 12.3,
+          "volatility_pct": 13.27,
+          "yield_pct": 2.47,
+          "n_holdings": 8
+        },
+        {
+          "allocations": {
+            "VOO": 14,
+            "VUG": 13,
+            "VTV": 13,
+            "SCHD": 14,
+            "VGSH": 14,
+            "TIP": 4,
+            "GLD": 14,
+            "IGF": 14
+          },
+          "return_pct": 11.99,
+          "volatility_pct": 12.86,
+          "yield_pct": 1.87,
+          "n_holdings": 8
+        }
+      ],
+      "scenario_data": {
+        "returns": {
+          "VOO": 15.57,
+          "VUG": 15.9,
+          "VTV": 13.46,
+          "VO": 8.74,
+          "VB": 7.75,
+          "SCHD": 9.69,
+          "VEA": 11.47,
+          "VWO": 5.84,
+          "VGK": 11.01,
+          "EWJ": 10.11,
+          "MCHI": -6.45,
+          "BND": 0.23,
+          "VGSH": 1.83,
+          "VGLT": 8.0,
+          "TIP": 1.06,
+          "HYG": 3.91,
+          "EMB": 1.85,
+          "VGT": 16.19,
+          "VHT": 4.24,
+          "VDE": 22.08,
+          "VFH": 8.41,
+          "VPU": 10.6,
+          "VDC": 6.52,
+          "VOX": 7.69,
+          "VNQ": 2.39,
+          "VNQI": -0.58,
+          "GLD": 19.88,
+          "GSG": 15.86,
+          "DBA": 10.71,
+          "IGF": 11.11
+        },
+        "vols": {
+          "VOO": 14.07,
+          "VUG": 17.86,
+          "VTV": 13.01,
+          "VO": 15.43,
+          "VB": 17.14,
+          "SCHD": 13.81,
+          "VEA": 15.08,
+          "VWO": 13.84,
+          "VGK": 16.33,
+          "EWJ": 14.08,
+          "MCHI": 25.79,
+          "BND": 6.51,
+          "VGSH": 2.2,
+          "VGLT": 13.82,
+          "TIP": 6.63,
+          "HYG": 7.89,
+          "EMB": 10.46,
+          "VGT": 21.47,
+          "VHT": 14.83,
+          "VDE": 26.59,
+          "VFH": 19.1,
+          "VPU": 16.83,
+          "VDC": 13.92,
+          "VOX": 19.08,
+          "VNQ": 19.67,
+          "VNQI": 18.22,
+          "GLD": 15.91,
+          "GSG": 19.4,
+          "DBA": 12.2,
+          "IGF": 15.32
+        },
+        "yields": {
+          "VOO": 1.19,
+          "VUG": 0.46,
+          "VTV": 2.02,
+          "VO": 1.51,
+          "VB": 1.34,
+          "SCHD": 3.44,
+          "VEA": 2.94,
+          "VWO": 2.71,
+          "VGK": 3.01,
+          "EWJ": 4.33,
+          "MCHI": 2.27,
+          "BND": 2.74,
+          "VGSH": 2.77,
+          "VGLT": 3.14,
+          "TIP": 2.42,
+          "HYG": 4.12,
+          "EMB": 3.58,
+          "VGT": 0.44,
+          "VHT": 1.72,
+          "VDE": 2.27,
+          "VFH": 1.61,
+          "VPU": 2.57,
+          "VDC": 2.15,
+          "VOX": 1.05,
+          "VNQ": 3.93,
+          "VNQI": 4.87,
+          "GLD": 0.0,
+          "GSG": 0.0,
+          "DBA": 3.35,
+          "IGF": 2.96
+        }
+      }
+    },
+    {
+      "scenario": "recession",
+      "n_solutions": 37,
+      "solve_time_s": 3.27,
+      "solutions": [
+        {
+          "allocations": {
+            "EWJ": 6,
+            "BND": 29,
+            "VGSH": 29,
+            "HYG": 29,
+            "EMB": 3,
+            "DBA": 4
+          },
+          "return_pct": 2.3,
+          "volatility_pct": 7.82,
+          "yield_pct": 4.53,
+          "n_holdings": 6
+        },
+        {
+          "allocations": {
+            "VOO": 1,
+            "EWJ": 9,
+            "VGSH": 14,
+            "HYG": 26,
+            "DBA": 25,
+            "IGF": 25
+          },
+          "return_pct": 5.82,
+          "volatility_pct": 12.21,
+          "yield_pct": 4.06,
+          "n_holdings": 6
+        },
+        {
+          "allocations": {
+            "BND": 27,
+            "VGSH": 27,
+            "HYG": 7,
+            "GLD": 12,
+            "DBA": 27
+          },
+          "return_pct": 7.3,
+          "volatility_pct": 8.28,
+          "yield_pct": 3.44,
+          "n_holdings": 5
+        },
+        {
+          "allocations": {
+            "EWJ": 30,
+            "VGSH": 31,
+            "HYG": 31,
+            "EMB": 8
+          },
+          "return_pct": 1.39,
+          "volatility_pct": 12.0,
+          "yield_pct": 4.76,
+          "n_holdings": 4
+        },
+        {
+          "allocations": {
+            "VGSH": 29,
+            "GLD": 29,
+            "GSG": 29,
+            "IGF": 13
+          },
+          "return_pct": 12.97,
+          "volatility_pct": 12.87,
+          "yield_pct": 1.53,
+          "n_holdings": 4
+        },
+        {
+          "allocations": {
+            "EWJ": 22,
+            "HYG": 22,
+            "EMB": 22,
+            "VNQI": 23,
+            "DBA": 11
+          },
+          "return_pct": 0.85,
+          "volatility_pct": 15.95,
+          "yield_pct": 4.86,
+          "n_holdings": 5
+        },
+        {
+          "allocations": {
+            "VGSH": 38,
+            "GLD": 38,
+            "DBA": 4,
+            "IGF": 20
+          },
+          "return_pct": 11.72,
+          "volatility_pct": 10.43,
+          "yield_pct": 2.23,
+          "n_holdings": 4
+        },
+        {
+          "allocations": {
+            "EWJ": 14,
+            "VGSH": 5,
+            "HYG": 20,
+            "GLD": 20,
+            "DBA": 20,
+            "IGF": 21
+          },
+          "return_pct": 8.69,
+          "volatility_pct": 14.29,
+          "yield_pct": 3.27,
+          "n_holdings": 6
+        },
+        {
+          "allocations": {
+            "BND": 32,
+            "VGSH": 32,
+            "HYG": 3,
+            "GLD": 33
+          },
+          "return_pct": 9.06,
+          "volatility_pct": 8.35,
+          "yield_pct": 2.69,
+          "n_holdings": 4
+        },
+        {
+          "allocations": {
+            "BND": 26,
+            "VGSH": 36,
+            "HYG": 36,
+            "DBA": 2
+          },
+          "return_pct": 1.97,
+          "volatility_pct": 6.44,
+          "yield_pct": 4.62,
+          "n_holdings": 4
+        },
+        {
+          "allocations": {
+            "BND": 20,
+            "VGSH": 21,
+            "HYG": 20,
+            "EMB": 3,
+            "DBA": 21,
+            "IGF": 15
+          },
+          "return_pct": 5.1,
+          "volatility_pct": 9.09,
+          "yield_pct": 4.09,
+          "n_holdings": 6
+        },
+        {
+          "allocations": {
+            "EWJ": 29,
+            "GLD": 14,
+            "DBA": 28,
+            "IGF": 29
+          },
+          "return_pct": 9.91,
+          "volatility_pct": 16.89,
+          "yield_pct": 3.05,
+          "n_holdings": 4
+        },
+        {
+          "allocations": {
+            "BND": 23,
+            "VGSH": 23,
+            "TIP": 23,
+            "HYG": 9,
+            "DBA": 22
+          },
+          "return_pct": 4.26,
+          "volatility_pct": 7.14,
+          "yield_pct": 3.87,
+          "n_holdings": 5
+        },
+        {
+          "allocations": {
+            "VGSH": 25,
+            "HYG": 24,
+            "EMB": 25,
+            "DBA": 23,
+            "IGF": 3
+          },
+          "return_pct": 2.82,
+          "volatility_pct": 9.69,
+          "yield_pct": 4.54,
+          "n_holdings": 5
+        },
+        {
+          "allocations": {
+            "BND": 25,
+            "VGSH": 35,
+            "HYG": 1,
+            "GLD": 35,
+            "DBA": 4
+          },
+          "return_pct": 9.77,
+          "volatility_pct": 8.56,
+          "yield_pct": 2.55,
+          "n_holdings": 5
+        },
+        {
+          "allocations": {
+            "BND": 23,
+            "VGSH": 23,
+            "GLD": 8,
+            "DBA": 23,
+            "IGF": 23
+          },
+          "return_pct": 8.45,
+          "volatility_pct": 9.61,
+          "yield_pct": 3.26,
+          "n_holdings": 5
+        },
+        {
+          "allocations": {
+            "EWJ": 22,
+            "VGSH": 6,
+            "HYG": 22,
+            "GLD": 6,
+            "DBA": 22,
+            "IGF": 22
+          },
+          "return_pct": 6.48,
+          "volatility_pct": 14.57,
+          "yield_pct": 3.87,
+          "n_holdings": 6
+        },
+        {
+          "allocations": {
+            "VOO": 2,
+            "HYG": 47,
+            "EMB": 6,
+            "GSG": 2,
+            "DBA": 43
+          },
+          "return_pct": 3.96,
+          "volatility_pct": 11.76,
+          "yield_pct": 4.53,
+          "n_holdings": 5
+        },
+        {
+          "allocations": {
+            "EWJ": 10,
+            "VGSH": 30,
+            "DBA": 30,
+            "IGF": 30
+          },
+          "return_pct": 8.06,
+          "volatility_pct": 11.26,
+          "yield_pct": 3.51,
+          "n_holdings": 4
+        },
+        {
+          "allocations": {
+            "EWJ": 11,
+            "BND": 4,
+            "VGSH": 28,
+            "HYG": 28,
+            "EMB": 29
+          },
+          "return_pct": 0.48,
+          "volatility_pct": 10.29,
+          "yield_pct": 4.87,
+          "n_holdings": 5
+        },
+        {
+          "allocations": {
+            "EWJ": 2,
+            "VGSH": 39,
+            "HYG": 39,
+            "EMB": 19,
+            "VNQI": 1
+          },
+          "return_pct": 0.46,
+          "volatility_pct": 8.11,
+          "yield_pct": 4.94,
+          "n_holdings": 5
+        },
+        {
+          "allocations": {
+            "VGK": 3,
+            "BND": 46,
+            "VGSH": 47,
+            "HYG": 2,
+            "DBA": 1,
+            "IGF": 1
+          },
+          "return_pct": 4.0,
+          "volatility_pct": 5.33,
+          "yield_pct": 3.93,
+          "n_holdings": 6
+        },
+        {
+          "allocations": {
+            "EWJ": 2,
+            "HYG": 44,
+            "EMB": 10,
+            "VNQI": 44
+          },
+          "return_pct": -1.27,
+          "volatility_pct": 14.38,
+          "yield_pct": 5.33,
+          "n_holdings": 4
+        },
+        {
+          "allocations": {
+            "VOO": 1,
+            "HYG": 50,
+            "EMB": 48,
+            "GSG": 1
+          },
+          "return_pct": -1.75,
+          "volatility_pct": 12.11,
+          "yield_pct": 5.4,
+          "n_holdings": 4
+        },
+        {
+          "allocations": {
+            "EWJ": 19,
+            "VGSH": 9,
+            "GLD": 24,
+            "DBA": 24,
+            "IGF": 24
+          },
+          "return_pct": 10.96,
+          "volatility_pct": 15.08,
+          "yield_pct": 2.69,
+          "n_holdings": 5
+        },
+        {
+          "allocations": {
+            "EWJ": 2,
+            "HYG": 25,
+            "EMB": 3,
+            "VNQI": 25,
+            "DBA": 20,
+            "IGF": 25
+          },
+          "return_pct": 4.28,
+          "volatility_pct": 14.28,
+          "yield_pct": 4.34,
+          "n_holdings": 6
+        },
+        {
+          "allocations": {
+            "BND": 19,
+            "VGSH": 24,
+            "GLD": 24,
+            "DBA": 23,
+            "IGF": 10
+          },
+          "return_pct": 10.07,
+          "volatility_pct": 9.92,
+          "yield_pct": 2.76,
+          "n_holdings": 5
+        },
+        {
+          "allocations": {
+            "VGSH": 1,
+            "GLD": 44,
+            "GSG": 12,
+            "IGF": 43
+          },
+          "return_pct": 15.47,
+          "volatility_pct": 15.94,
+          "yield_pct": 1.31,
+          "n_holdings": 4
+        },
+        {
+          "allocations": {
+            "BND": 26,
+            "VGSH": 26,
+            "TIP": 26,
+            "HYG": 20,
+            "DBA": 2
+          },
+          "return_pct": 2.17,
+          "volatility_pct": 6.29,
+          "yield_pct": 4.18,
+          "n_holdings": 5
+        },
+        {
+          "allocations": {
+            "VGK": 1,
+            "BND": 28,
+            "VGSH": 28,
+            "HYG": 6,
+            "DBA": 29,
+            "IGF": 8
+          },
+          "return_pct": 6.15,
+          "volatility_pct": 8.09,
+          "yield_pct": 3.79,
+          "n_holdings": 6
+        },
+        {
+          "allocations": {
+            "VTV": 1,
+            "VGSH": 24,
+            "GLD": 25,
+            "DBA": 25,
+            "IGF": 25
+          },
+          "return_pct": 11.43,
+          "volatility_pct": 11.6,
+          "yield_pct": 2.55,
+          "n_holdings": 5
+        },
+        {
+          "allocations": {
+            "EWJ": 33,
+            "HYG": 1,
+            "DBA": 33,
+            "IGF": 33
+          },
+          "return_pct": 8.21,
+          "volatility_pct": 16.93,
+          "yield_pct": 3.57,
+          "n_holdings": 4
+        },
+        {
+          "allocations": {
+            "VEA": 2,
+            "VGSH": 21,
+            "HYG": 13,
+            "GLD": 21,
+            "DBA": 21,
+            "IGF": 22
+          },
+          "return_pct": 9.52,
+          "volatility_pct": 11.58,
+          "yield_pct": 3.01,
+          "n_holdings": 6
+        },
+        {
+          "allocations": {
+            "EWJ": 25,
+            "HYG": 24,
+            "VGT": 1,
+            "GLD": 1,
+            "DBA": 24,
+            "IGF": 25
+          },
+          "return_pct": 5.91,
+          "volatility_pct": 15.58,
+          "yield_pct": 4.04,
+          "n_holdings": 6
+        },
+        {
+          "allocations": {
+            "BND": 12,
+            "VGSH": 28,
+            "HYG": 5,
+            "DBA": 27,
+            "IGF": 28
+          },
+          "return_pct": 7.5,
+          "volatility_pct": 9.5,
+          "yield_pct": 3.6,
+          "n_holdings": 5
+        },
+        {
+          "allocations": {
+            "BND": 25,
+            "VGSH": 26,
+            "HYG": 23,
+            "DBA": 26
+          },
+          "return_pct": 4.36,
+          "volatility_pct": 7.74,
+          "yield_pct": 4.23,
+          "n_holdings": 4
+        },
+        {
+          "allocations": {
+            "VWO": 1,
+            "GLD": 33,
+            "DBA": 33,
+            "IGF": 33
+          },
+          "return_pct": 13.78,
+          "volatility_pct": 14.56,
+          "yield_pct": 2.11,
+          "n_holdings": 4
+        }
+      ],
+      "scenario_data": {
+        "returns": {
+          "VOO": 4.79,
+          "VUG": 4.89,
+          "VTV": 4.14,
+          "VO": 2.69,
+          "VB": 2.38,
+          "SCHD": 2.98,
+          "VEA": 3.53,
+          "VWO": 1.8,
+          "VGK": 3.39,
+          "EWJ": 3.11,
+          "MCHI": -1.98,
+          "BND": 4.0,
+          "VGSH": 4.0,
+          "VGLT": -5.0,
+          "TIP": 1.06,
+          "HYG": -2.0,
+          "EMB": -2.0,
+          "VGT": 6.48,
+          "VHT": 1.7,
+          "VDE": 8.83,
+          "VFH": 3.36,
+          "VPU": 4.24,
+          "VDC": 2.61,
+          "VOX": 3.08,
+          "VNQ": 2.39,
+          "VNQI": -0.58,
+          "GLD": 19.88,
+          "GSG": 15.86,
+          "DBA": 10.71,
+          "IGF": 11.11
+        },
+        "vols": {
+          "VOO": 23.45,
+          "VUG": 29.76,
+          "VTV": 21.69,
+          "VO": 25.71,
+          "VB": 28.58,
+          "SCHD": 23.02,
+          "VEA": 25.14,
+          "VWO": 23.07,
+          "VGK": 27.21,
+          "EWJ": 23.46,
+          "MCHI": 42.97,
+          "BND": 6.51,
+          "VGSH": 2.2,
+          "VGLT": 13.82,
+          "TIP": 6.63,
+          "HYG": 10.3,
+          "EMB": 13.6,
+          "VGT": 32.2,
+          "VHT": 22.25,
+          "VDE": 39.88,
+          "VFH": 28.65,
+          "VPU": 25.24,
+          "VDC": 20.88,
+          "VOX": 28.62,
+          "VNQ": 19.67,
+          "VNQI": 18.22,
+          "GLD": 15.91,
+          "GSG": 19.4,
+          "DBA": 12.2,
+          "IGF": 15.32
+        },
+        "yields": {
+          "VOO": 1.19,
+          "VUG": 0.46,
+          "VTV": 2.02,
+          "VO": 1.51,
+          "VB": 1.34,
+          "SCHD": 3.44,
+          "VEA": 2.94,
+          "VWO": 2.71,
+          "VGK": 3.01,
+          "EWJ": 4.33,
+          "MCHI": 2.27,
+          "BND": 3.91,
+          "VGSH": 3.95,
+          "VGLT": 4.49,
+          "TIP": 3.45,
+          "HYG": 5.88,
+          "EMB": 5.11,
+          "VGT": 0.44,
+          "VHT": 1.72,
+          "VDE": 2.27,
+          "VFH": 1.61,
+          "VPU": 2.57,
+          "VDC": 2.15,
+          "VOX": 1.05,
+          "VNQ": 3.93,
+          "VNQI": 4.87,
+          "GLD": 0.0,
+          "GSG": 0.0,
+          "DBA": 3.35,
+          "IGF": 2.96
+        }
+      }
+    },
+    {
+      "scenario": "inflation",
+      "n_solutions": 38,
+      "solve_time_s": 3.19,
+      "solutions": [
+        {
+          "allocations": {
+            "TIP": 22,
+            "HYG": 38,
+            "EMB": 2,
+            "DBA": 38
+          },
+          "return_pct": 8.95,
+          "volatility_pct": 9.3,
+          "yield_pct": 4.68,
+          "n_holdings": 4
+        },
+        {
+          "allocations": {
+            "VGSH": 32,
+            "TIP": 32,
+            "GLD": 5,
+            "DBA": 31
+          },
+          "return_pct": 8.98,
+          "volatility_pct": 7.4,
+          "yield_pct": 3.64,
+          "n_holdings": 4
+        },
+        {
+          "allocations": {
+            "TIP": 5,
+            "HYG": 31,
+            "EMB": 2,
+            "GLD": 31,
+            "DBA": 31
+          },
+          "return_pct": 15.77,
+          "volatility_pct": 11.7,
+          "yield_pct": 3.35,
+          "n_holdings": 5
+        },
+        {
+          "allocations": {
+            "VGSH": 25,
+            "TIP": 25,
+            "HYG": 25,
+            "EMB": 6,
+            "DBA": 19
+          },
+          "return_pct": 6.1,
+          "volatility_pct": 7.13,
+          "yield_pct": 4.63,
+          "n_holdings": 5
+        },
+        {
+          "allocations": {
+            "HYG": 32,
+            "VDE": 32,
+            "GLD": 5,
+            "GSG": 8,
+            "DBA": 23
+          },
+          "return_pct": 15.41,
+          "volatility_pct": 16.19,
+          "yield_pct": 3.57,
+          "n_holdings": 5
+        },
+        {
+          "allocations": {
+            "VGSH": 24,
+            "TIP": 2,
+            "GLD": 37,
+            "DBA": 37
+          },
+          "return_pct": 17.54,
+          "volatility_pct": 11.06,
+          "yield_pct": 2.36,
+          "n_holdings": 4
+        },
+        {
+          "allocations": {
+            "VGSH": 6,
+            "TIP": 30,
+            "HYG": 29,
+            "EMB": 29,
+            "DBA": 6
+          },
+          "return_pct": 4.54,
+          "volatility_pct": 8.17,
+          "yield_pct": 5.11,
+          "n_holdings": 5
+        },
+        {
+          "allocations": {
+            "TIP": 1,
+            "GLD": 33,
+            "GSG": 33,
+            "DBA": 33
+          },
+          "return_pct": 23.05,
+          "volatility_pct": 15.74,
+          "yield_pct": 1.14,
+          "n_holdings": 4
+        },
+        {
+          "allocations": {
+            "VGSH": 28,
+            "TIP": 28,
+            "HYG": 16,
+            "DBA": 28
+          },
+          "return_pct": 7.32,
+          "volatility_pct": 7.15,
+          "yield_pct": 4.25,
+          "n_holdings": 4
+        },
+        {
+          "allocations": {
+            "VGSH": 28,
+            "TIP": 15,
+            "HYG": 28,
+            "EMB": 28,
+            "VPU": 1
+          },
+          "return_pct": 3.13,
+          "volatility_pct": 6.92,
+          "yield_pct": 5.2,
+          "n_holdings": 5
+        },
+        {
+          "allocations": {
+            "VGK": 2,
+            "HYG": 25,
+            "EMB": 25,
+            "GLD": 23,
+            "DBA": 25
+          },
+          "return_pct": 12.45,
+          "volatility_pct": 11.66,
+          "yield_pct": 3.92,
+          "n_holdings": 5
+        },
+        {
+          "allocations": {
+            "EWJ": 2,
+            "VGSH": 35,
+            "TIP": 35,
+            "GLD": 27,
+            "DBA": 1
+          },
+          "return_pct": 11.08,
+          "volatility_pct": 7.82,
+          "yield_pct": 2.97,
+          "n_holdings": 5
+        },
+        {
+          "allocations": {
+            "VGSH": 20,
+            "TIP": 20,
+            "HYG": 19,
+            "EMB": 19,
+            "VDE": 3,
+            "DBA": 19
+          },
+          "return_pct": 6.38,
+          "volatility_pct": 8.37,
+          "yield_pct": 4.63,
+          "n_holdings": 6
+        },
+        {
+          "allocations": {
+            "HYG": 32,
+            "VDE": 3,
+            "GLD": 32,
+            "GSG": 33
+          },
+          "return_pct": 19.31,
+          "volatility_pct": 14.82,
+          "yield_pct": 2.14,
+          "n_holdings": 4
+        },
+        {
+          "allocations": {
+            "TIP": 2,
+            "HYG": 24,
+            "EMB": 24,
+            "VDE": 24,
+            "GLD": 2,
+            "DBA": 24
+          },
+          "return_pct": 11.25,
+          "volatility_pct": 14.16,
+          "yield_pct": 4.33,
+          "n_holdings": 6
+        },
+        {
+          "allocations": {
+            "VGSH": 43,
+            "TIP": 43,
+            "GSG": 5,
+            "DBA": 9
+          },
+          "return_pct": 6.0,
+          "volatility_pct": 5.86,
+          "yield_pct": 3.8,
+          "n_holdings": 4
+        },
+        {
+          "allocations": {
+            "VGSH": 13,
+            "TIP": 29,
+            "HYG": 1,
+            "GLD": 29,
+            "DBA": 28
+          },
+          "return_pct": 15.16,
+          "volatility_pct": 10.32,
+          "yield_pct": 2.67,
+          "n_holdings": 5
+        },
+        {
+          "allocations": {
+            "EWJ": 3,
+            "VGSH": 19,
+            "VGLT": 2,
+            "HYG": 19,
+            "EMB": 19,
+            "GLD": 19,
+            "DBA": 19
+          },
+          "return_pct": 10.19,
+          "volatility_pct": 9.99,
+          "yield_pct": 3.99,
+          "n_holdings": 7
+        },
+        {
+          "allocations": {
+            "VGSH": 25,
+            "TIP": 26,
+            "HYG": 9,
+            "GLD": 15,
+            "DBA": 25
+          },
+          "return_pct": 10.86,
+          "volatility_pct": 8.42,
+          "yield_pct": 3.49,
+          "n_holdings": 5
+        },
+        {
+          "allocations": {
+            "VGSH": 5,
+            "TIP": 5,
+            "GLD": 45,
+            "DBA": 45
+          },
+          "return_pct": 21.04,
+          "volatility_pct": 13.09,
+          "yield_pct": 1.91,
+          "n_holdings": 4
+        },
+        {
+          "allocations": {
+            "VOO": 1,
+            "VGSH": 24,
+            "HYG": 24,
+            "VDE": 1,
+            "GLD": 24,
+            "GSG": 2,
+            "DBA": 24
+          },
+          "return_pct": 13.18,
+          "volatility_pct": 9.98,
+          "yield_pct": 3.43,
+          "n_holdings": 7
+        },
+        {
+          "allocations": {
+            "HYG": 33,
+            "EMB": 1,
+            "VDE": 33,
+            "GLD": 1,
+            "DBA": 32
+          },
+          "return_pct": 14.04,
+          "volatility_pct": 15.55,
+          "yield_pct": 4.01,
+          "n_holdings": 5
+        },
+        {
+          "allocations": {
+            "VOO": 1,
+            "VGSH": 3,
+            "HYG": 32,
+            "EMB": 32,
+            "DBA": 32
+          },
+          "return_pct": 7.14,
+          "volatility_pct": 10.0,
+          "yield_pct": 5.08,
+          "n_holdings": 5
+        },
+        {
+          "allocations": {
+            "VOO": 1,
+            "VGSH": 18,
+            "HYG": 40,
+            "EMB": 40,
+            "DBA": 1
+          },
+          "return_pct": 2.89,
+          "volatility_pct": 8.01,
+          "yield_pct": 5.66,
+          "n_holdings": 5
+        },
+        {
+          "allocations": {
+            "TIP": 2,
+            "HYG": 27,
+            "VDE": 35,
+            "GLD": 35,
+            "GSG": 1
+          },
+          "return_pct": 19.58,
+          "volatility_pct": 17.33,
+          "yield_pct": 2.62,
+          "n_holdings": 5
+        },
+        {
+          "allocations": {
+            "VGSH": 1,
+            "VDE": 32,
+            "GLD": 32,
+            "GSG": 3,
+            "DBA": 32
+          },
+          "return_pct": 22.48,
+          "volatility_pct": 18.11,
+          "yield_pct": 1.84,
+          "n_holdings": 5
+        },
+        {
+          "allocations": {
+            "BND": 2,
+            "VGSH": 44,
+            "HYG": 44,
+            "EMB": 7,
+            "IGF": 3
+          },
+          "return_pct": 2.93,
+          "volatility_pct": 5.76,
+          "yield_pct": 5.33,
+          "n_holdings": 5
+        },
+        {
+          "allocations": {
+            "VGSH": 33,
+            "VGLT": 1,
+            "HYG": 33,
+            "EMB": 33
+          },
+          "return_pct": 2.42,
+          "volatility_pct": 6.92,
+          "yield_pct": 5.47,
+          "n_holdings": 4
+        },
+        {
+          "allocations": {
+            "BND": 1,
+            "VGSH": 32,
+            "TIP": 32,
+            "HYG": 32,
+            "EMB": 1,
+            "GLD": 2
+          },
+          "return_pct": 4.34,
+          "volatility_pct": 5.84,
+          "yield_pct": 4.77,
+          "n_holdings": 6
+        },
+        {
+          "allocations": {
+            "VGSH": 42,
+            "TIP": 42,
+            "EMB": 8,
+            "VOX": 1,
+            "DBA": 4,
+            "IGF": 3
+          },
+          "return_pct": 4.49,
+          "volatility_pct": 5.68,
+          "yield_pct": 4.1,
+          "n_holdings": 6
+        },
+        {
+          "allocations": {
+            "TIP": 1,
+            "HYG": 45,
+            "VDE": 10,
+            "DBA": 44
+          },
+          "return_pct": 11.1,
+          "volatility_pct": 11.64,
+          "yield_pct": 4.65,
+          "n_holdings": 4
+        },
+        {
+          "allocations": {
+            "VO": 1,
+            "VGSH": 30,
+            "TIP": 31,
+            "GLD": 30,
+            "DBA": 8
+          },
+          "return_pct": 12.69,
+          "volatility_pct": 8.64,
+          "yield_pct": 2.76,
+          "n_holdings": 5
+        },
+        {
+          "allocations": {
+            "HYG": 31,
+            "EMB": 32,
+            "VDE": 5,
+            "DBA": 32
+          },
+          "return_pct": 8.05,
+          "volatility_pct": 11.03,
+          "yield_pct": 4.99,
+          "n_holdings": 4
+        },
+        {
+          "allocations": {
+            "HYG": 28,
+            "VDE": 14,
+            "GLD": 29,
+            "DBA": 29
+          },
+          "return_pct": 17.49,
+          "volatility_pct": 14.08,
+          "yield_pct": 3.1,
+          "n_holdings": 4
+        },
+        {
+          "allocations": {
+            "HYG": 21,
+            "EMB": 21,
+            "VDE": 21,
+            "GLD": 16,
+            "DBA": 21
+          },
+          "return_pct": 13.99,
+          "volatility_pct": 14.54,
+          "yield_pct": 3.72,
+          "n_holdings": 5
+        },
+        {
+          "allocations": {
+            "HYG": 1,
+            "VDE": 1,
+            "GLD": 49,
+            "GSG": 49
+          },
+          "return_pct": 26.53,
+          "volatility_pct": 17.65,
+          "yield_pct": 0.09,
+          "n_holdings": 4
+        },
+        {
+          "allocations": {
+            "VGSH": 12,
+            "TIP": 1,
+            "HYG": 15,
+            "GLD": 36,
+            "DBA": 36
+          },
+          "return_pct": 17.39,
+          "volatility_pct": 11.63,
+          "yield_pct": 2.74,
+          "n_holdings": 5
+        },
+        {
+          "allocations": {
+            "BND": 1,
+            "VGSH": 20,
+            "TIP": 20,
+            "HYG": 19,
+            "EMB": 20,
+            "GLD": 20
+          },
+          "return_pct": 8.61,
+          "volatility_pct": 8.6,
+          "yield_pct": 4.02,
+          "n_holdings": 6
+        }
+      ],
+      "scenario_data": {
+        "returns": {
+          "VOO": 9.58,
+          "VUG": 9.78,
+          "VTV": 8.28,
+          "VO": 5.38,
+          "VB": 4.77,
+          "SCHD": 5.96,
+          "VEA": 7.06,
+          "VWO": 3.59,
+          "VGK": 6.78,
+          "EWJ": 6.22,
+          "MCHI": -3.97,
+          "BND": -3.0,
+          "VGSH": 1.83,
+          "VGLT": -8.0,
+          "TIP": 6.0,
+          "HYG": 3.91,
+          "EMB": 1.85,
+          "VGT": 16.19,
+          "VHT": 4.24,
+          "VDE": 22.08,
+          "VFH": 8.41,
+          "VPU": 10.6,
+          "VDC": 6.52,
+          "VOX": 7.69,
+          "VNQ": 2.39,
+          "VNQI": -0.58,
+          "GLD": 29.82,
+          "GSG": 23.79,
+          "DBA": 16.07,
+          "IGF": 11.11
+        },
+        "vols": {
+          "VOO": 15.63,
+          "VUG": 19.84,
+          "VTV": 14.46,
+          "VO": 17.14,
+          "VB": 19.05,
+          "SCHD": 15.35,
+          "VEA": 16.76,
+          "VWO": 15.38,
+          "VGK": 18.14,
+          "EWJ": 15.64,
+          "MCHI": 28.65,
+          "BND": 6.51,
+          "VGSH": 2.2,
+          "VGLT": 13.82,
+          "TIP": 6.63,
+          "HYG": 7.89,
+          "EMB": 10.46,
+          "VGT": 21.47,
+          "VHT": 14.83,
+          "VDE": 26.59,
+          "VFH": 19.1,
+          "VPU": 16.83,
+          "VDC": 13.92,
+          "VOX": 19.08,
+          "VNQ": 19.67,
+          "VNQI": 18.22,
+          "GLD": 15.91,
+          "GSG": 19.4,
+          "DBA": 12.2,
+          "IGF": 15.32
+        },
+        "yields": {
+          "VOO": 1.19,
+          "VUG": 0.46,
+          "VTV": 2.02,
+          "VO": 1.51,
+          "VB": 1.34,
+          "SCHD": 3.44,
+          "VEA": 2.94,
+          "VWO": 2.71,
+          "VGK": 3.01,
+          "EWJ": 4.33,
+          "MCHI": 2.27,
+          "BND": 4.3,
+          "VGSH": 4.35,
+          "VGLT": 4.94,
+          "TIP": 3.8,
+          "HYG": 6.47,
+          "EMB": 5.62,
+          "VGT": 0.44,
+          "VHT": 1.72,
+          "VDE": 2.27,
+          "VFH": 1.61,
+          "VPU": 2.57,
+          "VDC": 2.15,
+          "VOX": 1.05,
+          "VNQ": 3.93,
+          "VNQI": 4.87,
+          "GLD": 0.0,
+          "GSG": 0.0,
+          "DBA": 3.35,
+          "IGF": 2.96
+        }
+      }
+    }
+  ],
+  "all_strategies": {
+    "base": {
+      "Growth": {
+        "allocations": {
+          "EWJ": 5,
+          "BND": 1,
+          "VGSH": 5,
+          "VDE": 29,
+          "GLD": 29,
+          "GSG": 29,
+          "DBA": 2
+        },
+        "return_pct": 17.46,
+        "volatility_pct": 19.15,
+        "yield_pct": 1.18,
+        "n_holdings": 7
+      },
+      "Safety": {
+        "allocations": {
+          "VGSH": 33,
+          "TIP": 33,
+          "HYG": 33,
+          "DBA": 1
+        },
+        "return_pct": 2.35,
+        "volatility_pct": 5.64,
+        "yield_pct": 4.42,
+        "n_holdings": 4
+      },
+      "Income": {
+        "allocations": {
+          "VOO": 1,
+          "EWJ": 33,
+          "HYG": 33,
+          "EMB": 33
+        },
+        "return_pct": 4.59,
+        "volatility_pct": 11.37,
+        "yield_pct": 5.07,
+        "n_holdings": 4
+      },
+      "Balanced": {
+        "allocations": {
+          "VGK": 1,
+          "VGSH": 33,
+          "HYG": 33,
+          "EMB": 33
+        },
+        "return_pct": 2.59,
+        "volatility_pct": 6.96,
+        "yield_pct": 4.96,
+        "n_holdings": 4
+      }
+    },
+    "rate_cuts": {
+      "Growth": {
+        "allocations": {
+          "VOO": 14,
+          "VUG": 13,
+          "VTV": 13,
+          "SCHD": 5,
+          "VEA": 14,
+          "VGK": 14,
+          "VDE": 14,
+          "GLD": 13
+        },
+        "return_pct": 15.3,
+        "volatility_pct": 16.86,
+        "yield_pct": 1.81,
+        "n_holdings": 8
+      },
+      "Safety": {
+        "allocations": {
+          "BND": 33,
+          "VGSH": 33,
+          "TIP": 33,
+          "GSG": 1
+        },
+        "return_pct": 1.19,
+        "volatility_pct": 5.26,
+        "yield_pct": 2.61,
+        "n_holdings": 4
+      },
+      "Income": {
+        "allocations": {
+          "SCHD": 14,
+          "VEA": 14,
+          "EWJ": 13,
+          "VGLT": 3,
+          "HYG": 14,
+          "EMB": 14,
+          "VNQI": 14,
+          "DBA": 14
+        },
+        "return_pct": 6.74,
+        "volatility_pct": 13.12,
+        "yield_pct": 3.78,
+        "n_holdings": 8
+      },
+      "Balanced": {
+        "allocations": {
+          "EWJ": 16,
+          "BND": 16,
+          "VGSH": 16,
+          "HYG": 16,
+          "EMB": 17,
+          "VNQI": 3,
+          "DBA": 16
+        },
+        "return_pct": 4.58,
+        "volatility_pct": 9.18,
+        "yield_pct": 3.52,
+        "n_holdings": 7
+      }
+    },
+    "recession": {
+      "Growth": {
+        "allocations": {
+          "VGSH": 1,
+          "GLD": 44,
+          "GSG": 12,
+          "IGF": 43
+        },
+        "return_pct": 15.47,
+        "volatility_pct": 15.94,
+        "yield_pct": 1.31,
+        "n_holdings": 4
+      },
+      "Safety": {
+        "allocations": {
+          "VGK": 3,
+          "BND": 46,
+          "VGSH": 47,
+          "HYG": 2,
+          "DBA": 1,
+          "IGF": 1
+        },
+        "return_pct": 4.0,
+        "volatility_pct": 5.33,
+        "yield_pct": 3.93,
+        "n_holdings": 6
+      },
+      "Income": {
+        "allocations": {
+          "VOO": 1,
+          "HYG": 50,
+          "EMB": 48,
+          "GSG": 1
+        },
+        "return_pct": -1.75,
+        "volatility_pct": 12.11,
+        "yield_pct": 5.4,
+        "n_holdings": 4
+      },
+      "Balanced": {
+        "allocations": {
+          "VGK": 3,
+          "BND": 46,
+          "VGSH": 47,
+          "HYG": 2,
+          "DBA": 1,
+          "IGF": 1
+        },
+        "return_pct": 4.0,
+        "volatility_pct": 5.33,
+        "yield_pct": 3.93,
+        "n_holdings": 6
+      }
+    },
+    "inflation": {
+      "Growth": {
+        "allocations": {
+          "HYG": 1,
+          "VDE": 1,
+          "GLD": 49,
+          "GSG": 49
+        },
+        "return_pct": 26.53,
+        "volatility_pct": 17.65,
+        "yield_pct": 0.09,
+        "n_holdings": 4
+      },
+      "Safety": {
+        "allocations": {
+          "VGSH": 42,
+          "TIP": 42,
+          "EMB": 8,
+          "VOX": 1,
+          "DBA": 4,
+          "IGF": 3
+        },
+        "return_pct": 4.49,
+        "volatility_pct": 5.68,
+        "yield_pct": 4.1,
+        "n_holdings": 6
+      },
+      "Income": {
+        "allocations": {
+          "VOO": 1,
+          "VGSH": 18,
+          "HYG": 40,
+          "EMB": 40,
+          "DBA": 1
+        },
+        "return_pct": 2.89,
+        "volatility_pct": 8.01,
+        "yield_pct": 5.66,
+        "n_holdings": 5
+      },
+      "Balanced": {
+        "allocations": {
+          "BND": 2,
+          "VGSH": 44,
+          "HYG": 44,
+          "EMB": 7,
+          "IGF": 3
+        },
+        "return_pct": 2.93,
+        "volatility_pct": 5.76,
+        "yield_pct": 5.33,
+        "n_holdings": 5
+      }
+    }
+  },
+  "robustness": {
+    "robust_etfs": [
+      "BND",
+      "DBA",
+      "EMB",
+      "EWJ",
+      "GLD",
+      "GSG",
+      "HYG",
+      "IGF",
+      "TIP",
+      "VGK",
+      "VGSH",
+      "VOO"
+    ],
+    "scenario_specific": {
+      "base": [
+        "VDC"
+      ],
+      "rate_cuts": [
+        "SCHD",
+        "VNQ",
+        "VUG"
+      ],
+      "inflation": [
+        "VOX",
+        "VPU"
+      ]
+    },
+    "etf_frequency_pct": {
+      "DBA": 77.8,
+      "HYG": 76.6,
+      "VGSH": 74.1,
+      "GLD": 48.7,
+      "EWJ": 42.4,
+      "EMB": 38.0,
+      "TIP": 32.3,
+      "VDE": 32.3,
+      "BND": 31.6,
+      "IGF": 27.8,
+      "VOO": 16.5,
+      "VTV": 16.5,
+      "VEA": 14.6,
+      "SCHD": 14.6,
+      "GSG": 13.3,
+      "VNQI": 10.8,
+      "VGK": 10.8,
+      "VGLT": 8.9,
+      "VUG": 5.7,
+      "VO": 2.5,
+      "VFH": 1.9,
+      "VHT": 1.9,
+      "VWO": 1.3,
+      "VGT": 1.3,
+      "VDC": 0.6,
+      "VNQ": 0.6,
+      "VPU": 0.6,
+      "VOX": 0.6
+    },
+    "per_scenario_etfs": {
+      "base": [
+        "BND",
+        "DBA",
+        "EMB",
+        "EWJ",
+        "GLD",
+        "GSG",
+        "HYG",
+        "IGF",
+        "TIP",
+        "VDC",
+        "VDE",
+        "VEA",
+        "VFH",
+        "VGK",
+        "VGLT",
+        "VGSH",
+        "VHT",
+        "VNQI",
+        "VO",
+        "VOO",
+        "VWO"
+      ],
+      "rate_cuts": [
+        "BND",
+        "DBA",
+        "EMB",
+        "EWJ",
+        "GLD",
+        "GSG",
+        "HYG",
+        "IGF",
+        "SCHD",
+        "TIP",
+        "VDE",
+        "VEA",
+        "VFH",
+        "VGK",
+        "VGLT",
+        "VGSH",
+        "VGT",
+        "VHT",
+        "VNQ",
+        "VNQI",
+        "VO",
+        "VOO",
+        "VTV",
+        "VUG"
+      ],
+      "recession": [
+        "BND",
+        "DBA",
+        "EMB",
+        "EWJ",
+        "GLD",
+        "GSG",
+        "HYG",
+        "IGF",
+        "TIP",
+        "VEA",
+        "VGK",
+        "VGSH",
+        "VGT",
+        "VNQI",
+        "VOO",
+        "VTV",
+        "VWO"
+      ],
+      "inflation": [
+        "BND",
+        "DBA",
+        "EMB",
+        "EWJ",
+        "GLD",
+        "GSG",
+        "HYG",
+        "IGF",
+        "TIP",
+        "VDE",
+        "VGK",
+        "VGLT",
+        "VGSH",
+        "VO",
+        "VOO",
+        "VOX",
+        "VPU"
+      ]
+    }
+  }
+}

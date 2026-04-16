@@ -1,0 +1,616 @@
+{
+  "net_assets": "13200000000",
+  "net_expense_ratio": "0.0009",
+  "portfolio_turnover": "0.11",
+  "dividend_yield": "0.0243",
+  "inception_date": "2004-09-23",
+  "leveraged": "NO",
+  "sectors": [
+    {
+      "sector": "ENERGY",
+      "weight": "0.984"
+    },
+    {
+      "sector": "INFORMATION TECHNOLOGY",
+      "weight": "0.00"
+    },
+    {
+      "sector": "COMMUNICATION SERVICES",
+      "weight": "0.00"
+    },
+    {
+      "sector": "CONSUMER DISCRETIONARY",
+      "weight": "0.00"
+    },
+    {
+      "sector": "HEALTHCARE",
+      "weight": "0.00"
+    },
+    {
+      "sector": "CONSUMER STAPLES",
+      "weight": "0.00"
+    },
+    {
+      "sector": "INDUSTRIALS",
+      "weight": "0.00"
+    },
+    {
+      "sector": "MATERIALS",
+      "weight": "0.00"
+    },
+    {
+      "sector": "UTILITIES",
+      "weight": "0.00"
+    },
+    {
+      "sector": "FINANCIALS",
+      "weight": "0.00"
+    },
+    {
+      "sector": "REAL ESTATE",
+      "weight": "0.00"
+    }
+  ],
+  "holdings": [
+    {
+      "symbol": "XOM",
+      "description": "EXXON MOBIL CORP",
+      "weight": "0.2242"
+    },
+    {
+      "symbol": "CVX",
+      "description": "CHEVRON CORP",
+      "weight": "0.1486"
+    },
+    {
+      "symbol": "COP",
+      "description": "CONOCOPHILLIPS",
+      "weight": "0.0576"
+    },
+    {
+      "symbol": "WMB",
+      "description": "WILLIAMS COMPANIES INC",
+      "weight": "0.0382"
+    },
+    {
+      "symbol": "SLB",
+      "description": "SLB LTD",
+      "weight": "0.0285"
+    },
+    {
+      "symbol": "EOG",
+      "description": "EOG RESOURCES INC",
+      "weight": "0.0285"
+    },
+    {
+      "symbol": "KMI",
+      "description": "KINDER MORGAN INC CLASS P",
+      "weight": "0.028"
+    },
+    {
+      "symbol": "BKR",
+      "description": "BAKER HUGHES CO CLASS A",
+      "weight": "0.0271"
+    },
+    {
+      "symbol": "VLO",
+      "description": "VALERO ENERGY CORP",
+      "weight": "0.0267"
+    },
+    {
+      "symbol": "PSX",
+      "description": "PHILLIPS 66",
+      "weight": "0.0262"
+    },
+    {
+      "symbol": "MPC",
+      "description": "MARATHON PETROLEUM CORP",
+      "weight": "0.0262"
+    },
+    {
+      "symbol": "OKE",
+      "description": "ONEOK INC",
+      "weight": "0.0219"
+    },
+    {
+      "symbol": "LNG",
+      "description": "CHENIERE ENERGY INC",
+      "weight": "0.0217"
+    },
+    {
+      "symbol": "TRGP",
+      "description": "TARGA RESOURCES CORP",
+      "weight": "0.0213"
+    },
+    {
+      "symbol": "EQT",
+      "description": "EQT CORP",
+      "weight": "0.0163"
+    },
+    {
+      "symbol": "OXY",
+      "description": "OCCIDENTAL PETROLEUM CORP",
+      "weight": "0.0148"
+    },
+    {
+      "symbol": "FANG",
+      "description": "DIAMONDBACK ENERGY INC",
+      "weight": "0.0138"
+    },
+    {
+      "symbol": "TPL",
+      "description": "TEXAS PACIFIC LAND CORP",
+      "weight": "0.0132"
+    },
+    {
+      "symbol": "HAL",
+      "description": "HALLIBURTON CO",
+      "weight": "0.0131"
+    },
+    {
+      "symbol": "FTI",
+      "description": "TECHNIPFMC PLC",
+      "weight": "0.0119"
+    },
+    {
+      "symbol": "DVN",
+      "description": "DEVON ENERGY CORP",
+      "weight": "0.0113"
+    },
+    {
+      "symbol": "EXE",
+      "description": "EXPAND ENERGY CORP ORDINARY SHARES NEW",
+      "weight": "0.011"
+    },
+    {
+      "symbol": "CTRA",
+      "description": "COTERRA ENERGY INC ORDINARY SHARES",
+      "weight": "0.01"
+    },
+    {
+      "symbol": "OVV",
+      "description": "OVINTIV INC",
+      "weight": "0.0063"
+    },
+    {
+      "symbol": "DTM",
+      "description": "DT MIDSTREAM INC ORDINARY SHARES",
+      "weight": "0.0062"
+    },
+    {
+      "symbol": "PR",
+      "description": "PERMIAN RESOURCES CORP CLASS A",
+      "weight": "0.0057"
+    },
+    {
+      "symbol": "APA",
+      "description": "APA CORP",
+      "weight": "0.0048"
+    },
+    {
+      "symbol": "AR",
+      "description": "ANTERO RESOURCES CORP",
+      "weight": "0.0048"
+    },
+    {
+      "symbol": "n/a",
+      "description": "TRS:SLB LTD USD 2026-AUG-31",
+      "weight": "0.0044"
+    },
+    {
+      "symbol": "RRC",
+      "description": "RANGE RESOURCES CORP",
+      "weight": "0.0044"
+    },
+    {
+      "symbol": "AM",
+      "description": "ANTERO MIDSTREAM CORP",
+      "weight": "0.0037"
+    },
+    {
+      "symbol": "DINO",
+      "description": "HF SINCLAIR CORP",
+      "weight": "0.0036"
+    },
+    {
+      "symbol": "VNOM",
+      "description": "n/a",
+      "weight": "0.0036"
+    },
+    {
+      "symbol": "NOV",
+      "description": "NOV INC",
+      "weight": "0.0035"
+    },
+    {
+      "symbol": "WFRD",
+      "description": "n/a",
+      "weight": "0.0035"
+    },
+    {
+      "symbol": "UEC",
+      "description": "URANIUM ENERGY CORP",
+      "weight": "0.0034"
+    },
+    {
+      "symbol": "n/a",
+      "description": "MKTLIQ 12/31/2049",
+      "weight": "0.0034"
+    },
+    {
+      "symbol": "RIG",
+      "description": "TRANSOCEAN LTD",
+      "weight": "0.003"
+    },
+    {
+      "symbol": "VAL",
+      "description": "VALARIS LTD",
+      "weight": "0.0029"
+    },
+    {
+      "symbol": "CHRD",
+      "description": "CHORD ENERGY CORP ORDINARY SHARES NEW",
+      "weight": "0.0029"
+    },
+    {
+      "symbol": "MTDR",
+      "description": "MATADOR RESOURCES CO",
+      "weight": "0.0029"
+    },
+    {
+      "symbol": "NE",
+      "description": "NOBLE CORP PLC CLASS A",
+      "weight": "0.0028"
+    },
+    {
+      "symbol": "AROC",
+      "description": "ARCHROCK INC",
+      "weight": "0.0028"
+    },
+    {
+      "symbol": "CNX",
+      "description": "CNX RESOURCES CORP",
+      "weight": "0.0028"
+    },
+    {
+      "symbol": "SM",
+      "description": "SM ENERGY CO",
+      "weight": "0.0025"
+    },
+    {
+      "symbol": "MGY",
+      "description": "MAGNOLIA OIL & GAS CORP CLASS A",
+      "weight": "0.0024"
+    },
+    {
+      "symbol": "HESM",
+      "description": "HESS MIDSTREAM LP CLASS A",
+      "weight": "0.0023"
+    },
+    {
+      "symbol": "KGS",
+      "description": "KODIAK GAS SERVICES INC",
+      "weight": "0.0023"
+    },
+    {
+      "symbol": "LBRT",
+      "description": "LIBERTY ENERGY INC CLASS A",
+      "weight": "0.0023"
+    },
+    {
+      "symbol": "PAGP",
+      "description": "PLAINS GP HOLDINGS LP CLASS A",
+      "weight": "0.0022"
+    },
+    {
+      "symbol": "MUR",
+      "description": "MURPHY OIL CORP",
+      "weight": "0.0022"
+    },
+    {
+      "symbol": "CNR",
+      "description": "n/a",
+      "weight": "0.0021"
+    },
+    {
+      "symbol": "CRC",
+      "description": "n/a",
+      "weight": "0.0021"
+    },
+    {
+      "symbol": "n/a",
+      "description": "n/a",
+      "weight": "0.0019"
+    },
+    {
+      "symbol": "TDW",
+      "description": "TIDEWATER INC",
+      "weight": "0.0019"
+    },
+    {
+      "symbol": "BTU",
+      "description": "PEABODY ENERGY CORP",
+      "weight": "0.0019"
+    },
+    {
+      "symbol": "WHD",
+      "description": "CACTUS INC CLASS A",
+      "weight": "0.0019"
+    },
+    {
+      "symbol": "OII",
+      "description": "OCEANEERING INTERNATIONAL INC",
+      "weight": "0.0018"
+    },
+    {
+      "symbol": "LEU",
+      "description": "CENTRUS ENERGY CORP CLASS A",
+      "weight": "0.0018"
+    },
+    {
+      "symbol": "HP",
+      "description": "HELMERICH & PAYNE INC",
+      "weight": "0.0018"
+    },
+    {
+      "symbol": "CRGY",
+      "description": "CRESCENT ENERGY CO CLASS A",
+      "weight": "0.0017"
+    },
+    {
+      "symbol": "GPOR",
+      "description": "GULFPORT ENERGY CORP ORDINARY SHARES (NEW)",
+      "weight": "0.0017"
+    },
+    {
+      "symbol": "INSW",
+      "description": "INTERNATIONAL SEAWAYS INC",
+      "weight": "0.0017"
+    },
+    {
+      "symbol": "PTEN",
+      "description": "PATTERSON-UTI ENERGY INC",
+      "weight": "0.0016"
+    },
+    {
+      "symbol": "PBF",
+      "description": "PBF ENERGY INC CLASS A",
+      "weight": "0.0016"
+    },
+    {
+      "symbol": "n/a",
+      "description": "SLBBH1142",
+      "weight": "0.0015"
+    },
+    {
+      "symbol": "DK",
+      "description": "DELEK US HOLDINGS INC REGISTERED SHS STOCK SETTLEMENT",
+      "weight": "0.0014"
+    },
+    {
+      "symbol": "SDRL",
+      "description": "SEADRILL LTD",
+      "weight": "0.0014"
+    },
+    {
+      "symbol": "PARR",
+      "description": "PAR PACIFIC HOLDINGS INC",
+      "weight": "0.0014"
+    },
+    {
+      "symbol": "NOG",
+      "description": "NORTHERN OIL & GAS INC",
+      "weight": "0.0014"
+    },
+    {
+      "symbol": "KNTK",
+      "description": "KINETIK HOLDINGS INC",
+      "weight": "0.0013"
+    },
+    {
+      "symbol": "SEI",
+      "description": "SOLARIS ENERGY INFRASTRUCTURE INC CLASS A",
+      "weight": "0.0012"
+    },
+    {
+      "symbol": "XPRO",
+      "description": "EXPRO GROUP HOLDINGS NV",
+      "weight": "0.0011"
+    },
+    {
+      "symbol": "CLMT",
+      "description": "CALUMET INC",
+      "weight": "0.0011"
+    },
+    {
+      "symbol": "n/a",
+      "description": "TRS:CONOCOPHILLIPS USD 2026-AUG-31",
+      "weight": "0.0011"
+    },
+    {
+      "symbol": "WTTR",
+      "description": "SELECT WATER SOLUTIONS INC CLASS A",
+      "weight": "0.0011"
+    },
+    {
+      "symbol": "CRK",
+      "description": "COMSTOCK RESOURCES INC",
+      "weight": "0.0011"
+    },
+    {
+      "symbol": "TALO",
+      "description": "TALOS ENERGY INC ORDINARY SHARES",
+      "weight": "0.001"
+    },
+    {
+      "symbol": "LPG",
+      "description": "DORIAN LPG LTD",
+      "weight": "0.001"
+    },
+    {
+      "symbol": "KOS",
+      "description": "KOSMOS ENERGY LTD",
+      "weight": "0.001"
+    },
+    {
+      "symbol": "WKC",
+      "description": "WORLD KINECT CORP",
+      "weight": "0.0009"
+    },
+    {
+      "symbol": "HLX",
+      "description": "HELIX ENERGY SOLUTIONS GROUP INC",
+      "weight": "0.0009"
+    },
+    {
+      "symbol": "PUMP",
+      "description": "PROPETRO HOLDING CORP",
+      "weight": "0.0009"
+    },
+    {
+      "symbol": "KRP",
+      "description": "KIMBELL ROYALTY PARTNERS LP",
+      "weight": "0.0009"
+    },
+    {
+      "symbol": "VTOL",
+      "description": "BRISTOW GROUP INC ORDINARY SHARES",
+      "weight": "0.0008"
+    },
+    {
+      "symbol": "OIS",
+      "description": "OIL STATES INTERNATIONAL INC",
+      "weight": "0.0008"
+    },
+    {
+      "symbol": "TTI",
+      "description": "TETRA TECHNOLOGIES INC",
+      "weight": "0.0008"
+    },
+    {
+      "symbol": "REX",
+      "description": "REX AMERICAN RESOURCES CORP",
+      "weight": "0.0008"
+    },
+    {
+      "symbol": "INVX",
+      "description": "INNOVEX INTERNATIONAL INC",
+      "weight": "0.0008"
+    },
+    {
+      "symbol": "EE",
+      "description": "EXCELERATE ENERGY INC CLASS A",
+      "weight": "0.0008"
+    },
+    {
+      "symbol": "GPRE",
+      "description": "GREEN PLAINS INC",
+      "weight": "0.0007"
+    },
+    {
+      "symbol": "CLB",
+      "description": "CORE LABORATORIES INC",
+      "weight": "0.0007"
+    },
+    {
+      "symbol": "NBR",
+      "description": "NABORS INDUSTRIES LTD",
+      "weight": "0.0007"
+    },
+    {
+      "symbol": "SOC",
+      "description": "SABLE OFFSHORE CORP",
+      "weight": "0.0007"
+    },
+    {
+      "symbol": "CVI",
+      "description": "CVR ENERGY INC",
+      "weight": "0.0007"
+    },
+    {
+      "symbol": "BKV",
+      "description": "BKV CORP",
+      "weight": "0.0006"
+    },
+    {
+      "symbol": "RES",
+      "description": "RPC INC",
+      "weight": "0.0006"
+    },
+    {
+      "symbol": "SD",
+      "description": "SANDRIDGE ENERGY INC",
+      "weight": "0.0006"
+    },
+    {
+      "symbol": "EGY",
+      "description": "VAALCO ENERGY INC",
+      "weight": "0.0006"
+    },
+    {
+      "symbol": "NEXT",
+      "description": "NEXTDECADE CORP",
+      "weight": "0.0006"
+    },
+    {
+      "symbol": "AESI",
+      "description": "ATLAS ENERGY SOLUTIONS INC CLASS A",
+      "weight": "0.0005"
+    },
+    {
+      "symbol": "CLNE",
+      "description": "CLEAN ENERGY FUELS CORP",
+      "weight": "0.0005"
+    },
+    {
+      "symbol": "GRNT",
+      "description": "GRANITE RIDGE RESOURCES INC ORDINARY SHARES CLASS A",
+      "weight": "0.0005"
+    },
+    {
+      "symbol": "GEVO",
+      "description": "GEVO INC",
+      "weight": "0.0005"
+    },
+    {
+      "symbol": "VTS",
+      "description": "VITESSE ENERGY INC",
+      "weight": "0.0005"
+    },
+    {
+      "symbol": "REPX",
+      "description": "RILEY EXPLORATION PERMIAN INC",
+      "weight": "0.0005"
+    },
+    {
+      "symbol": "WTI",
+      "description": "W&T OFFSHORE INC",
+      "weight": "0.0005"
+    },
+    {
+      "symbol": "REI",
+      "description": "RING ENERGY INC",
+      "weight": "0.0004"
+    },
+    {
+      "symbol": "HPK",
+      "description": "HIGHPEAK ENERGY INC ORDINARY SHARES",
+      "weight": "0.0002"
+    },
+    {
+      "symbol": "BOOM",
+      "description": "DMC GLOBAL INC",
+      "weight": "0.0002"
+    },
+    {
+      "symbol": "NFE",
+      "description": "NEW FORTRESS ENERGY INC CLASS A",
+      "weight": "0.0002"
+    },
+    {
+      "symbol": "n/a",
+      "description": "US DOLLAR",
+      "weight": "-0.0005"
+    }
+  ]
+}

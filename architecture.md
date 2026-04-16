@@ -18,7 +18,7 @@ Frontier exposes 4 tools — 3 domain tools with multiple actions, plus a skill 
 | **solve** | `validate` | Pre-flight check: ≥2 objectives, ≥3 options, complete score matrix, feasible constraints |
 | | `run` | Validate then optimize. Returns Pareto frontier with quality indicators. Optional `mode`: "fast" (default, quick iterations) or "thorough" (final convergence). Auto-selects NSGA-II (2-3 obj) or NSGA-III (4+ obj). Parameters adapt to solution space size and objective count. |
 | | `run_scenarios` | Independently optimize each scenario with score overrides/adjustments. Accepts optional `mode`. |
-| **explore** | `tradeoffs` | Frontier overview: objective ranges, correlations, extremes, balanced solution, vs references |
+| **explore** | `tradeoffs` | Frontier overview: objective ranges, correlations, extremes, balanced solution (ideal-point closest), inflection-point candidates (diminishing-returns boundaries), vs references |
 | | `compare` | Side-by-side comparison of 2+ solutions (shared/differentiating options, tradeoff summary) |
 | | `solutions` | Full Pareto frontier listing |
 | | `solution` | Single solution detail with reference point analysis |

@@ -1,0 +1,218 @@
+{
+  "method": "llm_pure_reasoning",
+  "scenarios": {
+    "scenario_1_base": {
+      "name": "Base Case (Continuation)",
+      "probability": 0.30,
+      "portfolios": {
+        "growth": {
+          "holdings": {"VOO": 20, "VUG": 20, "VGT": 25, "VDE": 15, "GLD": 10, "IGF": 10},
+          "expected_return_pct": 14.88,
+          "volatility_pct": 18.80,
+          "dividend_yield_pct": 0.98,
+          "num_holdings": 6,
+          "sector_count": 2,
+          "alt_count": 2
+        },
+        "balanced": {
+          "holdings": {"VOO": 25, "VTV": 10, "VEA": 10, "SCHD": 10, "BND": 10, "GLD": 15, "DBA": 10, "IGF": 10},
+          "expected_return_pct": 11.35,
+          "volatility_pct": 14.67,
+          "dividend_yield_pct": 2.04,
+          "num_holdings": 8,
+          "sector_count": 0,
+          "alt_count": 3
+        },
+        "income": {
+          "holdings": {"VTV": 15, "SCHD": 20, "EWJ": 10, "HYG": 15, "EMB": 10, "VNQI": 5, "DBA": 15, "VPU": 10},
+          "expected_return_pct": 6.89,
+          "volatility_pct": 13.50,
+          "dividend_yield_pct": 3.89,
+          "num_holdings": 8,
+          "sector_count": 1,
+          "alt_count": 2
+        },
+        "safety": {
+          "holdings": {"VGSH": 30, "BND": 25, "TIP": 20, "SCHD": 15, "VTV": 10},
+          "expected_return_pct": 2.78,
+          "volatility_pct": 6.36,
+          "dividend_yield_pct": 3.49,
+          "num_holdings": 5,
+          "sector_count": 0,
+          "alt_count": 0
+        },
+        "max_return": {
+          "holdings": {"VDE": 30, "VGT": 25, "GLD": 20, "VOO": 15, "VUG": 10},
+          "expected_return_pct": 17.34,
+          "volatility_pct": 20.00,
+          "dividend_yield_pct": 0.72,
+          "num_holdings": 5,
+          "sector_count": 2,
+          "alt_count": 1
+        },
+        "max_yield": {
+          "holdings": {"HYG": 25, "EMB": 15, "VNQI": 10, "EWJ": 15, "SCHD": 15, "VGLT": 10, "DBA": 10},
+          "expected_return_pct": 4.31,
+          "volatility_pct": 13.34,
+          "dividend_yield_pct": 4.51,
+          "num_holdings": 7,
+          "sector_count": 0,
+          "alt_count": 2
+        }
+      }
+    },
+    "scenario_2_rate_cuts": {
+      "name": "Rate Cuts / Risk-On",
+      "probability": 0.25,
+      "portfolios": {
+        "growth": {
+          "holdings": {"VGT": 30, "VOO": 20, "VUG": 20, "VGLT": 15, "VDE": 15},
+          "expected_return_pct": 23.45,
+          "volatility_pct": 18.32,
+          "dividend_yield_pct": 1.08,
+          "num_holdings": 5,
+          "sector_count": 2,
+          "alt_count": 0
+        },
+        "balanced": {
+          "holdings": {"VOO": 25, "VGT": 15, "VEA": 10, "VGLT": 15, "GLD": 15, "SCHD": 10, "IGF": 10},
+          "expected_return_pct": 17.45,
+          "volatility_pct": 15.26,
+          "dividend_yield_pct": 1.73,
+          "num_holdings": 7,
+          "sector_count": 1,
+          "alt_count": 2
+        },
+        "income": {
+          "holdings": {"SCHD": 20, "EWJ": 15, "VTV": 15, "HYG": 15, "VGLT": 10, "DBA": 15, "VPU": 10},
+          "expected_return_pct": 12.10,
+          "volatility_pct": 13.64,
+          "dividend_yield_pct": 3.39,
+          "num_holdings": 7,
+          "sector_count": 1,
+          "alt_count": 1
+        },
+        "safety": {
+          "holdings": {"VGSH": 30, "BND": 20, "VGLT": 20, "TIP": 15, "SCHD": 15},
+          "expected_return_pct": 5.42,
+          "volatility_pct": 6.18,
+          "dividend_yield_pct": 3.76,
+          "num_holdings": 5,
+          "sector_count": 0,
+          "alt_count": 0
+        },
+        "max_return": {
+          "holdings": {"VGT": 30, "VDE": 25, "VOO": 20, "VUG": 15, "VGLT": 10},
+          "expected_return_pct": 25.62,
+          "volatility_pct": 19.11,
+          "dividend_yield_pct": 0.83,
+          "num_holdings": 5,
+          "sector_count": 2,
+          "alt_count": 0
+        }
+      }
+    },
+    "scenario_3_recession": {
+      "name": "Recession / Risk-Off",
+      "probability": 0.20,
+      "portfolios": {
+        "growth": {
+          "holdings": {"GLD": 25, "VGLT": 20, "BND": 15, "VGSH": 15, "IGF": 10, "DBA": 15},
+          "expected_return_pct": 8.26,
+          "volatility_pct": 9.29,
+          "dividend_yield_pct": 2.36,
+          "num_holdings": 6,
+          "sector_count": 0,
+          "alt_count": 3
+        },
+        "balanced": {
+          "holdings": {"VGSH": 25, "BND": 20, "GLD": 20, "TIP": 15, "DBA": 10, "VDC": 10},
+          "expected_return_pct": 6.48,
+          "volatility_pct": 7.28,
+          "dividend_yield_pct": 2.69,
+          "num_holdings": 6,
+          "sector_count": 1,
+          "alt_count": 2
+        },
+        "income": {
+          "holdings": {"VGSH": 25, "BND": 20, "VGLT": 15, "TIP": 15, "SCHD": 10, "EWJ": 10, "DBA": 5},
+          "expected_return_pct": 5.39,
+          "volatility_pct": 6.43,
+          "dividend_yield_pct": 3.66,
+          "num_holdings": 7,
+          "sector_count": 0,
+          "alt_count": 1
+        },
+        "safety": {
+          "holdings": {"VGSH": 30, "BND": 30, "TIP": 25, "VGLT": 15},
+          "expected_return_pct": 5.18,
+          "volatility_pct": 5.30,
+          "dividend_yield_pct": 3.82,
+          "num_holdings": 4,
+          "sector_count": 0,
+          "alt_count": 0
+        },
+        "max_return": {
+          "holdings": {"GLD": 30, "VGLT": 25, "DBA": 15, "IGF": 15, "BND": 15},
+          "expected_return_pct": 9.34,
+          "volatility_pct": 11.23,
+          "dividend_yield_pct": 1.88,
+          "num_holdings": 5,
+          "sector_count": 0,
+          "alt_count": 3
+        }
+      }
+    },
+    "scenario_4_inflation": {
+      "name": "Inflation Surge",
+      "probability": 0.25,
+      "portfolios": {
+        "growth": {
+          "holdings": {"GLD": 30, "GSG": 20, "DBA": 15, "VDE": 20, "TIP": 15},
+          "expected_return_pct": 27.98,
+          "volatility_pct": 17.07,
+          "dividend_yield_pct": 1.44,
+          "num_holdings": 5,
+          "sector_count": 1,
+          "alt_count": 3
+        },
+        "balanced": {
+          "holdings": {"GLD": 25, "TIP": 20, "DBA": 15, "VDE": 15, "SCHD": 10, "VGSH": 15},
+          "expected_return_pct": 20.49,
+          "volatility_pct": 13.35,
+          "dividend_yield_pct": 2.22,
+          "num_holdings": 6,
+          "sector_count": 1,
+          "alt_count": 2
+        },
+        "income": {
+          "holdings": {"TIP": 25, "DBA": 20, "SCHD": 15, "EWJ": 10, "VGSH": 15, "VPU": 15},
+          "expected_return_pct": 9.56,
+          "volatility_pct": 9.38,
+          "dividend_yield_pct": 3.48,
+          "num_holdings": 6,
+          "sector_count": 1,
+          "alt_count": 1
+        },
+        "safety": {
+          "holdings": {"VGSH": 30, "TIP": 30, "DBA": 15, "BND": 10, "SCHD": 15},
+          "expected_return_pct": 5.85,
+          "volatility_pct": 5.23,
+          "dividend_yield_pct": 3.56,
+          "num_holdings": 5,
+          "sector_count": 0,
+          "alt_count": 1
+        },
+        "max_return": {
+          "holdings": {"GLD": 30, "GSG": 25, "VDE": 25, "DBA": 20},
+          "expected_return_pct": 34.04,
+          "volatility_pct": 19.11,
+          "dividend_yield_pct": 1.24,
+          "num_holdings": 4,
+          "sector_count": 1,
+          "alt_count": 3
+        }
+      }
+    }
+  }
+}

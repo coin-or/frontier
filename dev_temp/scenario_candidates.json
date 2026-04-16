@@ -1,0 +1,138 @@
+{
+  "Base Case": {
+    "Growth": {
+      "objectives": {
+        "Expected Return": 20.35,
+        "Volatility": 19.94,
+        "Dividend Yield": 0.97
+      },
+      "allocations": {"GLD": 59, "VDE": 39, "VGT": 1, "DBA": 1}
+    },
+    "Balanced": {
+      "objectives": {
+        "Expected Return": 9.03,
+        "Volatility": 10.40,
+        "Dividend Yield": 3.79
+      },
+      "allocations": {"HYG": 60, "GLD": 32, "VGSH": 6, "SCHD": 1, "EWJ": 1}
+    },
+    "Income": {
+      "objectives": {
+        "Expected Return": 4.03,
+        "Volatility": 8.06,
+        "Dividend Yield": 5.77
+      },
+      "allocations": {"HYG": 97, "VGSH": 1, "EMB": 1, "VDE": 1}
+    },
+    "Safety": {
+      "objectives": {
+        "Expected Return": 1.99,
+        "Volatility": 2.60,
+        "Dividend Yield": 3.94
+      },
+      "allocations": {"VGSH": 97, "BND": 1, "TIP": 1, "HYG": 1}
+    }
+  },
+  "Rate Cuts": {
+    "Growth": {
+      "objectives": {
+        "Expected Return": 20.35,
+        "Volatility": 19.86,
+        "Dividend Yield": 0.92
+      },
+      "allocations": {"GLD": 61, "VDE": 37, "VPU": 1, "VOX": 1}
+    },
+    "Balanced": {
+      "objectives": {
+        "Expected Return": 8.63,
+        "Volatility": 10.37,
+        "Dividend Yield": 4.03
+      },
+      "allocations": {"HYG": 64, "GLD": 29, "VGSH": 3, "EMB": 2, "BND": 1, "VDE": 1}
+    },
+    "Income": {
+      "objectives": {
+        "Expected Return": 4.00,
+        "Volatility": 8.20,
+        "Dividend Yield": 5.73
+      },
+      "allocations": {"HYG": 96, "VGSH": 1, "VGLT": 1, "GLD": 1, "DBA": 1}
+    },
+    "Safety": {
+      "objectives": {
+        "Expected Return": 2.08,
+        "Volatility": 2.65,
+        "Dividend Yield": 3.91
+      },
+      "allocations": {"VGSH": 96, "BND": 1, "TIP": 1, "HYG": 1, "GLD": 1}
+    }
+  },
+  "Recession": {
+    "Growth": {
+      "objectives": {
+        "Expected Return": 20.32,
+        "Volatility": 19.60,
+        "Dividend Yield": 0.89
+      },
+      "allocations": {"GLD": 62, "VDE": 36, "VGSH": 1, "DBA": 1}
+    },
+    "Balanced": {
+      "objectives": {
+        "Expected Return": 8.82,
+        "Volatility": 10.54,
+        "Dividend Yield": 4.03
+      },
+      "allocations": {"HYG": 68, "GLD": 30, "EMB": 1, "VPU": 1}
+    },
+    "Income": {
+      "objectives": {
+        "Expected Return": 4.03,
+        "Volatility": 8.19,
+        "Dividend Yield": 5.76
+      },
+      "allocations": {"HYG": 96, "EMB": 2, "TIP": 1, "VDE": 1}
+    },
+    "Safety": {
+      "objectives": {
+        "Expected Return": 1.96,
+        "Volatility": 2.53,
+        "Dividend Yield": 3.94
+      },
+      "allocations": {"VGSH": 97, "TIP": 1, "HYG": 1, "DBA": 1}
+    }
+  },
+  "Inflation": {
+    "Growth": {
+      "objectives": {
+        "Expected Return": 20.42,
+        "Volatility": 19.69,
+        "Dividend Yield": 0.87
+      },
+      "allocations": {"GLD": 62, "VDE": 36, "SCHD": 1, "IGF": 1}
+    },
+    "Balanced": {
+      "objectives": {
+        "Expected Return": 8.94,
+        "Volatility": 10.49,
+        "Dividend Yield": 3.95
+      },
+      "allocations": {"HYG": 65, "GLD": 30, "VGSH": 3, "VDE": 1, "IGF": 1}
+    },
+    "Income": {
+      "objectives": {
+        "Expected Return": 4.20,
+        "Volatility": 8.26,
+        "Dividend Yield": 5.74
+      },
+      "allocations": {"HYG": 95, "SCHD": 1, "VGSH": 1, "VDE": 1, "VPU": 1, "IGF": 1}
+    },
+    "Safety": {
+      "objectives": {
+        "Expected Return": 2.09,
+        "Volatility": 2.72,
+        "Dividend Yield": 3.96
+      },
+      "allocations": {"VGSH": 96, "HYG": 2, "EMB": 1, "IGF": 1}
+    }
+  }
+}

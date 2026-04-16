@@ -6,4 +6,3 @@ dist/
 build/
 data/
 .venv/
-dev_temp/

@@ -1,0 +1,88 @@
+{
+  "base": {
+    "solutions": [
+      {
+        "name": "Growth",
+        "return_pct": 16.28,
+        "volatility_pct": 17.86,
+        "yield_pct": 1.28,
+        "allocations": {"VDE": 15, "GLD": 30, "VGT": 15, "VOO": 20, "IGF": 10, "DBA": 10}
+      },
+      {
+        "name": "Aggressive Growth",
+        "return_pct": 17.56,
+        "volatility_pct": 19.07,
+        "yield_pct": 1.13,
+        "allocations": {"VDE": 25, "GLD": 30, "VGT": 10, "GSG": 10, "VOO": 15, "DBA": 10}
+      },
+      {
+        "name": "Balanced",
+        "return_pct": 10.47,
+        "volatility_pct": 13.02,
+        "yield_pct": 2.55,
+        "allocations": {"VOO": 20, "GLD": 15, "IGF": 15, "DBA": 10, "VTV": 10, "SCHD": 10, "HYG": 10, "VGSH": 10}
+      },
+      {
+        "name": "Income",
+        "return_pct": 2.69,
+        "volatility_pct": 10.57,
+        "yield_pct": 4.84,
+        "allocations": {"HYG": 30, "EMB": 15, "VGSH": 15, "EWJ": 10, "VNQI": 10, "SCHD": 10, "VGLT": 10}
+      },
+      {
+        "name": "Safety",
+        "return_pct": 2.80,
+        "volatility_pct": 6.45,
+        "yield_pct": 4.07,
+        "allocations": {"VGSH": 30, "BND": 25, "TIP": 15, "HYG": 15, "DBA": 10, "SCHD": 5}
+      },
+      {
+        "name": "Growth-Income Blend",
+        "return_pct": 8.90,
+        "volatility_pct": 14.10,
+        "yield_pct": 3.45,
+        "allocations": {"DBA": 15, "IGF": 15, "SCHD": 15, "EWJ": 10, "VPU": 10, "HYG": 15, "VOO": 10, "VEA": 10}
+      },
+      {
+        "name": "Max Return Push",
+        "return_pct": 17.58,
+        "volatility_pct": 19.35,
+        "yield_pct": 0.76,
+        "allocations": {"VDE": 20, "GLD": 30, "VGT": 15, "VOO": 20, "GSG": 15}
+      },
+      {
+        "name": "High Yield Safety",
+        "return_pct": 3.11,
+        "volatility_pct": 7.62,
+        "yield_pct": 4.65,
+        "allocations": {"HYG": 30, "VGSH": 25, "EMB": 10, "BND": 10, "TIP": 10, "EWJ": 15}
+      }
+    ],
+    "curated": {
+      "Growth": {
+        "return_pct": 16.28,
+        "volatility_pct": 17.86,
+        "yield_pct": 1.28,
+        "allocations": {"VDE": 15, "GLD": 30, "VGT": 15, "VOO": 20, "IGF": 10, "DBA": 10}
+      },
+      "Safety": {
+        "return_pct": 2.80,
+        "volatility_pct": 6.45,
+        "yield_pct": 4.07,
+        "allocations": {"VGSH": 30, "BND": 25, "TIP": 15, "HYG": 15, "DBA": 10, "SCHD": 5}
+      },
+      "Income": {
+        "return_pct": 2.69,
+        "volatility_pct": 10.57,
+        "yield_pct": 4.84,
+        "allocations": {"HYG": 30, "EMB": 15, "VGSH": 15, "EWJ": 10, "VNQI": 10, "SCHD": 10, "VGLT": 10}
+      },
+      "Balanced": {
+        "return_pct": 10.47,
+        "volatility_pct": 13.02,
+        "yield_pct": 2.55,
+        "allocations": {"VOO": 20, "GLD": 15, "IGF": 15, "DBA": 10, "VTV": 10, "SCHD": 10, "HYG": 10, "VGSH": 10}
+      }
+    }
+  }
+}
