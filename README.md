@@ -63,9 +63,10 @@ The `get_skill` tool delivers domain expertise that guides the agent through eac
 
 ### Exploration (`explore`)
 
-- **Tradeoff analysis**: objective ranges, correlations, extremes, balanced solution, frontier shape per pair (linear / concave / convex / discontinuous), reference point comparisons
+- **Tradeoff analysis**: objective ranges, correlations, extremes, balanced solution, inflection-point candidates, frontier shape per pair (linear / concave / convex / discontinuous), reference point comparisons
 - **Solution comparison**: side-by-side with shared/differentiating options and tradeoff summaries
 - **Marginal analysis**: cost-per-unit rates between adjacent solutions with knee-point detection
+- **Per-scenario exploration**: tradeoffs, compare, solutions, marginal analysis, and curation all accept an optional `scenario` parameter to target a specific scenario's frontier
 - **Scenario results**: robust options (all scenarios), scenario-specific options, probability-weighted expected values
 - **Run comparison**: criteria diffs, frontier diffs, option coverage changes across runs
 - **Solution curation**: bookmark solutions with custom names; content-based signatures track survival across re-runs

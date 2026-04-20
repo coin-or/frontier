@@ -1479,6 +1479,22 @@ class TestSkillInjectionOnSolve:
         assert "_skill_guidance" in result
         assert result["_skill_guidance"]["skill"] == "optimization_strategy"
 
+    def test_run_scenarios_injects_solution_interpreter(self):
+        pid = _build_solvable_problem()
+        srv.model(action="update", problem_id=pid, scenario_config={
+            "enabled": True,
+            "scenarios": [
+                {"name": "Base", "probability": 0.5, "score_overrides": []},
+                {"name": "Alt", "probability": 0.5, "score_overrides": [
+                    {"option": "A", "objective": "Rev", "value": 1},
+                    {"option": "C", "objective": "Rev", "value": 20},
+                ]},
+            ],
+        })
+        result = srv.solve(action="run_scenarios", problem_id=pid)
+        assert "_skill_guidance" in result
+        assert result["_skill_guidance"]["skill"] == "solution_interpreter"
+
 
 class TestSkillInjectionOnDelete:
     def test_delete_clears_injection_tracking(self):

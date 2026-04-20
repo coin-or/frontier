@@ -875,7 +875,7 @@ def _solve_run_scenarios(p: Problem, mode: OptimizeMode | None = None, max_solut
             "full_result_path": str(path),
         }
 
-    return {
+    result = {
         "scenarios_optimized": len(scenario_results),
         "results": summary,
         "full_result_paths": result_paths,
@@ -887,6 +887,17 @@ def _solve_run_scenarios(p: Problem, mode: OptimizeMode | None = None, max_solut
             "is the preferred path for bulk export (no token overhead)."
         ),
     }
+
+    # Always inject solution_interpreter after a successful scenario solve —
+    # the agent needs presentation guidance each time it has new results.
+    _inject_skill(result, "solution_interpreter",
+        "Per-scenario optimization complete. Use this guide to present results per scenario "
+        "and to surface cross-scenario robustness via `explore scenario_results`. "
+        "Never say 'best' — every Pareto solution is optimal at its tradeoff.")
+    # Reset optimization_strategy so it can re-fire on the next model change cycle
+    _reset_injection(p.problem_id, "optimization_strategy")
+
+    return result
 
 
 def _format_explore(result: dict) -> dict:

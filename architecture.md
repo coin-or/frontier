@@ -18,19 +18,19 @@ Frontier exposes 4 tools — 3 domain tools with multiple actions, plus a skill 
 | **solve** | `validate` | Pre-flight check: ≥2 objectives, ≥3 options, complete score matrix, feasible constraints |
 | | `run` | Validate then optimize. Returns compact result — `objective_ranges`, `preview` (per-objective extremes + balanced solution by id/objective_values only), `quality`, `metrics`, and `next_steps` pointer. Full solution detail retrievable via `explore solutions` / `explore solution <id>`. Optional `mode`: "fast" (default, quick iterations) or "thorough" (final convergence). Optional `max_solutions` caps Pareto set size (default 100). Auto-selects NSGA-II (2-3 obj) or NSGA-III (4+ obj). Parameters adapt to solution space size and objective count. |
 | | `run_scenarios` | Independently optimize each scenario with score overrides/adjustments. Accepts optional `mode` and `max_solutions`. |
-| **explore** | `tradeoffs` | Frontier overview: objective ranges, correlations, extremes, balanced solution (ideal-point closest), inflection-point candidates (diminishing-returns boundaries), frontier shape classification per conflicting pair (linear / concave / convex / discontinuous, with confidence), vs references |
-| | `compare` | Side-by-side comparison of 2+ solutions (shared/differentiating options, tradeoff summary) |
-| | `solutions` | Full Pareto frontier listing |
-| | `solution` | Single solution detail with reference point analysis |
+| **explore** | `tradeoffs` | Frontier overview: total solution count, objective ranges, correlations, extremes, balanced solution (ideal-point closest), inflection-point candidates (diminishing-returns boundaries), frontier shape classification per conflicting pair (linear / concave / convex / discontinuous, with confidence), vs references. Optional `scenario` param targets a specific scenario's frontier. |
+| | `compare` | Side-by-side comparison of 2+ solutions (shared/differentiating options, tradeoff summary). Optional `scenario` param. |
+| | `solutions` | Full Pareto frontier listing. Optional `scenario` param. |
+| | `solution` | Single solution detail with reference point analysis. Optional `scenario` param. |
 | | `feedback` | Record user feedback: solution_id or content_signature, rating (1-5), notes, stage. Links to content_signature (stable across runs) and attaches to matching curated solution. |
 | | `compare_runs` | Diff run history: criteria changes, frontier diffs, option coverage |
 | | `scenario_results` | Per-scenario analysis with frequency-weighted option importance. Returns option_robustness sorted by importance (avg_frequency x avg_weight) with tiers: core (>50% in all scenarios), common (>25%), marginal (<25%). Also: scenario-specific options, expected values (ideal-point, probability-weighted). |
-| | `curate` | Add a solution to the curated set with custom name and notes |
+| | `curate` | Add a solution to the curated set with custom name and notes. Optional `scenario` param for curating from scenario frontiers. |
 | | `uncurate` | Remove a solution from the curated set by content signature |
 | | `rename_curated` | Update a curated solution's custom name |
 | | `curated` | List all curated solutions with `in_current_frontier` survival flag |
 | | `compare_curated` | Compare curated solutions side-by-side by content signature |
-| | `marginal_analysis` | Marginal rate analysis: cost-per-unit between adjacent solutions, inflection point detection (where marginal cost jumps sharply). Default summary; `detail=true` for per-pair breakdown. |
+| | `marginal_analysis` | Marginal rate analysis: cost-per-unit between adjacent solutions, inflection point detection (where marginal cost jumps sharply). Default summary; `detail=true` for per-pair breakdown. Optional `scenario` param. |
 | **get_skill** | *(single action)* | Retrieve workflow guidance by name. Returns full skill markdown. Works with all MCP clients (unlike resources, which require client-side resource support). Available skills: `problem_framing`, `data_collection`, `optimization_strategy`, `solution_interpreter`. |
 
 ### MCP Skills (Resources + Tool)

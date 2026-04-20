@@ -16,6 +16,7 @@ from pymoo.core.repair import Repair
 from pymoo.core.sampling import Sampling
 from pymoo.operators.sampling.rnd import BinaryRandomSampling, FloatRandomSampling
 from pymoo.optimize import minimize as pymoo_minimize
+from pymoo.util.nds.non_dominated_sorting import NonDominatedSorting
 from pymoo.util.ref_dirs import get_reference_directions
 
 
@@ -303,6 +304,41 @@ def validate(problem: Problem) -> ValidationResult:
                 severity="warning",
                 message=f"Interaction matrix references unknown objective '{im.objective}'.",
             ))
+        for sg in im.scale_groups:
+            unknown = [opt for opt in sg.options if opt not in opt_names]
+            if unknown:
+                issues.append(ValidationIssue(
+                    severity="warning",
+                    message=f"Interaction matrix for '{im.objective}' scale_group references unknown options: {unknown}.",
+                ))
+
+    # Validate scenario interaction_matrix_overrides references
+    if problem.scenario_config is not None:
+        for sc in problem.scenario_config.scenarios:
+            for im in sc.interaction_matrix_overrides:
+                if im.objective not in obj_names:
+                    issues.append(ValidationIssue(
+                        severity="warning",
+                        message=f"Scenario '{sc.name}' interaction_matrix_override references unknown objective '{im.objective}'.",
+                    ))
+                # Check entries row/column keys
+                entry_opts = set(im.entries.keys())
+                for row_opts in im.entries.values():
+                    entry_opts.update(row_opts.keys())
+                unknown_entries = entry_opts - opt_names
+                if unknown_entries:
+                    issues.append(ValidationIssue(
+                        severity="warning",
+                        message=f"Scenario '{sc.name}' interaction_matrix_override for '{im.objective}' entries reference unknown options: {sorted(unknown_entries)}.",
+                    ))
+                # Check scale_groups option names
+                for sg in im.scale_groups:
+                    unknown = [opt for opt in sg.options if opt not in opt_names]
+                    if unknown:
+                        issues.append(ValidationIssue(
+                            severity="warning",
+                            message=f"Scenario '{sc.name}' interaction_matrix_override for '{im.objective}' scale_group references unknown options: {unknown}.",
+                        ))
 
     ready = all(i.severity != "error" for i in issues)
     return ValidationResult(ready=ready, issues=issues, missing_scores=missing_scores)
@@ -702,6 +738,68 @@ def optimize_scenarios(problem: Problem, mode: OptimizeMode | None = None, max_s
     return results
 
 
+def _union_with_elites(
+    result,
+    pymoo_problem,
+    seed_population: np.ndarray | None,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Protect extreme-point seeds from evolutionary dilution.
+
+    After NSGA finishes, evaluate the precomputed corner seeds (constraint-compliant
+    by construction) and union them with result.X/result.F. Infeasible seeds are
+    dropped. The combined set is filtered by non-dominated sorting so only
+    Pareto-optimal points survive.
+
+    Effect: generic NSGA operators don't preserve every seed across ~300 generations
+    (they get outcompeted by mid-frontier individuals with better crowding distance).
+    Protecting the seeds post-hoc keeps corner sharpness without perturbing the
+    main evolutionary search or mid-frontier diversity.
+
+    Works across all modes (binary / proportional), any n_obj, any problem size.
+    """
+    if result.X is None or result.F is None or len(result.F) == 0:
+        return result.X, result.F
+    if seed_population is None or len(seed_population) == 0:
+        return result.X, result.F
+
+    # Evaluate seeds through the pymoo problem (gives F and G in pymoo's minimize
+    # convention, so comparisons with result.F are apples-to-apples).
+    seeds = np.asarray(seed_population, dtype=float)
+    # pymoo's Problem.evaluate returns a dict when return_values_of is specified.
+    out = pymoo_problem.evaluate(seeds, return_values_of=["F", "G"], return_as_dictionary=True)
+    seed_F = out.get("F")
+    seed_G = out.get("G")
+
+    if seed_F is None or len(seed_F) == 0:
+        return result.X, result.F
+
+    # Drop infeasible seeds (any G > 0 means a constraint is violated).
+    if seed_G is not None and seed_G.size > 0:
+        feasible_mask = np.all(seed_G <= 1e-6, axis=1)
+        seeds = seeds[feasible_mask]
+        seed_F = seed_F[feasible_mask]
+    if len(seeds) == 0:
+        return result.X, result.F
+
+    # Union and take non-dominated front.
+    union_X = np.vstack([result.X, seeds])
+    union_F = np.vstack([result.F, seed_F])
+    nds = NonDominatedSorting()
+    fronts = nds.do(union_F, only_non_dominated_front=True)
+    pareto_X, pareto_F = union_X[fronts], union_F[fronts]
+
+    # Deduplicate: elite preservation can bring in seeds identical to existing
+    # result points, producing duplicate solutions after non-dominated sorting.
+    # Keep the first occurrence of each unique X row.
+    _, unique_idx = np.unique(
+        np.round(pareto_X, 6),  # tolerate small float noise
+        axis=0,
+        return_index=True,
+    )
+    unique_idx.sort()  # preserve original order
+    return pareto_X[unique_idx], pareto_F[unique_idx]
+
+
 def _optimize_binary(problem: Problem, mode: OptimizeMode, max_solutions: int | None = None) -> Run:
     """Binary mode: pick K of N options."""
     n_options = len(problem.options)
@@ -723,9 +821,12 @@ def _optimize_binary(problem: Problem, mode: OptimizeMode, max_solutions: int | 
         pymoo_problem, algorithm, ("n_gen", n_gen), seed=42, verbose=False,
     )
 
+    # Elite preservation: union extreme-point seeds with result, keep Pareto front.
+    union_X, union_F = _union_with_elites(result, pymoo_problem, seeds if len(seeds) > 0 else None)
+
     solutions: list[Solution] = []
-    if result.F is not None and len(result.F) > 0:
-        for idx, (x, f) in enumerate(zip(result.X, result.F)):
+    if union_F is not None and len(union_F) > 0:
+        for idx, (x, f) in enumerate(zip(union_X, union_F)):
             selected = [opt_names[i] for i in range(n_options) if x[i] > 0.5]
             obj_values = {}
             for j, obj in enumerate(obj_list):
@@ -762,9 +863,12 @@ def _optimize_proportional(problem: Problem, mode: OptimizeMode, max_solutions: 
         pymoo_problem, algorithm, ("n_gen", n_gen), seed=42, verbose=False,
     )
 
+    # Elite preservation: union extreme-point seeds with result, keep Pareto front.
+    union_X, union_F = _union_with_elites(result, pymoo_problem, seeds if len(seeds) > 0 else None)
+
     solutions: list[Solution] = []
-    if result.F is not None and len(result.F) > 0:
-        for idx, (x, f) in enumerate(zip(result.X, result.F)):
+    if union_F is not None and len(union_F) > 0:
+        for idx, (x, f) in enumerate(zip(union_X, union_F)):
             # Round to integers and normalize to sum to 100
             raw = np.maximum(np.round(x), 0).astype(int)
             # Clamp to max_allocation before redistributing

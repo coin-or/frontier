@@ -162,6 +162,47 @@ class TestValidation:
         assert vr.ready is False
         assert any("Duplicate option" in i.message for i in vr.issues)
 
+    def test_scenario_scale_groups_unknown_option_warns(self):
+        """Scenario interaction_matrix_overrides with scale_groups referencing
+        an unknown option name should produce a validation warning (typo-tolerance
+        gap — prior behavior silently dropped unknown names)."""
+        from frontier.engine.models import (
+            InteractionMatrix,
+            InteractionScaleGroup,
+            Scenario,
+            ScenarioConfig,
+        )
+
+        p = _make_problem(
+            scenario_config=ScenarioConfig(
+                enabled=True,
+                scenarios=[
+                    Scenario(
+                        name="Recession",
+                        interaction_matrix_overrides=[
+                            InteractionMatrix(
+                                objective="Revenue",
+                                mode="upsert",
+                                entries={},
+                                scale_groups=[
+                                    InteractionScaleGroup(
+                                        options=["A", "B", "VXUS"],  # VXUS not in options
+                                        factor=1.5,
+                                    )
+                                ],
+                            )
+                        ],
+                    )
+                ],
+            )
+        )
+        vr = validate(p)
+        # Warning, not error — problem still ready
+        assert any(
+            "VXUS" in i.message and i.severity == "warning"
+            for i in vr.issues
+        ), f"Expected warning mentioning VXUS, got: {[(i.severity, i.message) for i in vr.issues]}"
+
 
 # ─── Optimization ───
 
@@ -781,3 +822,57 @@ class TestExtremeSeeds:
 
         # All options excluded → no seed meets cardinality_min
         assert seeds.shape[0] == 0
+
+
+# ─── Elite preservation (Fix 5) ───
+
+
+class TestElitePreservation:
+    """Extreme-point seeds are preserved post-solve so corner quality isn't
+    diluted by generic evolutionary operators. Seeds are unioned with pymoo's
+    result and filtered by non-dominated sorting.
+    """
+
+    def test_preserved_result_size_not_reduced(self):
+        """Union should not shrink the Pareto set below pymoo's own output."""
+        p = _make_problem(constraints=[CardinalityConstraint(min=2, max=3)])
+        run = optimize(p, mode="fast")
+        # Just check that we got a non-trivial set; main invariant is that
+        # elite preservation doesn't silently collapse the frontier.
+        assert len(run.solutions) >= 2
+
+    def test_preserved_corners_match_or_beat_seeds(self):
+        """After elite preservation, the per-objective extremes in the final
+        Pareto set should match or exceed the greedy seeds' values.
+
+        This is the core claim: neutral NSGA operators may dilute the seeds
+        during evolution; post-hoc union restores them.
+        """
+        from frontier.engine.optimizer import (
+            _build_score_matrix, _compute_extreme_seeds, _parse_constraints,
+        )
+
+        p = _make_problem(constraints=[CardinalityConstraint(min=2, max=3)])
+        score_matrix = _build_score_matrix(p)
+        cp = _parse_constraints(p)
+        seeds = _compute_extreme_seeds(p, score_matrix, cp)
+
+        # Compute each seed's per-objective extreme value.
+        seed_rev = float((seeds[0] * score_matrix[:, 0]).sum()) if len(seeds) > 0 else 0
+        seed_eff = float((seeds[1] * score_matrix[:, 1]).sum()) if len(seeds) > 1 else 0
+
+        run = optimize(p, mode="fast")
+        final_rev_max = max(s.objective_values.get("Revenue", 0) for s in run.solutions)
+        final_eff_min = min(s.objective_values.get("Effort", 0) for s in run.solutions)
+
+        # Final max revenue should be at least as good as the seed's revenue.
+        # (Elite preservation guarantees the seed survives if non-dominated.)
+        assert final_rev_max >= seed_rev - 1e-6, (
+            f"Final max Revenue {final_rev_max} < seed {seed_rev} — "
+            f"elite preservation should have protected the seed."
+        )
+        # Final min effort should be at most as much as the seed's effort.
+        assert final_eff_min <= seed_eff + 1e-6, (
+            f"Final min Effort {final_eff_min} > seed {seed_eff} — "
+            f"elite preservation should have protected the seed."
+        )
