@@ -11,6 +11,7 @@ from frontier.engine.explorer import (
 from frontier.engine.models import (
     CardinalityConstraint,
     Objective,
+    ObjectiveBoundConstraint,
     Option,
     Problem,
     Score,
@@ -159,3 +160,165 @@ class TestFrontierShape:
             assert entry["shape"] in ("linear", "concave", "convex", "discontinuous")
             assert "confidence" in entry
             assert 0.0 <= entry["confidence"] <= 1.0
+
+
+class TestObjectiveRedundancy:
+    def test_tradeoffs_include_redundancy(self, solved_problem):
+        result = get_tradeoffs(solved_problem)
+        assert "objective_redundancy" in result
+        assert isinstance(result["objective_redundancy"], list)
+
+    def test_redundancy_entries_schema(self, solved_problem):
+        result = get_tradeoffs(solved_problem)
+        for entry in result["objective_redundancy"]:
+            assert "objectives" in entry
+            assert "classification" in entry
+            assert entry["classification"] in (
+                "independent", "linear_redundant", "strong_tradeoff",
+                "redundant", "nonlinear_dependent",
+            )
+            assert "pearson" in entry
+            assert -1.0 <= entry["pearson"] <= 1.0
+            assert "flags" in entry
+            assert "mi_reliable" in entry
+
+    def test_redundant_same_direction_flagged(self):
+        # Two maximize objectives perfectly aligned (Profit = 0.8 * Revenue) should
+        # be `linear_redundant` — both getting better together.
+        p = Problem(
+            objectives=[
+                Objective(name="Revenue", direction="maximize"),
+                Objective(name="Profit", direction="maximize"),
+                Objective(name="Effort", direction="minimize"),
+            ],
+            options=[Option(name=n) for n in ["A", "B", "C", "D", "E", "F"]],
+            scores=[
+                Score(option="A", objective="Revenue", value=10),
+                Score(option="A", objective="Profit", value=8),
+                Score(option="A", objective="Effort", value=3),
+                Score(option="B", objective="Revenue", value=6),
+                Score(option="B", objective="Profit", value=4.8),
+                Score(option="B", objective="Effort", value=2),
+                Score(option="C", objective="Revenue", value=9),
+                Score(option="C", objective="Profit", value=7.2),
+                Score(option="C", objective="Effort", value=5),
+                Score(option="D", objective="Revenue", value=4),
+                Score(option="D", objective="Profit", value=3.2),
+                Score(option="D", objective="Effort", value=1),
+                Score(option="E", objective="Revenue", value=7),
+                Score(option="E", objective="Profit", value=5.6),
+                Score(option="E", objective="Effort", value=4),
+                Score(option="F", objective="Revenue", value=5),
+                Score(option="F", objective="Profit", value=4.0),
+                Score(option="F", objective="Effort", value=2),
+            ],
+            constraints=[CardinalityConstraint(min=2, max=4)],
+        )
+        p.run = optimize(p)
+        result = get_tradeoffs(p)
+        rp = [
+            e for e in result["objective_redundancy"]
+            if set(e["objectives"]) == {"Revenue", "Profit"}
+        ]
+        assert len(rp) == 1
+        entry = rp[0]
+        assert entry["pearson"] >= 0.7
+        assert entry["classification"] in ("linear_redundant", "redundant")
+
+    def test_mixed_direction_pair_not_redundant(self):
+        # Revenue (max) and Effort (min) that covary in raw values are a genuine
+        # tradeoff, NOT redundancy. Direction-normalized r should be negative.
+        p = Problem(
+            objectives=[
+                Objective(name="Revenue", direction="maximize"),
+                Objective(name="Effort", direction="minimize"),
+                Objective(name="Satisfaction", direction="maximize"),
+            ],
+            options=[Option(name=n) for n in ["A", "B", "C", "D", "E", "F"]],
+            scores=[
+                # High-revenue options are also high-effort
+                Score(option="A", objective="Revenue", value=100), Score(option="A", objective="Effort", value=10), Score(option="A", objective="Satisfaction", value=5),
+                Score(option="B", objective="Revenue", value=20), Score(option="B", objective="Effort", value=2), Score(option="B", objective="Satisfaction", value=3),
+                Score(option="C", objective="Revenue", value=80), Score(option="C", objective="Effort", value=8), Score(option="C", objective="Satisfaction", value=7),
+                Score(option="D", objective="Revenue", value=30), Score(option="D", objective="Effort", value=3), Score(option="D", objective="Satisfaction", value=4),
+                Score(option="E", objective="Revenue", value=60), Score(option="E", objective="Effort", value=6), Score(option="E", objective="Satisfaction", value=6),
+                Score(option="F", objective="Revenue", value=40), Score(option="F", objective="Effort", value=4), Score(option="F", objective="Satisfaction", value=4),
+            ],
+            constraints=[CardinalityConstraint(min=2, max=4)],
+        )
+        p.run = optimize(p)
+        result = get_tradeoffs(p)
+        re = [
+            e for e in result["objective_redundancy"]
+            if set(e["objectives"]) == {"Revenue", "Effort"}
+        ]
+        assert len(re) == 1
+        entry = re[0]
+        # Direction-normalized r must be negative (genuine tradeoff)
+        assert entry["pearson"] < 0
+        # Must NOT be flagged as redundant
+        assert entry["classification"] != "linear_redundant"
+        assert entry["classification"] != "redundant"
+
+
+class TestBindingAnalysis:
+    def test_tradeoffs_include_binding_analysis_key(self, solved_problem):
+        result = get_tradeoffs(solved_problem)
+        assert "binding_analysis" in result
+        assert isinstance(result["binding_analysis"], list)
+
+    def test_cardinality_binding_has_shadow_prices(self, solved_problem):
+        # The fixture uses CardinalityConstraint(min=2, max=3), likely binding.
+        result = get_tradeoffs(solved_problem)
+        cardinality_entries = [
+            e for e in result["binding_analysis"]
+            if e["constraint_type"] == "cardinality"
+        ]
+        assert len(cardinality_entries) >= 1
+        entry = cardinality_entries[0]
+        assert 0.0 <= entry["binding_fraction"] <= 1.0
+        assert entry["near_binding_count"] >= 1
+        # Either shadow prices populated or a note explaining why not
+        assert entry["shadow_prices"] or entry["note"]
+        for sp in entry["shadow_prices"]:
+            assert "objective" in sp
+            assert "gain_per_additional_slot" in sp
+
+    def test_objective_bound_binding_is_detected(self):
+        p = Problem(
+            objectives=[
+                Objective(name="Revenue", direction="maximize"),
+                Objective(name="Effort", direction="minimize"),
+            ],
+            options=[Option(name=n) for n in ["A", "B", "C", "D", "E"]],
+            scores=[
+                Score(option="A", objective="Revenue", value=10),
+                Score(option="A", objective="Effort", value=8),
+                Score(option="B", objective="Revenue", value=7),
+                Score(option="B", objective="Effort", value=3),
+                Score(option="C", objective="Revenue", value=9),
+                Score(option="C", objective="Effort", value=6),
+                Score(option="D", objective="Revenue", value=5),
+                Score(option="D", objective="Effort", value=2),
+                Score(option="E", objective="Revenue", value=8),
+                Score(option="E", objective="Effort", value=5),
+            ],
+            constraints=[
+                CardinalityConstraint(min=2, max=3),
+                ObjectiveBoundConstraint(objective="Effort", operator="max", value=10),
+            ],
+        )
+        p.run = optimize(p)
+        result = get_tradeoffs(p)
+        # binding_analysis must not crash with objective_bound constraint
+        assert "binding_analysis" in result
+        ob_entries = [
+            e for e in result["binding_analysis"]
+            if e["constraint_type"] == "objective_bound"
+        ]
+        # May or may not be binding depending on the frontier, but if present
+        # the schema should be valid
+        for entry in ob_entries:
+            assert "constraint" in entry
+            assert "binding_fraction" in entry
+            assert entry["shadow_prices"] or entry["note"]

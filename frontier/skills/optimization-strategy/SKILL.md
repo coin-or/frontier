@@ -92,6 +92,20 @@ A binding constraint limits every (or nearly every) Pareto solution. Signs:
 
 When you detect a binding constraint, quantify the impact: *"Relaxing effort from ≤30 to ≤35 could dramatically expand the solution space. Is that limit truly non-negotiable?"* Suggest incremental relaxation, not removal.
 
+For a richer view after solve, `explore tradeoffs` returns a `binding_analysis` block with shadow-price rates per binding constraint — how much each objective shifts per unit of slack relaxation, derived from the frontier's own slope. Use it to move the conversation from "this constraint is tight" to "it's costing you roughly $X per unit — worth negotiating?". See `frontier://skills/solution_interpreter` for presentation patterns.
+
+### Reproducibility and Stability Checks
+
+The `solve` tool accepts an optional `seed` for the optimizer's RNG. Either way, the response echoes `seed_used` so a run can be reproduced later even when the seed wasn't specified up front.
+
+| Use | What to do |
+|---|---|
+| Share or revisit a specific frontier | Note the `seed_used` returned by the first run; pass it as `seed` on any re-run where you want the same result (same problem state + same seed → same frontier). |
+| Check frontier stability | Re-run with different seeds on the same problem. Solutions shifting slightly is normal; the *shape* of the frontier (ranges, key tradeoffs) should be stable. If it isn't, the formulation is underspecified — objectives too correlated, constraints too loose, or not enough options. |
+| Debug a "weird" result | Re-run with a different seed before assuming a modeling bug. Evolutionary search is stochastic; one run isn't the frontier, it's a sample of it. |
+
+Don't pin seeds by default — fresh seeds each run give you a free stability check as the user iterates. Pin only when reproducibility matters (handoff, regression, a specific frontier the user wants preserved).
+
 ### Stale Results
 
 When the problem structure changes (objectives, options, scores, constraints, approach), results are marked stale rather than cleared. This preserves the previous run for comparison. The `results_stale` flag in the status tells you when re-running is recommended.

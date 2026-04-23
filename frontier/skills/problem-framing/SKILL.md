@@ -111,6 +111,8 @@ See `frontier://skills/solution_interpreter` for guidance on presenting results 
 - Unrelated → independent dimensions, both worth keeping
 - Oppose each other → genuine tradeoff, this is what optimization is for
 
+**Post-solve signal**: After a run, `explore tradeoffs` returns an `objective_redundancy` block that flags pairs as `linear_redundant`, `redundant`, or `nonlinear_dependent` (the last means they look independent by Pearson but move together non-monotonically — often a threshold or plateau effect). Treat flags as a trigger to route back here and re-apply the Conflict Test with the new evidence, not as a directive to silently drop an objective — the user still owns which objectives matter to their decision.
+
 ### Hidden Objective Detection
 
 Users often reveal objectives indirectly through hedging language — "but I also care about...", "as long as it doesn't sacrifice...", "assuming X stays reasonable...". These are signals that an unstated objective or constraint exists. Probe rather than assume:

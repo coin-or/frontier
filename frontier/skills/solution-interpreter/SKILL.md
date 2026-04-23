@@ -128,7 +128,7 @@ When the user gravitates toward a solution, ask what would make it better:
 - This naturally leads to constraint tweaks and re-optimization.
 
 ### Correlation Narration
-The `tradeoffs` output includes raw correlation coefficients (`r`) for each objective pair. Translate these into domain language:
+The `tradeoffs` output includes a Pearson `correlation` (and, when the frontier has ≥15 solutions, a `mutual_info_normalized`) for each objective pair. Pearson captures linear alignment; MI captures any dependence including non-linear. Translate the Pearson value into domain language:
 
 | r value | Interpretation | Template |
 |---|---|---|
@@ -138,7 +138,25 @@ The `tradeoffs` output includes raw correlation coefficients (`r`) for each obje
 | -0.7 to -0.3 | Mild tradeoff | "[A] and [B] are in tension — improving one tends to hurt the other" |
 | r < -0.7 | Strong tradeoff | "[A] and [B] are the core tension — the high-[A] options are the expensive-[B] ones" |
 
-Always narrate in domain terms, not statistics. "Revenue and effort are the core tension" beats "r=-0.85 indicates strong negative correlation."
+Always narrate in domain terms, not statistics. "Revenue and effort are the core tension" beats "r=-0.85 indicates strong negative correlation." When MI and Pearson disagree, use the `objective_redundancy` section below — that disagreement is a specific finding worth naming.
+
+### Objective Redundancy
+
+The `tradeoffs` output includes an `objective_redundancy` block with a classification per pair. Each entry combines Pearson (linear) and normalized MI (any dependence) to surface when two objectives may be measuring the same thing. Narrate per classification:
+
+The `correlation` field is **direction-normalized** — positive values mean both objectives improve together (redundancy candidate), negative values mean improving one worsens the other (genuine tradeoff, which is the whole point of optimizing). Classifications reflect that:
+
+| Classification | What it means | Template |
+|---|---|---|
+| `independent` | Pairs vary freely — no action needed | (Skip — only narrate when noteworthy) |
+| `linear_redundant` | Strongly positive r — both improve together | "[A] and [B] are tracking each other closely on this frontier. One is likely redundant." |
+| `strong_tradeoff` | Strongly negative r — genuine conflict | (Don't flag as redundancy — this is the tradeoff the optimizer exists to find. Narrate via Correlation Narration instead.) |
+| `redundant` | High MI not explained by linear r — strongly dependent non-linearly | "[A] and [B] are strongly coupled — the solver isn't finding meaningful tradeoff between them." |
+| `nonlinear_dependent` | |r| low **but** MI ≥ 0.4 — move together in a bent or threshold-like way | "[A] and [B] look uncorrelated, but they're actually linked — probably through a threshold or plateau. Worth looking at the scatter before treating them as independent." |
+
+When the `mi_reliable` flag is false (fewer than 15 solutions), only Pearson-based classifications fire — note low confidence before acting on them.
+
+**What to do with a redundancy flag:** don't silently drop an objective. Route the user back to problem framing: *"The optimizer is treating [A] and [B] as the same axis — do they actually measure different things for your decision? If not, consolidating would sharpen the frontier."* See `frontier://skills/problem_framing` for the Conflict Test and consolidation pattern.
 
 ## Presentation Refinements
 
@@ -208,6 +226,29 @@ Narrate the shape in domain terms: "The ROI vs Risk frontier shows diminishing r
 
 Don't force a classification when the data is noisy (common in binary/combinatorial problems with discrete jumps). Say "the tradeoff is uneven" rather than inventing a smooth narrative.
 
+### Binding Analysis
+
+The `tradeoffs` output includes a `binding_analysis` block: one entry per binding constraint with a `binding_fraction`, a `near_binding_count`, and a list of `shadow_prices` — rates, not deltas, derived from the frontier's own slope near the constraint.
+
+Users often care more about *which constraint is limiting them and how much it's costing* than about which solution to pick. Shadow prices are how you tell them.
+
+**Translating the shape to language:**
+
+| Constraint type | Shadow-price field | Template |
+|---|---|---|
+| `objective_bound` | `slope_per_unit_relaxed` | "Each unit of [constraint] relaxation looks worth about [slope] of [objective] on this frontier." |
+| `cardinality` / `group_limit` | `gain_per_additional_slot` | "Adding one more [slot / group member] appears to unlock about [gain] of [objective]." |
+
+**Sign convention:** shadow-price values are **directional** in each objective's own frame — positive means the objective *improves* per unit of relaxation (in its own direction), negative means it *worsens*. For minimize objectives, a negative `gain_per_additional_slot` reads naturally as "this costs us more" — reframe rather than echoing the raw number. Example: Effort has `gain_per_additional_slot: -4` → *"Adding a slot also adds ~4 person-weeks of effort — a direct cost you trade for the other gains."*
+
+Guidance:
+- **Surface the highest-leverage constraint first** — sort by binding_fraction, then by magnitude of shadow price. A constraint binding on 95% of the frontier with a large slope is the one to name.
+- **Rates, not amounts.** Don't translate slopes into specific relaxation amounts ("+10%") — the slope is local to the binding edge and only describes marginal change. Let the user choose how much to negotiate: *"You'd gain about $X per $1 of budget relaxation — how much do you think you could get?"*
+- **Note missing shadow prices.** When the `note` field is populated (e.g., no adjacent-cardinality solutions), say so: the constraint is binding, but the frontier doesn't give enough variation to estimate the gain. That's itself a useful message — it usually means the constraint is *so* tight that every solution sits on the cliff.
+- **Route action back to problem framing** — binding analysis suggests which constraint to revisit, not that it must move. *"This is the limiting constraint. Is the limit truly fixed, or is it a target we could negotiate?"*
+
+See `references/explore-diagnostics.md` for the full schema of `binding_analysis` entries and worked examples.
+
 ### Marginal Analysis Interpretation
 
 The `explore marginal_analysis` action returns structured data for each conflicting pair: `rates` (per-step cost ratios) and optionally `inflection` (with `solution_id`, `position`, `jump_factor`). Interpret these:
@@ -273,6 +314,15 @@ Present the top 5-8 from `option_robustness` with their tier, frequency, and avg
 
 **Expected values caveat**: The `expected_values` in scenario_results are ideal-point values (best-per-objective across scenarios, probability-weighted). No single solution achieves all simultaneously. Present them as "theoretical ceiling" when useful, but always caveat.
 
+**Tail risk framing** — the `scenario_risk` block reports `expected`, `worst_case`, `best_case`, and `cvar_<α%>` per objective. CVaR is the probability-weighted mean of outcomes *in the worst α fraction of scenarios* — it answers "when things go wrong, how bad is 'wrong'?" Use it to shift the conversation from averages to downside:
+
+- **Lead with expected when the user is comparing strategies on value** — that's the "normal case" frame.
+- **Lead with CVaR or worst-case when the user is risk-averse, regulated, or near a constraint cliff** — e.g., capital preservation, compliance floors, safety. Template: *"Expected NPV is $12M, but in the worst 20% of scenarios (recession + supply shock) the average drops to $5.8M. Is that tolerable?"*
+- **Flag wide ranges** — if `range[1] - range[0]` is large relative to `expected`, the solution's outcome is scenario-dependent; name that explicitly rather than hiding it in the mean.
+- **Control α when the user tells you what "bad" means.** The default α is 0.2 (worst 20%). Pass `cvar_alpha=0.1` for stricter tail framing when the user describes rare-but-catastrophic risk, or `0.3–0.5` when they worry about a broader downside.
+
+CVaR here is diagnostic, not an optimization target — it reports risk of the *best-in-scenario* outcome, not of a specific solution. Don't overclaim: say "the achievable tail" rather than "this solution's tail."
+
 ### Sensitivity Intuition
 Flag fragile solutions:
 - "This solution barely makes the cut on your effort constraint. If effort estimates are off by 10%, it might not be feasible."
@@ -288,7 +338,7 @@ The `diagnostics` array in solve output contains structured signals (not pre-wri
 | `clustered_solutions` | — | "Your solutions are nearly identical — objectives may not truly conflict. Are [X] and [Y] measuring the same thing?" |
 | `low_variation_objective` | `objective`, `relative_range` | "[Objective] barely varies across solutions (range [X]%). It's not driving differentiation — consider dropping it or re-scoring." |
 | `option_never_selected` | `option` | "[Option] doesn't appear in any solution. Check if it's dominated or blocked by a constraint." |
-| `binding_constraint` | `constraint`, `extreme_value` | "[Constraint] is binding (solutions push right up to the limit). Relaxing it would open new tradeoff space." |
+| `binding_constraint` | `constraint`, `extreme_value` | "[Constraint] is binding (solutions push right up to the limit). Relaxing it would open new tradeoff space." See the **Binding Analysis** section for shadow-price framing when `tradeoffs` is available. |
 
 Also watch for these patterns in the data even when no diagnostic is emitted:
 
@@ -358,6 +408,13 @@ Curation is how users build a decision set from the raw frontier. Use `explore c
 **Robustness as curation signal:** After scenario analysis, core-tier options (from `option_robustness`) are natural curation candidates. Surface them: "These core options survive at high frequency and weight across all scenarios — worth bookmarking as safe bets." When a curated solution contains mostly core-tier options, note it as robust; when it relies on marginal or scenario-specific options, flag the conditional risk.
 
 **Presentation framing:** Once the curated set has 3+ solutions, it IS the decision set. Present curated solutions first, the full frontier as background. Frame the final question around the curated set using custom names.
+
+**Handoff via export:** When the user is ready to leave Frontier — building a deck, writing a memo, sharing with a team — offer `explore export_curated`. Two formats:
+
+- `format="markdown"` (default): pipe-aligned table, paste-ready for docs and messages.
+- `format="csv"`: for spreadsheets or further tooling.
+
+Both emit raw curated solutions (names, signatures, objective values, selected options or allocations) — no narrative. Your job is the narrative; the export is the data. Offer it naturally at handoff moments: *"Want me to export the curated set as a markdown table you can paste into your doc?"* Don't auto-export — the user decides when they're ready to take work out of the session.
 
 ## Activation
 Use this expertise after solving, during frontier exploration. Your job is to make the Pareto frontier legible and actionable.

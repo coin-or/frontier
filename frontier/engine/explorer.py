@@ -19,20 +19,37 @@ def get_tradeoffs(problem: Problem, scenario: str | None = None) -> dict:
         vals = [s.objective_values[name] for s in solutions]
         obj_ranges[name] = {"min": min(vals), "max": max(vals)}
 
-    # Key tradeoffs: pairwise correlation between objectives
+    # Key tradeoffs: direction-normalized Pearson correlation + normalized MI.
+    # Each objective's raw values are flipped when its direction is minimize, so
+    # positive r means "both get better together" (redundancy candidate) and
+    # negative r means "improving one hurts the other" (genuine tradeoff).
+    # MI is invariant to monotonic transforms, so normalization doesn't shift it,
+    # but we keep the interpretation consistent with r below.
     if len(solutions) >= 3 and len(obj_names) >= 2:
         matrix = np.array([
             [s.objective_values[name] for name in obj_names]
             for s in solutions
         ])
-        corr = np.corrcoef(matrix.T)
+        dir_signs = np.array([
+            -1.0 if o.direction.value == "minimize" else 1.0
+            for o in problem.objectives
+        ])
+        norm_matrix = matrix * dir_signs
+        corr = np.corrcoef(norm_matrix.T)
+        n = len(solutions)
+        mi_reliable = n >= 15
         key_tradeoffs = []
         for i in range(len(obj_names)):
             for j in range(i + 1, len(obj_names)):
-                key_tradeoffs.append({
+                r = float(corr[i, j])
+                mi = _normalized_mi(norm_matrix[:, i], norm_matrix[:, j]) if mi_reliable else None
+                entry = {
                     "objectives": [obj_names[i], obj_names[j]],
-                    "correlation": round(float(corr[i, j]), 2),
-                })
+                    "correlation": round(r, 2),
+                }
+                if mi is not None:
+                    entry["mutual_info_normalized"] = round(mi, 2)
+                key_tradeoffs.append(entry)
     else:
         key_tradeoffs = []
 
@@ -84,6 +101,12 @@ def get_tradeoffs(problem: Problem, scenario: str | None = None) -> dict:
 
     # Frontier shape classification per conflicting objective pair
     result["frontier_shape"] = _classify_frontier_shapes(solutions, problem.objectives)
+
+    # Shadow-price guidance for binding constraints
+    result["binding_analysis"] = _binding_analysis(problem, solutions)
+
+    # Objective redundancy: classify each pair using Pearson + MI, flag disagreement
+    result["objective_redundancy"] = _objective_redundancy(key_tradeoffs, len(solutions))
 
     result["visualization"] = _render_tradeoffs_viz(result, problem.objectives, solutions)
     return result
@@ -367,6 +390,72 @@ def rename_curated(problem: Problem, content_signature: str, custom_name: str) -
     raise ValueError(f"No curated solution with signature '{content_signature}'.")
 
 
+def export_curated(problem: Problem, format: str = "markdown") -> dict:
+    """Export curated solutions as raw formatted text for handoff.
+
+    format: "markdown" (pipe-aligned table) or "csv".
+    Returns {"format": ..., "content": "<string>", "total_curated": N}.
+    """
+    fmt = (format or "markdown").lower()
+    if fmt not in ("markdown", "csv"):
+        raise ValueError(f"Unknown format '{format}'. Use 'markdown' or 'csv'.")
+
+    curated = problem.curated_solutions
+    if not curated:
+        return {"format": fmt, "content": "", "total_curated": 0}
+
+    obj_names = [o.name for o in problem.objectives]
+    opt_names = [o.name for o in problem.options]
+    use_allocations = any(cs.allocations for cs in curated)
+
+    # Column layout: name, signature, objective values, then either selected options or allocations
+    headers = ["name", "content_signature", *obj_names]
+    if use_allocations:
+        headers += [f"alloc:{opt}" for opt in opt_names]
+    else:
+        headers += ["selected_options"]
+
+    rows: list[list[str]] = []
+    for cs in curated:
+        row = [cs.custom_name or "", cs.content_signature]
+        for obj in obj_names:
+            val = cs.objective_values.get(obj)
+            row.append("" if val is None else f"{val}")
+        if use_allocations:
+            alloc = cs.allocations or {}
+            for opt in opt_names:
+                row.append(str(alloc.get(opt, 0)))
+        else:
+            row.append("; ".join(cs.selected_options))
+        rows.append(row)
+
+    if fmt == "csv":
+        import csv
+        import io
+        buf = io.StringIO()
+        writer = csv.writer(buf)
+        writer.writerow(headers)
+        writer.writerows(rows)
+        content = buf.getvalue().rstrip("\n")
+    else:
+        # Markdown pipe table
+        def _esc(v: str) -> str:
+            return v.replace("|", "\\|")
+        header_line = "| " + " | ".join(_esc(h) for h in headers) + " |"
+        separator = "| " + " | ".join(["---"] * len(headers)) + " |"
+        body_lines = [
+            "| " + " | ".join(_esc(c) for c in row) + " |"
+            for row in rows
+        ]
+        content = "\n".join([header_line, separator, *body_lines])
+
+    return {
+        "format": fmt,
+        "content": content,
+        "total_curated": len(curated),
+    }
+
+
 def list_curated(problem: Problem) -> dict:
     """List all curated solutions with survival status against current run."""
     current_sigs = set()
@@ -468,8 +557,14 @@ def compare_curated(problem: Problem, signatures: list[str], detail: bool = Fals
     return result
 
 
-def get_scenario_results(problem: Problem) -> dict:
-    """Analyze per-scenario results: robust options, scenario-specific options, expected value."""
+def get_scenario_results(problem: Problem, cvar_alpha: float | None = None) -> dict:
+    """Analyze per-scenario results: robust options, scenario-specific options, expected value.
+
+    cvar_alpha: tail fraction in (0, 1) for Conditional Value-at-Risk. Default 0.2
+        (worst 20% of scenarios by probability mass). CVaR of per-objective
+        best-in-scenario value across scenarios — diagnostic only, not an
+        optimization target.
+    """
     if not problem.scenario_run or not problem.scenario_run.scenario_runs:
         raise ValueError("No scenario runs found. Use solve run_scenarios first.")
     if not problem.scenario_config or not problem.scenario_config.scenarios:
@@ -576,12 +671,62 @@ def get_scenario_results(problem: Problem) -> dict:
                 ev += weight * best
         expected_values[obj] = round(ev, 4)
 
+    # Risk: worst-case + CVaR across scenarios for each objective.
+    # Uses best-in-scenario values (same basis as expected_values).
+    alpha = 0.2 if cvar_alpha is None else float(cvar_alpha)
+    if not (0.0 < alpha < 1.0):
+        raise ValueError(f"cvar_alpha must be in (0, 1); got {cvar_alpha}")
+
+    scenario_risk = {}
+    for obj in obj_names:
+        direction = next(o.direction.value for o in problem.objectives if o.name == obj)
+        per_scenario_best = []  # list of (value, probability)
+        for name, run in scenario_runs.items():
+            vals = [s.objective_values.get(obj, 0) for s in run.solutions]
+            if not vals:
+                continue
+            best = max(vals) if direction == "maximize" else min(vals)
+            prob = scenarios[name].probability if has_probabilities else 1.0 / n_scenarios
+            per_scenario_best.append((best, prob))
+        if not per_scenario_best:
+            continue
+
+        values = [v for v, _ in per_scenario_best]
+        worst = min(values) if direction == "maximize" else max(values)
+        best_across = max(values) if direction == "maximize" else min(values)
+
+        # CVaR: mean of worst α-fraction by probability mass
+        # Sort ascending for maximize (lower = worse), descending for minimize (higher = worse)
+        sorted_pairs = sorted(per_scenario_best, key=lambda vp: vp[0], reverse=(direction == "minimize"))
+        cum = 0.0
+        cvar_num = 0.0
+        cvar_den = 0.0
+        for v, p in sorted_pairs:
+            remaining = alpha - cum
+            if remaining <= 0:
+                break
+            take = min(p, remaining)
+            cvar_num += v * take
+            cvar_den += take
+            cum += take
+        cvar = round(cvar_num / cvar_den, 4) if cvar_den > 0 else None
+
+        scenario_risk[obj] = {
+            "expected": expected_values.get(obj),
+            "worst_case": round(worst, 4),
+            "best_case": round(best_across, 4),
+            f"cvar_{int(round(alpha * 100))}": cvar,
+            "range": [round(min(values), 4), round(max(values), 4)],
+        }
+
     result = {
         "per_scenario": per_scenario,
         "robust_options": sorted(robust_options),
         "option_robustness": option_robustness,
         "scenario_specific_options": scenario_specific,
         "expected_values": expected_values,
+        "scenario_risk": scenario_risk,
+        "cvar_alpha": alpha,
         "weighting": "probability" if has_probabilities else "equal",
     }
     result["visualization"] = _render_scenario_viz(result)
@@ -1191,6 +1336,283 @@ def _classify_frontier_shapes(solutions, objectives) -> list[dict]:
             })
 
     return shapes
+
+
+def _normalized_mi(x: np.ndarray, y: np.ndarray) -> float:
+    """Normalized mutual information in [0, 1] via quantile-binned histogram.
+
+    Uses sqrt(n) bins (rounded, min 3, max 10) and normalizes MI by sqrt(H(X)*H(Y))
+    so 0 = independent and 1 = deterministic relationship. Suitable for small
+    samples (15-200). Returns 0.0 if either variable is degenerate.
+    """
+    n = len(x)
+    if n < 3:
+        return 0.0
+    # Degenerate check
+    if x.std() < 1e-12 or y.std() < 1e-12:
+        return 0.0
+
+    n_bins = int(max(3, min(10, round(np.sqrt(n)))))
+
+    # Quantile binning: each bin gets ~equal count, handles skewed distributions
+    def _bin(v: np.ndarray) -> np.ndarray:
+        edges = np.quantile(v, np.linspace(0, 1, n_bins + 1))
+        # Nudge uniques to avoid empty bins when many duplicates exist
+        edges = np.unique(edges)
+        if len(edges) < 3:
+            # Not enough distinct values to bin — fall back to binary above/below median
+            return (v >= np.median(v)).astype(int)
+        # np.digitize places values into bins 1..len(edges); clamp to [0, len(edges)-2]
+        idx = np.digitize(v, edges[1:-1], right=False)
+        return idx
+
+    bx = _bin(x)
+    by = _bin(y)
+
+    # Joint histogram
+    joint, _, _ = np.histogram2d(bx, by, bins=[np.unique(bx).size, np.unique(by).size])
+    joint = joint / joint.sum() if joint.sum() > 0 else joint
+    px = joint.sum(axis=1, keepdims=True)
+    py = joint.sum(axis=0, keepdims=True)
+
+    # MI and entropies (natural log, nats); normalization cancels the unit
+    with np.errstate(divide="ignore", invalid="ignore"):
+        ratio = np.where((joint > 0) & (px > 0) & (py > 0), joint / (px * py), 1.0)
+        mi = float(np.sum(joint * np.log(ratio)))
+        hx = float(-np.sum(px[px > 0] * np.log(px[px > 0])))
+        hy = float(-np.sum(py[py > 0] * np.log(py[py > 0])))
+
+    denom = np.sqrt(max(hx, 0.0) * max(hy, 0.0))
+    if denom <= 0:
+        return 0.0
+    nmi = mi / denom
+    return float(np.clip(nmi, 0.0, 1.0))
+
+
+def _objective_redundancy(key_tradeoffs: list[dict], n_solutions: int) -> list[dict]:
+    """Classify each objective pair using direction-normalized Pearson + MI.
+
+    Input `correlation` is direction-normalized (see get_tradeoffs): positive r
+    means both objectives improve together (redundancy candidate), negative r
+    means improving one worsens the other (genuine tradeoff — NOT redundant).
+
+    Classifications:
+    - `linear_redundant`: r ≥ +0.7 (both improve together, linearly)
+    - `strong_tradeoff`: r ≤ -0.7 (the optimizer's job — don't flag as redundant)
+    - `redundant`: MI ≥ 0.7 catches strongly coupled pairs that aren't linearly aligned
+    - `nonlinear_dependent`: |r| < 0.3 but MI ≥ 0.4 — non-linear dependence Pearson misses
+    - `independent`: otherwise
+    """
+    out: list[dict] = []
+    for entry in key_tradeoffs:
+        r = entry.get("correlation")
+        mi = entry.get("mutual_info_normalized")
+        if r is None:
+            continue
+
+        flags: list[str] = []
+        classification = "independent"
+
+        if r >= 0.7:
+            classification = "linear_redundant"
+            flags.append("high_pearson_aligned")
+        elif r <= -0.7:
+            classification = "strong_tradeoff"
+            flags.append("high_pearson_opposed")
+
+        if mi is not None and mi >= 0.7 and classification not in ("linear_redundant", "strong_tradeoff"):
+            classification = "redundant"
+            flags.append("high_mi")
+        if mi is not None and abs(r) < 0.3 and mi >= 0.4:
+            classification = "nonlinear_dependent"
+            flags.append("pearson_mi_disagreement")
+
+        out.append({
+            "objectives": entry["objectives"],
+            "classification": classification,
+            "pearson": round(r, 2),
+            "mutual_info_normalized": mi,
+            "flags": flags,
+            "mi_reliable": n_solutions >= 15,
+        })
+    return out
+
+
+def _binding_analysis(problem: Problem, solutions: list) -> list[dict]:
+    """Shadow-price guidance for binding constraints.
+
+    Detects constraints that are binding on a material fraction of the frontier,
+    then estimates how much each other objective would shift per unit of slack
+    relaxation — the shadow price. Rates are derived from the existing frontier;
+    no hardcoded relaxation amounts.
+
+    Supported constraint types: objective_bound, cardinality, group_limit.
+    """
+    from .models import (
+        BoundOperator,
+        CardinalityConstraint,
+        GroupLimitConstraint,
+        ObjectiveBoundConstraint,
+    )
+
+    if len(solutions) < 3:
+        return []
+
+    out: list[dict] = []
+    for c in problem.constraints:
+        if isinstance(c, ObjectiveBoundConstraint):
+            entry = _binding_objective_bound(c, solutions, problem.objectives)
+        elif isinstance(c, CardinalityConstraint):
+            entry = _binding_cardinality(c, solutions, problem.objectives)
+        elif isinstance(c, GroupLimitConstraint):
+            entry = _binding_group_limit(c, solutions, problem.objectives)
+        else:
+            entry = None
+        if entry is not None:
+            out.append(entry)
+    return out
+
+
+def _binding_objective_bound(c, solutions, objectives) -> dict | None:
+    from .models import BoundOperator
+
+    obj_name = c.objective
+    bound = c.value
+    values = np.array([s.objective_values.get(obj_name, 0.0) for s in solutions], dtype=float)
+    if len(values) < 3:
+        return None
+
+    # Near-binding mask: within 5% of bound in the binding direction
+    if c.operator == BoundOperator.max:
+        threshold = bound * 0.95 if bound > 0 else bound - abs(bound) * 0.05 - 1e-9
+        mask = values >= threshold
+        op_str = "≤"
+    else:
+        threshold = bound * 1.05 if bound > 0 else bound + abs(bound) * 0.05 + 1e-9
+        mask = values <= threshold
+        op_str = "≥"
+
+    binding_count = int(mask.sum())
+    if binding_count < 2:
+        return None
+    binding_fraction = round(binding_count / len(values), 3)
+
+    # Shadow price: regress each other objective on X across near-binding solutions.
+    # Slope = dY/dX — how fast Y changes as X changes near the bound.
+    # When max-bound: increasing X is relaxation; when min-bound: decreasing X is relaxation.
+    x = values[mask]
+    shadow_prices: list[dict] = []
+    if binding_count >= 3 and x.std() > 1e-9:
+        for obj in objectives:
+            if obj.name == obj_name:
+                continue
+            y = np.array([s.objective_values.get(obj.name, 0.0) for s in solutions], dtype=float)[mask]
+            if y.std() < 1e-12:
+                continue
+            slope = float(np.polyfit(x, y, 1)[0])
+            # Reframe slope in terms of "per unit of relaxation"
+            # max-bound: relax = +ΔX; min-bound: relax = -ΔX (so flip sign)
+            if c.operator == BoundOperator.min:
+                slope = -slope
+            shadow_prices.append({
+                "objective": obj.name,
+                "slope_per_unit_relaxed": round(slope, 6),
+            })
+
+    return {
+        "constraint": f"{obj_name} {op_str} {bound}",
+        "constraint_type": "objective_bound",
+        "binding_fraction": binding_fraction,
+        "near_binding_count": binding_count,
+        "shadow_prices": shadow_prices,
+        "note": None if shadow_prices else "insufficient variation in near-binding solutions to estimate shadow prices",
+    }
+
+
+def _binding_cardinality(c, solutions, objectives) -> dict | None:
+    counts = np.array([len(s.selected_options) for s in solutions])
+    if len(counts) < 2:
+        return None
+
+    at_max = counts == c.max
+    at_min = counts == c.min
+    # Determine which side is binding
+    if at_max.sum() > 0:
+        binding_level, adjacent_level = c.max, c.max - 1
+        side = "max"
+        op_str = "≤"
+    elif at_min.sum() > 0 and c.min > 1:
+        binding_level, adjacent_level = c.min, c.min + 1
+        side = "min"
+        op_str = "≥"
+    else:
+        return None
+
+    mask_binding = counts == binding_level
+    mask_adjacent = counts == adjacent_level
+    if mask_binding.sum() == 0:
+        return None
+    binding_fraction = round(float(mask_binding.sum() / len(counts)), 3)
+
+    shadow_prices: list[dict] = []
+    if mask_adjacent.sum() > 0:
+        for obj in objectives:
+            vals = np.array([s.objective_values.get(obj.name, 0.0) for s in solutions], dtype=float)
+            is_max = obj.direction.value == "maximize"
+            best_binding = vals[mask_binding].max() if is_max else vals[mask_binding].min()
+            best_adjacent = vals[mask_adjacent].max() if is_max else vals[mask_adjacent].min()
+            # "Per +1 slot of relaxation": max-bound is +1; min-bound is -1
+            delta_per_slot = (best_binding - best_adjacent) if side == "max" else (best_adjacent - best_binding)
+            # Flip sign when minimize so positive = improvement
+            if not is_max:
+                delta_per_slot = -delta_per_slot
+            shadow_prices.append({
+                "objective": obj.name,
+                "gain_per_additional_slot": round(float(delta_per_slot), 4),
+            })
+
+    return {
+        "constraint": f"cardinality {op_str} {binding_level}",
+        "constraint_type": "cardinality",
+        "binding_fraction": binding_fraction,
+        "near_binding_count": int(mask_binding.sum()),
+        "shadow_prices": shadow_prices,
+        "note": None if shadow_prices else "no adjacent-cardinality solutions on frontier — cannot estimate gain from +1 slot",
+    }
+
+
+def _binding_group_limit(c, solutions, objectives) -> dict | None:
+    group_set = set(c.options)
+    counts = np.array([len(group_set.intersection(s.selected_options)) for s in solutions])
+    mask_binding = counts == c.max
+    if mask_binding.sum() == 0:
+        return None
+    mask_adjacent = counts == c.max - 1
+    binding_fraction = round(float(mask_binding.sum() / len(counts)), 3)
+
+    shadow_prices: list[dict] = []
+    if mask_adjacent.sum() > 0:
+        for obj in objectives:
+            vals = np.array([s.objective_values.get(obj.name, 0.0) for s in solutions], dtype=float)
+            is_max = obj.direction.value == "maximize"
+            best_binding = vals[mask_binding].max() if is_max else vals[mask_binding].min()
+            best_adjacent = vals[mask_adjacent].max() if is_max else vals[mask_adjacent].min()
+            delta = best_binding - best_adjacent
+            if not is_max:
+                delta = -delta
+            shadow_prices.append({
+                "objective": obj.name,
+                "gain_per_additional_slot": round(float(delta), 4),
+            })
+
+    return {
+        "constraint": f"group_limit({', '.join(c.options)}) ≤ {c.max}",
+        "constraint_type": "group_limit",
+        "binding_fraction": binding_fraction,
+        "near_binding_count": int(mask_binding.sum()),
+        "shadow_prices": shadow_prices,
+        "note": None if shadow_prices else "no adjacent-count solutions on frontier — cannot estimate gain from +1 slot",
+    }
 
 
 def _compute_pair_rates(sorted_sols, obj_a, obj_b) -> list[dict]:

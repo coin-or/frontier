@@ -661,7 +661,13 @@ def _parse_constraint(c: dict | Constraint) -> Constraint:
 
 
 @mcp.tool()
-def solve(action: str, problem_id: str, mode: str | None = None, max_solutions: int | None = None) -> dict:
+def solve(
+    action: str,
+    problem_id: str,
+    mode: str | None = None,
+    max_solutions: int | None = None,
+    seed: int | None = None,
+) -> dict:
     """Validate and run the optimizer.
 
     optimization_strategy skill is auto-injected when scores reach 100% or
@@ -679,6 +685,10 @@ def solve(action: str, problem_id: str, mode: str | None = None, max_solutions: 
             NSGA-III for 4+ objectives.
       max_solutions: Cap the number of Pareto solutions returned (default 100).
             Useful for proportional mode which can produce large frontiers.
+      seed: Deterministic RNG seed for reproducibility. When omitted a fresh seed
+            is drawn; either way the actual seed is echoed as `seed_used` in the
+            response so any run can be reproduced. Vary seeds to check frontier
+            stability; fix the seed to share reproducible results.
 
     Key guidance:
     - Expect iteration: first run is exploration, not the answer.
@@ -710,21 +720,21 @@ def solve(action: str, problem_id: str, mode: str | None = None, max_solutions: 
                 _mark_injected(problem_id, "optimization_strategy")
             return result
         case "run":
-            return _solve_run(p, opt_mode, max_solutions=max_solutions)
+            return _solve_run(p, opt_mode, max_solutions=max_solutions, seed=seed)
         case "run_scenarios":
-            return _solve_run_scenarios(p, opt_mode, max_solutions=max_solutions)
+            return _solve_run_scenarios(p, opt_mode, max_solutions=max_solutions, seed=seed)
         case _:
             return {"error": f"Unknown action: {action}. Use validate/run/run_scenarios."}
 
 
-def _solve_run(p: Problem, mode: OptimizeMode | None = None, max_solutions: int | None = None) -> dict:
+def _solve_run(p: Problem, mode: OptimizeMode | None = None, max_solutions: int | None = None, seed: int | None = None) -> dict:
     vr = optimizer.validate(p)
     if not vr.ready:
         vr_data = json.loads(vr.model_dump_json())
         return {"ready": False, "issues": vr_data["issues"], "missing_scores": vr_data["missing_scores"]}
 
     try:
-        run = optimizer.optimize(p, mode=mode, max_solutions=max_solutions)
+        run = optimizer.optimize(p, mode=mode, max_solutions=max_solutions, seed=seed)
     except Exception as e:
         return {"feasible": False, "error": str(e)}
 
@@ -757,6 +767,7 @@ def _solve_run(p: Problem, mode: OptimizeMode | None = None, max_solutions: int 
         "quality": json.loads(run.quality.model_dump_json()),
         "constraints_snapshot": run.constraints_snapshot,
         "mode": run.mode.value if run.mode else None,
+        "seed_used": run.seed_used,
     }
     full_result_path = store.write_run_result(p.problem_id, run.run_id, full_payload)
 
@@ -764,6 +775,7 @@ def _solve_run(p: Problem, mode: OptimizeMode | None = None, max_solutions: int 
         "run_id": run.run_id,
         "solutions_found": len(run.solutions),
         "total_pareto_found": run.total_pareto_found,
+        "seed_used": run.seed_used,
         "objective_ranges": _objective_ranges(run.solutions, p.objectives),
         "preview": _solve_preview(run.solutions, p.objectives),
         "quality": json.loads(run.quality.model_dump_json()),
@@ -837,14 +849,14 @@ def _solve_preview(solutions: list, objectives: list) -> dict:
     return preview
 
 
-def _solve_run_scenarios(p: Problem, mode: OptimizeMode | None = None, max_solutions: int | None = None) -> dict:
+def _solve_run_scenarios(p: Problem, mode: OptimizeMode | None = None, max_solutions: int | None = None, seed: int | None = None) -> dict:
     vr = optimizer.validate(p)
     if not vr.ready:
         vr_data = json.loads(vr.model_dump_json())
         return {"ready": False, "issues": vr_data["issues"]}
 
     try:
-        scenario_results = optimizer.optimize_scenarios(p, mode=mode, max_solutions=max_solutions)
+        scenario_results = optimizer.optimize_scenarios(p, mode=mode, max_solutions=max_solutions, seed=seed)
     except ValueError as e:
         return {"error": str(e)}
 
@@ -864,6 +876,7 @@ def _solve_run_scenarios(p: Problem, mode: OptimizeMode | None = None, max_solut
             "solutions": [json.loads(s.model_dump_json()) for s in run.solutions],
             "quality": json.loads(run.quality.model_dump_json()),
             "mode": run.mode.value if run.mode else None,
+            "seed_used": run.seed_used,
         }
         path = store.write_run_result(p.problem_id, run.run_id, full_payload, scenario=name)
         result_paths[name] = str(path)
@@ -872,6 +885,7 @@ def _solve_run_scenarios(p: Problem, mode: OptimizeMode | None = None, max_solut
             "solutions_found": len(run.solutions),
             "total_pareto_found": run.total_pareto_found,
             "quality": json.loads(run.quality.model_dump_json()),
+            "seed_used": run.seed_used,
             "full_result_path": str(path),
         }
 
@@ -944,6 +958,8 @@ def explore(
     signatures: list[str] | None = None,
     scenario: str | None = None,
     detail: bool = False,
+    cvar_alpha: float | None = None,
+    format: str | None = None,
 ) -> dict:
     """Navigate results after solving.
 
@@ -965,11 +981,14 @@ def explore(
       scenario_results — Per-scenario robustness analysis with frequency-weighted option importance.
                    Returns option_robustness (sorted by importance = avg_frequency × avg_weight),
                    with tiers: core (>50% freq in all scenarios), common (>25%), marginal (<25%).
-                   Also: scenario-specific options, expected values (ideal-point, not achievable).
+                   Also: scenario-specific options, expected values (ideal-point, not achievable),
+                   scenario_risk per objective (expected / worst_case / best_case / cvar_<alpha>%).
+                   Pass cvar_alpha (float in (0,1), default 0.2) to set the CVaR tail fraction.
       curate     — Add solution to curated set. Params: solution_id, custom_name?, notes?
       uncurate   — Remove from curated set. Params: content_signature.
       rename_curated — Update name. Params: content_signature, custom_name.
       curated    — List all curated solutions with survival status.
+      export_curated — Raw formatted export of curated solutions for handoff. Optional `format`: "markdown" (default, pipe table) or "csv".
       compare_curated — Compare curated solutions. Params: signatures (list of 2+ content_signature strings).
                    Default: compact — shared/differentiating option sets + objective values per solution.
                    Pass detail=true for full selected_options and allocations per solution.
@@ -1032,7 +1051,7 @@ def explore(
                 return {"error": str(e)}
         case "scenario_results":
             try:
-                return _format_explore(explorer.get_scenario_results(p))
+                return _format_explore(explorer.get_scenario_results(p, cvar_alpha=cvar_alpha))
             except ValueError as e:
                 return {"error": str(e)}
         case "curate":
@@ -1064,6 +1083,11 @@ def explore(
                 return {"error": str(e)}
         case "curated":
             return explorer.list_curated(p)
+        case "export_curated":
+            try:
+                return explorer.export_curated(p, format=format or "markdown")
+            except ValueError as e:
+                return {"error": str(e)}
         case "compare_curated":
             if not signatures or len(signatures) < 2:
                 return {"error": "signatures must contain at least 2 content_signature strings."}

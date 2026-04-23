@@ -332,6 +332,34 @@ class TestSolveRun:
         assert "preview" in result
         assert "extremes" in result["preview"]
 
+    def test_run_echoes_seed_used_when_random(self):
+        pid = _build_solvable_problem()
+        result = srv.solve(action="run", problem_id=pid)
+        assert "seed_used" in result
+        assert isinstance(result["seed_used"], int)
+
+    def test_run_reproducible_with_fixed_seed(self):
+        pid1 = _build_solvable_problem()
+        pid2 = _build_solvable_problem()
+        r1 = srv.solve(action="run", problem_id=pid1, seed=1234)
+        r2 = srv.solve(action="run", problem_id=pid2, seed=1234)
+        assert r1["seed_used"] == 1234
+        assert r2["seed_used"] == 1234
+        # Same seed on identical problem → same objective ranges
+        assert r1["objective_ranges"] == r2["objective_ranges"]
+        assert r1["solutions_found"] == r2["solutions_found"]
+
+    def test_run_different_seeds_may_differ(self):
+        pid1 = _build_solvable_problem()
+        pid2 = _build_solvable_problem()
+        r1 = srv.solve(action="run", problem_id=pid1, seed=1)
+        r2 = srv.solve(action="run", problem_id=pid2, seed=9999)
+        assert r1["seed_used"] == 1
+        assert r2["seed_used"] == 9999
+        # Both must succeed; frontier shape may vary
+        assert r1["solutions_found"] > 0
+        assert r2["solutions_found"] > 0
+
     def test_run_writes_full_result_file(self):
         """Fix 1: every solve writes the complete result to disk and returns the path."""
         import json as _json
@@ -654,6 +682,46 @@ class TestScenarios:
         result = srv.explore(action="scenario_results", problem_id=pid)
         assert "error" in result
 
+    def test_scenario_risk_and_cvar(self):
+        pid = _build_solvable_problem()
+        srv.model(action="update", problem_id=pid, scenario_config={
+            "enabled": True,
+            "scenarios": [
+                {"name": "Base", "probability": 0.6, "score_overrides": []},
+                {"name": "Growth", "probability": 0.4, "score_overrides": [
+                    {"option": "A", "objective": "Rev", "value": 50},
+                ]},
+            ],
+        })
+        srv.solve(action="run_scenarios", problem_id=pid)
+        # Default alpha = 0.2
+        default_result = srv.explore(action="scenario_results", problem_id=pid)
+        assert "scenario_risk" in default_result
+        assert default_result["cvar_alpha"] == 0.2
+        for obj, risk in default_result["scenario_risk"].items():
+            assert "expected" in risk
+            assert "worst_case" in risk
+            assert "best_case" in risk
+            assert "cvar_20" in risk
+            assert "range" in risk
+            assert risk["range"][0] <= risk["range"][1]
+
+        # Custom alpha
+        alt = srv.explore(action="scenario_results", problem_id=pid, cvar_alpha=0.5)
+        assert alt["cvar_alpha"] == 0.5
+        for risk in alt["scenario_risk"].values():
+            assert "cvar_50" in risk
+
+    def test_scenario_results_invalid_alpha(self):
+        pid = _build_solvable_problem()
+        srv.model(action="update", problem_id=pid, scenario_config={
+            "enabled": True,
+            "scenarios": [{"name": "A"}, {"name": "B"}],
+        })
+        srv.solve(action="run_scenarios", problem_id=pid)
+        result = srv.explore(action="scenario_results", problem_id=pid, cvar_alpha=1.5)
+        assert "error" in result
+
     def test_scenarios_without_probabilities(self):
         """Scenarios should run fine without probabilities — each is an independent solve."""
         pid = _build_solvable_problem()
@@ -875,6 +943,43 @@ class TestCuration:
         result = srv.explore(action="curated", problem_id=pid)
         assert result["total_curated"] == 2
         assert all(c["in_current_frontier"] for c in result["curated_solutions"])
+
+    def test_export_curated_markdown(self):
+        pid = _build_solvable_problem()
+        srv.solve(action="run", problem_id=pid)
+        srv.explore(action="curate", problem_id=pid, solution_id=1, custom_name="First")
+        srv.explore(action="curate", problem_id=pid, solution_id=2, custom_name="Second")
+        result = srv.explore(action="export_curated", problem_id=pid)
+        assert result["format"] == "markdown"
+        assert result["total_curated"] == 2
+        content = result["content"]
+        assert "| name |" in content
+        assert "content_signature" in content
+        assert "First" in content and "Second" in content
+
+    def test_export_curated_csv(self):
+        pid = _build_solvable_problem()
+        srv.solve(action="run", problem_id=pid)
+        srv.explore(action="curate", problem_id=pid, solution_id=1, custom_name="First")
+        result = srv.explore(action="export_curated", problem_id=pid, format="csv")
+        assert result["format"] == "csv"
+        content = result["content"]
+        assert "name,content_signature" in content
+        assert "First" in content
+
+    def test_export_curated_empty(self):
+        pid = _build_solvable_problem()
+        srv.solve(action="run", problem_id=pid)
+        result = srv.explore(action="export_curated", problem_id=pid)
+        assert result["total_curated"] == 0
+        assert result["content"] == ""
+
+    def test_export_curated_bad_format(self):
+        pid = _build_solvable_problem()
+        srv.solve(action="run", problem_id=pid)
+        srv.explore(action="curate", problem_id=pid, solution_id=1)
+        result = srv.explore(action="export_curated", problem_id=pid, format="xml")
+        assert "error" in result
 
     def test_uncurate(self):
         pid = _build_solvable_problem()

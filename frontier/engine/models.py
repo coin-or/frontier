@@ -243,6 +243,7 @@ class Run(BaseModel):
     total_pareto_found: int = 0  # Pre-pruning count; 0 means no pruning occurred
     quality: QualityIndicators = QualityIndicators()
     constraints_snapshot: list[dict] = []
+    seed_used: int | None = None  # Deterministic RNG seed; echoed for reproducibility
 
 
 # --- Feedback ---

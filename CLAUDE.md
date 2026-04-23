@@ -7,7 +7,7 @@
 | `~/Documents/Obsidian_Vault/projects/frontier/` | Product requirements, overview, and roadmap (written by product lead) — informs development |
 | `~/Documents/Obsidian_Vault/projects/frontier/roadmap.md` | Product roadmap (written by product lead) — informs development |
 | `.claude/plans/` | Active engineering designs and development plans |
-| `.claude/plans/archive/` | Completed or irrelevant plans |
+| `.claude/plans/archived/` | Completed or irrelevant plans |
 | [`README.md`](README.md) | User-facing setup and usage guide — **must be kept up to date** |
 | [`architecture.md`](architecture.md) | Technical architecture — **must be kept up to date** |
 | [`best-practices.md`](best-practices.md) | Skill, prompt, and MCP design guidelines (Anthropic-sourced) |
@@ -15,7 +15,7 @@
 
 ## Plans & Designs
 - Store new plans, designs, and updates to existing ones in `.claude/plans/`.
-- Keep plans active until the user confirms completion post-user-testing, then archive to `.claude/plans/archive/`.
+- Keep plans active until the user confirms completion post-user-testing, then archive to `.claude/plans/archived/`.
 
 ## Documentation Requirements
 - When implementing a feature or change, update `README.md` (user guide) and `architecture.md` (technical architecture) as needed.

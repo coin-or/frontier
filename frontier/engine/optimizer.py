@@ -615,17 +615,30 @@ def _tune_parameters(problem: Problem, mode: OptimizeMode, seed_population: np.n
     return AlgClass(**alg_kwargs), n_gen
 
 
-def optimize(problem: Problem, mode: OptimizeMode | None = None, max_solutions: int | None = None) -> Run:
-    """Validate and run multi-objective optimization. Returns a Run with solutions."""
+def optimize(
+    problem: Problem,
+    mode: OptimizeMode | None = None,
+    max_solutions: int | None = None,
+    seed: int | None = None,
+) -> Run:
+    """Validate and run multi-objective optimization. Returns a Run with solutions.
+
+    seed: deterministic RNG seed for reproducibility. When None, a fresh 32-bit
+    seed is drawn and recorded on Run.seed_used so the run stays reproducible
+    even when not requested up front.
+    """
     if mode is None:
         mode = OptimizeMode.fast
     vr = validate(problem)
     if not vr.ready:
         raise ValueError(f"Problem not ready: {[i.message for i in vr.issues]}")
 
+    if seed is None:
+        seed = int(np.random.default_rng().integers(0, 2**31 - 1))
+
     if problem.approach == Approach.proportional:
-        return _optimize_proportional(problem, mode, max_solutions=max_solutions)
-    return _optimize_binary(problem, mode, max_solutions=max_solutions)
+        return _optimize_proportional(problem, mode, max_solutions=max_solutions, seed=seed)
+    return _optimize_binary(problem, mode, max_solutions=max_solutions, seed=seed)
 
 
 def _apply_matrix_override(base: "InteractionMatrix | None", override: "InteractionMatrix") -> "InteractionMatrix":
@@ -676,7 +689,12 @@ def _apply_matrix_override(base: "InteractionMatrix | None", override: "Interact
     )
 
 
-def optimize_scenarios(problem: Problem, mode: OptimizeMode | None = None, max_solutions: int | None = None) -> dict[str, Run]:
+def optimize_scenarios(
+    problem: Problem,
+    mode: OptimizeMode | None = None,
+    max_solutions: int | None = None,
+    seed: int | None = None,
+) -> dict[str, Run]:
     """Run optimization independently per scenario. Returns {scenario_name: Run}.
 
     Each scenario is solved as a fully independent optimization — no probability
@@ -729,7 +747,14 @@ def optimize_scenarios(problem: Problem, mode: OptimizeMode | None = None, max_s
             scenario_problem.interaction_matrices = list(base_by_obj.values())
 
         scenario_problem.scenario_config = None
-        return scenario.name, optimize(scenario_problem, mode=mode, max_solutions=max_solutions)
+        # Derive a distinct, deterministic per-scenario seed so they don't
+        # collide on identical initializations while remaining reproducible.
+        scenario_seed = None
+        if seed is not None:
+            scenario_seed = (seed + abs(hash(scenario.name))) % (2**31 - 1)
+        return scenario.name, optimize(
+            scenario_problem, mode=mode, max_solutions=max_solutions, seed=scenario_seed,
+        )
 
     with ThreadPoolExecutor(max_workers=len(problem.scenario_config.scenarios)) as pool:
         futures = [pool.submit(_build_and_solve, s) for s in problem.scenario_config.scenarios]
@@ -800,7 +825,12 @@ def _union_with_elites(
     return pareto_X[unique_idx], pareto_F[unique_idx]
 
 
-def _optimize_binary(problem: Problem, mode: OptimizeMode, max_solutions: int | None = None) -> Run:
+def _optimize_binary(
+    problem: Problem,
+    mode: OptimizeMode,
+    max_solutions: int | None = None,
+    seed: int = 42,
+) -> Run:
     """Binary mode: pick K of N options."""
     n_options = len(problem.options)
     opt_names = [o.name for o in problem.options]
@@ -818,7 +848,7 @@ def _optimize_binary(problem: Problem, mode: OptimizeMode, max_solutions: int | 
     algorithm, n_gen = _tune_parameters(problem, mode, seed_population=seeds if len(seeds) > 0 else None)
 
     result = pymoo_minimize(
-        pymoo_problem, algorithm, ("n_gen", n_gen), seed=42, verbose=False,
+        pymoo_problem, algorithm, ("n_gen", n_gen), seed=seed, verbose=False,
     )
 
     # Elite preservation: union extreme-point seeds with result, keep Pareto front.
@@ -839,10 +869,21 @@ def _optimize_binary(problem: Problem, mode: OptimizeMode, max_solutions: int | 
     max_n = max_solutions or MAX_PARETO_SOLUTIONS
     solutions, total_found = _prune_pareto(solutions, obj_list, max_n=max_n)
     solutions = _sort_and_reindex(solutions, obj_list)
-    return Run(solutions=solutions, total_pareto_found=total_found, quality=_compute_quality(result), mode=mode)
+    return Run(
+        solutions=solutions,
+        total_pareto_found=total_found,
+        quality=_compute_quality(result, seed=seed),
+        mode=mode,
+        seed_used=seed,
+    )
 
 
-def _optimize_proportional(problem: Problem, mode: OptimizeMode, max_solutions: int | None = None) -> Run:
+def _optimize_proportional(
+    problem: Problem,
+    mode: OptimizeMode,
+    max_solutions: int | None = None,
+    seed: int = 42,
+) -> Run:
     """Proportional mode: allocate integer percentages (0-100, sum to 100)."""
     n_options = len(problem.options)
     opt_names = [o.name for o in problem.options]
@@ -860,7 +901,7 @@ def _optimize_proportional(problem: Problem, mode: OptimizeMode, max_solutions: 
     algorithm, n_gen = _tune_parameters(problem, mode, seed_population=seeds if len(seeds) > 0 else None)
 
     result = pymoo_minimize(
-        pymoo_problem, algorithm, ("n_gen", n_gen), seed=42, verbose=False,
+        pymoo_problem, algorithm, ("n_gen", n_gen), seed=seed, verbose=False,
     )
 
     # Elite preservation: union extreme-point seeds with result, keep Pareto front.
@@ -911,7 +952,13 @@ def _optimize_proportional(problem: Problem, mode: OptimizeMode, max_solutions: 
     max_n = max_solutions or MAX_PARETO_SOLUTIONS
     solutions, total_found = _prune_pareto(solutions, obj_list, max_n=max_n)
     solutions = _sort_and_reindex(solutions, obj_list)
-    return Run(solutions=solutions, total_pareto_found=total_found, quality=_compute_quality(result), mode=mode)
+    return Run(
+        solutions=solutions,
+        total_pareto_found=total_found,
+        quality=_compute_quality(result, seed=seed),
+        mode=mode,
+        seed_used=seed,
+    )
 
 
 MAX_PARETO_SOLUTIONS = 1000  # Safety valve; pymoo pop_size bounds Pareto size in practice.
@@ -1492,7 +1539,7 @@ def analyze_infeasibility(problem: Problem) -> dict:
     return {"binding_constraints": binding, "suggestions": suggestions}
 
 
-def _compute_quality(result) -> QualityIndicators:
+def _compute_quality(result, seed: int = 42) -> QualityIndicators:
     """Compute quality indicators from pymoo result."""
     if result.F is None or len(result.F) < 2:
         return QualityIndicators()
@@ -1507,7 +1554,7 @@ def _compute_quality(result) -> QualityIndicators:
         F_norm = (F - f_min) / spread
         # Simple hypervolume approximation using reference point at (1.1, ..., 1.1)
         ref = np.ones(F.shape[1]) * 1.1
-        hv = _approx_hypervolume(F_norm, ref)
+        hv = _approx_hypervolume(F_norm, ref, seed=seed)
         hv_max = np.prod(ref)
         hv_normalized = round(float(hv / hv_max), 4) if hv_max > 0 else None
     else:
@@ -1530,11 +1577,11 @@ def _compute_quality(result) -> QualityIndicators:
     )
 
 
-def _approx_hypervolume(F: np.ndarray, ref: np.ndarray) -> float:
+def _approx_hypervolume(F: np.ndarray, ref: np.ndarray, seed: int = 42) -> float:
     """Monte Carlo hypervolume approximation for small dimensions."""
     n_samples = 10000
     n_obj = F.shape[1]
-    rng = np.random.default_rng(42)
+    rng = np.random.default_rng(seed)
 
     # Sample random points in the bounding box [0, ref]
     samples = rng.uniform(0, ref, size=(n_samples, n_obj))

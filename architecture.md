@@ -16,15 +16,15 @@ Frontier exposes 4 tools — 3 domain tools with multiple actions, plus a skill 
 | | `list` | List all problems with metadata snapshots |
 | | `delete` | Remove a problem and its data file |
 | **solve** | `validate` | Pre-flight check: ≥2 objectives, ≥3 options, complete score matrix, feasible constraints |
-| | `run` | Validate then optimize. Returns compact result — `objective_ranges`, `preview` (per-objective extremes + balanced solution by id/objective_values only), `quality`, `metrics`, and `next_steps` pointer. Full solution detail retrievable via `explore solutions` / `explore solution <id>`. Optional `mode`: "fast" (default, quick iterations) or "thorough" (final convergence). Optional `max_solutions` caps Pareto set size (default 100). Auto-selects NSGA-II (2-3 obj) or NSGA-III (4+ obj). Parameters adapt to solution space size and objective count. |
-| | `run_scenarios` | Independently optimize each scenario with score overrides/adjustments. Accepts optional `mode` and `max_solutions`. |
-| **explore** | `tradeoffs` | Frontier overview: total solution count, objective ranges, correlations, extremes, balanced solution (ideal-point closest), inflection-point candidates (diminishing-returns boundaries), frontier shape classification per conflicting pair (linear / concave / convex / discontinuous, with confidence), vs references. Optional `scenario` param targets a specific scenario's frontier. |
+| | `run` | Validate then optimize. Returns compact result — `objective_ranges`, `preview` (per-objective extremes + balanced solution by id/objective_values only), `quality`, `seed_used`, `metrics`, and `next_steps` pointer. Full solution detail retrievable via `explore solutions` / `explore solution <id>`. Optional `mode`: "fast" (default, quick iterations) or "thorough" (final convergence). Optional `max_solutions` caps Pareto set size (default 100). Optional `seed` (int) for reproducibility; omitted = fresh random seed drawn and echoed. Auto-selects NSGA-II (2-3 obj) or NSGA-III (4+ obj). Parameters adapt to solution space size and objective count. |
+| | `run_scenarios` | Independently optimize each scenario with score overrides/adjustments. Accepts optional `mode`, `max_solutions`, and `seed` (per-scenario seeds are deterministically derived so each scenario reproduces while starting from distinct initializations). |
+| **explore** | `tradeoffs` | Frontier overview: total solution count, objective ranges, correlations + normalized MI per pair (MI computed when n≥15), extremes, balanced solution (ideal-point closest), inflection-point candidates (diminishing-returns boundaries), frontier shape classification per conflicting pair (linear / concave / convex / discontinuous, with confidence), binding_analysis (shadow-price rates per binding constraint — how much each objective shifts per unit of slack relaxation, derived from frontier; objective_bound / cardinality / group_limit), objective_redundancy (classification per pair using Pearson + MI, flags Pearson/MI disagreement = non-linear dependence), vs references. Optional `scenario` param targets a specific scenario's frontier. |
 | | `compare` | Side-by-side comparison of 2+ solutions (shared/differentiating options, tradeoff summary). Optional `scenario` param. |
 | | `solutions` | Full Pareto frontier listing. Optional `scenario` param. |
 | | `solution` | Single solution detail with reference point analysis. Optional `scenario` param. |
 | | `feedback` | Record user feedback: solution_id or content_signature, rating (1-5), notes, stage. Links to content_signature (stable across runs) and attaches to matching curated solution. |
 | | `compare_runs` | Diff run history: criteria changes, frontier diffs, option coverage |
-| | `scenario_results` | Per-scenario analysis with frequency-weighted option importance. Returns option_robustness sorted by importance (avg_frequency x avg_weight) with tiers: core (>50% in all scenarios), common (>25%), marginal (<25%). Also: scenario-specific options, expected values (ideal-point, probability-weighted). |
+| | `scenario_results` | Per-scenario analysis with frequency-weighted option importance. Returns option_robustness sorted by importance (avg_frequency x avg_weight) with tiers: core (>50% in all scenarios), common (>25%), marginal (<25%). Also: scenario-specific options, expected values (ideal-point, probability-weighted), scenario_risk per objective (expected / worst_case / best_case / cvar_<alpha>%). Optional `cvar_alpha` (float in (0,1), default 0.2) sets the CVaR tail fraction. |
 | | `curate` | Add a solution to the curated set with custom name and notes. Optional `scenario` param for curating from scenario frontiers. |
 | | `uncurate` | Remove a solution from the curated set by content signature |
 | | `rename_curated` | Update a curated solution's custom name |
@@ -133,7 +133,7 @@ flowchart TB
             GETSKILL["get_skill<br/><i>Retrieve workflow guidance by name</i>"]
             MODEL["model<br/><i>create | update | get | list | delete</i>"]
             SOLVE["solve<br/><i>validate | run | run_scenarios</i>"]
-            EXPLORE["explore<br/><i>tradeoffs | compare | solutions | solution<br/>feedback | compare_runs | scenario_results<br/>curate | uncurate | rename_curated<br/>curated | compare_curated | marginal_analysis</i>"]
+            EXPLORE["explore<br/><i>tradeoffs | compare | solutions | solution<br/>feedback | compare_runs | scenario_results<br/>curate | uncurate | rename_curated<br/>curated | export_curated | compare_curated | marginal_analysis</i>"]
         end
         subgraph RESOURCES["Skills (MCP Resources)"]
             R1["problem_framing<br/><i>Objective/option/constraint guidance</i>"]
