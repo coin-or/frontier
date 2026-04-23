@@ -688,7 +688,11 @@ def solve(
       seed: Deterministic RNG seed for reproducibility. When omitted a fresh seed
             is drawn; either way the actual seed is echoed as `seed_used` in the
             response so any run can be reproduced. Vary seeds to check frontier
-            stability; fix the seed to share reproducible results.
+            stability; fix the seed to share reproducible results. For
+            `run_scenarios`, the parent seed is propagated deterministically to
+            each scenario (per-scenario `seed_used` derived via SHA-256 of
+            scenario name + parent seed), so pinning the parent makes the whole
+            multi-scenario run reproducible across processes.
 
     Key guidance:
     - Expect iteration: first run is exploration, not the answer.

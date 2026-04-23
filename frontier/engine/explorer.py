@@ -108,6 +108,14 @@ def get_tradeoffs(problem: Problem, scenario: str | None = None) -> dict:
     # Objective redundancy: classify each pair using Pearson + MI, flag disagreement
     result["objective_redundancy"] = _objective_redundancy(key_tradeoffs, len(solutions))
 
+    # Cue the agent to layer scenario_risk into narration when scenarios exist.
+    # Without this, narration from tradeoffs alone forgets scenario data on disk.
+    if scenario is None and problem.scenario_run and problem.scenario_run.scenario_runs:
+        result["scenarios_available"] = {
+            "scenario_names": list(problem.scenario_run.scenario_runs.keys()),
+            "hint": "Scenario data is on disk. Layer scenario_risk (CVaR, worst_case) and option_robustness into the narration via `explore scenario_results`.",
+        }
+
     result["visualization"] = _render_tradeoffs_viz(result, problem.objectives, solutions)
     return result
 

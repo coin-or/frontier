@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import math
 
 import numpy as np
@@ -749,9 +750,12 @@ def optimize_scenarios(
         scenario_problem.scenario_config = None
         # Derive a distinct, deterministic per-scenario seed so they don't
         # collide on identical initializations while remaining reproducible.
+        # Uses hashlib (not built-in hash) because Python's hash(str) is
+        # PYTHONHASHSEED-randomized per process, breaking reproducibility.
         scenario_seed = None
         if seed is not None:
-            scenario_seed = (seed + abs(hash(scenario.name))) % (2**31 - 1)
+            name_hash = int(hashlib.sha256(scenario.name.encode()).hexdigest()[:8], 16)
+            scenario_seed = (seed + name_hash) % (2**31 - 1)
         return scenario.name, optimize(
             scenario_problem, mode=mode, max_solutions=max_solutions, seed=scenario_seed,
         )

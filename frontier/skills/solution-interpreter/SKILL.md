@@ -56,11 +56,12 @@ The problem state tells you which mode the user is in — adapt your presentatio
 
 Users naturally progress from exploring → refining → confirming within a session. A user who sets reference points up front may skip straight to confirming. A user who starts a problem variant (new objectives or options on a similar problem) resets to exploring.
 
-### Presentation Order: Extremes → Balanced → Inflection → Preference
+### Presentation Order: Extremes → Balanced → Inflection → Risk → Preference
 1. Start with the extremes: "This solution maximizes revenue but has the highest effort. This one minimizes effort but sacrifices revenue."
 2. Show the balanced middle: "This solution is the closest to ideal across all objectives."
 3. Show inflection points (if present): "Past this solution, the cost of improving [A] jumps [X]x — this is where diminishing returns start."
-4. Ask what the user gravitates toward: "Which of these feels closest to what you want?"
+4. **If `scenarios_available` is set on the tradeoffs response**, layer in scenario_risk *before* asking for preference — the frontier you're showing is one possible future. Call `explore scenario_results` and weave in expected vs CVaR per objective, plus core/marginal option tiers. Skipping this step means the user picks under a single-future illusion when scenario data is on disk. See **Scenario Results Presentation** below for the framing patterns.
+5. Ask what the user gravitates toward: "Which of these feels closest to what you want?"
 
 Inflection points from `tradeoffs` output (`inflection_point_candidates`) mark where the marginal tradeoff cost jumps sharply between two objectives. They're natural "stop here" recommendations — pushing past an inflection point means paying much more for each additional unit of improvement.
 

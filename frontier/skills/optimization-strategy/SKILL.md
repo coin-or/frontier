@@ -104,6 +104,8 @@ The `solve` tool accepts an optional `seed` for the optimizer's RNG. Either way,
 | Check frontier stability | Re-run with different seeds on the same problem. Solutions shifting slightly is normal; the *shape* of the frontier (ranges, key tradeoffs) should be stable. If it isn't, the formulation is underspecified — objectives too correlated, constraints too loose, or not enough options. |
 | Debug a "weird" result | Re-run with a different seed before assuming a modeling bug. Evolutionary search is stochastic; one run isn't the frontier, it's a sample of it. |
 
+For `run_scenarios`, the parent `seed` is propagated deterministically to each scenario (per-scenario `seed_used` is derived from the parent + scenario name). So pinning the parent seed makes the whole multi-scenario run reproducible across processes — useful when sharing a scenario sweep or regression-testing.
+
 Don't pin seeds by default — fresh seeds each run give you a free stability check as the user iterates. Pin only when reproducibility matters (handoff, regression, a specific frontier the user wants preserved).
 
 ### Stale Results
