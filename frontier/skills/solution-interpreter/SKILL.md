@@ -29,6 +29,14 @@ These principles shape every interaction during exploration. Get these right fir
 ### Never Say "Best"
 There is no best solution on a Pareto frontier — every solution is optimal at its particular tradeoff. Saying "best" implies a single answer exists, which undermines the user's ability to make an informed choice. Present tradeoffs, not rankings, so the user can decide what matters most to them.
 
+### Traceable Claims
+
+Every quantitative claim you make should trace back to something the tool returned — a score in the model, an objective value on a specific solution, a correlation from `tradeoffs`, a shadow price from `binding_analysis`, a dominance relation from the frontier. If you can't point to the source, don't say the number.
+
+This is how Frontier closes the **phantom precision** and **plausible-but-dominated** pitfalls (see `frontier://skills/problem_framing`). An LLM can *narrate* tradeoffs fluently without computing them — inflection points guessed, correlations estimated, dominance asserted — and the resulting recommendation is defensible on its face but its logic is unrecoverable. Anchor every interpretation in returned data so a stakeholder can audit the reasoning line by line.
+
+When the data doesn't support a claim the user wants, say so. "The frontier doesn't give enough variation here to estimate that" is a real answer.
+
 ### The Five Things Users Need
 
 When explaining any solution, address these dimensions (mapping directly to the downstream translation above):
@@ -59,7 +67,7 @@ Users naturally progress from exploring → refining → confirming within a ses
 ### Presentation Order: Extremes → Balanced → Inflection → Risk → Preference
 1. Start with the extremes: "This solution maximizes revenue but has the highest effort. This one minimizes effort but sacrifices revenue."
 2. Show the balanced middle: "This solution is the closest to ideal across all objectives."
-3. Show inflection points (if present): "Past this solution, the cost of improving [A] jumps [X]x — this is where diminishing returns start."
+3. Show inflection points (if present): anchor the marker with the actual objective values and the jump magnitude. Template: *"[A]-vs-[B] inflection at [A=value, B=value] — jump factor [X]×. Past this point, each extra unit of A costs roughly X× more B than before."* The `inflection_point_candidates` entries in `tradeoffs` output carry `objective_values` and `jump_factor` — use both. A named "stop here" with numbers is far more actionable than a directional sentence.
 4. **If `scenarios_available` is set on the tradeoffs response**, layer in scenario_risk *before* asking for preference — the frontier you're showing is one possible future. Call `explore scenario_results` and weave in expected vs CVaR per objective, plus core/marginal option tiers. Skipping this step means the user picks under a single-future illusion when scenario data is on disk. See **Scenario Results Presentation** below for the framing patterns.
 5. Ask what the user gravitates toward: "Which of these feels closest to what you want?"
 
@@ -255,7 +263,7 @@ See `references/explore-diagnostics.md` for the full schema of `binding_analysis
 The `explore marginal_analysis` action returns structured data for each conflicting pair: `rates` (per-step cost ratios) and optionally `inflection` (with `solution_id`, `position`, `jump_factor`). Interpret these:
 
 - **Rates**: "Moving from Solution 2 to Solution 3 costs [X] units of [B] per unit of [A] gained"
-- **Inflection point**: When `inflection` is present, its `jump_factor` tells you how sharply the cost accelerates. Narrate: "Past Solution [id], the cost of improving [A] jumps [jump_factor]x — that's where diminishing returns kick in"
+- **Inflection point**: When `inflection` is present, use the anchored template from Presentation Order: *"[A]-vs-[B] inflection at [A=value, B=value] — jump factor [X]×. Past this point, each extra unit of A costs roughly X× more B than before."* The objective values come from the referenced solution; the jump magnitude comes from `inflection.jump_factor`.
 - **No inflection**: "Marginal costs change gradually — the frontier offers smooth tradeoffs throughout"
 - **Exchange rates**: Anchor tradeoff conversations with concrete numbers: "Each additional $10K revenue costs 2 points of satisfaction"
 

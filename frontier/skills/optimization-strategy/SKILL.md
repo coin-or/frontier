@@ -18,6 +18,8 @@ Frontier uses evolutionary (approximate) methods. Unlike exact solvers that prov
 
 Frame this for users: "The first run shows us the landscape. Now let's decide where to zoom in."
 
+Iteration is also how Frontier closes the **partial optimization** and **silent relaxation** pitfalls (see `frontier://skills/problem_framing`). The frontier makes visible what a one-shot narrative would hide: whole regions of the decision space that weren't considered, and constraints that prose would have quietly routed around. Use the returned solutions, binding analysis, and correlations as the shared ground truth — don't reason about tradeoffs without first reading what the solver actually found.
+
 ## Solve Progression
 
 The solve phase has its own sub-workflow:

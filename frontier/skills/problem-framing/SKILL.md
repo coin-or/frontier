@@ -38,6 +38,15 @@ Store the question in `context` when calling `model create`. It serves three pur
 
 A vague question ("help me decide") needs sharpening before objectives make sense. Probe with: *"What would make one answer better than another?"* — this directly surfaces objectives.
 
+## Fit and Value Check
+
+Before framing, confirm the decision is the right shape for Frontier. Two questions:
+
+- **Fit** — does the decision have at least two genuinely conflicting objectives, three or more real options, and actual tradeoffs? A ranking task, a single-objective problem, or a decision with a dominant option doesn't need optimization; say so and suggest weighted scoring or direct comparison instead.
+- **Value** — will the answer change what the user does? If the decision is already made, if the stakes are too small to justify iteration, or if the answer will be overridden by a non-modeled factor, the work is decorative. Surface that before investing in framing.
+
+If either gate fails, offer the honest route out. Framing a bad fit wastes the user's time and produces a frontier no one trusts.
+
 ## The Translation Mindset
 
 Most optimization attempts stall not at the math, but at the translation layer — mapping how a decision maker thinks about their problem to how a solver models it. Your role is to bridge that gap.
@@ -45,6 +54,18 @@ Most optimization attempts stall not at the math, but at the translation layer �
 Decision makers think in terms of **questions** ("How should we allocate resources?"), **goals** ("maximize impact"), **options** ("these alternatives"), **requirements** ("stay under budget"), and **scenarios** ("what if conditions change?"). Solvers need **objectives**, **decision variables**, **constraints**, and **parameters**. The mapping is often intuitive, but the gaps — unstated assumptions, vague goals, missing constraints — are where problems fail.
 
 **Your job is to compress the upstream translation burden**: help users go from a decision question to a well-structured optimization problem in minutes, not days. Do this by asking the right clarifying questions, suggesting structure, and catching misalignment early.
+
+## Decision Pitfalls
+
+Unaided, generative reasoning fails on constrained decisions in recognizable ways. These are patterns to watch for — in the user's framing, in your own output, and in solutions you're tempted to narrate without checking. The list isn't exhaustive; spot analogous shapes in new domains.
+
+- **Partial optimization** — the slice you can see becomes the answer because nothing else is in view. Local wins, global losses.
+- **Load-bearing parameter** — a hidden input (discount rate, risk tolerance, lead-time buffer) the answer silently hinges on, never flagged for the user.
+- **Silent relaxation** — hard constraints treated as suggestions in prose because violating them is cheap in text and expensive in structure.
+- **Phantom precision** — fluent numbers with no computational basis; directional narration dressed up as measurement.
+- **Plausible-but-dominated** — recommendations that read reasonably but are strictly beaten by options elsewhere on the frontier.
+
+Frontier's stack is designed to prevent these: the solver enforces constraints and surfaces the full frontier, `model` and `solve` outputs report what was binding and what varied, and `explore` returns computed correlations, shadow prices, and dominance. Route work through the stack rather than narrating around it, and trace every claim back to something the tool returned.
 
 ## Core Judgment
 
@@ -216,7 +237,7 @@ Good scenario prompts:
 - "What if the most optimistic outcome materializes?" (growth scenario)
 - "What if the rules change?" (regulatory/structural scenario)
 
-Define scenarios via `model update` with `scenario_config`. Each scenario can vary scores (adjustments or overrides) and/or constraints. See the `model` tool description for API details.
+Define scenarios via `model update` with `scenario_config`. Each scenario can vary scores (adjustments or overrides), constraints, and — when any objective uses `quadratic` aggregation — the interaction matrix itself via `interaction_matrix_overrides`. Use this when a regime shift changes *how options interact*, not just how they individually score: correlations tighten under stress, synergies break down under resource pressure, redundancies collapse under concurrent failure. The `scale_groups` field multiplies off-diagonals within a named group by a factor (e.g. equity-equity off-diagonals × 1.5 under recession). See the `model` tool description for API details.
 
 ## Iteration Philosophy
 
