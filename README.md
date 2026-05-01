@@ -57,18 +57,22 @@ The `get_skill` tool delivers domain expertise that guides the agent through eac
 
 - **NSGA-II** (2-3 objectives) and **NSGA-III** (4+ objectives) via pymoo
 - **Fast mode** for iterative exploration, **thorough mode** for final convergence; `max_solutions` caps the Pareto set size (default 100). Quality indicators (hypervolume, spacing) with each run
-- **Scenario optimization**: independent runs per scenario with score overrides/adjustments
+- **Reproducibility**: optional `seed` parameter for deterministic runs; when omitted a fresh seed is drawn and echoed in the response as `seed_used` so any run can be reproduced after the fact
+- **Scenario optimization**: independent runs per scenario with score overrides/adjustments (per-scenario seeds deterministically derived so each scenario reproduces while starting from distinct initializations)
 - **Infeasibility analysis**: when no feasible solutions exist, identifies conflicting constraints with relaxation suggestions
 - **Run history**: archived runs with constraint snapshots for comparison
 
 ### Exploration (`explore`)
 
 - **Tradeoff analysis**: objective ranges, correlations, extremes, balanced solution, inflection-point candidates, frontier shape per pair (linear / concave / convex / discontinuous), reference point comparisons
+- **Objective redundancy**: normalized mutual information per objective pair (alongside Pearson), flags non-linear dependence via Pearson/MI disagreement
+- **Binding constraint analysis**: shadow-price rates per binding constraint — how much each objective shifts per unit of slack relaxation (covers objective_bound, cardinality, group_limit)
 - **Solution comparison**: side-by-side with shared/differentiating options and tradeoff summaries
 - **Marginal analysis**: cost-per-unit rates between adjacent solutions with knee-point detection
 - **Per-scenario exploration**: tradeoffs, compare, solutions, marginal analysis, and curation all accept an optional `scenario` parameter to target a specific scenario's frontier
-- **Scenario results**: robust options (all scenarios), scenario-specific options, probability-weighted expected values
+- **Scenario results**: robust options (all scenarios), scenario-specific options, probability-weighted expected values, plus per-objective **scenario risk** (expected / worst-case / best-case / CVaR with tunable `cvar_alpha`) for tail-risk analysis
 - **Run comparison**: criteria diffs, frontier diffs, option coverage changes across runs
 - **Solution curation**: bookmark solutions with custom names; content-based signatures track survival across re-runs
+- **Curated export**: `export_curated` returns a formatted handoff artifact (markdown table or CSV) of curated solutions with objective values and option selections/allocations
 - **Feedback**: rate and annotate solutions; linked to curated set via stable content signatures
 - **Visualizations**: inline ASCII scatter plots, parallel coordinates, marginal rate charts
