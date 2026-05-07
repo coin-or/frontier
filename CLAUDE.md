@@ -29,3 +29,7 @@ Consult `best-practices.md` throughout the development lifecycle:
 - **Developing** prompts, tool descriptions, or skill content: follow §2 (Prompt Best Practices) — use principles and heuristics over keyword mapping, positive framing with reasoning, general instructions over prescriptive steps, and generic placeholders over domain-specific anchoring.
 - **Reviewing** skills or prompt changes: check §1 agent usability criteria (discovery, navigation, adaptation, self-sufficiency, negative test) and conciseness guidelines. Verify cross-references and MECE boundaries.
 - **Testing** new features: use §1 safety patterns (confirmation gates, validation loops) to ensure destructive actions are gated and verifiable outputs are validated.
+
+## User Testing
+
+Always drive **real end-to-end flows** through the actual tools — read skills as an agent would, react to outputs, and make decisions based on what comes back. Do not bulk-load synthetic data or poke engine state to fake edge cases unless the case genuinely cannot be reached otherwise (and call out the cheat when you do). Contract-validation belongs in `tests/`; user-testing must trace what a person would actually do.

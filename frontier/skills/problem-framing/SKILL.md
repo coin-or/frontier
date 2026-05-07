@@ -262,3 +262,64 @@ The goal is a *working decision model fast enough that iteration becomes practic
 - Make every objective measurable with a clear direction — "innovation" becomes "number of novel capabilities" or similar. Vague objectives can't be optimized.
 - Require at least 2 genuinely conflicting objectives — with fewer, the problem is a ranking, not an optimization, and Frontier adds no value.
 - Prioritize a complete-enough model over a perfect one — a rough model that runs reveals which parts need precision, while a half-built model reveals nothing.
+
+## Schema Reference
+
+JSON shapes for the structured fields passed through `model/create` and `model/update`. Use these when constructing payloads.
+
+### Constraint schemas
+
+Pass to the `constraints` param as a list of dicts:
+
+```
+{"type": "cardinality", "min": <int>, "max": <int>}
+{"type": "force_include", "option": "<name>"}
+{"type": "force_exclude", "option": "<name>"}
+{"type": "objective_bound", "objective": "<name>", "operator": "min"|"max", "value": <float>}
+{"type": "exclusion_pair", "option_a": "<name>", "option_b": "<name>"}
+{"type": "dependency", "if_option": "<name>", "then_option": "<name>"}
+{"type": "group_limit", "options": ["<name>", ...], "max": <int>}
+{"type": "max_allocation", "max": <int>}  (proportional only: cap single option allocation)
+```
+
+### Interaction matrix schema
+
+For objectives with `aggregation="quadratic"`:
+
+```
+{"objective": "<name>", "entries": {"opt_a": {"opt_a": <float>, "opt_b": <float>, ...}, ...}}
+```
+
+Entries must be symmetric. For portfolio volatility, entries = covariance matrix. Base-matrix uploads always use default `mode="replace"` with the full matrix.
+
+### Interaction matrix override schema
+
+For scenario overrides (composable fields):
+
+```
+{
+  "objective": "<name>",
+  "mode": "replace" | "upsert",              # default "replace"
+  "entries": {"opt_a": {"opt_b": <float>}},  # replace: full matrix; upsert: only changed cells
+  "scale_groups": [{"options": ["a", "b", ...], "factor": <float>}]  # optional; applied after mode
+}
+```
+
+- `mode="upsert"`: merge the listed cells into the base matrix; symmetry auto-enforced.
+- `scale_groups`: multiply off-diagonals within each group by factor. Use for regime shifts (e.g. recession: equity correlations × 1.5). Compose with upsert cells for precise + broad overrides.
+
+### Scenario schema
+
+Pass to `scenario_config.scenarios` as a list of dicts:
+
+```
+{
+  "name": "<name>",
+  "probability": <float 0-1>,                  # optional
+  "description": "<text>",                     # optional
+  "score_overrides": [{"option", "objective", "value"}],
+  "score_adjustments": [{"objective", "multiply"?, "add"?}],
+  "constraint_overrides": [<constraint dict>], # full replacement when non-empty
+  "interaction_matrix_overrides": [<matrix override dict>]  # see schema above
+}
+```

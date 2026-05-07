@@ -76,6 +76,22 @@ store = Store()
 
 SKILLS_DIR = Path(__file__).resolve().parent.parent / "skills"
 
+# Soft cap on `explore` actions that can return unbounded per-solution detail.
+# Above this, the response truncates and points the caller at full_result_path
+# on disk to avoid blowing the MCP token budget.
+EXPLORE_DETAIL_CAP = 50
+
+# Single inject prompt used by both solve/run and solve/run_scenarios — covers
+# both the regular-frontier presentation framing and the scenario-specific
+# next-step pointer, so the throttle's single shared flag never silently drops
+# guidance depending on which solve mode fired first.
+_SOLUTION_INTERPRETER_PROMPT = (
+    "Optimization complete. Use this guide to present results — never say 'best', "
+    "start with extremes and balanced, quantify tradeoffs. "
+    "For scenario runs, also surface cross-scenario robustness via "
+    "`explore scenario_results` and present results per scenario."
+)
+
 
 # ─── Skill auto-injection helpers ───
 
@@ -203,8 +219,13 @@ def model(
 ) -> dict:
     """Build and modify the optimization problem.
 
-    Skills are auto-injected into responses at phase transitions.
-    Call get_skill() to re-read any skill manually.
+    Skill auto-injection: when an action triggers a skill, the response carries
+    `_skill_guidance: {skill, reason, content}` — `content` is the full skill body
+    inline, so no separate `get_skill()` call is needed once injected this session.
+    Repeat calls suppress the injection (the skill is already in your context);
+    structural changes re-arm it so the next phase delivers fresh guidance. For
+    skills not auto-injected (e.g., `problem_framing` before `create`), fetch via
+    `get_skill(<name>)`.
 
     Actions:
       create  — Start a new problem. Params: name?, domain?, context?, approach?,
@@ -215,6 +236,9 @@ def model(
                 reference_points (list of {type, name?, objective_values, selected_options?}),
                 interaction_matrices (list of {objective, entries} for quadratic aggregation).
                 Scores use merge semantics; everything else is full replacement.
+                Side effects: structural edits (objectives/options/constraints/approach/matrices/scenarios)
+                mark the latest run stale and reset the optimization_strategy and solution_interpreter
+                injection flags so the next solve re-injects them.
       get     — Problem state. Params: problem_id, section? (optional).
                 Without section: full dump (can exceed token cap for large models).
                 With section: targeted slice. Valid sections:
@@ -224,6 +248,8 @@ def model(
                 Prefer section="summary" for a lightweight overview, then drill down.
       list    — All problems. No params.
       delete  — Remove problem. Params: problem_id
+                Side effects: deletes the problem and its run history; resets all skill-injection
+                flags for the problem id.
 
     Key guidance:
     - Objectives: 2-4 is the sweet spot. If >4, consolidate.
@@ -231,43 +257,9 @@ def model(
     - Classify carefully: "budget" might be an objective OR a constraint.
     - First formulation is a hypothesis — rough scores > no scores, fewer objectives > many.
 
-    Constraint schemas (pass to constraints param as list of dicts):
-      {"type": "cardinality", "min": <int>, "max": <int>}
-      {"type": "force_include", "option": "<name>"}
-      {"type": "force_exclude", "option": "<name>"}
-      {"type": "objective_bound", "objective": "<name>", "operator": "min"|"max", "value": <float>}
-      {"type": "exclusion_pair", "option_a": "<name>", "option_b": "<name>"}
-      {"type": "dependency", "if_option": "<name>", "then_option": "<name>"}
-      {"type": "group_limit", "options": ["<name>", ...], "max": <int>}
-      {"type": "max_allocation", "max": <int>}  (proportional only: cap single option allocation)
-
-    Interaction matrix schema (for objectives with aggregation="quadratic"):
-      {"objective": "<name>", "entries": {"opt_a": {"opt_a": <float>, "opt_b": <float>, ...}, ...}}
-      Entries must be symmetric. For portfolio volatility, entries = covariance matrix.
-      Base-matrix uploads always use default mode="replace" with the full matrix.
-
-    Interaction matrix override schema (for scenario overrides — composable fields):
-      {
-        "objective": "<name>",
-        "mode": "replace" | "upsert",              # default "replace"
-        "entries": {"opt_a": {"opt_b": <float>}},  # replace: full matrix; upsert: only changed cells
-        "scale_groups": [{"options": ["a", "b", ...], "factor": <float>}]  # optional; applied after mode
-      }
-      - mode="upsert": merge the listed cells into the base matrix; symmetry auto-enforced.
-      - scale_groups: multiply off-diagonals within each group by factor.
-        Use for regime shifts (e.g. recession: equity correlations × 1.5).
-        Compose with upsert cells for precise + broad overrides.
-
-    Scenario schema (pass to scenario_config.scenarios as list of dicts):
-      {
-        "name": "<name>",
-        "probability": <float 0-1>,                  # optional
-        "description": "<text>",                     # optional
-        "score_overrides": [{"option", "objective", "value"}],
-        "score_adjustments": [{"objective", "multiply"?, "add"?}],
-        "constraint_overrides": [<constraint dict>], # full replacement when non-empty
-        "interaction_matrix_overrides": [<matrix override dict>]  # see schema above
-      }
+    Schema reference: see the `problem_framing` skill (read it via
+    `get_skill('problem_framing')` or before calling `model/create`) for
+    constraint, interaction-matrix, and scenario JSON schemas.
     """
     params = {
         k: v for k, v in {
@@ -545,6 +537,11 @@ def _model_update(params: dict) -> dict:
     if problem_shape_change:
         _reset_injection(pid, "optimization_strategy")
 
+    # Any structural edit invalidates prior solve results — re-arm
+    # solution_interpreter so the next solve re-injects fresh guidance.
+    if structural_change:
+        _reset_injection(pid, "solution_interpreter")
+
     return result
 
 
@@ -670,12 +667,16 @@ def solve(
 ) -> dict:
     """Validate and run the optimizer.
 
-    optimization_strategy skill is auto-injected when scores reach 100% or
-    validation passes. Call get_skill('optimization_strategy') to re-read.
+    Skills auto-inject on phase completions: `optimization_strategy` when scores
+    reach 100% or validation passes, `solution_interpreter` on the first solve
+    per problem. See the `model` docstring for `_skill_guidance` shape and the
+    once-per-problem throttle.
 
     Actions:
       validate       — Check if problem is ready. Returns issues and missing scores.
       run            — Validate, then optimize. Returns Pareto frontier + solution_interpreter skill.
+                       Side effects: archives the previous run; clears results_stale; persists full
+                       results to full_result_path on disk.
       run_scenarios  — Run optimization independently per scenario. Requires scenario_config.
 
     Args:
@@ -798,11 +799,10 @@ def _solve_run(p: Problem, mode: OptimizeMode | None = None, max_solutions: int 
         ),
     }
 
-    # Always inject solution_interpreter after a successful solve —
-    # the agent needs presentation guidance each time it has new results.
-    _inject_skill(result, "solution_interpreter",
-        "Optimization complete. Use this guide to present results — "
-        "never say 'best', start with extremes and balanced, quantify tradeoffs.")
+    # Inject solution_interpreter once per problem (until structural change resets it).
+    if not _was_injected(p.problem_id, "solution_interpreter"):
+        _inject_skill(result, "solution_interpreter", _SOLUTION_INTERPRETER_PROMPT)
+        _mark_injected(p.problem_id, "solution_interpreter")
     # Reset optimization_strategy so it can re-fire on the next model change cycle
     _reset_injection(p.problem_id, "optimization_strategy")
 
@@ -906,12 +906,10 @@ def _solve_run_scenarios(p: Problem, mode: OptimizeMode | None = None, max_solut
         ),
     }
 
-    # Always inject solution_interpreter after a successful scenario solve —
-    # the agent needs presentation guidance each time it has new results.
-    _inject_skill(result, "solution_interpreter",
-        "Per-scenario optimization complete. Use this guide to present results per scenario "
-        "and to surface cross-scenario robustness via `explore scenario_results`. "
-        "Never say 'best' — every Pareto solution is optimal at its tradeoff.")
+    # Inject solution_interpreter once per problem (until structural change resets it).
+    if not _was_injected(p.problem_id, "solution_interpreter"):
+        _inject_skill(result, "solution_interpreter", _SOLUTION_INTERPRETER_PROMPT)
+        _mark_injected(p.problem_id, "solution_interpreter")
     # Reset optimization_strategy so it can re-fire on the next model change cycle
     _reset_injection(p.problem_id, "optimization_strategy")
 
@@ -967,38 +965,67 @@ def explore(
 ) -> dict:
     """Navigate results after solving.
 
-    solution_interpreter skill is auto-injected with solve/run results.
-    Call get_skill('solution_interpreter') to re-read.
+    `solution_interpreter` auto-injects on the first solve per problem (see the
+    `model` docstring for `_skill_guidance` shape and the once-per-problem throttle).
+    Structural `model/update` edits re-arm so the next solve re-injects.
+
+    full_result_path: large-result actions (solutions detail=true, marginal_analysis detail=true)
+    write a full JSON dump to disk; the path is in solve/run's response — reference it instead
+    of re-requesting.
+    content_signature: stable hash of a solution's selected options (and allocations for
+    proportional problems); survives re-solves, so prefer it over solution_id when referencing
+    curated solutions or recording feedback across runs.
 
     Actions:
-      tradeoffs  — Frontier overview: ranges, correlations, extremes, balanced solution, inflection points.
-                   Returns balanced_solution (ideal-point closest) plus inflection_point_candidates
-                   (solutions where marginal tradeoff cost jumps sharply — diminishing returns boundaries).
-                   Together these give multiple "balanced" perspectives on the frontier.
-      compare    — Side-by-side comparison. Requires solution_ids (list of 2+ ints).
+      tradeoffs  — Frontier overview.
+                   Returns: objective_ranges, key_tradeoffs, extreme_solutions
+                   (per-objective best/worst IDs, keyed `extreme_<objective>`),
+                   balanced_solution (ideal-point closest), inflection_point_candidates
+                   (solutions where marginal tradeoff cost jumps sharply — diminishing
+                   returns boundaries), frontier_shape, binding_analysis.
+                   Optional: scenario.
+      compare    — Side-by-side comparison.
+                   Requires: solution_ids (list of 2+ ints). Optional: scenario.
       solutions  — Pareto frontier listing.
                    Default: compact — solution_id + objective_values + content_signature per solution.
                    Pass detail=true for full dump including selected_options and allocations.
-      solution   — Single solution detail. Requires solution_id (int).
-      feedback   — Record user feedback. Params: solution_id? or content_signature?, rating? (1-5), notes?, stage? Feedback links to content_signature (stable across runs) and attaches to curated solutions.
-      compare_runs — Compare run history. Requires run_ids (list of 2+ run ID strings).
+                   Optional: detail, scenario.
+      solution   — Single solution detail.
+                   Requires: solution_id (int). Optional: scenario.
+      feedback   — Record user feedback. Feedback links to content_signature (stable across runs)
+                   and attaches to curated solutions.
+                   Requires: solution_id OR content_signature.
+                   Optional: rating (1-5), notes, stage.
+      compare_runs — Compare run history.
+                   Requires: run_ids (list of 2+ run ID strings).
       scenario_results — Per-scenario robustness analysis with frequency-weighted option importance.
                    Returns option_robustness (sorted by importance = avg_frequency × avg_weight),
                    with tiers: core (>50% freq in all scenarios), common (>25%), marginal (<25%).
                    Also: scenario-specific options, expected values (ideal-point, not achievable),
                    scenario_risk per objective (expected / worst_case / best_case / cvar_<alpha>%).
-                   Pass cvar_alpha (float in (0,1), default 0.2) to set the CVaR tail fraction.
-      curate     — Add solution to curated set. Params: solution_id, custom_name?, notes?
-      uncurate   — Remove from curated set. Params: content_signature.
-      rename_curated — Update name. Params: content_signature, custom_name.
-      curated    — List all curated solutions with survival status.
-      export_curated — Raw formatted export of curated solutions for handoff. Optional `format`: "markdown" (default, pipe table) or "csv".
-      compare_curated — Compare curated solutions. Params: signatures (list of 2+ content_signature strings).
+                   Optional: cvar_alpha (float in (0,1), default 0.2) to set the CVaR tail fraction.
+      curate     — Add solution to curated set.
+                   Requires: solution_id. Optional: custom_name, notes, scenario.
+      uncurate   — Remove from curated set.
+                   Requires: content_signature.
+      rename_curated — Update name.
+                   Requires: content_signature, custom_name.
+      curated    — List curated solutions. No params.
+                   Returns: total_curated, curated_solutions[] each with
+                   content_signature, custom_name, selected_options, allocations,
+                   objective_values, source_run_id, notes, feedback[], feedback_count,
+                   avg_rating, and `in_current_frontier` (survival flag — false means
+                   the latest re-solve no longer produces this solution).
+      export_curated — Raw formatted export of curated solutions for handoff.
+                   Optional: format ("markdown" default pipe table, or "csv").
+      compare_curated — Compare curated solutions.
                    Default: compact — shared/differentiating option sets + objective values per solution.
                    Pass detail=true for full selected_options and allocations per solution.
+                   Requires: signatures (list of 2+ content_signature strings). Optional: detail.
       marginal_analysis — Marginal rate analysis: cost-per-unit between adjacent solutions, inflection point detection.
                    Default: summary per pair (inflection, stats, top-5 steepest, truncated viz).
                    Pass detail=true for full rates array + untruncated visualization.
+                   Optional: detail, scenario.
 
     Scenario param (optional):
       Pass scenario="<name>" to inspect a specific scenario's results instead of the base case.
@@ -1010,7 +1037,7 @@ def explore(
     - Present extremes first, then balanced + inflection points, then ask what resonates.
     - Quantify tradeoffs: "Solution A gains 20% revenue but costs 15% more risk."
     - Elicit preferences via marginal tradeoff questions, not abstract weights.
-    - Curated solutions persist across re-runs via content_signature — check survival.
+    - Curated solutions persist across re-runs via content_signature — check `in_current_frontier`.
     - Once 3+ curated: that IS the decision set, present curated first.
     - With scenarios: use option_robustness tiers (core/common/marginal) to identify safe bets.
     """
@@ -1034,9 +1061,19 @@ def explore(
                 return {"error": str(e)}
         case "solutions":
             try:
-                return explorer.get_solutions(p, scenario=scenario, detail=detail)
+                result = explorer.get_solutions(p, scenario=scenario, detail=detail)
             except ValueError as e:
                 return {"error": str(e)}
+            # Soft-cap detail=true payloads — point at full_result_path on disk.
+            # `total_solutions` is already on the result, so we don't duplicate it.
+            if detail and len(result.get("solutions", [])) > EXPLORE_DETAIL_CAP:
+                result["solutions"] = result["solutions"][:EXPLORE_DETAIL_CAP]
+                result["truncated"] = True
+                result["shown"] = EXPLORE_DETAIL_CAP
+                result["full_result_path"] = str(
+                    store.run_result_path(p.problem_id, result["run_id"], scenario=scenario)
+                )
+            return result
         case "solution":
             if solution_id is None:
                 return {"error": "solution_id required for solution action."}
