@@ -11,6 +11,33 @@ and packaging Frontier as a Claude plugin.
 
 ---
 
+## Decisions (2026-05-07)
+
+- **Group 1 (description polish — items 3-6)** — proceed.
+- **Group 2 (throttle)** — proceed; **single shared injection flag** for both
+  `solve/run` and `solve/run_scenarios`.
+- **Group 3 (schema dedup)** — **option (d)**: move constraint /
+  interaction-matrix / scenario schemas into `problem_framing` skill; trim the
+  `model` tool docstring to a one-line pointer; leave the `data_collection`
+  injection at create unchanged.
+- **Group 4 / A (MCP Apps for explore viz)** — **deferred**. ASCII output is
+  fine for now. Keep the explore return shape extensible so a thin UI layer
+  can attach later without churn — no restructuring required today, just
+  don't paint into a corner.
+- **Group 5 / B (Elicitation)** — **investigate first**. Confirm MCP SDK
+  support, then design. **Trigger surface is broader** than the original two:
+  also fire on solution-feedback events (rating-driven latent-constraint
+  elicitation) and on follow-up formulation edits (constraint adds, score
+  revisions after the first solve). Interactive by default; pegged to
+  problem evolution.
+- **Group 6 / C (Claude plugin packaging)** — **rejected**. Skills are
+  private prompt IP; the MCP server is the distribution boundary precisely
+  so skill files aren't shipped out as part of a public plugin bundle.
+  Document this rationale in `architecture.md` so the question doesn't
+  silently reopen.
+
+---
+
 ## Grouping
 
 - **Group 1 — tool-description polish** (items 3, 4, 5, 6): low-risk text edits
