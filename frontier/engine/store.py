@@ -61,17 +61,21 @@ class Store:
     def exists(self, problem_id: str) -> bool:
         return self._path(problem_id).exists()
 
-    def write_run_result(self, problem_id: str, run_id: str, payload: dict, scenario: str | None = None) -> Path:
-        """Write a solve run's full result to a JSON file and return the path.
+    def run_result_path(self, problem_id: str, run_id: str, scenario: str | None = None) -> Path:
+        """Path where a solve run's full result is (or will be) persisted.
 
         Layout: ``<data_dir>/runs/<problem_id>/[<scenario>/]<run_id>.json``.
-        For scenario runs, caller passes the scenario name and one file is written per scenario.
+        Scenario runs are nested one level deeper, one file per scenario.
         """
         runs_dir = self.data_dir / "runs" / problem_id
         if scenario:
             runs_dir = runs_dir / _safe_slug(scenario)
-        runs_dir.mkdir(parents=True, exist_ok=True)
-        path = runs_dir / f"{run_id}.json"
+        return runs_dir / f"{run_id}.json"
+
+    def write_run_result(self, problem_id: str, run_id: str, payload: dict, scenario: str | None = None) -> Path:
+        """Write a solve run's full result to disk and return the path."""
+        path = self.run_result_path(problem_id, run_id, scenario=scenario)
+        path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(payload, indent=2))
         return path
 

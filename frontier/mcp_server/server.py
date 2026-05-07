@@ -49,7 +49,7 @@ from frontier.engine.models import (
     ScenarioRun,
     Score,
 )
-from frontier.engine.store import Store, _safe_slug
+from frontier.engine.store import Store
 
 mcp = FastMCP(
     "Frontier",
@@ -80,6 +80,17 @@ SKILLS_DIR = Path(__file__).resolve().parent.parent / "skills"
 # Above this, the response truncates and points the caller at full_result_path
 # on disk to avoid blowing the MCP token budget.
 EXPLORE_DETAIL_CAP = 50
+
+# Single inject prompt used by both solve/run and solve/run_scenarios — covers
+# both the regular-frontier presentation framing and the scenario-specific
+# next-step pointer, so the throttle's single shared flag never silently drops
+# guidance depending on which solve mode fired first.
+_SOLUTION_INTERPRETER_PROMPT = (
+    "Optimization complete. Use this guide to present results — never say 'best', "
+    "start with extremes and balanced, quantify tradeoffs. "
+    "For scenario runs, also surface cross-scenario robustness via "
+    "`explore scenario_results` and present results per scenario."
+)
 
 
 # ─── Skill auto-injection helpers ───
@@ -783,9 +794,7 @@ def _solve_run(p: Problem, mode: OptimizeMode | None = None, max_solutions: int 
 
     # Inject solution_interpreter once per problem (until structural change resets it).
     if not _was_injected(p.problem_id, "solution_interpreter"):
-        _inject_skill(result, "solution_interpreter",
-            "Optimization complete. Use this guide to present results — "
-            "never say 'best', start with extremes and balanced, quantify tradeoffs.")
+        _inject_skill(result, "solution_interpreter", _SOLUTION_INTERPRETER_PROMPT)
         _mark_injected(p.problem_id, "solution_interpreter")
     # Reset optimization_strategy so it can re-fire on the next model change cycle
     _reset_injection(p.problem_id, "optimization_strategy")
@@ -892,10 +901,7 @@ def _solve_run_scenarios(p: Problem, mode: OptimizeMode | None = None, max_solut
 
     # Inject solution_interpreter once per problem (until structural change resets it).
     if not _was_injected(p.problem_id, "solution_interpreter"):
-        _inject_skill(result, "solution_interpreter",
-            "Per-scenario optimization complete. Use this guide to present results per scenario "
-            "and to surface cross-scenario robustness via `explore scenario_results`. "
-            "Never say 'best' — every Pareto solution is optimal at its tradeoff.")
+        _inject_skill(result, "solution_interpreter", _SOLUTION_INTERPRETER_PROMPT)
         _mark_injected(p.problem_id, "solution_interpreter")
     # Reset optimization_strategy so it can re-fire on the next model change cycle
     _reset_injection(p.problem_id, "optimization_strategy")
@@ -967,19 +973,19 @@ def explore(
                    Returns balanced_solution (ideal-point closest) plus inflection_point_candidates
                    (solutions where marginal tradeoff cost jumps sharply — diminishing returns boundaries).
                    Together these give multiple "balanced" perspectives on the frontier.
-                   Requires: none. Optional: scenario.
+                   Optional: scenario.
       compare    — Side-by-side comparison.
                    Requires: solution_ids (list of 2+ ints). Optional: scenario.
       solutions  — Pareto frontier listing.
                    Default: compact — solution_id + objective_values + content_signature per solution.
                    Pass detail=true for full dump including selected_options and allocations.
-                   Requires: none. Optional: detail, scenario.
+                   Optional: detail, scenario.
       solution   — Single solution detail.
                    Requires: solution_id (int). Optional: scenario.
       feedback   — Record user feedback. Feedback links to content_signature (stable across runs)
                    and attaches to curated solutions.
-                   Requires: solution_id OR content_signature, plus rating (1-5) and/or notes.
-                   Optional: stage.
+                   Requires: solution_id OR content_signature.
+                   Optional: rating (1-5), notes, stage.
       compare_runs — Compare run history.
                    Requires: run_ids (list of 2+ run ID strings).
       scenario_results — Per-scenario robustness analysis with frequency-weighted option importance.
@@ -987,7 +993,7 @@ def explore(
                    with tiers: core (>50% freq in all scenarios), common (>25%), marginal (<25%).
                    Also: scenario-specific options, expected values (ideal-point, not achievable),
                    scenario_risk per objective (expected / worst_case / best_case / cvar_<alpha>%).
-                   Requires: none. Optional: cvar_alpha (float in (0,1), default 0.2) to set the CVaR tail fraction.
+                   Optional: cvar_alpha (float in (0,1), default 0.2) to set the CVaR tail fraction.
       curate     — Add solution to curated set.
                    Requires: solution_id. Optional: custom_name, notes, scenario.
       uncurate   — Remove from curated set.
@@ -996,7 +1002,7 @@ def explore(
                    Requires: content_signature, custom_name.
       curated    — List all curated solutions with survival status. No params.
       export_curated — Raw formatted export of curated solutions for handoff.
-                   Requires: none. Optional: format ("markdown" default pipe table, or "csv").
+                   Optional: format ("markdown" default pipe table, or "csv").
       compare_curated — Compare curated solutions.
                    Default: compact — shared/differentiating option sets + objective values per solution.
                    Pass detail=true for full selected_options and allocations per solution.
@@ -1004,7 +1010,7 @@ def explore(
       marginal_analysis — Marginal rate analysis: cost-per-unit between adjacent solutions, inflection point detection.
                    Default: summary per pair (inflection, stats, top-5 steepest, truncated viz).
                    Pass detail=true for full rates array + untruncated visualization.
-                   Requires: none. Optional: detail, scenario.
+                   Optional: detail, scenario.
 
     Scenario param (optional):
       Pass scenario="<name>" to inspect a specific scenario's results instead of the base case.
@@ -1044,16 +1050,14 @@ def explore(
             except ValueError as e:
                 return {"error": str(e)}
             # Soft-cap detail=true payloads — point at full_result_path on disk.
+            # `total_solutions` is already on the result, so we don't duplicate it.
             if detail and len(result.get("solutions", [])) > EXPLORE_DETAIL_CAP:
-                total = len(result["solutions"])
                 result["solutions"] = result["solutions"][:EXPLORE_DETAIL_CAP]
                 result["truncated"] = True
                 result["shown"] = EXPLORE_DETAIL_CAP
-                result["total"] = total
-                runs_dir = store.data_dir / "runs" / p.problem_id
-                if scenario:
-                    runs_dir = runs_dir / _safe_slug(scenario)
-                result["full_result_path"] = str(runs_dir / f"{result['run_id']}.json")
+                result["full_result_path"] = str(
+                    store.run_result_path(p.problem_id, result["run_id"], scenario=scenario)
+                )
             return result
         case "solution":
             if solution_id is None:
