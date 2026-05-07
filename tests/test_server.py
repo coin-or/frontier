@@ -1534,13 +1534,30 @@ class TestSkillInjectionOnSolve:
         assert "_skill_guidance" in result
         assert result["_skill_guidance"]["skill"] == "solution_interpreter"
 
-    def test_solve_rerun_reinjects_solution_interpreter(self):
-        """Every successful solve injects solution_interpreter — no dedup."""
+    def test_solve_rerun_does_not_reinject_solution_interpreter(self):
+        """solution_interpreter injects once per problem; a re-solve without
+        structural change does not re-inject (throttled)."""
         pid = _build_solvable_problem()
         result1 = srv.solve(action="run", problem_id=pid)
         assert result1["_skill_guidance"]["skill"] == "solution_interpreter"
         result2 = srv.solve(action="run", problem_id=pid)
-        assert result2["_skill_guidance"]["skill"] == "solution_interpreter"
+        assert "_skill_guidance" not in result2
+
+    def test_structural_update_rearms_solution_interpreter(self):
+        """Structural model edits reset the solution_interpreter flag so the
+        next solve re-injects fresh guidance."""
+        pid = _build_solvable_problem()
+        srv.solve(action="run", problem_id=pid)
+        assert srv._was_injected(pid, "solution_interpreter")
+        # Structural edit (constraints replacement) should clear the flag.
+        srv.model(
+            action="update",
+            problem_id=pid,
+            constraints=[{"type": "cardinality", "min": 1, "max": 2}],
+        )
+        assert not srv._was_injected(pid, "solution_interpreter")
+        result = srv.solve(action="run", problem_id=pid)
+        assert result["_skill_guidance"]["skill"] == "solution_interpreter"
 
     def test_solve_validation_failure_no_injection(self):
         created = srv.model(action="create")
