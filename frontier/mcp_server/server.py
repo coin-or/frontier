@@ -219,8 +219,13 @@ def model(
 ) -> dict:
     """Build and modify the optimization problem.
 
-    Skills are auto-injected into responses at phase transitions.
-    Call get_skill() to re-read any skill manually.
+    Skill auto-injection: when an action triggers a skill, the response carries
+    `_skill_guidance: {skill, reason, content}` — `content` is the full skill body
+    inline, so no separate `get_skill()` call is needed once injected this session.
+    Repeat calls suppress the injection (the skill is already in your context);
+    structural changes re-arm it so the next phase delivers fresh guidance. For
+    skills not auto-injected (e.g., `problem_framing` before `create`), fetch via
+    `get_skill(<name>)`.
 
     Actions:
       create  — Start a new problem. Params: name?, domain?, context?, approach?,
@@ -662,8 +667,10 @@ def solve(
 ) -> dict:
     """Validate and run the optimizer.
 
-    optimization_strategy skill is auto-injected when scores reach 100% or
-    validation passes. Call get_skill('optimization_strategy') to re-read.
+    Skills auto-inject on phase completions: `optimization_strategy` when scores
+    reach 100% or validation passes, `solution_interpreter` on the first solve
+    per problem. See the `model` docstring for `_skill_guidance` shape and the
+    once-per-problem throttle.
 
     Actions:
       validate       — Check if problem is ready. Returns issues and missing scores.
@@ -958,8 +965,9 @@ def explore(
 ) -> dict:
     """Navigate results after solving.
 
-    solution_interpreter skill is auto-injected with solve/run results.
-    Call get_skill('solution_interpreter') to re-read.
+    `solution_interpreter` auto-injects on the first solve per problem (see the
+    `model` docstring for `_skill_guidance` shape and the once-per-problem throttle).
+    Structural `model/update` edits re-arm so the next solve re-injects.
 
     full_result_path: large-result actions (solutions detail=true, marginal_analysis detail=true)
     write a full JSON dump to disk; the path is in solve/run's response — reference it instead
@@ -969,10 +977,12 @@ def explore(
     curated solutions or recording feedback across runs.
 
     Actions:
-      tradeoffs  — Frontier overview: ranges, correlations, extremes, balanced solution, inflection points.
-                   Returns balanced_solution (ideal-point closest) plus inflection_point_candidates
-                   (solutions where marginal tradeoff cost jumps sharply — diminishing returns boundaries).
-                   Together these give multiple "balanced" perspectives on the frontier.
+      tradeoffs  — Frontier overview.
+                   Returns: objective_ranges, key_tradeoffs, extreme_solutions
+                   (per-objective best/worst IDs, keyed `extreme_<objective>`),
+                   balanced_solution (ideal-point closest), inflection_point_candidates
+                   (solutions where marginal tradeoff cost jumps sharply — diminishing
+                   returns boundaries), frontier_shape, binding_analysis.
                    Optional: scenario.
       compare    — Side-by-side comparison.
                    Requires: solution_ids (list of 2+ ints). Optional: scenario.
@@ -1000,7 +1010,12 @@ def explore(
                    Requires: content_signature.
       rename_curated — Update name.
                    Requires: content_signature, custom_name.
-      curated    — List all curated solutions with survival status. No params.
+      curated    — List curated solutions. No params.
+                   Returns: total_curated, curated_solutions[] each with
+                   content_signature, custom_name, selected_options, allocations,
+                   objective_values, source_run_id, notes, feedback[], feedback_count,
+                   avg_rating, and `in_current_frontier` (survival flag — false means
+                   the latest re-solve no longer produces this solution).
       export_curated — Raw formatted export of curated solutions for handoff.
                    Optional: format ("markdown" default pipe table, or "csv").
       compare_curated — Compare curated solutions.
@@ -1022,7 +1037,7 @@ def explore(
     - Present extremes first, then balanced + inflection points, then ask what resonates.
     - Quantify tradeoffs: "Solution A gains 20% revenue but costs 15% more risk."
     - Elicit preferences via marginal tradeoff questions, not abstract weights.
-    - Curated solutions persist across re-runs via content_signature — check survival.
+    - Curated solutions persist across re-runs via content_signature — check `in_current_frontier`.
     - Once 3+ curated: that IS the decision set, present curated first.
     - With scenarios: use option_robustness tiers (core/common/marginal) to identify safe bets.
     """

@@ -119,7 +119,9 @@ other skills. Inject only if not already marked for this problem; mark on
 inject. Reset on structural `model/update` alongside `optimization_strategy`
 (server.py:545-546) so the next solve re-arms the hint.
 
-Savings per duplicate solve: ~5k tokens (skill body).
+Savings per duplicate solve: roughly the full `solution_interpreter` skill body
+(~10k tokens — the skill is ~39k chars; verified via real-flow inspection of
+`_skill_guidance.content`). Each suppressed re-injection is that big.
 
 **Open sub-question:** should `solve/run_scenarios` and `solve/run` share a
 single flag, or separate flags? Recommend **single** — the skill text is the
