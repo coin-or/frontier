@@ -52,17 +52,31 @@ A user can reach Frontier via the surface that matches their intent and technica
 │                                                                    │
 │  Web UI            Claude.ai           ChatGPT          Coding     │
 │  (analysts/PMs)    Custom Connector    App              agents     │
-│                    (consumer)          (consumer)       (devs)     │
-│  Next.js +         Settings →          Settings →       mcp.json / │
-│  AI SDK 6 +        Connectors          Apps & Conn.     config.toml│
-│  Clerk auth        OAuth (auto)        OAuth (auto)     Bearer     │
+│  Next.js + Clerk   OAuth (auto)        OAuth (auto)     Bearer     │
+│  on Render         (consumer)          (consumer)       (devs)     │
 │       │                  │                 │              │        │
 └───────┼──────────────────┼─────────────────┼──────────────┼────────┘
         │                  │                 │              │
-        ▼                  ▼                 ▼              ▼
+        ▼                  │                 │              │
+┌──────────────────────┐   │                 │              │
+│ Pluggable Agent      │   │ (these surfaces call MCP directly       │
+│ Runtime (web UI only)│   │  via the user's own client — no agent   │
+│  AGENT_BACKEND ∈ {   │   │  runtime sits in front)                 │
+│   managed-agents,    │   │                                         │
+│   messages-api,      │   │                                         │
+│   agent-sdk          │   │                                         │
+│  } (one env var)     │   │                                         │
+│                      │   │                                         │
+│ default: managed-    │   │                                         │
+│ agents (memory,      │   │                                         │
+│ dreaming, telemetry, │   │                                         │
+│ event SSE for free)  │   │                                         │
+└──────────┬───────────┘   │                                         │
+           │               │                                         │
+           ▼               ▼                 ▼              ▼
 ┌────────────────────────────────────────────────────────────────────┐
 │ Auth & Token Layer (Phase 1 = bearer; Phase 2 = OAuth front)       │
-│  - Per-user bearer tokens minted by Clerk-backed Next.js route     │
+│  - Per-user bearer tokens minted by Clerk-backed Render route      │
 │  - Phase 2: OAuth metadata endpoints (WorkOS / Clerk MCP-Auth)     │
 └────────────────────────────────────────────────────────────────────┘
                                   │
@@ -333,31 +347,37 @@ Goal: developers can drive Frontier from their existing coding agent.
 
 ---
 
-## 8. Migration Path — Self-Hosted to Managed Agents
+## 8. Backend Swap-Ability (Reversibility Plan)
 
-**When to migrate:** Claude Managed Agents (or equivalent) ships:
-- a consumer install/discovery surface, OR
-- managed cross-session conversation memory we'd otherwise build, OR
-- compelling cost / hosting savings.
+Managed Agents is the *default* beta backend — but the architecture treats it as one of three interchangeable agent runtimes behind the same adapter interface. The web UI, MCP server, state, skills, and all other surfaces are vendor-neutral. Swap cost stays bounded.
 
-**What changes:**
-- Web app shell (Next.js chat) is replaced by a Claude.ai-hosted agent surface or kept as the "branded" entry point that hands off to managed runtime.
-- Auth migrates from Clerk-issued bearer JWT → managed agent's user identity → Frontier MCP OAuth (Phase 2 work pays off here).
-- Conversation memory shifts from ephemeral (current) → managed agent memory.
+**When to swap away from Managed Agents:**
+- Pricing changes that hurt unit economics
+- Feature deprecation (e.g., memory or telemetry behavior changes in ways we depend on)
+- Strategic shift toward platform-neutral distribution
+- Multi-LLM future (route to non-Anthropic models for some users)
 
-**What doesn't change:**
+**What swapping changes:**
+- `AGENT_BACKEND` env var flips to `messages-api` or `agent-sdk`.
+- Conversation memory: lost (Anthropic-side) → must implement our own (Render Postgres `conversations(user_id, messages jsonb)` — ~50 lines).
+- Telemetry: lost free SSE stream → wire our own via `metrics.py` server-side (already planned in D.4).
+- Event/session history: lost server-side persistence → store in Postgres (~30 lines).
+
+**What swapping doesn't change:**
 - Frontier MCP server, tools, skills, optimizer, explorer, persistence.
-- `owner_id` scoping (managed agent identity maps onto it).
-- Skill delivery mechanism (tool-response injection is server-side and surface-agnostic).
-- Docs page for power users (still works).
+- `owner_id` scoping, Clerk auth, web UI shell, viz components.
+- All non-web surfaces (Claude.ai Custom Connector, ChatGPT App, coding agents).
+- Skill delivery (tool-response injection is server-side and runtime-agnostic).
+
+**Estimated swap cost:** 3–5 days of focused work (memory + telemetry reimplementation; UI shell unchanged because the adapter abstracts the backend).
 
 **Phase 5 alignment** (`roadmap.md` Phase 5 — Persistent Decision Agent):
-- 5.1 Session persistence and problem history → already covered by D.1 Postgres + `owner_id`.
-- 5.2 Organizational memory → Frontier-engine work; not provided by managed-agent generic memory.
-- 5.3 Proactive gap-filling → uses 5.1/5.2 substrate; surface-agnostic.
-- Managed-agent conversation memory complements 5.1 (user-level continuity) without duplicating 5.2 (domain-specific org memory).
+- 5.1 Session persistence and problem history → D.1 Postgres + `owner_id` (independent of agent runtime).
+- 5.2 Organizational memory → Frontier-engine work; never provided by any agent runtime's generic memory.
+- 5.3 Proactive gap-filling → uses 5.1/5.2 substrate; runtime-agnostic.
+- Managed Agents conversation memory complements 5.1 *during the beta* (user-level continuity for free); when/if we swap away, we reimplement only the conversation-memory slice, not the Frontier-engine memory.
 
-**Migration cost:** chat shell rewrite (~1 wk if managed agent UI replaces it; less if shell remains as SSO entry).
+**Strategic note:** running on Managed Agents during beta is *itself* useful — it produces real signal on what generic agent memory and dreaming-style features add for decision-making workflows. That informs which Phase 5 features to invest in vs continue offloading.
 
 ---
 
