@@ -57,9 +57,11 @@ The `get_skill` tool delivers domain expertise that guides the agent through eac
 
 - **NSGA-II** (2-3 objectives) and **NSGA-III** (4+ objectives) via pymoo
 - **Fast mode** for iterative exploration, **thorough mode** for final convergence; `max_solutions` caps the Pareto set size (default 100). Quality indicators (hypervolume, spacing) with each run
+- **Frontier quality signals**: `frontier_complete` (bool — is this the full Pareto set or a pruned sample?), `frontier_quality` (status GOOD/WARNING/POOR with progressive gates and actionable issues)
 - **Reproducibility**: optional `seed` parameter for deterministic runs; when omitted a fresh seed is drawn and echoed in the response as `seed_used` so any run can be reproduced after the fact
 - **Scenario optimization**: independent runs per scenario with score overrides/adjustments (per-scenario seeds deterministically derived so each scenario reproduces while starting from distinct initializations)
 - **Infeasibility analysis**: when no feasible solutions exist, identifies conflicting constraints with relaxation suggestions
+- **Full result persistence**: each solve writes the complete payload (all solutions with allocations) to `full_result_path` on disk for bulk export or artifact assembly without context overhead
 - **Run history**: archived runs with constraint snapshots for comparison
 
 ### Exploration (`explore`)
@@ -67,6 +69,7 @@ The `get_skill` tool delivers domain expertise that guides the agent through eac
 - **Tradeoff analysis**: objective ranges, correlations, extremes, balanced solution, inflection-point candidates, frontier shape per pair (linear / concave / convex / discontinuous), reference point comparisons
 - **Objective redundancy**: normalized mutual information per objective pair (alongside Pearson), flags non-linear dependence via Pearson/MI disagreement
 - **Binding constraint analysis**: shadow-price rates per binding constraint — how much each objective shifts per unit of slack relaxation (covers objective_bound, cardinality, group_limit)
+- **Solution listing**: compact by default (id + objectives + signature); pass `detail=true` for full option/allocation data
 - **Solution comparison**: side-by-side with shared/differentiating options and tradeoff summaries
 - **Marginal analysis**: cost-per-unit rates between adjacent solutions with knee-point detection
 - **Per-scenario exploration**: tradeoffs, compare, solutions, marginal analysis, and curation all accept an optional `scenario` parameter to target a specific scenario's frontier

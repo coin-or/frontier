@@ -204,6 +204,156 @@ class TestValidation:
         ), f"Expected warning mentioning VXUS, got: {[(i.severity, i.message) for i in vr.issues]}"
 
 
+# ─── 1.9 Pre-Solve Constraint Conflict Detection ───
+
+
+class TestConstraintConflictDetection:
+    """Conflicts the solver would only surface after a full run."""
+
+    def test_group_limit_below_forced_includes(self):
+        """group_limit max < count of force_includes in the group → infeasible."""
+        p = _make_problem(constraints=[
+            CardinalityConstraint(min=2, max=3),
+            ForceIncludeConstraint(option="A"),
+            ForceIncludeConstraint(option="B"),
+            GroupLimitConstraint(options=["A", "B", "C"], max=1),
+        ])
+        vr = validate(p)
+        assert vr.ready is False
+        assert any(
+            "group_limit max" in i.message and "force_included" in i.message
+            for i in vr.issues
+        )
+
+    def test_group_limit_at_forced_count_ok(self):
+        """group_limit.max == |force_in ∩ group| is feasible (tight, not over)."""
+        p = _make_problem(constraints=[
+            CardinalityConstraint(min=2, max=3),
+            ForceIncludeConstraint(option="A"),
+            ForceIncludeConstraint(option="B"),
+            GroupLimitConstraint(options=["A", "B", "C"], max=2),
+        ])
+        vr = validate(p)
+        assert vr.ready is True
+
+    def test_exclusion_pair_both_force_included(self):
+        """exclusion_pair with both members force_included → infeasible."""
+        p = _make_problem(constraints=[
+            CardinalityConstraint(min=2, max=3),
+            ForceIncludeConstraint(option="A"),
+            ForceIncludeConstraint(option="B"),
+            ExclusionPairConstraint(option_a="A", option_b="B"),
+        ])
+        vr = validate(p)
+        assert vr.ready is False
+        assert any("exclusion_pair" in i.message and "force_include" in i.message for i in vr.issues)
+
+    def test_dependency_cycle_two_node(self):
+        """A → B and B → A is a cycle."""
+        p = _make_problem(constraints=[
+            CardinalityConstraint(min=2, max=3),
+            DependencyConstraint(if_option="A", then_option="B"),
+            DependencyConstraint(if_option="B", then_option="A"),
+        ])
+        vr = validate(p)
+        assert vr.ready is False
+        assert any("dependency cycle" in i.message for i in vr.issues)
+
+    def test_dependency_cycle_three_node(self):
+        """A → B → C → A is a cycle."""
+        p = _make_problem(constraints=[
+            CardinalityConstraint(min=2, max=3),
+            DependencyConstraint(if_option="A", then_option="B"),
+            DependencyConstraint(if_option="B", then_option="C"),
+            DependencyConstraint(if_option="C", then_option="A"),
+        ])
+        vr = validate(p)
+        assert vr.ready is False
+        cycle_issues = [i for i in vr.issues if "dependency cycle" in i.message]
+        assert len(cycle_issues) >= 1
+
+    def test_dependency_self_loop_is_cycle(self):
+        """A → A is a degenerate cycle and should be reported."""
+        p = _make_problem(constraints=[
+            CardinalityConstraint(min=2, max=3),
+            DependencyConstraint(if_option="A", then_option="A"),
+        ])
+        vr = validate(p)
+        assert vr.ready is False
+        assert any("dependency cycle" in i.message for i in vr.issues)
+
+    def test_dependency_chain_no_cycle_ok(self):
+        """A → B → C with no back-edge is acyclic — no error."""
+        p = _make_problem(constraints=[
+            CardinalityConstraint(min=2, max=3),
+            DependencyConstraint(if_option="A", then_option="B"),
+            DependencyConstraint(if_option="B", then_option="C"),
+        ])
+        vr = validate(p)
+        assert vr.ready is True
+
+    def test_dependency_then_option_force_excluded(self):
+        """if_option force_included AND then_option force_excluded → infeasible."""
+        p = _make_problem(constraints=[
+            CardinalityConstraint(min=2, max=3),
+            ForceIncludeConstraint(option="A"),
+            ForceExcludeConstraint(option="B"),
+            DependencyConstraint(if_option="A", then_option="B"),
+        ])
+        vr = validate(p)
+        assert vr.ready is False
+        assert any(
+            "dependency" in i.message and "force_included" in i.message and "force_excluded" in i.message
+            for i in vr.issues
+        )
+
+    def test_dependency_then_excluded_but_if_not_forced_in_is_ok(self):
+        """If if_option isn't force_included, the dependency is vacuous when then_option is excluded."""
+        p = _make_problem(constraints=[
+            CardinalityConstraint(min=2, max=3),
+            ForceExcludeConstraint(option="B"),
+            DependencyConstraint(if_option="A", then_option="B"),
+        ])
+        vr = validate(p)
+        # The constraint says "if A is selected, B must be too" — but B is excluded.
+        # That just means A can't be selected. The problem is still feasible (other options exist).
+        assert vr.ready is True
+
+    def test_max_allocation_arithmetic_infeasible(self):
+        """In proportional mode, max_allocation × available_options < 100% → infeasible."""
+        from frontier.engine.models import Approach, MaxAllocationConstraint
+        # 5 options × 15% cap = 75% < 100%
+        p = _make_problem(
+            approach=Approach.proportional,
+            constraints=[MaxAllocationConstraint(max=15)],
+        )
+        vr = validate(p)
+        assert vr.ready is False
+        assert any("max_allocation cap" in i.message and "< 100%" in i.message for i in vr.issues)
+
+    def test_max_allocation_arithmetic_feasible(self):
+        """max_allocation × available_options ≥ 100% → feasible."""
+        from frontier.engine.models import Approach, MaxAllocationConstraint
+        # 5 options × 25% cap = 125% ≥ 100%
+        p = _make_problem(
+            approach=Approach.proportional,
+            constraints=[MaxAllocationConstraint(max=25)],
+        )
+        vr = validate(p)
+        assert vr.ready is True
+
+    def test_max_allocation_only_applies_to_proportional(self):
+        """In binary mode, max_allocation arithmetic check should not fire (warning already emitted elsewhere)."""
+        from frontier.engine.models import MaxAllocationConstraint
+        p = _make_problem(constraints=[
+            CardinalityConstraint(min=2, max=3),
+            MaxAllocationConstraint(max=15),
+        ])
+        vr = validate(p)
+        # Binary mode: no arithmetic infeasibility error, only the warning that max_allocation is ignored
+        assert not any("max_allocation cap" in i.message and "< 100%" in i.message for i in vr.issues)
+
+
 # ─── Optimization ───
 
 

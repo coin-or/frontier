@@ -280,6 +280,9 @@ def validate(problem: Problem) -> ValidationResult:
                     message=f"force_include count ({len(forced_in)}) exceeds cardinality max ({c.max}).",
                 ))
 
+    # ── 1.9 Pre-solve constraint conflict detection ──
+    issues.extend(_check_constraint_conflicts(problem, forced_in, forced_out, available))
+
     # Validate interaction matrices for quadratic objectives
     im_map = {m.objective: m for m in problem.interaction_matrices}
     for obj in problem.objectives:
@@ -343,6 +346,115 @@ def validate(problem: Problem) -> ValidationResult:
 
     ready = all(i.severity != "error" for i in issues)
     return ValidationResult(ready=ready, issues=issues, missing_scores=missing_scores)
+
+
+def _check_constraint_conflicts(
+    problem: Problem, forced_in: set[str], forced_out: set[str], available: int,
+) -> list[ValidationIssue]:
+    """1.9 — Detect pre-solve conflicts among hard constraints.
+
+    Pairwise/arithmetic infeasibilities the solver would only surface after a full
+    run. Caller has already validated that referenced options/objectives exist; this
+    layer only checks consistency among the constraint set itself.
+
+    Issues caught:
+      A. GroupLimit vs force_include — |force_in ∩ group| > group.max
+      B. ExclusionPair vs force_include — both members force-included
+      C. Dependency cycles — A→B→…→A in the dependency graph
+      D. Dependency vs force_exclude — if-option forced in but then-option forced out
+      E. MaxAllocation arithmetic (proportional) — cap × available_options < 100
+    """
+    issues: list[ValidationIssue] = []
+
+    # A. GroupLimit vs force_include
+    for c in problem.constraints:
+        if c.type == "group_limit":
+            forced_in_group = forced_in.intersection(c.options)
+            if len(forced_in_group) > c.max:
+                issues.append(ValidationIssue(
+                    severity="error",
+                    message=(
+                        f"group_limit max ({c.max}) is below the number of force_included options "
+                        f"in the group ({len(forced_in_group)}): {sorted(forced_in_group)}."
+                    ),
+                ))
+
+    # B. ExclusionPair vs force_include
+    for c in problem.constraints:
+        if c.type == "exclusion_pair":
+            if c.option_a in forced_in and c.option_b in forced_in:
+                issues.append(ValidationIssue(
+                    severity="error",
+                    message=(
+                        f"exclusion_pair ('{c.option_a}', '{c.option_b}') conflicts with "
+                        "force_include on both options."
+                    ),
+                ))
+
+    # C + D. Dependency graph: cycles and force_exclude conflicts
+    dep_edges = [
+        (c.if_option, c.then_option)
+        for c in problem.constraints if c.type == "dependency"
+    ]
+    if dep_edges:
+        # D. Conflict with force_exclude (only when if-option is actually selectable)
+        for if_opt, then_opt in dep_edges:
+            if if_opt in forced_in and then_opt in forced_out:
+                issues.append(ValidationIssue(
+                    severity="error",
+                    message=(
+                        f"dependency '{if_opt}' → '{then_opt}' is infeasible: '{if_opt}' is "
+                        f"force_included but '{then_opt}' is force_excluded."
+                    ),
+                ))
+
+        # C. Cycle detection (DFS on adjacency)
+        adj: dict[str, list[str]] = {}
+        for if_opt, then_opt in dep_edges:
+            adj.setdefault(if_opt, []).append(then_opt)
+
+        WHITE, GRAY, BLACK = 0, 1, 2
+        color: dict[str, int] = {n: WHITE for n in adj}
+        reported_cycles: set[tuple[str, ...]] = set()
+
+        def _dfs(node: str, stack: list[str]) -> None:
+            color[node] = GRAY
+            stack.append(node)
+            for nxt in adj.get(node, []):
+                if color.get(nxt, WHITE) == GRAY:
+                    # Cycle found — extract the cycle portion of the stack
+                    cycle = stack[stack.index(nxt):] + [nxt]
+                    # Canonicalize so different traversal entry points dedupe to one report
+                    key = tuple(sorted(cycle[:-1]))
+                    if key not in reported_cycles:
+                        reported_cycles.add(key)
+                        issues.append(ValidationIssue(
+                            severity="error",
+                            message=f"dependency cycle detected: {' → '.join(cycle)}.",
+                        ))
+                elif color.get(nxt, WHITE) == WHITE:
+                    _dfs(nxt, stack)
+            stack.pop()
+            color[node] = BLACK
+
+        for node in list(adj):
+            if color[node] == WHITE:
+                _dfs(node, [])
+
+    # E. MaxAllocation arithmetic (proportional mode only)
+    if problem.approach == Approach.proportional:
+        for c in problem.constraints:
+            if c.type == "max_allocation":
+                if c.max * available < 100:
+                    issues.append(ValidationIssue(
+                        severity="error",
+                        message=(
+                            f"max_allocation cap ({c.max}%) × available options ({available}) = "
+                            f"{c.max * available}% < 100% required. Allocation cannot sum to 100."
+                        ),
+                    ))
+
+    return issues
 
 
 def _parse_constraints(problem: Problem) -> dict:

@@ -7,6 +7,7 @@ from frontier.engine.metrics import (
     data_metrics,
     diagnostics,
     framing_metrics,
+    frontier_quality,
     outcome_metrics,
     solve_metrics,
 )
@@ -243,3 +244,105 @@ class TestComputeMetrics:
         assert "solve" in m
         assert "outcome" in m
         assert "diagnostics" in m
+
+
+# ─── frontier_quality (1.11) ───
+
+
+class TestFrontierQuality:
+    objectives = [
+        Objective(name="Revenue", direction="maximize"),
+        Objective(name="Effort", direction="minimize"),
+    ]
+
+    def test_empty_frontier_is_poor(self):
+        q = frontier_quality([], self.objectives)
+        assert q["status"] == "POOR"
+        assert q["gates"]["frontier_returned"] is False
+        assert q["gates"]["non_trivial"] is False
+        assert q["gates"]["diverse"] is False
+        assert q["issues"]
+
+    def test_single_solution_is_poor(self):
+        sols = [Solution(solution_id=1, selected_options=["A"], objective_values={"Revenue": 8, "Effort": 5})]
+        q = frontier_quality(sols, self.objectives)
+        assert q["status"] == "POOR"
+        assert q["gates"]["non_trivial"] is False
+        assert any("1 solution" in i.lower() or "degenerate" in i.lower() for i in q["issues"])
+
+    def test_all_objectives_flat_is_poor(self):
+        # Same objective values across solutions → no real frontier
+        sols = [
+            Solution(solution_id=i, selected_options=[f"O{i}"], objective_values={"Revenue": 10.0, "Effort": 5.0})
+            for i in range(3)
+        ]
+        q = frontier_quality(sols, self.objectives)
+        assert q["status"] == "POOR"
+        assert q["gates"]["non_trivial"] is False
+        assert any("flat" in i.lower() or "collapsed" in i.lower() for i in q["issues"])
+
+    def test_diverse_frontier_is_good(self):
+        sols = [
+            Solution(solution_id=1, selected_options=["A", "B"], objective_values={"Revenue": 10, "Effort": 8}),
+            Solution(solution_id=2, selected_options=["B", "C"], objective_values={"Revenue": 14, "Effort": 12}),
+            Solution(solution_id=3, selected_options=["A", "C"], objective_values={"Revenue": 18, "Effort": 17}),
+        ]
+        q = frontier_quality(sols, self.objectives, spacing_cv=0.3)
+        assert q["status"] == "GOOD"
+        assert q["gates"]["diverse"] is True
+        assert q["issues"] == []
+
+    def test_high_spacing_cv_warning(self):
+        sols = [
+            Solution(solution_id=1, selected_options=["A"], objective_values={"Revenue": 10, "Effort": 8}),
+            Solution(solution_id=2, selected_options=["B"], objective_values={"Revenue": 14, "Effort": 12}),
+            Solution(solution_id=3, selected_options=["C"], objective_values={"Revenue": 18, "Effort": 17}),
+        ]
+        q = frontier_quality(sols, self.objectives, spacing_cv=2.0)
+        assert q["status"] == "WARNING"
+        assert q["gates"]["diverse"] is False
+        assert any("spacing" in i.lower() for i in q["issues"])
+
+    def test_proportional_concentration_warning(self):
+        # One solution allocates 90% to a single option → single-winner WARNING
+        sols = [
+            Solution(solution_id=1, selected_options=["A", "B"],
+                     objective_values={"Revenue": 10, "Effort": 8},
+                     allocations={"A": 60, "B": 40}),
+            Solution(solution_id=2, selected_options=["A", "B"],
+                     objective_values={"Revenue": 14, "Effort": 12},
+                     allocations={"A": 90, "B": 10}),
+            Solution(solution_id=3, selected_options=["A", "B"],
+                     objective_values={"Revenue": 18, "Effort": 17},
+                     allocations={"A": 50, "B": 50}),
+        ]
+        q = frontier_quality(sols, self.objectives, spacing_cv=0.3)
+        assert q["status"] == "WARNING"
+        assert q["gates"]["diverse"] is False
+        assert any("90%" in i and "A" in i for i in q["issues"])
+
+    def test_proportional_well_diversified_is_good(self):
+        sols = [
+            Solution(solution_id=1, selected_options=["A", "B", "C"],
+                     objective_values={"Revenue": 10, "Effort": 8},
+                     allocations={"A": 40, "B": 30, "C": 30}),
+            Solution(solution_id=2, selected_options=["A", "B", "C"],
+                     objective_values={"Revenue": 14, "Effort": 12},
+                     allocations={"A": 30, "B": 40, "C": 30}),
+            Solution(solution_id=3, selected_options=["A", "B", "C"],
+                     objective_values={"Revenue": 18, "Effort": 17},
+                     allocations={"A": 30, "B": 30, "C": 40}),
+        ]
+        q = frontier_quality(sols, self.objectives, spacing_cv=0.3)
+        assert q["status"] == "GOOD"
+        assert q["gates"]["diverse"] is True
+
+    def test_objective_value_exactly_zero_flat(self):
+        # Edge case: all objective values are zero — must be detected as flat (no zero-division)
+        sols = [
+            Solution(solution_id=i, selected_options=[f"O{i}"], objective_values={"Revenue": 0.0, "Effort": 0.0})
+            for i in range(3)
+        ]
+        q = frontier_quality(sols, self.objectives)
+        assert q["status"] == "POOR"
+        assert q["gates"]["non_trivial"] is False

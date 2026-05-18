@@ -763,11 +763,16 @@ def _solve_run(p: Problem, mode: OptimizeMode | None = None, max_solutions: int 
 
     # Persist the full run result to disk so agents can consume it without
     # pulling the whole payload into context. Path is returned in the response.
+    frontier_complete = run.total_pareto_found <= len(run.solutions)
+    frontier_quality = metrics.frontier_quality(run.solutions, p.objectives, run.quality.spacing_cv)
+
     full_payload = {
         "run_id": run.run_id,
         "problem_id": p.problem_id,
         "solutions_found": len(run.solutions),
         "total_pareto_found": run.total_pareto_found,
+        "frontier_complete": frontier_complete,
+        "frontier_quality": frontier_quality,
         "solutions": [json.loads(s.model_dump_json()) for s in run.solutions],
         "quality": json.loads(run.quality.model_dump_json()),
         "constraints_snapshot": run.constraints_snapshot,
@@ -780,6 +785,8 @@ def _solve_run(p: Problem, mode: OptimizeMode | None = None, max_solutions: int 
         "run_id": run.run_id,
         "solutions_found": len(run.solutions),
         "total_pareto_found": run.total_pareto_found,
+        "frontier_complete": frontier_complete,
+        "frontier_quality": frontier_quality,
         "seed_used": run.seed_used,
         "objective_ranges": _objective_ranges(run.solutions, p.objectives),
         "preview": _solve_preview(run.solutions, p.objectives),
@@ -871,12 +878,17 @@ def _solve_run_scenarios(p: Problem, mode: OptimizeMode | None = None, max_solut
     summary = {}
     result_paths: dict[str, str] = {}
     for name, run in scenario_results.items():
+        frontier_complete = run.total_pareto_found <= len(run.solutions)
+        frontier_quality = metrics.frontier_quality(run.solutions, p.objectives, run.quality.spacing_cv)
+
         full_payload = {
             "run_id": run.run_id,
             "problem_id": p.problem_id,
             "scenario": name,
             "solutions_found": len(run.solutions),
             "total_pareto_found": run.total_pareto_found,
+            "frontier_complete": frontier_complete,
+            "frontier_quality": frontier_quality,
             "solutions": [json.loads(s.model_dump_json()) for s in run.solutions],
             "quality": json.loads(run.quality.model_dump_json()),
             "mode": run.mode.value if run.mode else None,
@@ -888,6 +900,8 @@ def _solve_run_scenarios(p: Problem, mode: OptimizeMode | None = None, max_solut
         summary[name] = {
             "solutions_found": len(run.solutions),
             "total_pareto_found": run.total_pareto_found,
+            "frontier_complete": frontier_complete,
+            "frontier_quality": frontier_quality,
             "quality": json.loads(run.quality.model_dump_json()),
             "seed_used": run.seed_used,
             "full_result_path": str(path),

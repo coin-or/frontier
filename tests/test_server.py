@@ -391,6 +391,32 @@ class TestSolveRun:
         assert "missing_scores" in result
         assert len(result["missing_scores"]) == 6  # 3 options * 2 objectives
 
+    def test_run_includes_frontier_complete_and_quality(self):
+        """1.10 + 1.11: solve response carries frontier_complete + frontier_quality."""
+        pid = _build_solvable_problem()
+        result = srv.solve(action="run", problem_id=pid)
+        # 1.10
+        assert "frontier_complete" in result
+        assert isinstance(result["frontier_complete"], bool)
+        # No pruning expected on this small problem → complete
+        assert result["frontier_complete"] is True
+        assert result["total_pareto_found"] == result["solutions_found"]
+        # 1.11
+        assert "frontier_quality" in result
+        fq = result["frontier_quality"]
+        assert fq["status"] in ("GOOD", "WARNING", "POOR")
+        assert "gates" in fq and "issues" in fq
+        assert set(fq["gates"]) == {"frontier_returned", "non_trivial", "diverse"}
+
+    def test_run_frontier_complete_false_when_pruned(self):
+        """1.10: frontier_complete is False when max_solutions truncates the frontier."""
+        pid = _build_solvable_problem()
+        # Tight cap forces pruning if there's any frontier larger than 1
+        result = srv.solve(action="run", problem_id=pid, max_solutions=1)
+        if result.get("solutions_found", 0) > 0 and result.get("total_pareto_found", 0) > 1:
+            assert result["frontier_complete"] is False
+            assert result["solutions_found"] < result["total_pareto_found"]
+
 
 # ─── explore tool ───
 

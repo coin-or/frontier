@@ -171,35 +171,47 @@ When the `mi_reliable` flag is false (fewer than 15 solutions), only Pearson-bas
 
 Apply these when the situation calls for them. They improve quality but are secondary to the critical judgment above.
 
-### Frontier Quality Metrics
+### Frontier Quality and Completeness Signals
 
-Every solve returns two quality indicators. Read them silently to calibrate your confidence, and surface concerns to the user in plain language.
+Every solve returns two pre-computed signals — read them first, before scanning raw metrics:
 
-**For you (agent):**
+- **`frontier_quality.status`** — `GOOD` / `WARNING` / `POOR`. Combines a `gates` block (`frontier_returned`, `non_trivial`, `diverse`) with `issues[]` describing any failure. The classifier already incorporates spacing CV and allocation concentration; you don't need to reinterpret those raw numbers.
+- **`frontier_complete`** — `True` when the returned set is the full feasible Pareto frontier; `False` when pruning truncated it (`total_pareto_found > solutions_found`).
 
-| Metric | Healthy | Concerning | Action |
-|---|---|---|---|
-| **Hypervolume** (0-1) | > 0.6 | < 0.4 | Suggest thorough mode or check for over-constraining |
-| **Spacing CV** | < 0.5 | > 1.0 | Note uneven coverage; some tradeoff regions may be underexplored |
+**Acting on `frontier_quality.status`:**
 
-**For the user:** Don't show numbers. When quality is healthy, say nothing. When it's concerning, translate:
-- Low hypervolume → "The search may not have found all possible tradeoffs yet — want me to run a more thorough optimization?"
-- High spacing CV → "The solutions cluster in certain regions — there may be tradeoff zones we haven't explored"
-- Both healthy → skip entirely, present results with confidence
+| Status | Meaning | What to do |
+|---|---|---|
+| **GOOD** | All gates pass | Present results with confidence. Skip quality talk entirely. |
+| **WARNING** | Frontier is non-trivial but uneven (clustered coverage or single-winner allocation) | Surface the issue from `issues[]` in domain language, then proceed. Don't block exploration. |
+| **POOR** | Empty or degenerate frontier (<2 solutions, or all objectives flat) | Stop and route to optimization_strategy. Don't present a degenerate frontier as if it were a real choice set. |
+
+**Acting on `frontier_complete`:**
+
+- `True` — say nothing; the frontier is the complete picture.
+- `False` — frame the set explicitly: *"You're seeing N of [total_pareto_found] solutions — a representative sample, not the full set."* This matters when the user is reasoning about coverage ("are there other strategies?") or confidence ("how do I know nothing better exists?"). Encourage `max_solutions=` overrides if they want more.
+
+**Translating `WARNING` issues:**
+
+The raw `issues[]` strings are agent-readable. Translate to user language:
+- *"Spacing CV …uneven"* → "The frontier clusters in some tradeoff regions — there may be zones we haven't explored. Want me to try thorough mode?"
+- *"Solution #X allocates Y% to Z…"* → "Solution X concentrates Y% on Z — that may be intended, but if a more diversified mix is preferred, consider adding a per-option upper bound."
+
+**Underlying metrics (only when needed):** `quality.hypervolume_normalized` (0-1, healthy > 0.6) and `quality.spacing_cv` (healthy < 0.5) are still in the response. Use them only when the `frontier_quality` issues don't pinpoint the concern — e.g., a borderline-low hypervolume that didn't trip the diversity gate but you suspect under-search.
 
 ### Solution Quality Ladder
 
-Assess frontier quality before presenting results. Each level builds on the previous:
+`frontier_quality` covers the first three rungs (returned, non-trivial, diverse). The full ladder extends them with downstream considerations the engine can't check on its own:
 
-| Level | Gate | Check | If failing |
+| Level | Gate | Source | If failing |
 |---|---|---|---|
-| **Feasible** | ≥1 solution exists | solution_count > 0 | Infeasible — route to optimization_strategy for constraint diagnosis |
-| **Diverse** | Multiple distinct solutions | solution_count ≥ 3, solutions differ on ≥2 options | Over-constrained or objectives correlated — consider relaxing constraints or consolidating objectives |
-| **Actionable** | Solutions differ meaningfully | >2 options vary across frontier solutions | Problem may be too narrowly scoped — check if more options should be added |
-| **Robust** | Stable across parameter changes | Key solutions survive across scenarios or re-runs | Flag fragile solutions, suggest scenario analysis if not yet done |
+| **Feasible** | ≥1 solution exists | `frontier_quality.gates.frontier_returned` | Infeasible — route to optimization_strategy for constraint diagnosis |
+| **Non-trivial** | Multiple solutions, ≥1 objective varies | `frontier_quality.gates.non_trivial` | Over-constrained or objectives all flat — relax constraints or consolidate objectives |
+| **Diverse** | Spacing reasonable, no extreme allocation concentration | `frontier_quality.gates.diverse` | See `issues[]` — uneven coverage or single-winner allocation |
+| **Robust** | Stable across parameter changes | Compare across scenarios / re-runs | Flag fragile solutions; suggest scenario analysis if not yet done |
 | **Credible** | Domain-sensible | User confirms selections make sense | Scores may need recalibration, or a constraint is missing |
 
-Present results once they pass the **Diverse** gate. Flag quality concerns but don't block exploration — users learn from imperfect results.
+Present results once you've reached **Diverse**. Flag quality concerns but don't block exploration — users learn from imperfect results.
 
 ### Root Cause Taxonomy
 

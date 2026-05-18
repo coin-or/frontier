@@ -240,7 +240,7 @@ class Run(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     mode: OptimizeMode = OptimizeMode.fast
     solutions: list[Solution] = []
-    total_pareto_found: int = 0  # Pre-pruning count; 0 means no pruning occurred
+    total_pareto_found: int = 0  # Pre-pruning count; equals len(solutions) when no pruning happened
     quality: QualityIndicators = QualityIndicators()
     constraints_snapshot: list[dict] = []
     seed_used: int | None = None  # Deterministic RNG seed; echoed for reproducibility

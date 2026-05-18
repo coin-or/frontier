@@ -18,6 +18,7 @@ from .models import (
     Direction,
     ForceExcludeConstraint,
     GroupLimitConstraint,
+    Objective,
     ObjectiveBoundConstraint,
     Problem,
     Solution,
@@ -152,6 +153,91 @@ def solve_metrics(problem: Problem) -> dict:
         "spacing_cv": run.quality.spacing_cv,
         "objective_variation": obj_variation,
         "option_coverage": coverage,
+    }
+
+
+def frontier_quality(
+    solutions: list[Solution],
+    objectives: list[Objective],
+    spacing_cv: float | None = None,
+) -> dict:
+    """Classify a returned frontier with progressive gates and a unified status.
+
+    Gates are evaluated in order — failure short-circuits the rest:
+      1. frontier_returned: ≥1 solution
+      2. non_trivial: ≥2 solutions AND at least one objective varies (≥1% relative range)
+      3. diverse: spacing CV bounded AND no extreme allocation concentration
+
+    Status mapping:
+      POOR    — frontier_returned or non_trivial fails (frontier is empty or degenerate)
+      WARNING — passes non_trivial but fails diverse (uneven coverage or single-winner allocation)
+      GOOD    — all gates pass
+
+    Returns: {"status", "gates", "issues"}.
+    """
+    issues: list[str] = []
+
+    if len(solutions) == 0:
+        return {
+            "status": "POOR",
+            "gates": {"frontier_returned": False, "non_trivial": False, "diverse": False},
+            "issues": ["No solutions returned — frontier is empty."],
+        }
+
+    non_trivial = True
+    if len(solutions) < 2:
+        non_trivial = False
+        issues.append("Only 1 solution — frontier is degenerate (likely over-constrained or a single-feasible-point problem).")
+    else:
+        flat_objs: list[str] = []
+        for obj in objectives:
+            vals = [s.objective_values.get(obj.name, 0.0) for s in solutions]
+            v_range = max(vals) - min(vals)
+            scale = max(abs(max(vals)), abs(min(vals)), 1e-9)
+            if v_range / scale < 0.01:
+                flat_objs.append(obj.name)
+        if objectives and len(flat_objs) == len(objectives):
+            non_trivial = False
+            issues.append("All objectives flat (<1% variation) — frontier collapsed to a single point in objective space.")
+
+    if not non_trivial:
+        return {
+            "status": "POOR",
+            "gates": {"frontier_returned": True, "non_trivial": False, "diverse": False},
+            "issues": issues,
+        }
+
+    diverse = True
+
+    if spacing_cv is not None and spacing_cv > 1.5:
+        diverse = False
+        issues.append(f"Spacing CV {spacing_cv:.2f} (>1.5) — frontier coverage is uneven; solutions cluster in some regions.")
+
+    if solutions[0].allocations is not None:
+        worst_concentration = 0
+        worst_sol_id: int | None = None
+        worst_opt: str | None = None
+        for sol in solutions:
+            if not sol.allocations:
+                continue
+            top_opt = max(sol.allocations, key=lambda k: sol.allocations[k])
+            top_alloc = sol.allocations[top_opt]
+            if top_alloc > worst_concentration:
+                worst_concentration = top_alloc
+                worst_sol_id = sol.solution_id
+                worst_opt = top_opt
+        if worst_concentration >= 80:
+            diverse = False
+            issues.append(
+                f"Solution #{worst_sol_id} allocates {worst_concentration}% to '{worst_opt}' — "
+                "consider a per-option upper bound or a concave objective if single-winner solutions are unwanted."
+            )
+
+    status = "GOOD" if diverse else "WARNING"
+    return {
+        "status": status,
+        "gates": {"frontier_returned": True, "non_trivial": True, "diverse": diverse},
+        "issues": issues,
     }
 
 
