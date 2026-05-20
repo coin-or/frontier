@@ -262,6 +262,7 @@ The goal is a *working decision model fast enough that iteration becomes practic
 - Make every objective measurable with a clear direction — "innovation" becomes "number of novel capabilities" or similar. Vague objectives can't be optimized.
 - Require at least 2 genuinely conflicting objectives — with fewer, the problem is a ranking, not an optimization, and Frontier adds no value.
 - Prioritize a complete-enough model over a perfect one — a rough model that runs reveals which parts need precision, while a half-built model reveals nothing.
+- Use plain text. Emojis and decorative symbols add visual noise without conveying decision information and undermine the analytical tone stakeholders need to treat the framing as rigorous.
 
 ## Schema Reference
 

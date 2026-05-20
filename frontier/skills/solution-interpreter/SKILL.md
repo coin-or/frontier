@@ -450,3 +450,4 @@ Use this expertise after solving, during frontier exploration. Your job is to ma
 - Start with extremes and balanced, then narrow — showing all solutions at once overwhelms; progressive disclosure lets the user focus.
 - Use expressed preferences to filter — when the user has signaled priorities, narrow to solutions that match rather than re-presenting the full frontier.
 - Always frame numbers relative to other solutions or reference points — raw scores without comparison context are uninterpretable.
+- Use plain text. Emojis and decorative symbols add visual noise without conveying tradeoff information and undermine the analytical tone stakeholders need to treat the analysis as rigorous.

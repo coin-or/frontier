@@ -218,14 +218,19 @@ class TestModelUpdate:
 class TestModelList:
     def test_list_empty(self):
         result = srv.model(action="list")
-        assert result == []
+        # Wrapped in {"problems": [...]} so FastMCP serializes to a TextContent
+        # block — bare-list returns are dropped by FastMCP 1.25.0 and rejected
+        # by the Anthropic MCP connector.
+        assert result == {"problems": []}
 
-    def test_list_returns_bare_array(self):
+    def test_list_returns_problems_array(self):
         srv.model(action="create", name="One")
         srv.model(action="create", name="Two")
         result = srv.model(action="list")
-        assert isinstance(result, list)
-        assert len(result) == 2
+        assert isinstance(result, dict)
+        assert "problems" in result
+        assert isinstance(result["problems"], list)
+        assert len(result["problems"]) == 2
 
 
 class TestModelDelete:

@@ -67,6 +67,7 @@ mcp = FastMCP(
         "## Key Rules\n"
         "- Scores merge (upsert); objectives / options / constraints use full replacement.\n"
         "- Never say 'best' — every Pareto solution is optimal at its tradeoff.\n"
+        "- Use plain text. Emojis and decorative symbols add visual noise without conveying tradeoff information and undermine the analytical tone of decision presentation.\n"
         "- Constraint schemas: see the `model` tool docstring for the full set."
     ),
     host=os.environ.get("MCP_HOST", "127.0.0.1"),

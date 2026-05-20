@@ -117,6 +117,7 @@ def get_tradeoffs(problem: Problem, scenario: str | None = None) -> dict:
         }
 
     result["visualization"] = _render_tradeoffs_viz(result, problem.objectives, solutions)
+    result["viz_data"] = _viz_data_tradeoffs(solutions, problem.objectives, result)
     return result
 
 
@@ -173,6 +174,7 @@ def compare_solutions(problem: Problem, solution_ids: list[int], scenario: str |
                  for s in selected]
     labels = {s.solution_id: f"[{s.solution_id}]" for s in selected}
     result["visualization"] = _render_parallel_coords(sol_dicts, problem.objectives, labels)
+    result["viz_data"] = _viz_data_parallel_coords(sol_dicts, problem.objectives, labels)
 
     return result
 
@@ -561,6 +563,7 @@ def compare_curated(problem: Problem, signatures: list[str], detail: bool = Fals
                  for cs in selected]
     labels = {cs.content_signature: (cs.custom_name or cs.content_signature[:8]) for cs in selected}
     result["visualization"] = _render_parallel_coords(sol_dicts, problem.objectives, labels)
+    result["viz_data"] = _viz_data_parallel_coords(sol_dicts, problem.objectives, labels)
 
     return result
 
@@ -738,6 +741,7 @@ def get_scenario_results(problem: Problem, cvar_alpha: float | None = None) -> d
         "weighting": "probability" if has_probabilities else "equal",
     }
     result["visualization"] = _render_scenario_viz(result)
+    result["viz_data"] = _viz_data_scenario_summary(result)
     return result
 
 
@@ -808,6 +812,7 @@ def marginal_analysis(problem: Problem, scenario: str | None = None, detail: boo
             pair_result["visualization"] = _render_marginal_rates(
                 rates, obj_a, obj_b, inflection,
             )
+            pair_result["viz_data"] = _viz_data_marginal_rates(rates, obj_a, obj_b, inflection)
         else:
             # Summary: stats + top-5 steepest + truncated viz
             rate_values = [r["rate"] for r in rates]
@@ -824,6 +829,7 @@ def marginal_analysis(problem: Problem, scenario: str | None = None, detail: boo
             pair_result["visualization"] = _render_marginal_rates(
                 rates, obj_a, obj_b, inflection, max_rows=20,
             )
+            pair_result["viz_data"] = _viz_data_marginal_rates(rates, obj_a, obj_b, inflection)
 
         pairs.append(pair_result)
 
@@ -1771,3 +1777,99 @@ def _find_balanced(solutions, objectives) -> object:
     distances = np.sqrt(distances)
     best_idx = int(np.argmin(distances))
     return solutions[best_idx]
+
+
+# ─── Structured viz_data builders (D3-friendly payloads) ─────────────────────
+#
+# Sibling to the ASCII `_render_*` helpers. Each returns a dict the web UI can
+# render as a D3 chart. ASCII still emits to `result["visualization"]` for
+# chat/coding-agent surfaces; structured data lands in `result["viz_data"]`.
+# Hosts that don't render D3 simply ignore the field.
+
+
+def _viz_data_tradeoffs(solutions: list, objectives: list, result: dict) -> dict:
+    """Scatter-matrix payload: every solution as a point across all objectives."""
+    obj_meta = [
+        {
+            "name": o.name,
+            "direction": o.direction.value,
+            "min": result["objective_ranges"][o.name]["min"],
+            "max": result["objective_ranges"][o.name]["max"],
+        }
+        for o in objectives
+    ]
+    points = [
+        {
+            "solution_id": s.solution_id,
+            "values": dict(s.objective_values),
+        }
+        for s in solutions
+    ]
+    extremes = {}
+    for o in objectives:
+        reverse = o.direction.value == "maximize"
+        best = (max if reverse else min)(solutions, key=lambda s: s.objective_values[o.name])
+        worst = (min if reverse else max)(solutions, key=lambda s: s.objective_values[o.name])
+        extremes[o.name] = {"best_id": best.solution_id, "worst_id": worst.solution_id}
+    inflection_ids = [c["solution_id"] for c in result.get("inflection_point_candidates", [])]
+    return {
+        "type": "scatter",
+        "objectives": obj_meta,
+        "points": points,
+        "extremes": extremes,
+        "balanced_id": result["balanced_solution"]["solution_id"],
+        "inflection_ids": inflection_ids,
+    }
+
+
+def _viz_data_parallel_coords(
+    solutions_data: list[dict], objectives: list, labels: dict
+) -> dict:
+    """Parallel-coordinates payload for `compare` and `compare_curated`.
+
+    Each entry in `solutions_data` carries either `solution_id` (run frontier) or
+    `content_signature` (curated set); we expose the present id under a generic `id`
+    field so the renderer doesn't have to branch.
+    """
+    axes = []
+    for o in objectives:
+        vals = [s["objective_values"][o.name] for s in solutions_data]
+        axes.append({
+            "name": o.name,
+            "direction": o.direction.value,
+            "min": min(vals) if vals else 0,
+            "max": max(vals) if vals else 0,
+        })
+    series = []
+    for s in solutions_data:
+        sid = s.get("solution_id") if "solution_id" in s else s.get("content_signature")
+        series.append({
+            "id": sid,
+            "label": labels.get(sid, str(sid)),
+            "values": dict(s["objective_values"]),
+        })
+    return {"type": "parallel_coords", "axes": axes, "series": series}
+
+
+def _viz_data_marginal_rates(
+    rates: list[dict], obj_a, obj_b, inflection: dict | None
+) -> dict:
+    """Marginal-rate bar payload: cost-per-unit between adjacent solutions."""
+    return {
+        "type": "marginal_rates",
+        "from_objective": {"name": obj_a.name, "direction": obj_a.direction.value},
+        "to_objective": {"name": obj_b.name, "direction": obj_b.direction.value},
+        "rates": rates,
+        "inflection": inflection,
+    }
+
+
+def _viz_data_scenario_summary(result: dict) -> dict:
+    """Scenario summary payload — option robustness tiers + per-objective risk."""
+    return {
+        "type": "scenario_summary",
+        "scenarios": result.get("scenarios", []),
+        "option_robustness": result.get("option_robustness", []),
+        "expected_values": result.get("expected_values", {}),
+        "scenario_risk": result.get("scenario_risk", {}),
+    }
