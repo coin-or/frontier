@@ -613,8 +613,11 @@ def _model_get_section(p: Problem, section: str) -> dict:
             return {"error": f"Unknown section: {section}. Valid: summary, objectives, options, scores, constraints, matrices, scenarios, run, runs, curated, references."}
 
 
-def _model_list() -> list:
-    return store.list()
+def _model_list() -> dict:
+    # Wrap in a dict so FastMCP serializes to a TextContent block — bare list
+    # returns aren't serialized by FastMCP 1.25.0, leaving the Anthropic MCP
+    # connector with no usable tool_result content.
+    return {"problems": store.list()}
 
 
 def _model_delete(params: dict) -> dict:

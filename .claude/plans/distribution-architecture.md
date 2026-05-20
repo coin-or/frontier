@@ -15,13 +15,15 @@
 - No auth, no per-user scoping, no web surface. Engine is open and ephemeral by problem_id.
 
 ### North star
-A user can reach Frontier via the surface that matches their intent and technical depth:
+A user can reach Frontier via the surface that matches the *job* they're doing at that moment:
 
-| Persona | Goal | Surface |
-|---|---|---|
-| Analyst / PM (no AI tooling) | Make a structured decision | **Simple web UI** at a public URL |
-| Consumer Claude / ChatGPT user | Use Frontier inside their existing assistant | **Claude.ai Custom Connector** / **ChatGPT App** |
-| Developer (Claude Code, Codex CLI, Cursor) | Drive Frontier from their coding agent | **Direct MCP** with copy-paste config |
+| Job | Surface | Expected usage | Status |
+|---|---|---|---|
+| **Author** decision flows (model, iterate, refine) | **Coding agent** (Claude Code, Codex CLI, Cursor) via direct MCP | Highest (power users define problems here) | ✅ Already works today; docs only |
+| **Consume & explore** flows (read-mostly, conversational) | **Claude.ai Custom Connector** / **ChatGPT App** | Medium (stakeholders consuming an authored flow) | Needs D.1 OAuth |
+| **Visualize** tradeoffs with real charts | **Web UI** on Render with D3.js (limited chart types) | Lower (specialized read/explore sessions) | Needs build (thinner scope than initial framing) |
+
+Most common interaction expected to be authoring in a coding agent → consuming in a chat assistant → visualizing in the web UI. All three share the same MCP engine, skills, and state.
 
 ### Twin goals (from roadmap)
 1. Validate Frontier's actual Phase 1 TAM (analysts/PMs) without diluting "engine, not interface."
@@ -106,7 +108,7 @@ A user can reach Frontier via the surface that matches their intent and technica
 
 ## 4. Surfaces
 
-### 4.1 Web UI — primary beta surface (D.2)
+### 4.1 Web UI — visualization-focused surface (D.2)
 
 **Stack** (all current as of 2026):
 
@@ -145,6 +147,8 @@ That's it. Anything beyond this gets pushed to the MCP server so all surfaces be
 
 **Onboarding UX:** blank chat with one-line prompt ("Describe a decision you're trying to make"). No tutorial. File drop accepts CSV/markdown for score tables. Curated set downloaded as `.md` or `.csv` from a chat affordance (renders `export_curated` payload as a download link).
 
+**Visualizations:** ship Phase 0.b with markdown rendering of the existing ASCII viz (fastest, validates UX). Upgrade to **D3.js charts** in a follow-up once the structured viz payloads land in tool responses (see §5.1.e). Limit chart types to scatter (tradeoffs), parallel coordinates (compare), and marginal-rate bars (knee-point) — matching what ASCII covers. No custom chart authoring; no exotic types. Web UI is for *consumption and exploration*, not for power-user authoring (which happens in the coding-agent surface).
+
 ### 4.2 Claude.ai Custom Connector — consumer surface
 
 **What we ship:** nothing beyond an OAuth-protected MCP server (Phase 2). The Custom Connectors flow is fully GA on claude.ai for Pro/Max/Team/Enterprise — the user pastes a URL into Settings → Connectors, claude.ai runs the OAuth flow, and Frontier appears as a tool source in their chats.
@@ -174,9 +178,11 @@ That's it. Anything beyond this gets pushed to the MCP server so all surfaces be
 
 **Status:** same as Claude.ai — blocked on Phase 2 OAuth. Add to docs once D.1.b ships.
 
-### 4.4 Coding agents — direct MCP (D.3)
+### 4.4 Coding agents — direct MCP (D.3) — *primary authoring surface*
 
-For developers who already drive Claude Code, Codex CLI, Cursor, Claude Desktop, claude.ai with their own MCP setup, or Cowork. Same engine, same skills.
+For users who *build and iterate on* optimization flows — power users in Claude Code, Codex CLI, Cursor, Claude Desktop, claude.ai (with MCP integrations), or Cowork. Same engine, same skills, **always-on** (works today).
+
+**Expected to be the highest-volume interaction surface** because authoring (defining problems, refining scores, exploring scenarios) benefits most from a tool-rich tool-calling environment with full skill auto-injection. The web UI and consumer connectors are for consumption and lightweight refinement on top of flows authored here.
 
 **One docs page** with copy-paste snippets per host. Bearer-token version (works everywhere now); OAuth version (when D.1.b ships).
 
@@ -249,6 +255,16 @@ Server-side auto-injection in tool responses (already in `server.py`) works iden
 ### 5.1.d Telemetry (D.4)
 
 Per-user, per-stage tool-call logging in `metrics.py`. Skill-firing telemetry: which auto-inject triggers fire, which `get_skill` calls fire (signal that auto-injection missed the moment). `explore feedback` already records ratings — extend to capture surface (web vs MCP-direct).
+
+### 5.1.e Structured viz payloads (small engine task for D3 web rendering)
+
+**Today:** `explorer.py` produces inline ASCII viz (`_render_tradeoffs_viz`, `_render_parallel_coords`, `_render_scenario_viz`, `_render_marginal_rates`). The underlying data is already structured server-side — ASCII is computed *from* it.
+
+**Add:** expose the structured payloads alongside the ASCII string in tool responses. For example, `explore/tradeoffs` returns the existing ASCII viz PLUS a `viz_data: { scatter: [...points], axes: {...}, extremes: {...} }` block. Web UI consumes `viz_data` for D3 rendering; chat / coding-agent surfaces continue using the ASCII string (or can opt to render the data themselves).
+
+**Estimated:** ~30 lines per renderer, ~4 renderers total. Pure addition; nothing existing changes. Lives in `explorer.py`. Benefits all visualization-capable surfaces, not just the web UI.
+
+**Sequencing:** ship after Phase 0.b's ASCII-rendering MVP. Don't block early demos on this.
 
 ---
 
