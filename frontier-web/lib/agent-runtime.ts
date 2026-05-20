@@ -39,28 +39,21 @@ const messagesApiAdapter: AgentRuntime = {
     // including calling Frontier MCP tools and looping back with results.
     // Per mcp-client-2025-11-20 schema: mcp_servers defines connections,
     // tools array references them via mcp_toolset entries.
-    const upstream = await client.beta.messages.stream({
+    // SDK 0.40.1 partially types these; cast as any to keep the surface clean.
+    const params: any = {
       model: MODEL,
       max_tokens: 8000,
       system: SYSTEM_PROMPT,
-      // @ts-expect-error — Anthropic SDK types lag the beta MCP-connector params
       mcp_servers: [
-        {
-          type: "url",
-          url: FRONTIER_MCP_URL,
-          name: "frontier",
-        },
+        { type: "url", url: FRONTIER_MCP_URL, name: "frontier" },
       ],
-      // @ts-expect-error — same beta typing gap
       tools: [
-        {
-          type: "mcp_toolset",
-          mcp_server_name: "frontier",
-        },
+        { type: "mcp_toolset", mcp_server_name: "frontier" },
       ],
       messages: messages as Anthropic.MessageParam[],
       betas: ["mcp-client-2025-11-20"],
-    });
+    };
+    const upstream = await client.beta.messages.stream(params);
 
     return new ReadableStream<Uint8Array>({
       async start(controller) {

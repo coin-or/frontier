@@ -10,13 +10,15 @@ type ToolUseBlock = {
   type: "mcp_tool_use";
   id: string;
   name: string;
+  server_name: string;
   input: Record<string, unknown>;
-  inputJson: string;
+  inputJson: string; // internal accumulator (stripped on round-trip)
 };
+type ToolResultContent = { type: "text"; text: string };
 type ToolResultBlock = {
   type: "mcp_tool_result";
   tool_use_id: string;
-  content: string;
+  content: ToolResultContent[]; // preserved as array for Anthropic round-trip
   is_error: boolean;
 };
 type Block = TextBlock | ToolUseBlock | ToolResultBlock;
@@ -211,12 +213,15 @@ function MessageView({ message }: { message: Message }) {
           }
           if (b.type === "mcp_tool_use") {
             const result = resultsByUseId[b.id];
+            const resultText = result
+              ? result.content.map((c) => c.text).join("\n")
+              : undefined;
             return (
               <ToolCallBlock
                 key={i}
                 name={b.name}
                 input={b.input}
-                result={result?.content}
+                result={resultText}
                 isError={result?.is_error}
                 pending={!result}
               />
@@ -231,6 +236,8 @@ function MessageView({ message }: { message: Message }) {
 }
 
 // ─── stream event → message-state reducer ───────────────────────────────────
+// MUST be pure (no mutation). React 19 StrictMode double-invokes state-updater
+// functions in dev; any in-place mutation here would duplicate effects.
 
 function applyEvent(prev: Message[], event: { type?: string; [k: string]: unknown }): Message[] {
   if (!prev.length) return prev;
@@ -238,71 +245,98 @@ function applyEvent(prev: Message[], event: { type?: string; [k: string]: unknow
   const last = prev[lastIdx];
   if (last.role !== "assistant") return prev;
 
-  const blocks: Block[] = Array.isArray(last.content) ? [...(last.content as Block[])] : [];
+  const oldBlocks: Block[] = Array.isArray(last.content) ? (last.content as Block[]) : [];
+  let blocks: Block[] = oldBlocks;
+
+  const replaceAt = (idx: number, fn: (b: Block) => Block) => {
+    blocks = blocks.map((b, i) => (i === idx ? fn(b) : b));
+  };
 
   switch (event.type) {
     case "content_block_start": {
       const cb = (event as any).content_block;
       if (cb?.type === "text") {
-        blocks.push({ type: "text", text: cb.text ?? "" });
+        blocks = [...blocks, { type: "text", text: cb.text ?? "" }];
       } else if (cb?.type === "mcp_tool_use") {
-        blocks.push({
-          type: "mcp_tool_use",
-          id: cb.id,
-          name: cb.name,
-          input: cb.input ?? {},
-          inputJson: "",
-        });
+        blocks = [
+          ...blocks,
+          {
+            type: "mcp_tool_use",
+            id: cb.id,
+            name: cb.name,
+            server_name: cb.server_name ?? "frontier",
+            input: cb.input ?? {},
+            inputJson: "",
+          },
+        ];
       } else if (cb?.type === "mcp_tool_result") {
-        let content = "";
+        // Normalize content to array-of-text-blocks shape (Anthropic round-trip requirement)
+        let content: ToolResultContent[] = [];
         if (typeof cb.content === "string") {
-          content = cb.content;
+          content = [{ type: "text", text: cb.content }];
         } else if (Array.isArray(cb.content)) {
-          content = cb.content.map((c: any) => c?.text ?? "").join("\n");
+          content = cb.content.map((c: any) => ({
+            type: "text",
+            text: c?.text ?? "",
+          }));
         }
-        blocks.push({
-          type: "mcp_tool_result",
-          tool_use_id: cb.tool_use_id,
-          content,
-          is_error: cb.is_error ?? false,
-        });
+        blocks = [
+          ...blocks,
+          {
+            type: "mcp_tool_result",
+            tool_use_id: cb.tool_use_id,
+            content,
+            is_error: cb.is_error ?? false,
+          },
+        ];
       }
       break;
     }
     case "content_block_delta": {
       const idx = (event as any).index as number;
       const delta = (event as any).delta;
-      const target = blocks[idx];
-      if (!target) break;
-      if (delta?.type === "text_delta" && target.type === "text") {
-        target.text += delta.text ?? "";
-      } else if (delta?.type === "input_json_delta" && target.type === "mcp_tool_use") {
-        target.inputJson += delta.partial_json ?? "";
-        try {
-          target.input = JSON.parse(target.inputJson);
-        } catch {
-          /* still streaming */
+      replaceAt(idx, (target) => {
+        if (delta?.type === "text_delta" && target.type === "text") {
+          return { ...target, text: target.text + (delta.text ?? "") };
         }
-      }
+        if (delta?.type === "input_json_delta" && target.type === "mcp_tool_use") {
+          const inputJson = target.inputJson + (delta.partial_json ?? "");
+          let input = target.input;
+          try {
+            input = JSON.parse(inputJson);
+          } catch {
+            /* still streaming partial JSON */
+          }
+          return { ...target, inputJson, input };
+        }
+        return target;
+      });
       break;
     }
     case "content_block_stop": {
       const idx = (event as any).index as number;
-      const target = blocks[idx];
-      if (target?.type === "mcp_tool_use" && target.inputJson) {
-        try {
-          target.input = JSON.parse(target.inputJson);
-        } catch {
-          /* leave best-effort partial */
+      replaceAt(idx, (target) => {
+        if (target.type === "mcp_tool_use" && target.inputJson) {
+          try {
+            return { ...target, input: JSON.parse(target.inputJson) };
+          } catch {
+            return target;
+          }
         }
-      }
+        return target;
+      });
       break;
     }
     case "error": {
-      blocks.push({ type: "text", text: `\n\n_Error: ${(event as any).message ?? "unknown"}_` });
+      blocks = [
+        ...blocks,
+        { type: "text", text: `\n\n_Error: ${(event as any).message ?? "unknown"}_` },
+      ];
       break;
     }
   }
+
+  if (blocks === oldBlocks) return prev;
 
   const next = [...prev];
   next[lastIdx] = { ...last, content: blocks };

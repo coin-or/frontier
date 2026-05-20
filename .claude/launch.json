@@ -2,6 +2,18 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "frontier-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "frontier-web", "run", "dev"],
+      "port": 3000
+    },
+    {
+      "name": "frontier-mcp",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "MCP_TRANSPORT=sse python -m frontier.mcp_server.server"],
+      "port": 8000
+    },
+    {
       "name": "diagrams",
       "runtimeExecutable": "python3",
       "runtimeArgs": ["-m", "http.server", "8765", "--directory", "dev_temp"],
