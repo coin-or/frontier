@@ -407,7 +407,36 @@ Managed Agents is the *default* beta backend — but the architecture treats it 
 
 ---
 
-## 10. References
+## 10. Phase 0 Lessons Learned
+
+Gotchas surfaced while building the prototype. Worth knowing before re-implementing or extending.
+
+### Engine / FastMCP serialization
+- **Bare-list returns from `@mcp.tool()` are dropped by FastMCP 1.25.0.** `CallToolResult.content` ends up empty and `structuredContent=None`, which Anthropic's MCP connector then renders as `"format not currently supported by the Anthropic API"` — even though the tool ran fine server-side. *Fix:* wrap any list returns in a dict (e.g. `return {"problems": store.list()}`). The serializer handles dict and str cleanly. Watch for this on any new tool action that naturally returns a list (e.g., list-of-runs, list-of-curated, etc.).
+
+### Anthropic Messages API + MCP connector schema (`mcp-client-2025-11-20`)
+- **Schema is split:** `mcp_servers` defines connections (`{type:"url", url, name}`); `tools` declares usage (`{type:"mcp_toolset", mcp_server_name: "<server name>"}`). Forgetting the toolset entry returns `MCP server 'X' is defined but not referenced by any mcp_toolset in tools`. The field is `mcp_server_name`, not `server_name`.
+- **MCP server `instructions` are NOT forwarded** by the connector path — only `tool_use` / `tool_result` blocks. Skill content must therefore arrive via tool-response auto-injection (which already works), not via server instructions. The web UI's identity-only system prompt is the right shape; do not patch behavior there.
+- **Tool-call round-trip requires preserving fields the API streams in.** `mcp_tool_use` blocks include `server_name` — sending them back on turn 2+ without it fails validation. `mcp_tool_result.content` arrives as `[{type:"text", text:"..."}]` and must round-trip in that shape (not collapsed to a string).
+- **Anthropic calls the MCP server from Anthropic's infrastructure**, so the MCP URL must be publicly reachable. `localhost` won't work; cloudflared quick tunnels buffer SSE so they don't work either. Either ngrok (SSE-friendly) or push to Render.
+
+### Web UI / React 19
+- **React 19 StrictMode double-invokes state-updater functions** to surface impurities. Any in-place mutation inside a reducer (`target.text += delta.text`) silently duplicates effects. Reducers must be purely immutable (`return { ...target, text: target.text + delta.text }`). This bit us as duplicated streaming text on every turn.
+- **Tool calls running in parallel produce no visible activity** until the next text block streams, making sequences look stalled. Mitigated with a footer "running N tools: <names>" indicator + auto-opening `ToolCallBlock` while pending.
+
+### Env vars / Claude Desktop
+- **Claude Desktop spawns subshells with `ANTHROPIC_API_KEY=""` (empty).** Because Next.js treats shell-set env vars as authoritative, any `ANTHROPIC_API_KEY` in `.env.local` is ignored when the dev server is spawned from inside Claude Desktop. *Workaround:* use a non-clashing var name (`CLAUDE_API_KEY` works — both Anthropic SDK's own env fallback and our explicit `apiKey: process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY` pick it up).
+
+### Cursor MCP OAuth
+- **Cursor does not support Dynamic Client Registration** as of mid-2026 (forum threads going back months). The bearer-token install path stays the primary recommendation for the D.3 docs page even after D.1.b OAuth lands.
+
+### Operational lessons
+- **Render free-tier sleep + cold starts** mean MCP server can take ~30s to respond after idle. Starter plan ($7/mo) avoids it.
+- **Anthropic Opus 4-7 input-token usage is substantial** with Frontier's auto-injected skills — ~6.5K input tokens on a cold first turn (skill content lives in the first auto-injected tool response). Worth measuring during D.4 telemetry work.
+
+---
+
+## 11. References
 
 ### Internal
 - [`architecture.md`](../../architecture.md) — system architecture, tools/skills, data flow
@@ -441,6 +470,13 @@ Managed Agents is the *default* beta backend — but the architecture treats it 
 
 ## Status
 
-**Created:** 2026-05-07. **Status:** active design doc, not yet started.
+**Created:** 2026-05-07. **Last updated:** 2026-05-21.
+**Status:** Phase 0 shipped (prototype web UI with D3 viz, prod engine with viz_data + emoji guardrails); pre-D.1.
 **Supersedes:** `extensible-architecture.md` for distribution-layer concerns; that doc's Phase 2 multi-tenancy work folds into D.1 here.
-**Next action:** review with product lead, then begin Phase 0 web UI demo (~3–5 days).
+
+**Shipped so far:**
+- Engine: `viz_data` builders on tradeoffs/compare/marginal/scenario; emoji guardrails in server-instructions + skills; bare-list serialization fix for `model/list`.
+- Web UI: Next.js 15 + AI SDK + Anthropic Messages API + MCP connector; D3 chart components (Scatter, ParallelCoords, MarginalRates); pluggable agent-runtime adapter; active-tool indicator for parallel tool sequences.
+- Lessons learned captured in §10 (FastMCP serialization, MCP connector schema, React StrictMode mutation, Claude Desktop env-var clash, etc.).
+
+**Next:** D.1 (multi-tenant engine: Postgres `owner_id` scoping + bearer JWT middleware + token issuance endpoint) — unlocks real beta and the consumer-connector surfaces.
