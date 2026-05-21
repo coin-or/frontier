@@ -11,7 +11,10 @@ type Props = {
 };
 
 export function ToolCallBlock({ name, input, result, isError, pending }: Props) {
-  const [open, setOpen] = useState(false);
+  // Open by default while pending (so users can see what's happening); once
+  // the tool completes, the user-controlled state takes over. Errors also
+  // open by default so users notice them.
+  const [open, setOpen] = useState(Boolean(pending) || Boolean(isError));
 
   return (
     <div className="my-2 rounded-md border border-stone-300 bg-stone-50 text-xs">

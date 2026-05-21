@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { ToolCallBlock } from "@/components/ToolCallBlock";
@@ -41,6 +41,24 @@ export default function ChatPage() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Track tools currently in flight on the last assistant message
+  // (mcp_tool_use blocks without a matching mcp_tool_result). Drives the
+  // active-tool indicator so parallel sequences don't look stalled.
+  const pendingTools = useMemo(() => {
+    if (!streaming || messages.length === 0) return [] as string[];
+    const last = messages[messages.length - 1];
+    if (last.role !== "assistant" || typeof last.content === "string") return [];
+    const blocks = last.content as Block[];
+    const resultIds = new Set<string>();
+    for (const b of blocks) {
+      if (b.type === "mcp_tool_result") resultIds.add(b.tool_use_id);
+    }
+    return blocks
+      .filter((b): b is ToolUseBlock => b.type === "mcp_tool_use")
+      .filter((b) => !resultIds.has(b.id))
+      .map((b) => b.name);
+  }, [messages, streaming]);
 
   async function send() {
     const trimmed = input.trim();
@@ -155,6 +173,19 @@ export default function ChatPage() {
       </main>
 
       <footer className="border-t border-stone-200 px-6 py-3">
+        {(streaming || pendingTools.length > 0) && (
+          <div className="mb-2 flex items-center gap-2 text-xs text-stone-600">
+            <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500" />
+            {pendingTools.length === 0 ? (
+              <span>thinking…</span>
+            ) : (
+              <span>
+                running {pendingTools.length === 1 ? "1 tool" : `${pendingTools.length} tools`}:{" "}
+                <span className="font-mono text-stone-700">{pendingTools.join(", ")}</span>
+              </span>
+            )}
+          </div>
+        )}
         <div className="flex items-end gap-2">
           <textarea
             value={input}
