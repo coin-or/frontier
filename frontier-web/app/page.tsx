@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { ToolCallBlock } from "@/components/ToolCallBlock";
+import { VizRenderer } from "@/components/Viz";
+import { extractVizData } from "@/lib/viz-data";
 
 type TextBlock = { type: "text"; text: string };
 type ToolUseBlock = {
@@ -216,15 +218,20 @@ function MessageView({ message }: { message: Message }) {
             const resultText = result
               ? result.content.map((c) => c.text).join("\n")
               : undefined;
+            const vizPayloads = resultText ? extractVizData(resultText) : [];
             return (
-              <ToolCallBlock
-                key={i}
-                name={b.name}
-                input={b.input}
-                result={resultText}
-                isError={result?.is_error}
-                pending={!result}
-              />
+              <div key={i}>
+                <ToolCallBlock
+                  name={b.name}
+                  input={b.input}
+                  result={resultText}
+                  isError={result?.is_error}
+                  pending={!result}
+                />
+                {vizPayloads.map((vd, vi) => (
+                  <VizRenderer key={vi} data={vd} />
+                ))}
+              </div>
             );
           }
           // tool_result is rendered inside its matching tool_use; skip standalone
