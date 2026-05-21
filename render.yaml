@@ -8,3 +8,27 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.11"
+
+  - type: web
+    name: frontier-web
+    runtime: node
+    branch: main
+    rootDir: frontier-web
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # Anthropic API key — set manually in the Render dashboard so it isn't
+      # tracked in this YAML. Reads either name; CLAUDE_API_KEY also works.
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      # Frontier MCP must be externally reachable — Anthropic's Messages API
+      # calls it from Anthropic infrastructure, not from this service. Use the
+      # public URL of the `frontier` service above.
+      - key: FRONTIER_MCP_URL
+        value: https://frontier-592q.onrender.com/sse
+      # Default to Messages API + MCP connector; switch to managed-agents
+      # later once that adapter is implemented.
+      - key: AGENT_BACKEND
+        value: messages-api

@@ -4,6 +4,7 @@ import type { VizData } from "@/lib/viz-data";
 import { Scatter } from "./Scatter";
 import { ParallelCoords } from "./ParallelCoords";
 import { MarginalRates } from "./MarginalRates";
+import { ScenarioSummary } from "./ScenarioSummary";
 
 /**
  * Dispatcher: pick the right chart component for a viz_data payload.
@@ -19,10 +20,7 @@ export function VizRenderer({ data }: { data: VizData }) {
     case "marginal_rates":
       return <MarginalRates data={data} />;
     case "scenario_summary":
-      // not rendered as a chart for now — scenario_summary is more table-like.
-      // The text payload + tool_result block already conveys the data; D3 view
-      // can be added later if signal demands.
-      return null;
+      return <ScenarioSummary data={data} />;
     default:
       return null;
   }
