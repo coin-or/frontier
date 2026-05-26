@@ -5,14 +5,34 @@ build-backend = "hatchling.build"
 [project]
 name = "frontier"
 version = "0.1.0"
-description = "Multi-objective portfolio optimization engine"
+description = "Multi-objective decision optimization engine, exposed as an MCP server."
+readme = "README.md"
 requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+authors = [
+    { name = "Cameron Afzal" },
+]
+keywords = ["mcp", "optimization", "pareto", "decision-making", "nsga", "pymoo"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Mathematics",
+]
 dependencies = [
     "pymoo>=0.6",
     "pydantic>=2.0",
     "mcp[cli]>=1.0",
     "scipy>=1.11",
 ]
+
+[project.urls]
+Homepage = "https://github.com/cafzal/frontier"
+Repository = "https://github.com/cafzal/frontier"
+Issues = "https://github.com/cafzal/frontier/issues"
 
 [project.scripts]
 frontier = "frontier.mcp_server.server:main"

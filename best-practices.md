@@ -2,7 +2,7 @@
 
 A living reference for designing skills, tool descriptions, and agent instructions in this project. Seeded from [Anthropic's official prompting best practices](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices) and refined through iterative auditing of Frontier's skill files.
 
-**Related docs:** [`architecture.md`](architecture.md) — system architecture, tool/skill reference, data flow | [`README.md`](README.md) — user setup and usage guide | [`CLAUDE.md`](CLAUDE.md) — project instructions for Claude
+**Related docs:** [`architecture.md`](architecture.md) — system architecture, tool/skill reference, data flow | [`README.md`](README.md) — user setup and usage guide
 
 ---
 

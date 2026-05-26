@@ -2,6 +2,14 @@
   "name": "frontier-web",
   "version": "0.1.0",
   "private": true,
+  "description": "Lightweight web UI for Frontier — chat shell on top of the Frontier MCP server.",
+  "license": "Apache-2.0",
+  "author": "Cameron Afzal",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cafzal/frontier.git",
+    "directory": "frontier-web"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",

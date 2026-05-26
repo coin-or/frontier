@@ -1,8 +1,36 @@
 # Frontier
 
-Multi-objective portfolio optimization engine, exposed as an MCP server. Works with any MCP-compatible client.
+Multi-objective decision optimization engine, exposed as an MCP server. Works with any MCP-compatible client.
 
 **Developer docs:** [`architecture.md`](architecture.md) — system architecture & data flow | [`best-practices.md`](best-practices.md) — skill & prompt design guidelines
+
+## Summary
+
+Frontier gives AI agents a grounded optimization engine for hard decisions. The agent describes a problem in business terms; Frontier enumerates the full Pareto frontier — every non-dominated solution that balances conflicting objectives under hard constraints — and the agent narrates the tradeoffs back. NSGA-II/III under the hood (via pymoo), exposed as 4 MCP tools (`model`, `solve`, `explore`, `get_skill`). Frontier is the engine; the agent is the interface.
+
+## Purpose
+
+LLMs can reason about tradeoffs conversationally but can't *solve* them — they lack the machinery to enumerate a combinatorial option space, enforce hard constraints, and produce the actual Pareto frontier. Frontier fills that gap, for problems where data is available to score options, objectives genuinely conflict (no single "best"), and the space is too large for intuition.
+
+**Typical problems:** investment portfolio construction, product feature prioritization, budget or channel allocation, vendor selection, resource allocation under uncertainty — any "pick a subset from many, balance conflicting goals, with real data" decision.
+
+**What Frontier adds beyond an LLM alone:**
+- The full set of non-dominated solutions, not a single recommendation
+- Hard constraint enforcement (cardinality, dependencies, exclusions, bounds, group limits)
+- Reproducibility — same inputs → same frontier (`seed` echoed when omitted)
+- Scenario modeling — independent frontiers per scenario, plus CVaR / worst-case / expected risk per objective
+- Longitudinal state — problems persist across sessions; curated picks track survival across re-runs
+
+## Workflow
+
+You describe a decision to an AI agent in natural language; the agent translates it into Frontier's structured model, runs optimization, and interprets the results back. The 4 tools, in order:
+
+1. **`model`** — define objectives, options, scores, constraints
+2. **`solve`** — run NSGA-II/III to produce the Pareto frontier
+3. **`explore`** — tradeoffs, comparisons, marginal analysis, scenarios, curation
+4. **`get_skill`** — workflow guidance: `problem_framing`, `data_collection`, `optimization_strategy`, `solution_interpreter`
+
+Skills auto-inject at workflow transitions, so domain rigor — how to classify objectives vs constraints, elicit scores without anchoring bias, present tradeoffs without implying a "best" — extends past the solver into how the agent frames and communicates.
 
 ## Setup
 
@@ -31,51 +59,72 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 Add Frontier as a remote MCP server in claude.ai settings using the SSE URL: `https://frontier-592q.onrender.com/sse`
 
-## Workflow
+### Self-host
 
-Frontier provides 4 tools: `model`, `solve`, `explore`, and `get_skill`. The workflow is:
+Run your own instance instead of using the hosted one. Requires Python 3.11+.
 
-1. Call `get_skill('problem_framing')` for guidance, then use `model` to define your decision problem
-2. Call `get_skill('data_collection')` for guidance, then use `model` to enter scores
-3. Call `get_skill('optimization_strategy')` for guidance, then use `solve` to run optimization
-4. Call `get_skill('solution_interpreter')` for guidance, then use `explore` to navigate results
+```bash
+git clone https://github.com/cafzal/frontier.git
+cd frontier
+pip install -e .
 
-The `get_skill` tool delivers domain expertise that guides the agent through each stage — translating business language into solver language, eliciting scores efficiently, interpreting tradeoffs without bias, and surfacing preferences through the right questions.
+# stdio transport (for Claude Desktop / coding agents on the same machine)
+python -m frontier.mcp_server.server
 
-## Capabilities
+# SSE transport (for remote MCP clients)
+MCP_TRANSPORT=sse python -m frontier.mcp_server.server
+```
 
-### Problem Definition (`model`)
+Point your MCP client at the local server — for SSE that's `http://localhost:8000/sse`. The optional web UI lives in [`frontier-web/`](frontier-web/) — see its [README](frontier-web/README.md).
 
-- **Objectives** (2-7) with aggregation modes (sum, avg, min, max, quadratic)
-- **Options** scored against each objective; binary (select/reject) or proportional (allocate %) approach
-- **8 constraint types**: cardinality, force include/exclude, objective bounds, exclusion pairs, dependencies, group limits, max allocation (proportional only)
-- **Interaction matrices** for quadratic aggregation (e.g. covariance matrices for portfolio risk), with scale groups for regime shifts
-- **Reference points**: baseline and aspirational for contextual comparison
-- **Scenarios**: probability-weighted alternative scores and interaction matrices for uncertainty analysis
+## Architecture
 
-### Optimization (`solve`)
+Frontier is a Python MCP server (FastMCP) wrapping pymoo's NSGA-II/III evolutionary solvers. State persists per-problem as JSON; the optimizer produces a Pareto frontier with quality indicators, scenario-aware results, and shadow-price rates per binding constraint. Domain expertise lives in skill markdown files that the server auto-injects at workflow transitions, so the same rigor reaches every MCP client.
 
-- **NSGA-II** (2-3 objectives) and **NSGA-III** (4+ objectives) via pymoo
-- **Fast mode** for iterative exploration, **thorough mode** for final convergence; `max_solutions` caps the Pareto set size (default 100). Quality indicators (hypervolume, spacing) with each run
-- **Frontier quality signals**: `frontier_complete` (bool — is this the full Pareto set or a pruned sample?), `frontier_quality` (status GOOD/WARNING/POOR with progressive gates and actionable issues)
-- **Reproducibility**: optional `seed` parameter for deterministic runs; when omitted a fresh seed is drawn and echoed in the response as `seed_used` so any run can be reproduced after the fact
-- **Scenario optimization**: independent runs per scenario with score overrides/adjustments (per-scenario seeds deterministically derived so each scenario reproduces while starting from distinct initializations)
-- **Infeasibility analysis**: when no feasible solutions exist, identifies conflicting constraints with relaxation suggestions
-- **Full result persistence**: each solve writes the complete payload (all solutions with allocations) to `full_result_path` on disk for bulk export or artifact assembly without context overhead
-- **Run history**: archived runs with constraint snapshots for comparison
+For full schemas, action parameters, data model, persistence layout, and the skill auto-injection mechanism, see [`architecture.md`](architecture.md). For skill, prompt, and MCP design principles, see [`best-practices.md`](best-practices.md).
 
-### Exploration (`explore`)
+### Tools
 
-- **Tradeoff analysis**: objective ranges, correlations, extremes, balanced solution, inflection-point candidates, frontier shape per pair (linear / concave / convex / discontinuous), reference point comparisons
-- **Objective redundancy**: normalized mutual information per objective pair (alongside Pearson), flags non-linear dependence via Pearson/MI disagreement
-- **Binding constraint analysis**: shadow-price rates per binding constraint — how much each objective shifts per unit of slack relaxation (covers objective_bound, cardinality, group_limit)
-- **Solution listing**: compact by default (id + objectives + signature); pass `detail=true` for full option/allocation data
-- **Solution comparison**: side-by-side with shared/differentiating options and tradeoff summaries
-- **Marginal analysis**: cost-per-unit rates between adjacent solutions with knee-point detection
-- **Per-scenario exploration**: tradeoffs, compare, solutions, marginal analysis, and curation all accept an optional `scenario` parameter to target a specific scenario's frontier
-- **Scenario results**: robust options (all scenarios), scenario-specific options, probability-weighted expected values, plus per-objective **scenario risk** (expected / worst-case / best-case / CVaR with tunable `cvar_alpha`) for tail-risk analysis
-- **Run comparison**: criteria diffs, frontier diffs, option coverage changes across runs
-- **Solution curation**: bookmark solutions with custom names; content-based signatures track survival across re-runs
-- **Curated export**: `export_curated` returns a formatted handoff artifact (markdown table or CSV) of curated solutions with objective values and option selections/allocations
-- **Feedback**: rate and annotate solutions; linked to curated set via stable content signatures
-- **Visualizations**: inline ASCII scatter plots, parallel coordinates, marginal rate charts
+**`model`** — define and edit a problem
+- Objectives (2-7) with aggregation modes: sum, avg, min, max, quadratic
+- Options scored against objectives; binary (select/reject) or proportional (allocate %) approach
+- 8 constraint types: cardinality, force include/exclude, objective bounds, exclusion pairs, dependencies, group limits, max allocation (proportional only)
+- Interaction matrices for quadratic aggregation (e.g. covariance matrices for portfolio risk), with scale groups for regime shifts
+- Reference points (baseline / aspirational) and scenarios (probability-weighted alternative scores + interaction matrices)
+
+**`solve`** — run optimization
+- NSGA-II (2-3 objectives) and NSGA-III (4+ objectives) via pymoo
+- Fast mode for iterative exploration, thorough mode for final convergence; `max_solutions` caps the Pareto set size (default 100)
+- Quality signals: hypervolume and spacing per run; `frontier_complete` flag (full set vs pruned sample); `frontier_quality` status (GOOD / WARNING / POOR with progressive gates and actionable issues)
+- Reproducibility: optional `seed`; when omitted, the drawn seed is echoed as `seed_used` so any run can be reproduced after the fact
+- Per-scenario optimization with score overrides/adjustments; per-scenario seeds deterministically derived so each scenario reproduces while starting from distinct initializations
+- Infeasibility analysis identifies conflicting constraints with relaxation suggestions
+- Full result persisted to disk (`full_result_path`) for bulk export or artifact assembly; run history with constraint snapshots for cross-run comparison
+
+**`explore`** — navigate results
+- Tradeoff analysis: objective ranges, correlations (Pearson + normalized mutual information), extremes, balanced solution, inflection-point candidates, frontier shape per pair (linear / concave / convex / discontinuous), reference-point comparisons
+- Objective redundancy: Pearson/MI disagreement flags non-linear dependence
+- Binding-constraint analysis: shadow-price rates per binding constraint — how much each objective shifts per unit of slack relaxation (covers objective_bound, cardinality, group_limit)
+- Solution listing (compact by default; `detail=true` for full options/allocations), single-solution detail with reference analysis, side-by-side comparison
+- Marginal analysis: cost-per-unit rates between adjacent solutions with knee-point detection
+- Per-scenario exploration: tradeoffs, compare, solutions, marginal analysis, and curation all accept an optional `scenario` parameter
+- Scenario results: robust options across all scenarios, scenario-specific options, probability-weighted expected values, per-objective scenario risk (expected / worst-case / best-case / CVaR with tunable `cvar_alpha`)
+- Run comparison: criteria diffs, frontier diffs, option coverage changes across runs
+- Curation: bookmark solutions with custom names; content-signature identity tracks survival across re-runs; `export_curated` ships a formatted handoff artifact (markdown table or CSV)
+- Feedback: rating + notes linked to curated set via content signatures
+- Visualizations: inline ASCII scatter plots, parallel coordinates, marginal rate charts
+
+**`get_skill`** — fetch workflow guidance by name (works with any MCP client)
+
+### Skills
+
+Skills are markdown files the server auto-injects into tool responses at workflow transitions, and also retrievable directly via `get_skill`. They encode domain judgment, not tool docs.
+
+- **`problem_framing`** — classify objectives vs constraints (principle-based, not keyword matching), hidden objective detection, approach selection (binary vs proportional), aggregation modes, interaction matrices, reference points, scenario definition
+- **`data_collection`** — score elicitation, anchoring techniques, batch efficiency, source evaluation, conflict resolution, quality signals (variance, scale mismatch), completeness drive
+- **`optimization_strategy`** — iteration expectations, validate → run → examine flow, constraint strategy, infeasibility response, binding-constraint detection, curated-solution survival tracking, stale-result judgment
+- **`solution_interpreter`** — present results without bias ("never say best"), five explanation dimensions, presentation order (Extremes → Balanced → Inflection → Risk → Preference), tradeoff framing, objective-ranking elicitation, scenario presentation, preference learning
+
+## License
+
+Apache License 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).

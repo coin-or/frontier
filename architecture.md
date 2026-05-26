@@ -1,6 +1,6 @@
 # Frontier — Architecture Reference
 
-**Related docs:** [`best-practices.md`](best-practices.md) — skill, prompt & MCP design guidelines | [`README.md`](README.md) — user setup and usage guide | [`CLAUDE.md`](CLAUDE.md) — project instructions for Claude
+**Related docs:** [`best-practices.md`](best-practices.md) — skill, prompt & MCP design guidelines | [`README.md`](README.md) — user setup and usage guide
 
 ## Tools & Skills Reference
 

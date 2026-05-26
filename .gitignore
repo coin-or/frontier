@@ -9,3 +9,8 @@ data/
 dev_temp/
 **/archived/
 .env
+
+# Local Claude Code configuration and design notes — not part of the published project
+.claude/
+CLAUDE.md
+.pytest_cache/
