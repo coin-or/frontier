@@ -1,0 +1,582 @@
+{
+  "options": [
+    {
+      "name": "P01",
+      "description": "Growth initiative"
+    },
+    {
+      "name": "P02",
+      "description": "Growth initiative"
+    },
+    {
+      "name": "P03",
+      "description": "Growth initiative"
+    },
+    {
+      "name": "P04",
+      "description": "Growth initiative"
+    },
+    {
+      "name": "P05",
+      "description": "Growth initiative"
+    },
+    {
+      "name": "P06",
+      "description": "Growth initiative"
+    },
+    {
+      "name": "P07",
+      "description": "Digital initiative"
+    },
+    {
+      "name": "P08",
+      "description": "Digital initiative"
+    },
+    {
+      "name": "P09",
+      "description": "Digital initiative"
+    },
+    {
+      "name": "P10",
+      "description": "Digital initiative"
+    },
+    {
+      "name": "P11",
+      "description": "R&D initiative"
+    },
+    {
+      "name": "P12",
+      "description": "R&D initiative"
+    },
+    {
+      "name": "P13",
+      "description": "R&D initiative"
+    },
+    {
+      "name": "P14",
+      "description": "R&D initiative"
+    },
+    {
+      "name": "P15",
+      "description": "Maintenance initiative"
+    },
+    {
+      "name": "P16",
+      "description": "Maintenance initiative"
+    },
+    {
+      "name": "P17",
+      "description": "Maintenance initiative"
+    },
+    {
+      "name": "P18",
+      "description": "Maintenance initiative"
+    },
+    {
+      "name": "P19",
+      "description": "Compliance initiative"
+    },
+    {
+      "name": "P20",
+      "description": "Compliance initiative"
+    },
+    {
+      "name": "P21",
+      "description": "Compliance initiative"
+    },
+    {
+      "name": "P22",
+      "description": "Efficiency initiative"
+    },
+    {
+      "name": "P23",
+      "description": "Efficiency initiative"
+    },
+    {
+      "name": "P24",
+      "description": "Efficiency initiative"
+    }
+  ],
+  "scores": [
+    {
+      "option": "P01",
+      "objective": "NPV",
+      "value": 7.3
+    },
+    {
+      "option": "P01",
+      "objective": "Cost",
+      "value": 9.3
+    },
+    {
+      "option": "P01",
+      "objective": "Risk",
+      "value": 48.9
+    },
+    {
+      "option": "P01",
+      "objective": "StrategicFit",
+      "value": 65.8
+    },
+    {
+      "option": "P02",
+      "objective": "NPV",
+      "value": 34.4
+    },
+    {
+      "option": "P02",
+      "objective": "Cost",
+      "value": 42.1
+    },
+    {
+      "option": "P02",
+      "objective": "Risk",
+      "value": 64.0
+    },
+    {
+      "option": "P02",
+      "objective": "StrategicFit",
+      "value": 44.1
+    },
+    {
+      "option": "P03",
+      "objective": "NPV",
+      "value": 21.1
+    },
+    {
+      "option": "P03",
+      "objective": "Cost",
+      "value": 19.1
+    },
+    {
+      "option": "P03",
+      "objective": "Risk",
+      "value": 53.4
+    },
+    {
+      "option": "P03",
+      "objective": "StrategicFit",
+      "value": 64.7
+    },
+    {
+      "option": "P04",
+      "objective": "NPV",
+      "value": 55.6
+    },
+    {
+      "option": "P04",
+      "objective": "Cost",
+      "value": 36.3
+    },
+    {
+      "option": "P04",
+      "objective": "Risk",
+      "value": 53.2
+    },
+    {
+      "option": "P04",
+      "objective": "StrategicFit",
+      "value": 79.6
+    },
+    {
+      "option": "P05",
+      "objective": "NPV",
+      "value": 40.0
+    },
+    {
+      "option": "P05",
+      "objective": "Cost",
+      "value": 44.2
+    },
+    {
+      "option": "P05",
+      "objective": "Risk",
+      "value": 47.0
+    },
+    {
+      "option": "P05",
+      "objective": "StrategicFit",
+      "value": 43.1
+    },
+    {
+      "option": "P06",
+      "objective": "NPV",
+      "value": 22.4
+    },
+    {
+      "option": "P06",
+      "objective": "Cost",
+      "value": 28.3
+    },
+    {
+      "option": "P06",
+      "objective": "Risk",
+      "value": 37.1
+    },
+    {
+      "option": "P06",
+      "objective": "StrategicFit",
+      "value": 70.5
+    },
+    {
+      "option": "P07",
+      "objective": "NPV",
+      "value": 23.3
+    },
+    {
+      "option": "P07",
+      "objective": "Cost",
+      "value": 23.2
+    },
+    {
+      "option": "P07",
+      "objective": "Risk",
+      "value": 49.6
+    },
+    {
+      "option": "P07",
+      "objective": "StrategicFit",
+      "value": 82.0
+    },
+    {
+      "option": "P08",
+      "objective": "NPV",
+      "value": 13.6
+    },
+    {
+      "option": "P08",
+      "objective": "Cost",
+      "value": 10.1
+    },
+    {
+      "option": "P08",
+      "objective": "Risk",
+      "value": 42.5
+    },
+    {
+      "option": "P08",
+      "objective": "StrategicFit",
+      "value": 60.6
+    },
+    {
+      "option": "P09",
+      "objective": "NPV",
+      "value": 1.6
+    },
+    {
+      "option": "P09",
+      "objective": "Cost",
+      "value": 5.4
+    },
+    {
+      "option": "P09",
+      "objective": "Risk",
+      "value": 29.6
+    },
+    {
+      "option": "P09",
+      "objective": "StrategicFit",
+      "value": 62.7
+    },
+    {
+      "option": "P10",
+      "objective": "NPV",
+      "value": 36.3
+    },
+    {
+      "option": "P10",
+      "objective": "Cost",
+      "value": 32.6
+    },
+    {
+      "option": "P10",
+      "objective": "Risk",
+      "value": 51.3
+    },
+    {
+      "option": "P10",
+      "objective": "StrategicFit",
+      "value": 61.7
+    },
+    {
+      "option": "P11",
+      "objective": "NPV",
+      "value": 42.9
+    },
+    {
+      "option": "P11",
+      "objective": "Cost",
+      "value": 22.8
+    },
+    {
+      "option": "P11",
+      "objective": "Risk",
+      "value": 82.8
+    },
+    {
+      "option": "P11",
+      "objective": "StrategicFit",
+      "value": 73.4
+    },
+    {
+      "option": "P12",
+      "objective": "NPV",
+      "value": 33.8
+    },
+    {
+      "option": "P12",
+      "objective": "Cost",
+      "value": 28.1
+    },
+    {
+      "option": "P12",
+      "objective": "Risk",
+      "value": 56.8
+    },
+    {
+      "option": "P12",
+      "objective": "StrategicFit",
+      "value": 64.9
+    },
+    {
+      "option": "P13",
+      "objective": "NPV",
+      "value": 6.0
+    },
+    {
+      "option": "P13",
+      "objective": "Cost",
+      "value": 5.0
+    },
+    {
+      "option": "P13",
+      "objective": "Risk",
+      "value": 77.8
+    },
+    {
+      "option": "P13",
+      "objective": "StrategicFit",
+      "value": 64.8
+    },
+    {
+      "option": "P14",
+      "objective": "NPV",
+      "value": 2.5
+    },
+    {
+      "option": "P14",
+      "objective": "Cost",
+      "value": 6.5
+    },
+    {
+      "option": "P14",
+      "objective": "Risk",
+      "value": 83.9
+    },
+    {
+      "option": "P14",
+      "objective": "StrategicFit",
+      "value": 52.7
+    },
+    {
+      "option": "P15",
+      "objective": "NPV",
+      "value": 4.0
+    },
+    {
+      "option": "P15",
+      "objective": "Cost",
+      "value": 11.8
+    },
+    {
+      "option": "P15",
+      "objective": "Risk",
+      "value": 29.6
+    },
+    {
+      "option": "P15",
+      "objective": "StrategicFit",
+      "value": 62.6
+    },
+    {
+      "option": "P16",
+      "objective": "NPV",
+      "value": 16.4
+    },
+    {
+      "option": "P16",
+      "objective": "Cost",
+      "value": 24.2
+    },
+    {
+      "option": "P16",
+      "objective": "Risk",
+      "value": 27.6
+    },
+    {
+      "option": "P16",
+      "objective": "StrategicFit",
+      "value": 43.7
+    },
+    {
+      "option": "P17",
+      "objective": "NPV",
+      "value": 32.6
+    },
+    {
+      "option": "P17",
+      "objective": "Cost",
+      "value": 44.1
+    },
+    {
+      "option": "P17",
+      "objective": "Risk",
+      "value": 28.8
+    },
+    {
+      "option": "P17",
+      "objective": "StrategicFit",
+      "value": 63.2
+    },
+    {
+      "option": "P18",
+      "objective": "NPV",
+      "value": 10.5
+    },
+    {
+      "option": "P18",
+      "objective": "Cost",
+      "value": 34.6
+    },
+    {
+      "option": "P18",
+      "objective": "Risk",
+      "value": 24.9
+    },
+    {
+      "option": "P18",
+      "objective": "StrategicFit",
+      "value": 66.2
+    },
+    {
+      "option": "P19",
+      "objective": "NPV",
+      "value": 5.5
+    },
+    {
+      "option": "P19",
+      "objective": "Cost",
+      "value": 38.7
+    },
+    {
+      "option": "P19",
+      "objective": "Risk",
+      "value": 26.4
+    },
+    {
+      "option": "P19",
+      "objective": "StrategicFit",
+      "value": 99.0
+    },
+    {
+      "option": "P20",
+      "objective": "NPV",
+      "value": 10.2
+    },
+    {
+      "option": "P20",
+      "objective": "Cost",
+      "value": 36.0
+    },
+    {
+      "option": "P20",
+      "objective": "Risk",
+      "value": 17.8
+    },
+    {
+      "option": "P20",
+      "objective": "StrategicFit",
+      "value": 82.1
+    },
+    {
+      "option": "P21",
+      "objective": "NPV",
+      "value": -2.4
+    },
+    {
+      "option": "P21",
+      "objective": "Cost",
+      "value": 22.2
+    },
+    {
+      "option": "P21",
+      "objective": "Risk",
+      "value": 16.9
+    },
+    {
+      "option": "P21",
+      "objective": "StrategicFit",
+      "value": 81.9
+    },
+    {
+      "option": "P22",
+      "objective": "NPV",
+      "value": 3.1
+    },
+    {
+      "option": "P22",
+      "objective": "Cost",
+      "value": 18.7
+    },
+    {
+      "option": "P22",
+      "objective": "Risk",
+      "value": 32.7
+    },
+    {
+      "option": "P22",
+      "objective": "StrategicFit",
+      "value": 37.8
+    },
+    {
+      "option": "P23",
+      "objective": "NPV",
+      "value": 2.5
+    },
+    {
+      "option": "P23",
+      "objective": "Cost",
+      "value": 18.6
+    },
+    {
+      "option": "P23",
+      "objective": "Risk",
+      "value": 35.8
+    },
+    {
+      "option": "P23",
+      "objective": "StrategicFit",
+      "value": 51.5
+    },
+    {
+      "option": "P24",
+      "objective": "NPV",
+      "value": 9.0
+    },
+    {
+      "option": "P24",
+      "objective": "Cost",
+      "value": 24.4
+    },
+    {
+      "option": "P24",
+      "objective": "Risk",
+      "value": 25.1
+    },
+    {
+      "option": "P24",
+      "objective": "StrategicFit",
+      "value": 48.9
+    }
+  ]
+}
