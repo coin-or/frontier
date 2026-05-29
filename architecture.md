@@ -368,7 +368,7 @@ An optional web app ([`ui/`](ui/)) is the **visualize** surface — a thin chat 
 
 **Design invariants:**
 - **Identity-only system prompt** (`ui/lib/system-prompt.ts`, ~3 lines) — no skill content is duplicated in the UI. Behavior fixes belong in the engine (`mcp_server/server.py` or a skill file), never the prompt.
-- **Direct SSE, no AI SDK** — each `data: {…}` line is a raw Anthropic event the client renders incrementally.
+- **Direct SSE, no AI SDK** — each `data: {…}` line is a raw Anthropic event; `ui/lib/stream-reducer.ts` folds them into message state incrementally. It addresses content blocks by the server-assigned `index` (which counts thinking blocks the UI doesn't store), never by array position — position-based addressing misroutes every delta after a thinking block, leaving empty text blocks the API rejects on the next turn (`text content blocks must be non-empty`). The same module strips internal fields and drops empty text blocks when building the round-trip payload.
 - **Inline tool rendering** (`ui/components/ToolCallBlock.tsx`, `ui/components/Viz/`) — a collapsed tool result, plus a D3 chart when the `tool_result` carries `viz_data` (scatter / parallel-coords / marginal-rates via D3, scenario summary as a table).
 - **Ephemeral sessions** — a random `problem_id` per session (pre-D.1 multi-tenancy); refreshing the page starts a new one.
 

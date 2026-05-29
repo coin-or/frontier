@@ -199,12 +199,22 @@ def get_solutions(problem: Problem, scenario: str | None = None, detail: bool = 
             }
             for s in run.solutions
         ]
-    return {
+    result = {
         "run_id": run.run_id,
         "total_solutions": len(run.solutions),
         "detail": detail,
         "solutions": sols,
     }
+    # Parallel-coordinates over the full frontier — ASCII for chat/coding-agent
+    # surfaces, viz_data for chart-rendering hosts (the web UI draws D3 from it).
+    sol_dicts = [
+        {"solution_id": s.solution_id, "objective_values": s.objective_values}
+        for s in run.solutions
+    ]
+    labels = {s.solution_id: f"[{s.solution_id}]" for s in run.solutions}
+    result["visualization"] = _render_parallel_coords(sol_dicts, problem.objectives, labels)
+    result["viz_data"] = _viz_data_parallel_coords(sol_dicts, problem.objectives, labels)
+    return result
 
 
 def get_solution(problem: Problem, solution_id: int, scenario: str | None = None) -> dict:

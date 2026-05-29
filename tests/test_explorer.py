@@ -129,6 +129,15 @@ class TestGetSolutions:
         sol = result["solutions"][0]
         assert "selected_options" in sol
 
+    def test_includes_parallel_coords_viz(self, solved_problem):
+        """Listing carries a parallel-coords payload so chart hosts (web UI) can draw it."""
+        result = get_solutions(solved_problem)
+        assert "visualization" in result
+        viz = result["viz_data"]
+        assert viz["type"] == "parallel_coords"
+        assert len(viz["series"]) == result["total_solutions"]
+        assert len(viz["axes"]) == len(solved_problem.objectives)
+
     def test_no_run_raises(self):
         p = Problem()
         with pytest.raises(ValueError, match="No run found"):

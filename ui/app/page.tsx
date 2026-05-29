@@ -6,26 +6,14 @@ import remarkGfm from "remark-gfm";
 import { ToolCallBlock } from "@/components/ToolCallBlock";
 import { VizRenderer } from "@/components/Viz";
 import { extractVizData } from "@/lib/viz-data";
-
-type TextBlock = { type: "text"; text: string };
-type ToolUseBlock = {
-  type: "mcp_tool_use";
-  id: string;
-  name: string;
-  server_name: string;
-  input: Record<string, unknown>;
-  inputJson: string; // internal accumulator (stripped on round-trip)
-};
-type ToolResultContent = { type: "text"; text: string };
-type ToolResultBlock = {
-  type: "mcp_tool_result";
-  tool_use_id: string;
-  content: ToolResultContent[]; // preserved as array for Anthropic round-trip
-  is_error: boolean;
-};
-type Block = TextBlock | ToolUseBlock | ToolResultBlock;
-
-type Message = { role: "user" | "assistant"; content: string | Block[] };
+import {
+  applyEvent,
+  toApiMessages,
+  type Block,
+  type Message,
+  type ToolUseBlock,
+  type ToolResultBlock,
+} from "@/lib/stream-reducer";
 
 const STARTER_PROMPT =
   "Describe a decision you're trying to make — e.g., \"prioritize 3 of these 5 initiatives next quarter, balancing engineering cost, customer impact, and strategic fit.\"";
@@ -72,18 +60,8 @@ export default function ChatPage() {
     setInput("");
     setStreaming(true);
 
-    // Build Anthropic-shaped payload (strip our internal `inputJson` accumulator)
-    const apiMessages = [...messages, userMsg].map((m) => {
-      if (typeof m.content === "string") return { role: m.role, content: m.content };
-      const cleaned = (m.content as Block[]).map((b) => {
-        if (b.type === "mcp_tool_use") {
-          const { inputJson: _omit, ...rest } = b;
-          return rest;
-        }
-        return b;
-      });
-      return { role: m.role, content: cleaned };
-    });
+    // Build the Anthropic-shaped payload (strips internal fields, drops empty text)
+    const apiMessages = toApiMessages([...messages, userMsg]);
 
     try {
       const res = await fetch("/api/chat", {
@@ -273,110 +251,3 @@ function MessageView({ message }: { message: Message }) {
   );
 }
 
-// ─── stream event → message-state reducer ───────────────────────────────────
-// MUST be pure (no mutation). React 19 StrictMode double-invokes state-updater
-// functions in dev; any in-place mutation here would duplicate effects.
-
-function applyEvent(prev: Message[], event: { type?: string; [k: string]: unknown }): Message[] {
-  if (!prev.length) return prev;
-  const lastIdx = prev.length - 1;
-  const last = prev[lastIdx];
-  if (last.role !== "assistant") return prev;
-
-  const oldBlocks: Block[] = Array.isArray(last.content) ? (last.content as Block[]) : [];
-  let blocks: Block[] = oldBlocks;
-
-  const replaceAt = (idx: number, fn: (b: Block) => Block) => {
-    blocks = blocks.map((b, i) => (i === idx ? fn(b) : b));
-  };
-
-  switch (event.type) {
-    case "content_block_start": {
-      const cb = (event as any).content_block;
-      if (cb?.type === "text") {
-        blocks = [...blocks, { type: "text", text: cb.text ?? "" }];
-      } else if (cb?.type === "mcp_tool_use") {
-        blocks = [
-          ...blocks,
-          {
-            type: "mcp_tool_use",
-            id: cb.id,
-            name: cb.name,
-            server_name: cb.server_name ?? "frontier",
-            input: cb.input ?? {},
-            inputJson: "",
-          },
-        ];
-      } else if (cb?.type === "mcp_tool_result") {
-        // Normalize content to array-of-text-blocks shape (Anthropic round-trip requirement)
-        let content: ToolResultContent[] = [];
-        if (typeof cb.content === "string") {
-          content = [{ type: "text", text: cb.content }];
-        } else if (Array.isArray(cb.content)) {
-          content = cb.content.map((c: any) => ({
-            type: "text",
-            text: c?.text ?? "",
-          }));
-        }
-        blocks = [
-          ...blocks,
-          {
-            type: "mcp_tool_result",
-            tool_use_id: cb.tool_use_id,
-            content,
-            is_error: cb.is_error ?? false,
-          },
-        ];
-      }
-      break;
-    }
-    case "content_block_delta": {
-      const idx = (event as any).index as number;
-      const delta = (event as any).delta;
-      replaceAt(idx, (target) => {
-        if (delta?.type === "text_delta" && target.type === "text") {
-          return { ...target, text: target.text + (delta.text ?? "") };
-        }
-        if (delta?.type === "input_json_delta" && target.type === "mcp_tool_use") {
-          const inputJson = target.inputJson + (delta.partial_json ?? "");
-          let input = target.input;
-          try {
-            input = JSON.parse(inputJson);
-          } catch {
-            /* still streaming partial JSON */
-          }
-          return { ...target, inputJson, input };
-        }
-        return target;
-      });
-      break;
-    }
-    case "content_block_stop": {
-      const idx = (event as any).index as number;
-      replaceAt(idx, (target) => {
-        if (target.type === "mcp_tool_use" && target.inputJson) {
-          try {
-            return { ...target, input: JSON.parse(target.inputJson) };
-          } catch {
-            return target;
-          }
-        }
-        return target;
-      });
-      break;
-    }
-    case "error": {
-      blocks = [
-        ...blocks,
-        { type: "text", text: `\n\n_Error: ${(event as any).message ?? "unknown"}_` },
-      ];
-      break;
-    }
-  }
-
-  if (blocks === oldBlocks) return prev;
-
-  const next = [...prev];
-  next[lastIdx] = { ...last, content: blocks };
-  return next;
-}
