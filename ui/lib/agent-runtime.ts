@@ -37,6 +37,56 @@ const FRONTIER_MCP_URL =
 const FRONTIER_MCP_TOKEN = process.env.FRONTIER_MCP_TOKEN;
 const MODEL = process.env.ANTHROPIC_MODEL ?? "claude-opus-4-8";
 
+// ─── shared engine connection ───────────────────────────────────────────────
+
+// Attach the engine bearer token to every MCP request (SSE GET + POST) when
+// set; unset = local/ungated engine.
+function authedFetch(token: string | undefined) {
+  return (url: string | URL, init: RequestInit = {}): Promise<Response> => {
+    const headers = new Headers(init.headers ?? {});
+    if (token) headers.set("authorization", `Bearer ${token}`);
+    return fetch(url, { ...init, headers });
+  };
+}
+
+// Open an authenticated MCP client to the Frontier engine.
+async function openMcpClient(name: string): Promise<MCPClient> {
+  const mcp = new MCPClient({ name, version: "0.1.0" });
+  const transport = new SSEClientTransport(new URL(FRONTIER_MCP_URL), {
+    fetch: authedFetch(FRONTIER_MCP_TOKEN) as any,
+  });
+  await mcp.connect(transport);
+  return mcp;
+}
+
+// The MCP server's `instructions` field is the canonical workflow/skill guidance
+// a real MCP host (e.g. a coding agent) surfaces on connect. The messages-api
+// connector does NOT surface it, so we fetch it ourselves and fold it into the
+// system prompt — giving the model the same framing checklist, workflow, and
+// aggregation guidance every other surface gets. Instructions are static for
+// the server's lifetime, so cache across requests; a failed fetch falls back to
+// the bare prompt (non-fatal) and is not cached, so it retries next request.
+let cachedServerInstructions: string | null = null;
+async function getServerInstructions(): Promise<string> {
+  if (cachedServerInstructions !== null) return cachedServerInstructions;
+  let mcp: MCPClient | null = null;
+  try {
+    mcp = await openMcpClient("frontier-web-instructions");
+    cachedServerInstructions = mcp.getInstructions() ?? "";
+    return cachedServerInstructions;
+  } catch {
+    return "";
+  } finally {
+    if (mcp) {
+      try {
+        await mcp.close();
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+}
+
 // ─── messages-api adapter (default) ─────────────────────────────────────────
 
 const messagesApiAdapter: AgentRuntime = {
@@ -55,10 +105,17 @@ const messagesApiAdapter: AgentRuntime = {
     // budget_tokens form 400s. Effort: low | medium | high | xhigh | max.
     const effort = process.env.ANTHROPIC_EFFORT ?? "high";
     const maxTokens = Number(process.env.ANTHROPIC_MAX_TOKENS ?? "32000");
+    // Fold the engine's workflow/skill instructions into the system prompt — the
+    // connector doesn't surface them, so without this the model lacks the framing
+    // checklist and workflow that coding agents get on connect.
+    const serverInstructions = await getServerInstructions();
+    const system = serverInstructions
+      ? `${SYSTEM_PROMPT}\n\n${serverInstructions}`
+      : SYSTEM_PROMPT;
     const params: any = {
       model: MODEL,
       max_tokens: maxTokens,
-      system: SYSTEM_PROMPT,
+      system,
       thinking: { type: "adaptive" },
       output_config: { effort },
       mcp_servers: [
@@ -253,9 +310,7 @@ const openAICompatibleAdapter: AgentRuntime = {
         let mcp: MCPClient | null = null;
         try {
           // 1. Open MCP client to the Frontier server.
-          mcp = new MCPClient({ name: "frontier-web", version: "0.1.0" });
-          const transport = new SSEClientTransport(new URL(FRONTIER_MCP_URL));
-          await mcp.connect(transport);
+          mcp = await openMcpClient("frontier-web");
 
           // 2. List + translate tools.
           const { tools: mcpTools } = await mcp.listTools();
@@ -537,9 +592,7 @@ const anthropicLocalAdapter: AgentRuntime = {
         let mcp: MCPClient | null = null;
         try {
           // 1. Open local MCP client.
-          mcp = new MCPClient({ name: "frontier-web-anthropic-local", version: "0.1.0" });
-          const transport = new SSEClientTransport(new URL(FRONTIER_MCP_URL));
-          await mcp.connect(transport);
+          mcp = await openMcpClient("frontier-web-anthropic-local");
 
           // 2. List + translate tools to Anthropic format.
           const { tools: mcpTools } = await mcp.listTools();
