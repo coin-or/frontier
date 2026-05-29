@@ -1,0 +1,133 @@
+{
+  "name": "ETF Portfolio",
+  "domain": "investment",
+  "context": "Allocate across a 30-ETF universe to balance return, volatility (via covariance), and yield. Options, scores, and the covariance interaction matrix are in scores.json.",
+  "approach": "proportional",
+  "objectives": [
+    {
+      "name": "Return",
+      "direction": "maximize",
+      "unit": "%",
+      "aggregation": "avg"
+    },
+    {
+      "name": "Volatility",
+      "direction": "minimize",
+      "unit": "%",
+      "aggregation": "quadratic"
+    },
+    {
+      "name": "Yield",
+      "direction": "maximize",
+      "unit": "%",
+      "aggregation": "avg"
+    }
+  ],
+  "constraints": [
+    {
+      "type": "max_allocation",
+      "max": 30
+    },
+    {
+      "type": "objective_bound",
+      "objective": "Volatility",
+      "operator": "max",
+      "value": 20
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "VOO",
+        "VUG",
+        "VTV",
+        "VO",
+        "VB",
+        "SCHD"
+      ],
+      "max": 3
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "VEA",
+        "VWO",
+        "VGK",
+        "EWJ",
+        "MCHI"
+      ],
+      "max": 3
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "BND",
+        "VGSH",
+        "VGLT",
+        "TIP",
+        "HYG",
+        "EMB"
+      ],
+      "max": 3
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "VGT",
+        "VHT",
+        "VDE",
+        "VFH",
+        "VPU",
+        "VDC",
+        "VOX"
+      ],
+      "max": 3
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "VNQ",
+        "VNQI",
+        "GLD",
+        "GSG",
+        "DBA",
+        "IGF"
+      ],
+      "max": 3
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "rate_cuts",
+      "description": "Lower rates compress yields across the book (illustrative).",
+      "score_adjustments": [
+        {
+          "objective": "Yield",
+          "multiply": 0.85
+        }
+      ]
+    },
+    {
+      "name": "recession",
+      "description": "US-equity correlations rise ~50% (regime shift via scale_groups).",
+      "interaction_matrix_overrides": [
+        {
+          "objective": "Volatility",
+          "mode": "upsert",
+          "scale_groups": [
+            {
+              "options": [
+                "VOO",
+                "VUG",
+                "VTV",
+                "VO",
+                "VB",
+                "SCHD"
+              ],
+              "factor": 1.5
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
