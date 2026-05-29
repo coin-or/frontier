@@ -2,6 +2,15 @@
 
 **Related docs:** [`best-practices.md`](best-practices.md) — skill, prompt & MCP design guidelines | [`README.md`](README.md) — user setup and usage guide
 
+## Design Principle: Deterministic Guardrails + Human Judgment
+
+Frontier's architecture separates what must be **deterministic** from what requires **human judgment** — the split that makes its optimization explainable and governable. Every component below sits on one side of this line.
+
+- **Deterministic guardrails (engine layer).** Computed from problem state, not model output, so the same inputs always yield the same result. Hard-constraint enforcement during search (`optimizer.py`, 8 constraint types — never violated); Pareto dominance filtering (NSGA-II/III); seeded reproducibility (`seed` / `seed_used`); pre-solve constraint-conflict validation (`optimizer._check_constraint_conflicts`); infeasibility analysis with relaxation suggestions; and frontier quality gates (`metrics.frontier_quality` → GOOD/WARNING/POOR). `metrics.py` states the contract directly: "deterministic signals from problem state … not LLM-generated."
+- **Human judgment (agent + skills layer).** The skills steer the two calls that stay with the human — *framing* (objectives vs. hard constraints) and *selection* (which non-dominated solution to commit to). `solution_interpreter` enforces "never say best" and **traceable claims**: every quantitative statement must trace to returned data (a score, an objective value, a shadow price, a dominance relation), so a stakeholder can audit the reasoning line by line. Curation is the human's act of choosing; the engine records it but never makes it.
+
+The layers in §2 realize this split: the **Engine Layer** is the deterministic core, the **Skills** are the judgment scaffold, and the **MCP Tools** are the interface between them. Read the rest of this document through that lens.
+
 ## Tools & Skills Reference
 
 ### MCP Tools
@@ -29,6 +38,7 @@ Frontier exposes 4 tools — 3 domain tools with multiple actions, plus a skill 
 | | `uncurate` | Remove a solution from the curated set by content signature |
 | | `rename_curated` | Update a curated solution's custom name |
 | | `curated` | List all curated solutions with `in_current_frontier` survival flag |
+| | `export_curated` | Export the curated set as a formatted handoff artifact: markdown table (default) or CSV (`format="csv"`). Columns: name, content_signature, objective values, selected_options. Invalid format errors cleanly. |
 | | `compare_curated` | Compare curated solutions side-by-side by content signature. Default: compact (shared/differentiating options + objective values). Pass `detail=true` for full selected_options and allocations per solution. |
 | | `marginal_analysis` | Marginal rate analysis: cost-per-unit between adjacent solutions, inflection point detection (where marginal cost jumps sharply). Default summary; `detail=true` for per-pair breakdown. Optional `scenario` param. |
 | **get_skill** | *(single action)* | Retrieve workflow guidance by name. Returns full skill markdown. Works with all MCP clients (unlike resources, which require client-side resource support). Available skills: `problem_framing`, `data_collection`, `optimization_strategy`, `solution_interpreter`. |
@@ -175,6 +185,10 @@ flowchart TB
     STORE --> FS
 ```
 
+### Solver Backend (Pluggable)
+
+The default solve path is pymoo's NSGA-II/III for all problem shapes. An **opt-in cuOpt QP backend** (`solvers/cuopt_backend.py`) is gated behind `FRONTIER_SOLVER=cuopt` and engages only for proportional portfolio problems carrying a quadratic interaction matrix (the mean-variance QP shape); cuOpt is imported lazily, so the module loads cleanly with no GPU present. It mirrors `optimizer._optimize_proportional`'s contract exactly (identical `Run` / `Solution` shape), so explorer, metrics, and store need zero changes. Additive, gated, and reversible — the default path never imports it. Feasibility spike; see `.claude/plans/cuopt-integration.md`.
+
 ### Skill Auto-Injection
 
 Tool responses include the relevant skill content for the *next* workflow phase, so agents receive guidance at the right time without manually calling `get_skill()`. This is the primary delivery mechanism — `get_skill` exists as a manual fallback.
@@ -287,10 +301,10 @@ flowchart LR
     subgraph PROVIDED["User-Provided Data"]
         direction TB
         P1["Problem framing<br/><i>name, domain, context,<br/>approach (binary/proportional)</i>"]
-        P2["Objectives<br/><i>name, direction, unit,<br/>aggregation (sum/avg/min/max)</i>"]
+        P2["Objectives<br/><i>name, direction, unit,<br/>aggregation (sum/avg/min/max/quadratic)</i>"]
         P3["Options<br/><i>name, description</i>"]
         P4["Score matrix<br/><i>(option, objective) → value</i>"]
-        P5["Constraints<br/><i>cardinality, force include/exclude,<br/>objective bounds, exclusion pairs,<br/>dependencies, group limits</i>"]
+        P5["Constraints<br/><i>cardinality, force include/exclude,<br/>objective bounds, exclusion pairs,<br/>dependencies, group limits,<br/>max allocation (8 types)</i>"]
         P6["Reference points<br/><i>baseline (current portfolio +<br/>objective values) &<br/>aspirational (target outcomes)</i>"]
         P7["Scenarios<br/><i>name, probability, description,<br/>score overrides, score adjustments<br/>(multiply/add), constraint overrides</i>"]
         P8["Feedback<br/><i>rating (1-5), notes, stage,<br/>linked via content_signature<br/>(stable across runs)</i>"]

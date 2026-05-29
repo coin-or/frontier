@@ -8,6 +8,8 @@ Multi-objective decision optimization engine, exposed as an MCP server. Works wi
 
 Frontier gives AI agents a grounded optimization engine for hard decisions. The agent describes a problem in business terms; Frontier enumerates the full Pareto frontier — every non-dominated solution that balances conflicting objectives under hard constraints — and the agent narrates the tradeoffs back. NSGA-II/III under the hood (via pymoo), exposed as 4 MCP tools (`model`, `solve`, `explore`, `get_skill`). Frontier is the engine; the agent is the interface.
 
+The design is **explainable, governable optimization**: the engine owns the *deterministic guardrails* — hard constraints it never violates, reproducible runs (same inputs → same frontier), dominance filtering, pre-solve validation, and quality gates — while the *human judgment* stays at the two calls that matter: which objectives and constraints define the problem, and which non-dominated solution to commit to. The agent explains every tradeoff (shadow prices, frontier shape, marginal rates, dominance) and never names a "best"; every claim it makes traces back to returned data, so the result is explainable and the decision is auditable line by line. The wedge is combinatorial, constrained, portfolio-like decisions with conflicting objectives.
+
 ## Purpose
 
 LLMs can reason about tradeoffs conversationally but can't *solve* them — they lack the machinery to enumerate a combinatorial option space, enforce hard constraints, and produce the actual Pareto frontier. Frontier fills that gap, for problems where data is available to score options, objectives genuinely conflict (no single "best"), and the space is too large for intuition.
@@ -16,8 +18,9 @@ LLMs can reason about tradeoffs conversationally but can't *solve* them — they
 
 **What Frontier adds beyond an LLM alone:**
 - The full set of non-dominated solutions, not a single recommendation
-- Hard constraint enforcement (cardinality, dependencies, exclusions, bounds, group limits)
+- Hard constraint enforcement — 8 constraint types (cardinality, forced include/exclude, objective bounds, exclusion pairs, dependencies, group limits, allocation caps), never violated during search
 - Reproducibility — same inputs → same frontier (`seed` echoed when omitted)
+- Explainability — every reported tradeoff traces to returned data (scores, shadow prices, dominance relations), not a fluent guess, so a stakeholder can audit the reasoning line by line
 - Scenario modeling — independent frontiers per scenario, plus CVaR / worst-case / expected risk per objective
 - Longitudinal state — problems persist across sessions; curated picks track survival across re-runs
 
