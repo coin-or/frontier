@@ -85,6 +85,16 @@ When the solver returns no solutions:
 - Suggest relaxing the tightest constraint first.
 - Ask the user: "Which of these constraints is most negotiable?"
 
+### Status Literacy
+
+A thin frontier is a diagnosis, not a result to hand over quietly. "Few solutions" has several distinct causes, and the solve response already carries the fields that separate them — read them and name the cause instead of returning a sparse set without comment.
+
+- **No solutions at all** → infeasibility. See *Infeasibility Response* above: the constraints conflict, and the fix is to relax the tightest one.
+- **Feasible but degenerate or uneven** → read `frontier_quality.status`. `POOR` means the front is empty or collapsed (fewer than 2 solutions, or every objective flat) — stop and treat it as a structural problem; don't present a single point as a choice set. `WARNING` means the front is real but uneven (clustered coverage, or one option taking nearly all allocation). Either way `frontier_quality.gates` names the check that failed (`frontier_returned` / `non_trivial` / `diverse`) and `issues[]` describes it in plain language — surface that rather than reinterpreting raw spacing or concentration numbers yourself.
+- **Feasible but truncated** → check `frontier_complete`. When it's `False`, pruning cut the returned set below the full feasible frontier (`total_pareto_found > solutions_found`) — the user is seeing a representative sample, not everything. Say so before they reason about coverage or whether "nothing better exists."
+
+This is the post-solve mirror of the *Formalization Checkpoint* (`frontier://skills/problem_framing`): there, confirm the model is right; here, confirm a small result is a real finding, not silence dressed as an answer. For translating these same fields when presenting to the user, see `frontier://skills/solution_interpreter` → *Frontier Quality and Completeness Signals*.
+
 ### Binding Constraint Detection
 
 A binding constraint limits every (or nearly every) Pareto solution. Signs:

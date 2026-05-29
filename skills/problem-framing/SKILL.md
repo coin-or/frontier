@@ -189,6 +189,14 @@ Each objective has an aggregation mode that determines how individual option sco
 
 For any domain, identify 2-4 objectives that represent genuinely conflicting goals. Use the **Conflict Test** to validate — if two objectives always move together, one is redundant. If they oppose, that's the tradeoff the optimization will explore. Use the probing questions from Hidden Objective Detection to surface objectives the user hasn't named yet.
 
+### Formalization Checkpoint
+
+Before handing a finished model to the solver, make one pass that asks whether it captures the *right* problem — not just whether it will solve. The solver is precise about whatever it's given, so a clean frontier over a mis-specified model is more dangerous than a rough frontier over the right one: the precision disguises the error. Confirm three things before solving:
+
+- **Units and comparability** — each objective's scores should share one consistent unit across all options (all dollars, or all 1-10 ratings — not dollars for some options and a "high/medium/low" guess for others). `sum` and `avg` are only meaningful within a single scale; mixed units silently distort the frontier.
+- **Unambiguous direction** — every objective resolves to a single maximize-or-minimize sense. "Balance cost and speed" is two objectives, not one; pin each direction before solve.
+- **PSD for quadratic interactions** — any objective using `quadratic` aggregation carries an interaction matrix, and for that aggregation to be a valid measure the matrix must be positive semi-definite. The schema enforces *symmetry* only (see *Interaction matrix schema*) — PSD is your check, not the tool's. A covariance matrix estimated from real, time-aligned data is PSD by construction; one entered by hand, stitched from mismatched windows, or built from a truncated factor model may not be — and an indefinite matrix makes the "risk" it reports meaningless. Confirm before solving.
+
 ## Stage Awareness
 
 ### Modeling Progression
