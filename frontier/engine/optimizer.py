@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import math
+import os
 
 import numpy as np
 from pymoo.algorithms.moo.nsga2 import NSGA2
@@ -748,6 +749,14 @@ def optimize(
 
     if seed is None:
         seed = int(np.random.default_rng().integers(0, 2**31 - 1))
+
+    # Opt-in cuOpt QP backend (feasibility spike — .claude/plans/cuopt-integration.md).
+    # Cheap env gate first so the default path never imports the backend; the
+    # backend itself imports cuOpt lazily, so this is safe with no GPU installed.
+    if os.environ.get("FRONTIER_SOLVER", "").lower() == "cuopt":
+        from ..solvers.cuopt_backend import _optimize_cuopt, _use_cuopt
+        if _use_cuopt(problem):
+            return _optimize_cuopt(problem, mode, max_solutions=max_solutions, seed=seed)
 
     if problem.approach == Approach.proportional:
         return _optimize_proportional(problem, mode, max_solutions=max_solutions, seed=seed)
