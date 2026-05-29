@@ -44,6 +44,7 @@ import numpy as np
 from pymoo.algorithms.moo.nsga2 import NSGA2
 from pymoo.core.problem import Problem as PymooProblem
 from pymoo.optimize import minimize as pymoo_minimize
+from pymoo.util.nds.non_dominated_sorting import NonDominatedSorting
 
 from engine import optimizer as _opt
 from engine.models import (
@@ -100,6 +101,28 @@ def _resolve_objective_roles(problem: Problem) -> tuple[int, int]:
         if o.aggregation != Aggregation.quadratic
     )
     return risk_idx, return_idx
+
+
+def _resolve_linear_objectives(problem: Problem) -> list[int]:
+    """All non-quadratic objective indices, in declaration order — the linear
+    objectives the epsilon-constraint walks. The first is the 'return' role the
+    2-objective path uses; any beyond it (e.g. yield, proof #2) become
+    ``extra_linears`` floors on the same min-variance QP.
+    """
+    return [j for j, o in enumerate(problem.objectives)
+            if o.aggregation != Aggregation.quadratic]
+
+
+def _cardinality_k(problem: Problem) -> int | None:
+    """Cardinality cap K (proof #1, 'hold at most K of N'). Reads the engine's own
+    parsed ``cardinality_max`` so it matches the rest of the stack (the constraint is
+    the existing ``CardinalityConstraint``). Returns None when there is no real cap
+    (max == number of options), so the backend then behaves exactly as the verified
+    convex path.
+    """
+    n = len(problem.options)
+    k = _opt._parse_constraints(problem).get("cardinality_max", n)
+    return int(k) if (k is not None and k < n) else None
 
 
 def _round_weights_to_pct(
@@ -163,6 +186,8 @@ def _solve_qp_cuopt(
     target_return: float | None,
     return_maximize: bool,
     max_weight: float | None,
+    support: "np.ndarray | list[int] | None" = None,
+    extra_linears: "list[tuple[np.ndarray, float, bool]] | None" = None,
 ) -> tuple[np.ndarray, bool]:
     """One epsilon-constraint inner solve via cuOpt. Mirrors NVIDIA's
     ``QP_portfolio_optimization.ipynb`` fixture (plan P5)::
@@ -170,6 +195,17 @@ def _solve_qp_cuopt(
         minimize   wᵀΣw
         subject to Σw = 1,  0 ≤ w ≤ max_weight
                    μᵀw ≥ target_return     (epsilon-constraint, injected per individual)
+
+    Two optional, backward-compatible extensions power the bidirectional-benefit
+    proofs — same convex QP, just more declared (existing 5-arg callers are unchanged):
+
+      * ``support`` — restrict holdable assets to this index set by pinning every
+        excluded asset's upper bound to 0 (proof #1, cardinality). The EA picks
+        *which* K assets are eligible; cuOpt solves the exact QP on that support, so
+        it stays inside cuOpt's continuous-QP beta — no MIQP needed.
+      * ``extra_linears`` — additional linear epsilon-constraints ``(coef, target,
+        maximize)`` for >2 objectives (proof #2, e.g. a yield floor). Each becomes
+        ``coefᵀw ≥/≤ target`` while variance remains the objective.
 
     cuOpt is imported here (not at module top) so the module loads without a GPU.
     Returns ``(weights as fractions summing to 1, optimal_flag)``.
@@ -179,7 +215,14 @@ def _solve_qp_cuopt(
     n = len(mu)
     prob = CuProblem("frontier_portfolio_qp")
     ub = float(max_weight) if max_weight is not None else 1.0
-    w = [prob.addVariable(lb=0.0, ub=ub, name=f"w_{i}") for i in range(n)]
+    # Cardinality support (proof #1): excluded assets get a 0 upper bound, so the QP
+    # is solved exactly over the chosen subset without leaving the continuous beta.
+    if support is None:
+        ubs = [ub] * n
+    else:
+        supp = {int(i) for i in support}
+        ubs = [ub if i in supp else 0.0 for i in range(n)]
+    w = [prob.addVariable(lb=0.0, ub=ubs[i], name=f"w_{i}") for i in range(n)]
 
     # Quadratic objective wᵀΣw, built term-by-term exactly as the fixture does.
     quad = None
@@ -194,13 +237,23 @@ def _solve_qp_cuopt(
     # Fully invested.
     prob.addConstraint(sum(w) == 1, name="fully_invested")
 
-    # Epsilon-constraint on return. Direction-aware: ≥ for a maximize objective.
+    # Epsilon-constraint on the primary (return) objective. Direction-aware: ≥ for
+    # a maximize objective. Named so the dual (shadow price) is readable (proof #4).
     if target_return is not None:
         ret_expr = sum(float(mu[i]) * w[i] for i in range(n))
         if return_maximize:
             prob.addConstraint(ret_expr >= float(target_return), name="return_target")
         else:
             prob.addConstraint(ret_expr <= float(target_return), name="return_target")
+
+    # Extra linear epsilon-constraints (proof #2, e.g. a yield floor) — one per
+    # objective beyond risk+return, so the same QP serves 3+ objectives.
+    for k, (coef, tgt, maximize) in enumerate(extra_linears or []):
+        expr = sum(float(coef[i]) * w[i] for i in range(n))
+        if maximize:
+            prob.addConstraint(expr >= float(tgt), name=f"linear_{k}")
+        else:
+            prob.addConstraint(expr <= float(tgt), name=f"linear_{k}")
 
     prob.solve()
     # ``prob.Status`` is an ``LPTerminationStatus`` IntEnum. Accept BOTH certified
@@ -214,46 +267,95 @@ def _solve_qp_cuopt(
     return weights, True
 
 
-class _EpsilonConstraintProblem(PymooProblem):
-    """pymoo problem whose single decision variable is the epsilon-constraint
-    return target. cuOpt solves the inner QP per individual; objective values are
-    computed by Frontier's own ``_ProportionalProblem._aggregate_objective`` so
-    they are identical to the NSGA path (apples-to-apples for the Phase-5
-    comparison).
+def _solve_individual(
+    cov: np.ndarray,
+    linear_coefs: list[np.ndarray],
+    linear_maximize: list[bool],
+    max_weight: float | None,
+    eps: np.ndarray,
+    support: "np.ndarray | None",
+) -> tuple[np.ndarray, bool]:
+    """Inner QP for one EA individual: minimize variance subject to every linear
+    objective ``k`` meeting its epsilon target ``eps[k]``, restricted to ``support``.
+    Shared by ``_CuOptFrontierProblem._evaluate`` and the marshaling re-solve so the
+    two can never disagree on what an individual decodes to.
+    """
+    extra = [(linear_coefs[t], float(eps[t]), linear_maximize[t])
+             for t in range(1, len(linear_coefs))]
+    return _solve_qp_cuopt(
+        cov, linear_coefs[0],
+        target_return=float(eps[0]),
+        return_maximize=linear_maximize[0],
+        max_weight=max_weight,
+        support=support,
+        extra_linears=extra,
+    )
+
+
+class _CuOptFrontierProblem(PymooProblem):
+    """Generalized epsilon-constraint genome powering the bidirectional-benefit proofs.
+
+    Decision variables:
+      * one epsilon target per **linear** objective (return, then any extras such as
+        yield — proof #2), plus
+      * when a cardinality cap K is set (proof #1), an N-length real *priority* vector
+        whose top-K entries select the eligible assets.
+
+    The original 2-objective walker is exactly the ``len(linear_coefs)==1`` /
+    ``cardinality_k is None`` special case, so the verified convex path is preserved.
+    cuOpt solves each inner QP exactly; objective values come back through Frontier's
+    own ``_ProportionalProblem._aggregate_objective`` (apples-to-apples with NSGA).
     """
 
     def __init__(
         self,
         prop_problem: "_opt._ProportionalProblem",
         cov: np.ndarray,
-        mu: np.ndarray,
-        return_maximize: bool,
+        linear_coefs: list[np.ndarray],
+        linear_maximize: list[bool],
         max_weight: float | None,
-        r_lo: float,
-        r_hi: float,
+        eps_bounds: list[tuple[float, float]],
+        cardinality_k: int | None = None,
     ):
-        super().__init__(n_var=1, n_obj=prop_problem.n_obj, n_ieq_constr=1, xl=r_lo, xu=r_hi)
         self.prop = prop_problem  # reused Frontier aggregator (objective values)
         self.cov = cov
-        self.mu = mu
-        self.return_maximize = return_maximize
+        self.linear_coefs = linear_coefs
+        self.linear_maximize = linear_maximize
         self.max_weight = max_weight
+        self.cardinality_k = cardinality_k
+        n_assets = cov.shape[0]
+        xl = [b[0] for b in eps_bounds]
+        xu = [b[1] for b in eps_bounds]
+        if cardinality_k is not None:           # + per-asset selection priorities
+            xl = xl + [0.0] * n_assets
+            xu = xu + [1.0] * n_assets
+        super().__init__(n_var=len(xl), n_obj=prop_problem.n_obj,
+                         n_ieq_constr=1, xl=np.array(xl), xu=np.array(xu))
+
+    def _support_from_row(self, x_row: np.ndarray) -> "np.ndarray | None":
+        """Decode the cardinality priority tail of one genome row → top-K asset
+        indices (the eligible support). ``None`` when no cardinality limit."""
+        if self.cardinality_k is None:
+            return None
+        n_lin = len(self.linear_coefs)
+        priorities = np.asarray(x_row[n_lin:], dtype=float)
+        return np.argsort(priorities)[-self.cardinality_k:]
 
     def _evaluate(self, X, out, *args, **kwargs):
+        X = np.atleast_2d(X)
         n_pop = X.shape[0]
-        n_var = self.cov.shape[0]
+        n_assets = self.cov.shape[0]
+        n_lin = len(self.linear_coefs)
         objectives = self.prop.objectives
 
         # Inner exact solve per individual; collect weights as 0-100 percentages
         # (the scale Frontier's aggregator expects).
-        W_pct = np.zeros((n_pop, n_var))
+        W_pct = np.zeros((n_pop, n_assets))
         feasible = np.ones(n_pop, dtype=bool)
         for k in range(n_pop):
-            w_frac, ok = _solve_qp_cuopt(
-                self.cov, self.mu,
-                target_return=float(X[k, 0]),
-                return_maximize=self.return_maximize,
-                max_weight=self.max_weight,
+            w_frac, ok = _solve_individual(
+                self.cov, self.linear_coefs, self.linear_maximize,
+                self.max_weight, X[k, :n_lin], self._support_from_row(X[k]),
             )
             if ok:
                 W_pct[k] = w_frac * 100.0
@@ -273,15 +375,40 @@ class _EpsilonConstraintProblem(PymooProblem):
         out["G"] = np.where(feasible, -1.0, 1.0).reshape(-1, 1)
 
 
+def _nondominated(solutions: list[Solution], obj_list: list) -> list[Solution]:
+    """Keep only the non-dominated front. The convex walker's marshaled points are
+    already non-dominated, but integer-rounding after the per-individual re-solve can
+    make a few **cardinality** portfolios (proof #1) dominate one another — so we
+    re-filter in objective space (pymoo's minimize convention) before pruning, exactly
+    as the engine's own merge path does. ``_prune_pareto`` only down-samples; it
+    assumes a clean front, so this is what guarantees one.
+    """
+    if len(solutions) <= 1:
+        return solutions
+    F = np.array([
+        [(-s.objective_values[o.name] if o.direction.value == "maximize"
+          else s.objective_values[o.name]) for o in obj_list]
+        for s in solutions
+    ])
+    keep = NonDominatedSorting().do(F, only_non_dominated_front=True)
+    return [solutions[i] for i in keep]
+
+
 def _optimize_cuopt(
     problem: Problem,
     mode: OptimizeMode,
     max_solutions: int | None = None,
     seed: int = 42,
 ) -> Run:
-    """Portfolio-QP solve: the EA walks the epsilon-constraint return target while
-    cuOpt solves each inner min-variance QP. Mirrors ``_optimize_proportional``'s
-    contract (same signature; returns a ``Run`` of ``Solution``s, identical shape).
+    """Portfolio-QP solve: the EA walks an epsilon-constraint target per linear
+    objective (and, under a cardinality cap, the asset-selection priorities) while
+    cuOpt solves each inner min-variance QP exactly. Mirrors
+    ``_optimize_proportional``'s contract (same signature; returns a ``Run`` of
+    ``Solution``s, identical shape — so explorer / metrics / store need no changes).
+
+    Generalized for the bidirectional-benefit proofs: ≥2 objectives (extra linear
+    floors, proof #2) and 'hold ≤ K of N' cardinality (proof #1). With one linear
+    objective and no cardinality this is the verified convex walker unchanged.
     """
     n_options = len(problem.options)
     opt_names = [o.name for o in problem.options]
@@ -290,18 +417,20 @@ def _optimize_cuopt(
     cp = _opt._parse_constraints(problem)
     im = _opt._build_interaction_matrices(problem)
 
-    risk_idx, return_idx = _resolve_objective_roles(problem)
-    mu = score_matrix[:, return_idx]
-    return_maximize = obj_list[return_idx].direction.value == "maximize"
+    risk_idx, _ = _resolve_objective_roles(problem)
+    linear_idxs = _resolve_linear_objectives(problem)
+    linear_coefs = [score_matrix[:, j] for j in linear_idxs]
+    linear_maximize = [obj_list[j].direction.value == "maximize" for j in linear_idxs]
 
     # Σ is a covariance: project onto the PSD cone for cuOpt's QP beta (plan §4
     # secondary risk). Reported risk uses the ORIGINAL matrix via ``prop`` below,
     # so the projection never leaks into results.
     cov = _nearest_psd(im[risk_idx])
 
-    # max_allocation (%) → per-asset weight cap (fraction). Only linear caps for
-    # the convex demo (plan §3); other constraints fall outside this spike's scope.
+    # max_allocation (%) → per-asset weight cap (fraction). Linear box cap stays
+    # convex (plan §3). Cardinality (proof #1) is handled in the genome, not here.
     max_weight = (cp["max_allocation"] / 100.0) if cp.get("max_allocation") else None
+    cardinality_k = _cardinality_k(problem)
 
     # Reuse Frontier's proportional aggregator verbatim for objective values (P6).
     prop = _opt._ProportionalProblem(
@@ -309,34 +438,41 @@ def _optimize_cuopt(
         interaction_matrices=im, **cp,
     )
 
-    # Epsilon range = [global-min-variance return, best achievable return]. Lower
-    # bound: the min-variance portfolio's return (one unconstrained cuOpt solve).
-    # Upper bound: the best single-asset return (long-only, Σw=1 ⟹ max is max(μ)).
-    # Mirrors the reference notebook's linspace(ret_mv, max(μ)) sweep range.
-    w_mv, ok_mv = _solve_qp_cuopt(cov, mu, None, return_maximize, max_weight)
-    r_lo = float(mu @ w_mv) if ok_mv else float(mu.min())
-    r_hi = float(mu.max())
-    if r_hi <= r_lo:
-        r_hi = r_lo + 1e-6  # degenerate guard (all returns equal)
+    # Epsilon range per linear objective = [value at the global min-variance
+    # portfolio, best single-asset value]. Lower bound from one unconstrained cuOpt
+    # solve; upper bound max(coef) (long-only, Σw=1). Infeasibly-high targets are
+    # simply penalized in the genome. Mirrors the reference notebook's linspace.
+    w_mv, ok_mv = _solve_qp_cuopt(cov, linear_coefs[0], None, linear_maximize[0], max_weight)
+    eps_bounds: list[tuple[float, float]] = []
+    for coef in linear_coefs:
+        lo = float(coef @ w_mv) if ok_mv else float(coef.min())
+        hi = float(coef.max())
+        if hi <= lo:
+            hi = lo + 1e-6  # degenerate guard (all values equal)
+        eps_bounds.append((lo, hi))
 
-    pymoo_problem = _EpsilonConstraintProblem(
-        prop, cov, mu, return_maximize, max_weight, r_lo, r_hi,
+    pymoo_problem = _CuOptFrontierProblem(
+        prop, cov, linear_coefs, linear_maximize, max_weight, eps_bounds, cardinality_k,
     )
     algorithm = NSGA2(pop_size=_SPIKE_POP)
     result = pymoo_minimize(
         pymoo_problem, algorithm, ("n_gen", _SPIKE_GEN), seed=seed, verbose=False,
     )
 
-    # Marshal back: re-solve each Pareto epsilon to recover w*, convert to integer
-    # percentages (copied redistribution logic), compute objective values via the
-    # reused aggregator, and dedup identical portfolios (distinct epsilons below the
-    # min-variance return all map to the same w*).
+    # Marshal back: re-decode each Pareto individual (epsilon targets + cardinality
+    # support) through the SAME problem object, re-solve to recover w*, convert to
+    # integer percentages (copied redistribution logic), compute objective values via
+    # the reused aggregator, and dedup identical portfolios (distinct genomes can map
+    # to the same w*).
+    n_lin = len(linear_coefs)
     solutions: list[Solution] = []
     seen: set[str] = set()
     if result.X is not None and len(np.atleast_2d(result.X)) > 0:
-        eps_values = np.atleast_2d(result.X)[:, 0]
-        for r_target in eps_values:
-            w_frac, ok = _solve_qp_cuopt(cov, mu, float(r_target), return_maximize, max_weight)
+        for row in np.atleast_2d(result.X):
+            w_frac, ok = _solve_individual(
+                cov, linear_coefs, linear_maximize, max_weight,
+                row[:n_lin], pymoo_problem._support_from_row(row),
+            )
             if not ok:
                 continue
             raw = _round_weights_to_pct(w_frac, n_options, cp.get("max_allocation"))
@@ -359,6 +495,7 @@ def _optimize_cuopt(
                 allocations=alloc_map,
             ))
 
+    solutions = _nondominated(solutions, obj_list)  # rounding can dominate (proof #1)
     max_n = max_solutions or _opt.MAX_PARETO_SOLUTIONS
     solutions, total_found = _opt._prune_pareto(solutions, obj_list, max_n=max_n)
     solutions = _opt._sort_and_reindex(solutions, obj_list)

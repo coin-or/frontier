@@ -29,6 +29,13 @@ dependencies = [
     "scipy>=1.11",
 ]
 
+[project.optional-dependencies]
+# Extras the example notebooks need but the engine core does not (kept out of the
+# base install so importing the engine stays lean). cuOpt is intentionally NOT
+# here — it installs from NVIDIA's index and is GPU-only:
+#   pip install --extra-index-url=https://pypi.nvidia.com cuopt-cu12
+examples = ["matplotlib>=3.7", "pandas>=2.0"]
+
 [project.urls]
 Homepage = "https://github.com/cafzal/frontier"
 Repository = "https://github.com/cafzal/frontier"
