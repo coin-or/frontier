@@ -212,11 +212,13 @@ Re-injection of `optimization_strategy` only fires on problem *shape* changes (o
 - `_render_scenario_viz` — robust vs scenario-specific option summary
 - `_render_marginal_rates` — cost-per-unit bar chart with knee marker
 
+**Structured viz payloads (`viz_data`)** — alongside the ASCII, each explore view also attaches a JSON `viz_data` block (built by `explorer.py`'s `_viz_data_*` helpers) for hosts that can render charts. Four types: `scatter` (tradeoffs), `parallel_coords` (solutions / compare), `marginal_rates` (marginal_analysis — one per objective pair, under `pairs[]`), and `scenario_summary` (scenario_results). Chat and coding-agent surfaces ignore the field and render the ASCII; the web UI (§5) consumes it and draws D3 charts. The Python builders and the web UI's TypeScript types (`ui/lib/viz-data.ts`) are kept field-for-field in sync.
+
 **Response compaction** — `server.py/_format_explore` trims redundant bulk from explore output (e.g. strips option lists from extreme_solutions, restructures scenario_specific_options) to prevent MCP truncation while keeping the dict shape stable for consumers. `solve/run` responses are also compacted: full solution bodies are not returned inline — only objective ranges plus a preview (extremes + balanced by id/values), with a `next_steps` pointer to `explore` for full detail. The complete run payload (all solutions with allocations) is persisted to disk at `full_result_path` for bulk export and artifact assembly without token overhead.
 
 ### Evaluation Framework
 
-`dev_temp/eval/` contains structured comparison runs — Frontier vs LLM-only vs pymoo/pyomo solver on portfolio optimization scenarios. Each run (e.g. `run_002/`, `run_003/`) is organized by scenario type (`base/`, `scenarios/`) with per-approach subdirectories (`frontier/`, `llm/`, `solver/`). Each approach produces `results.json`, `results.md`, `curated.md`, `issues.md`, and `response.md`. Runs include a top-level `comparison.md` synthesizing outcomes and a `plots/` directory with visualization scripts and generated charts (pairwise clouds, return-vol annotations, strategy migration). These artifacts validate the gap Frontier closes between unaided LLM reasoning and structured optimization.
+Frontier has been validated with structured comparison runs — Frontier vs LLM-only vs a classical pymoo/pyomo solver — across portfolio-optimization scenarios (base and multi-scenario). Each run produces per-approach results, curated picks, an issues log, and a synthesizing `comparison.md`, plus generated plots (pairwise clouds, return-vol annotations, strategy migration). These runs evidence the gap Frontier closes between unaided LLM reasoning and structured optimization. The eval harness is a development tool and lives outside the published repository.
 
 ## 3. Problem State Lifecycle
 
@@ -350,3 +352,29 @@ flowchart LR
     C3 & C5 -->|"returned with<br/>solve results"| AGENT1
     G4 & G5 & G6 & G8 -->|"returned with<br/>explore results"| AGENT1
 ```
+
+## 5. Web UI & Hosting
+
+An optional web app ([`ui/`](ui/)) is the **visualize** surface — a thin chat shell over the same MCP engine, for users not in a coding-agent MCP client. It adds no domain logic: workflow behavior still flows from the engine's tool descriptions, auto-injected skills, and the `viz_data` payloads above.
+
+**Pluggable agent runtime** — `ui/lib/agent-runtime.ts` selects a backend via the `AGENT_BACKEND` env var. All adapters normalize to one Anthropic-shaped SSE wire format (`mcp_tool_use` / `mcp_tool_result` content blocks), so the UI is identical across them and provider lock-in is bounded to that single file.
+
+| `AGENT_BACKEND` | Status | MCP loop | Engine reachability |
+|---|---|---|---|
+| `messages-api` (prod default) | working | Anthropic server-side MCP connector | needs a public https engine (Anthropic calls it) |
+| `anthropic-local` (local default) | working | client-side, inside the web app | works with localhost or a gated engine |
+| `openai-compatible` | working | client-side | any OpenAI Chat-Completions provider |
+| `managed-agents`, `agent-sdk` | stub | — | — |
+
+**Design invariants:**
+- **Identity-only system prompt** (`ui/lib/system-prompt.ts`, ~3 lines) — no skill content is duplicated in the UI. Behavior fixes belong in the engine (`mcp_server/server.py` or a skill file), never the prompt.
+- **Direct SSE, no AI SDK** — each `data: {…}` line is a raw Anthropic event the client renders incrementally.
+- **Inline tool rendering** (`ui/components/ToolCallBlock.tsx`, `ui/components/Viz/`) — a collapsed tool result, plus a D3 chart when the `tool_result` carries `viz_data` (scatter / parallel-coords / marginal-rates via D3, scenario summary as a table).
+- **Ephemeral sessions** — a random `problem_id` per session (pre-D.1 multi-tenancy); refreshing the page starts a new one.
+
+**Hosting & auth** — [`render.yaml`](render.yaml) provisions both services (engine + web UI) and is the OSS deploy path. There are **two independent gates**, both shared-secret and both open-when-unset (local dev / self-host):
+
+- **Engine gate** — a shared `FRONTIER_MCP_TOKEN` (auto-generated as a Render env group, injected into both services) gates the public engine: the web app forwards it on the connector call (`authorization_token`), and direct MCP-client users send it as an `Authorization: Bearer` header. Enforced by an ASGI bearer check in `mcp_server/server.py` over the `/sse`, `/messages`, and `/mcp` paths.
+- **Web UI gate** — a shared `UI_ACCESS_PASSWORD` gates the web app itself via HTTP Basic Auth (`ui/middleware.ts`), covering the page *and* `/api/chat`. This is necessary because the engine token authenticates the *app→engine* call and is never exposed to UI users — so without its own gate the hosted UI would be open to anyone with the URL (and would spend the operator's `ANTHROPIC_API_KEY`).
+
+Per-user identity (`owner_id` scoping, real per-user accounts) is the next step (D.1); today every session shares one problem namespace, which is acceptable for a trusted closed beta.

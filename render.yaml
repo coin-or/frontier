@@ -54,3 +54,8 @@ services:
         sync: false
       - key: AGENT_BACKEND
         value: messages-api
+      # Shared password gating the web UI (Basic Auth) — set by hand, hand it to
+      # beta users. Unset = open. NOTE: the engine token above does NOT gate the
+      # UI; without this, anyone with the URL can spend your ANTHROPIC_API_KEY.
+      - key: UI_ACCESS_PASSWORD
+        sync: false
