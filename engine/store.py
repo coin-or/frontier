@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 from .models import Problem
@@ -16,7 +17,7 @@ class Store:
         self.data_dir.mkdir(parents=True, exist_ok=True)
 
     def _path(self, problem_id: str) -> Path:
-        return self.data_dir / f"{problem_id}.json"
+        return self.data_dir / f"{_safe_id(problem_id, 'problem_id')}.json"
 
     def save(self, problem: Problem) -> None:
         path = self._path(problem.problem_id)
@@ -67,10 +68,10 @@ class Store:
         Layout: ``<data_dir>/runs/<problem_id>/[<scenario>/]<run_id>.json``.
         Scenario runs are nested one level deeper, one file per scenario.
         """
-        runs_dir = self.data_dir / "runs" / problem_id
+        runs_dir = self.data_dir / "runs" / _safe_id(problem_id, "problem_id")
         if scenario:
             runs_dir = runs_dir / _safe_slug(scenario)
-        return runs_dir / f"{run_id}.json"
+        return runs_dir / f"{_safe_id(run_id, 'run_id')}.json"
 
     def write_run_result(self, problem_id: str, run_id: str, payload: dict, scenario: str | None = None) -> Path:
         """Write a solve run's full result to disk and return the path."""
@@ -78,6 +79,21 @@ class Store:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(payload, indent=2))
         return path
+
+
+_SAFE_ID = re.compile(r"^[A-Za-z0-9_-]+$")
+
+
+def _safe_id(value: str, label: str) -> str:
+    """Reject ids that could escape the data dir via path traversal.
+
+    ``problem_id`` / ``run_id`` arrive from MCP clients; without this an id like
+    ``../../etc/x`` would let load/save/delete operate outside ``data_dir``.
+    Legit ids are UUIDs (hex + hyphens), which pass.
+    """
+    if not isinstance(value, str) or not _SAFE_ID.fullmatch(value):
+        raise ValueError(f"Invalid {label}: must be alphanumeric, '-' or '_'")
+    return value
 
 
 def _safe_slug(name: str) -> str:
