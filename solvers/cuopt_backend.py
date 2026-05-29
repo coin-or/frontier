@@ -77,6 +77,8 @@ def _use_cuopt(problem: Problem) -> bool:
     """
     if os.environ.get("FRONTIER_SOLVER", "").lower() != "cuopt":
         return False
+    if problem.approach == Approach.binary:
+        return True   # binary select-a-subset → exact cuOpt MILP path
     if problem.approach != Approach.proportional:
         return False
     if not any(o.aggregation == Aggregation.quadratic for o in problem.objectives):
@@ -123,6 +125,17 @@ def _cardinality_k(problem: Problem) -> int | None:
     n = len(problem.options)
     k = _opt._parse_constraints(problem).get("cardinality_max", n)
     return int(k) if (k is not None and k < n) else None
+
+
+def _group_limits(problem: Problem) -> list[tuple[list[int], int]]:
+    """Per-group caps from ``group_limit`` constraints → ``[(option-index-list, max), …]``.
+    Drives group-aware support selection so cuOpt respects "≤ max active per group"
+    (e.g. supplier_selection's ≤3 suppliers per region), which the box/cardinality
+    support alone does not enforce.
+    """
+    ix = {o.name: i for i, o in enumerate(problem.options)}
+    return [([ix[o] for o in c.options], int(c.max))
+            for c in (problem.constraints or []) if getattr(c, "type", "") == "group_limit"]
 
 
 def _round_weights_to_pct(
@@ -316,6 +329,7 @@ class _CuOptFrontierProblem(PymooProblem):
         max_weight: float | None,
         eps_bounds: list[tuple[float, float]],
         cardinality_k: int | None = None,
+        groups: "list[tuple[list[int], int]] | None" = None,
     ):
         self.prop = prop_problem  # reused Frontier aggregator (objective values)
         self.cov = cov
@@ -323,23 +337,40 @@ class _CuOptFrontierProblem(PymooProblem):
         self.linear_maximize = linear_maximize
         self.max_weight = max_weight
         self.cardinality_k = cardinality_k
+        self.groups = groups or []
         n_assets = cov.shape[0]
         xl = [b[0] for b in eps_bounds]
         xu = [b[1] for b in eps_bounds]
-        if cardinality_k is not None:           # + per-asset selection priorities
+        if cardinality_k is not None or self.groups:    # + per-asset selection priorities
             xl = xl + [0.0] * n_assets
             xu = xu + [1.0] * n_assets
         super().__init__(n_var=len(xl), n_obj=prop_problem.n_obj,
                          n_ieq_constr=1, xl=np.array(xl), xu=np.array(xu))
 
     def _support_from_row(self, x_row: np.ndarray) -> "np.ndarray | None":
-        """Decode the cardinality priority tail of one genome row → top-K asset
-        indices (the eligible support). ``None`` when no cardinality limit."""
-        if self.cardinality_k is None:
+        """Decode the selection-priority tail of one genome row → eligible asset indices
+        (the support cuOpt allocates over). ``None`` when unconstrained. Group-aware:
+        keep the top-``max`` priorities **per group** (e.g. ≤3 per region) and, if a
+        global cardinality cap is also set, the top-K of the remainder.
+        """
+        if self.cardinality_k is None and not self.groups:
             return None
         n_lin = len(self.linear_coefs)
-        priorities = np.asarray(x_row[n_lin:], dtype=float)
-        return np.argsort(priorities)[-self.cardinality_k:]
+        pri = np.asarray(x_row[n_lin:], dtype=float)
+        n = len(pri)
+        if self.groups:
+            support, grouped = set(), set()
+            for grp, gmax in self.groups:
+                grouped.update(grp)
+                support.update(int(i) for i in sorted(grp, key=lambda i: pri[i])[-gmax:])
+            ungrouped = [i for i in range(n) if i not in grouped]
+            if self.cardinality_k is not None:
+                rem = max(0, self.cardinality_k - len(support))
+                support.update(int(i) for i in sorted(ungrouped, key=lambda i: pri[i])[-rem:])
+            else:
+                support.update(ungrouped)
+            return np.array(sorted(support))
+        return np.argsort(pri)[-self.cardinality_k:]
 
     def _evaluate(self, X, out, *args, **kwargs):
         X = np.atleast_2d(X)
@@ -436,6 +467,160 @@ def _seed_cardinality_population(
     return np.array(rows[:pop], dtype=float)
 
 
+# --------------------------------------------------------------------------- #
+# Binary exact-MILP path (cuOpt's mature MILP, not the QP beta). For `binary`
+# (select-a-subset) problems with linear-sum objectives: the EA evolves epsilon
+# targets, cuOpt solves the scalarized 0/1 MILP exactly per individual. Mirrors the
+# QP path's shape (Run/Solution identical). NOTE: assumes sum aggregation (linear).
+# --------------------------------------------------------------------------- #
+def _build_milp_data(problem: Problem):
+    """Extract MILP ingredients from a Frontier binary problem: score matrix, objective
+    directions, and the combinatorial constraints as index structures."""
+    n = len(problem.options)
+    names = [o.name for o in problem.options]
+    ix = {nm: i for i, nm in enumerate(names)}
+    S = _opt._build_score_matrix(problem)
+    dirs = np.array([1.0 if o.direction.value == "minimize" else -1.0 for o in problem.objectives])
+    ocol = {o.name: j for j, o in enumerate(problem.objectives)}
+    mc = {"card": None, "bounds": [], "force_in": [], "force_out": [], "deps": [], "excl": [], "groups": []}
+    for c in (problem.constraints or []):
+        t = c.type
+        if t == "cardinality":
+            mc["card"] = (int(c.min), int(c.max))
+        elif t == "objective_bound":
+            mc["bounds"].append((S[:, ocol[c.objective]].copy(), c.operator, float(c.value)))
+        elif t == "force_include":
+            mc["force_in"].append(ix[c.option])
+        elif t == "force_exclude":
+            mc["force_out"].append(ix[c.option])
+        elif t == "dependency":
+            mc["deps"].append((ix[c.if_option], ix[c.then_option]))
+        elif t == "exclusion_pair":
+            mc["excl"].append((ix[c.option_a], ix[c.option_b]))
+        elif t == "group_limit":
+            mc["groups"].append(([ix[o] for o in c.options], int(c.max)))
+    return n, names, S, dirs, mc
+
+
+def _solve_milp_cuopt(min_coef, eps_list, mc, n):
+    """One exact binary MILP via cuOpt: minimize ``min_coef·x`` over x∈{0,1}^n subject
+    to epsilon constraints ``(coef, op, rhs)`` (op 'ge'/'le') and the combinatorial
+    constraints in ``mc``. Returns ``(0/1 selection array, ok)``. The CPU stand-in
+    (scipy.optimize.milp) used for verification has the identical signature.
+    """
+    from cuopt.linear_programming.problem import INTEGER, MINIMIZE, Problem as CuProblem
+
+    prob = CuProblem("frontier_milp")
+    x = [prob.addVariable(lb=0.0, ub=1.0, vtype=INTEGER, name=f"x{i}") for i in range(n)]
+    prob.setObjective(sum(float(min_coef[i]) * x[i] for i in range(n)), sense=MINIMIZE)
+    for coef, op, rhs in eps_list:
+        expr = sum(float(coef[i]) * x[i] for i in range(n))
+        prob.addConstraint((expr >= float(rhs)) if op == "ge" else (expr <= float(rhs)), name="eps")
+    if mc["card"] is not None:
+        lo, hi = mc["card"]
+        prob.addConstraint(sum(x) >= lo, name="card_lo")
+        prob.addConstraint(sum(x) <= hi, name="card_hi")
+    for coef, op, val in mc["bounds"]:
+        expr = sum(float(coef[i]) * x[i] for i in range(n))
+        prob.addConstraint((expr <= val) if op == "max" else (expr >= val), name="bound")
+    for i in mc["force_in"]:
+        prob.addConstraint(x[i] >= 1, name="fi")
+    for i in mc["force_out"]:
+        prob.addConstraint(x[i] <= 0, name="fo")
+    for a, b in mc["deps"]:
+        prob.addConstraint(x[a] - x[b] <= 0, name="dep")   # if a then b
+    for a, b in mc["excl"]:
+        prob.addConstraint(x[a] + x[b] <= 1, name="excl")
+    for grp, gmax in mc["groups"]:
+        prob.addConstraint(sum(x[i] for i in grp) <= gmax, name="grp")
+    prob.solve()
+    # MILP uses ``MILPTerminationStatus`` (NoTermination / Optimal / FeasibleFound) — a
+    # DIFFERENT enum from the QP's ``LPTerminationStatus`` (which has PrimalFeasible).
+    # Accept Optimal AND FeasibleFound (branch-and-bound often returns a proven-feasible
+    # incumbent before certifying optimality on a node/time budget).
+    if getattr(prob.Status, "name", "") not in ("Optimal", "FeasibleFound"):
+        return np.zeros(n), False
+    return np.array([round(x[i].Value) for i in range(n)], dtype=float), True
+
+
+class _MilpFrontierProblem(PymooProblem):
+    """EA genome for the binary MILP path: one epsilon target per non-primary objective.
+    cuOpt minimizes the primary objective exactly subject to those targets + the
+    combinatorial constraints; the EA (NSGA-II) explores the epsilon space."""
+
+    def __init__(self, S, dirs, primary, nonprimary, mc, n, objectives, eps_bounds):
+        self.S, self.dirs, self.primary, self.nonprimary = S, dirs, primary, nonprimary
+        self.mc, self.n, self.objectives = mc, n, objectives
+        super().__init__(n_var=len(nonprimary), n_obj=len(objectives), n_ieq_constr=1,
+                         xl=np.array([b[0] for b in eps_bounds]),
+                         xu=np.array([b[1] for b in eps_bounds]))
+
+    def _solve_row(self, row):
+        eps_list = [(self.S[:, j], "ge" if self.dirs[j] < 0 else "le", float(row[k]))
+                    for k, j in enumerate(self.nonprimary)]
+        return _solve_milp_cuopt(self.dirs[self.primary] * self.S[:, self.primary], eps_list, self.mc, self.n)
+
+    def _evaluate(self, X, out, *args, **kwargs):
+        X = np.atleast_2d(X)
+        F = np.zeros((X.shape[0], len(self.objectives)))
+        feas = np.ones(X.shape[0], dtype=bool)
+        for r in range(X.shape[0]):
+            sel, ok = self._solve_row(X[r])
+            if ok:
+                for j, o in enumerate(self.objectives):
+                    v = float(self.S[:, j] @ sel)
+                    F[r, j] = -v if o.direction.value == "maximize" else v
+            else:
+                feas[r] = False
+        F[~feas, :] = _INFEASIBLE_PENALTY
+        out["F"] = F
+        out["G"] = np.where(feas, -1.0, 1.0).reshape(-1, 1)
+
+
+def _optimize_cuopt_milp(problem, mode, max_solutions=None, seed=42):
+    """Binary problems → exact MILP per scalarization. Same Run/Solution shape as the
+    NSGA binary path, so downstream consumers are unaffected."""
+    n, names, S, dirs, mc = _build_milp_data(problem)
+    objs = problem.objectives
+    primary = 0
+    nonprimary = [j for j in range(len(objs)) if j != primary]
+
+    # epsilon range per non-primary objective = [exact min, exact max] over feasible sets.
+    eps_bounds = []
+    for j in nonprimary:
+        smin, ok1 = _solve_milp_cuopt(S[:, j], [], mc, n)
+        smax, ok2 = _solve_milp_cuopt(-S[:, j], [], mc, n)
+        lo = float(S[:, j] @ smin) if ok1 else float(S[:, j].min())
+        hi = float(S[:, j] @ smax) if ok2 else float(S[:, j].sum())
+        eps_bounds.append((lo, hi if hi > lo else lo + 1e-6))
+
+    pp = _MilpFrontierProblem(S, dirs, primary, nonprimary, mc, n, objs, eps_bounds)
+    result = pymoo_minimize(pp, NSGA2(pop_size=_SPIKE_POP), ("n_gen", _SPIKE_GEN), seed=seed, verbose=False)
+
+    solutions: list[Solution] = []
+    seen: set = set()
+    if result.X is not None and len(np.atleast_2d(result.X)) > 0:
+        for row in np.atleast_2d(result.X):
+            sel, ok = pp._solve_row(row)
+            if not ok:
+                continue
+            selected = [names[i] for i in range(n) if sel[i] > 0.5]
+            key = tuple(sorted(selected))
+            if key in seen:
+                continue
+            seen.add(key)
+            obj_values = {o.name: round(float(S[:, j] @ sel), 4) for j, o in enumerate(objs)}
+            solutions.append(Solution(solution_id=len(solutions), selected_options=selected,
+                                      objective_values=obj_values))
+
+    solutions = _nondominated(solutions, objs)
+    max_n = max_solutions or _opt.MAX_PARETO_SOLUTIONS
+    solutions, total = _opt._prune_pareto(solutions, objs, max_n=max_n)
+    solutions = _opt._sort_and_reindex(solutions, objs)
+    return Run(solutions=solutions, total_pareto_found=total,
+               quality=_opt._compute_quality(result, seed=seed), mode=mode, seed_used=seed)
+
+
 def _optimize_cuopt(
     problem: Problem,
     mode: OptimizeMode,
@@ -451,7 +636,11 @@ def _optimize_cuopt(
     Generalized for the bidirectional-benefit proofs: ≥2 objectives (extra linear
     floors, proof #2) and 'hold ≤ K of N' cardinality (proof #1). With one linear
     objective and no cardinality this is the verified convex walker unchanged.
+    Binary (`select-a-subset`) problems route to the exact MILP path instead.
     """
+    if problem.approach == Approach.binary:
+        return _optimize_cuopt_milp(problem, mode, max_solutions=max_solutions, seed=seed)
+
     n_options = len(problem.options)
     opt_names = [o.name for o in problem.options]
     obj_list = problem.objectives
@@ -473,6 +662,7 @@ def _optimize_cuopt(
     # convex (plan §3). Cardinality (proof #1) is handled in the genome, not here.
     max_weight = (cp["max_allocation"] / 100.0) if cp.get("max_allocation") else None
     cardinality_k = _cardinality_k(problem)
+    groups = _group_limits(problem)   # per-group caps (e.g. ≤3 per region) → group-aware support
 
     # Reuse Frontier's proportional aggregator verbatim for objective values (P6).
     prop = _opt._ProportionalProblem(
@@ -494,7 +684,7 @@ def _optimize_cuopt(
         eps_bounds.append((lo, hi))
 
     pymoo_problem = _CuOptFrontierProblem(
-        prop, cov, linear_coefs, linear_maximize, max_weight, eps_bounds, cardinality_k,
+        prop, cov, linear_coefs, linear_maximize, max_weight, eps_bounds, cardinality_k, groups,
     )
     # Cardinality (proof #1): seed the combinatorial support search with domain-informed
     # supports so cuOpt reaches the exact corners even at the spike's small pop/gen.
