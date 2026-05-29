@@ -355,7 +355,7 @@ flowchart LR
 
 ## 5. Web UI & Hosting
 
-An optional web app ([`ui/`](ui/)) is the **visualize** surface — a thin chat shell over the same MCP engine, for users not in a coding-agent MCP client. It adds no domain logic: workflow behavior still flows from the engine's tool descriptions, auto-injected skills, and the `viz_data` payloads above.
+An optional web app ([`ui/`](ui/)) is the **visualize** surface — a thin chat shell over the same MCP engine, for users not in a coding-agent MCP client. It adds no domain logic: workflow behavior still flows from the engine's tool descriptions, `instructions`, auto-injected skills, and the `viz_data` payloads above.
 
 **Pluggable agent runtime** — `ui/lib/agent-runtime.ts` selects a backend via the `AGENT_BACKEND` env var. All adapters normalize to one Anthropic-shaped SSE wire format (`mcp_tool_use` / `mcp_tool_result` content blocks), so the UI is identical across them and provider lock-in is bounded to that single file.
 
@@ -367,9 +367,9 @@ An optional web app ([`ui/`](ui/)) is the **visualize** surface — a thin chat 
 | `managed-agents`, `agent-sdk` | stub | — | — |
 
 **Design invariants:**
-- **Identity-only system prompt** (`ui/lib/system-prompt.ts`, ~3 lines) — no skill content is duplicated in the UI. Behavior fixes belong in the engine (`mcp_server/server.py` or a skill file), never the prompt.
+- **Thin system prompt, behavior fetched from the engine** (`ui/lib/system-prompt.ts`) — no skill/workflow content is *hardcoded* in the UI. Each adapter fetches the engine's MCP `instructions` (the canonical workflow + framing guidance) and folds them into the system prompt: `anthropic-local` / `openai-compatible` get them from their MCP client, and `messages-api` fetches them over a short-lived authenticated client (cached) because the Anthropic connector does **not** surface the `instructions` field. The prompt file itself holds only identity + web-UI-specific *presentation* directives (e.g. render charts, don't echo the engine's ASCII visualizations) that by definition can't live in the shared engine. Domain/workflow fixes still belong in the engine, never the prompt.
 - **Direct SSE, no AI SDK** — each `data: {…}` line is a raw Anthropic event; `ui/lib/stream-reducer.ts` folds them into message state incrementally. It addresses content blocks by the server-assigned `index` (which counts thinking blocks the UI doesn't store), never by array position — position-based addressing misroutes every delta after a thinking block, leaving empty text blocks the API rejects on the next turn (`text content blocks must be non-empty`). The same module strips internal fields and drops empty text blocks when building the round-trip payload.
-- **Inline tool rendering** (`ui/components/ToolCallBlock.tsx`, `ui/components/Viz/`) — a collapsed tool result, plus a D3 chart when the `tool_result` carries `viz_data` (scatter / parallel-coords / marginal-rates via D3, scenario summary as a table).
+- **Clean assistant rendering** (`ui/app/page.tsx`, `ui/components/Viz/`) — the chat surfaces only the model's prose, markdown tables, and D3 charts drawn from each `tool_result`'s `viz_data` (scatter / parallel-coords / marginal-rates via D3, scenario summary as a table). Raw tool-call input/result JSON is **not** rendered, and the engine's ASCII visualizations are stripped if the model echoes them — the value-add over the coding-agent MCP surface is a clean, chart-first view.
 - **Ephemeral sessions** — a random `problem_id` per session (pre-D.1 multi-tenancy); refreshing the page starts a new one.
 
 **Hosting & auth** — [`render.yaml`](render.yaml) provisions both services (engine + web UI) and is the OSS deploy path. There are **two independent gates**, both shared-secret and both open-when-unset (local dev / self-host):
