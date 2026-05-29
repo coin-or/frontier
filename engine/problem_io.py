@@ -39,9 +39,9 @@ _PROBLEM_FILE = "problem.json"
 _SCORES_FILE = "scores.json"
 _SOLUTIONS_FILE = "solutions.json"
 
-# Field partition across the three files.
+# Field partition across the three files. (scores.json — options, scores,
+# interaction_matrices — is built inline so empty sections can be omitted.)
 _PROBLEM_KEYS = ("name", "domain", "context", "approach", "objectives", "constraints")
-_SCORES_KEYS = ("options", "scores", "interaction_matrices")
 _SOLUTION_KEYS = ("run", "runs", "scenario_run", "curated_solutions", "feedback", "results_stale")
 
 
