@@ -99,6 +99,78 @@
           "multiply": 0.8
         }
       ]
+    },
+    {
+      "name": "tiktok_ban",
+      "description": "A regulatory ban removes TikTok inventory; reallocate across the rest.",
+      "constraint_overrides": [
+        {
+          "type": "max_allocation",
+          "max": 15
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "Search-US",
+            "Search-Intl"
+          ],
+          "max": 1
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "Meta-Prospecting",
+            "Meta-Retargeting"
+          ],
+          "max": 1
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "TikTok-GenZ",
+            "TikTok-Spark"
+          ],
+          "max": 1
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "YouTube-Awareness",
+            "YouTube-Shorts"
+          ],
+          "max": 1
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "Display-Programmatic",
+            "Display-Native"
+          ],
+          "max": 1
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "Email-CRM",
+            "SMS-CRM"
+          ],
+          "max": 1
+        },
+        {
+          "type": "objective_bound",
+          "objective": "ROAS",
+          "operator": "min",
+          "value": 2.0
+        },
+        {
+          "type": "force_exclude",
+          "option": "TikTok-GenZ"
+        },
+        {
+          "type": "force_exclude",
+          "option": "TikTok-Spark"
+        }
+      ]
     }
   ]
 }

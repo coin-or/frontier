@@ -205,6 +205,16 @@
           "option": "CN05"
         }
       ]
+    },
+    {
+      "name": "cost_inflation",
+      "description": "Input-cost inflation lifts unit costs ~15% across the board.",
+      "score_adjustments": [
+        {
+          "objective": "Cost",
+          "multiply": 1.15
+        }
+      ]
     }
   ]
 }
