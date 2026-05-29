@@ -1,10 +1,10 @@
 # Supplier selection
 
-Loadable Frontier example — split orders across 4 suppliers to balance blended unit cost against reliability. The cheapest supplier is the least reliable, so it's a genuine tradeoff, not one "best."
+Split a production order across 25 global suppliers — cost, reliability, lead time, ESG risk, and correlated regional disruption all pull against each other (the cheap suppliers are slower, less reliable, and riskier), and the per-region caps plus the quadratic concentration term make it too combinatorial for a spreadsheet or an LLM alone.
 
-- **`problem.json`** — definition: 2 objectives (Cost ↓, Reliability ↑), proportional approach, ≤45% per supplier (diversification), a `supplierC_disruption` scenario.
-- **`scores.json`** — the 4 suppliers with blended cost ($/unit) and reliability scores.
+- **`problem.json`** — definition: 5 objectives (Cost ↓, Reliability ↑, LeadTime ↓, ESGRisk ↓, ConcentrationRisk ↓ quadratic), proportional approach, constraints (≤15% per supplier, ≤3 active suppliers per region, weighted reliability ≥78), and a `china_disruption` scenario.
+- **`scores.json`** — 25 suppliers across 6 regions with per-objective scores plus the `ConcentrationRisk` interaction matrix (high within-region correlation, ~0 across regions).
 
-Load both into Frontier (`model create` → `model update` → `solve run` → `explore`), or paste this to an agent connected to Frontier:
+Load both into Frontier (`model create` → `model update` with the objectives/options/scores/constraints/interaction_matrices/scenarios → `solve run` → `explore`), or paste this to an agent connected to Frontier:
 
-> Allocate orders across the 4 suppliers in scores.json to minimize blended unit cost and maximize reliability. No supplier over 45%. Show the cost–reliability frontier and how it shifts if SupplierC (the cheapest) is disrupted. Not one "best."
+> Allocate our order across the 25 suppliers in scores.json — minimize unit cost, maximize reliability, minimize lead time and ESG risk, and minimize concentration risk using the ConcentrationRisk interaction matrix (correlated regional disruption, not weighted-average). Constraints: no supplier over 15%, at most 3 active suppliers per region, weighted reliability at least 78. Show the tradeoffs across the base case and a China-region disruption where those suppliers go offline — the range of non-dominated multi-sourcing plans and where the knees are, not one "best."

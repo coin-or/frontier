@@ -1,46 +1,102 @@
 {
   "name": "Marketing Channel Budget",
   "domain": "marketing",
-  "context": "Allocate budget across 5 channels to balance conversions across 3 campaign goals. Channels specialize, so the mix trades off campaign outcomes. Options + scores in scores.json.",
+  "context": "Allocate budget SHARE across 22 channel x audience/geo options to balance four conflicting goals: direct Conversions, audience Reach, ROAS, and Brand Lift. Efficient direct-response channels (search, email, retargeting, affiliate) convert well and return high ROAS but reach few people and barely move brand; broad upper-funnel channels (CTV, YouTube, display, podcast, OOH) reach huge audiences and build brand but convert poorly. Reach uses quadratic aggregation: same-audience channels overlap, so stacking them yields diminishing combined reach (audience-overlap interaction matrix in scores.json). Options, scores, and the matrix are in scores.json.",
   "approach": "proportional",
   "objectives": [
     {
-      "name": "Brand_Awareness",
+      "name": "Conversions",
       "direction": "maximize",
-      "unit": "conv/$",
+      "unit": "conv/$k",
       "aggregation": "avg"
     },
     {
-      "name": "Product_Launch",
+      "name": "Reach",
       "direction": "maximize",
-      "unit": "conv/$",
+      "unit": "k impressions/$k",
+      "aggregation": "quadratic"
+    },
+    {
+      "name": "ROAS",
+      "direction": "maximize",
+      "unit": "x",
       "aggregation": "avg"
     },
     {
-      "name": "Seasonal_Sale",
+      "name": "BrandLift",
       "direction": "maximize",
-      "unit": "conv/$",
+      "unit": "score",
       "aggregation": "avg"
     }
   ],
   "constraints": [
     {
       "type": "max_allocation",
-      "max": 40
+      "max": 15
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "Search-US",
+        "Search-Intl"
+      ],
+      "max": 1
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "Meta-Prospecting",
+        "Meta-Retargeting"
+      ],
+      "max": 1
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "TikTok-GenZ",
+        "TikTok-Spark"
+      ],
+      "max": 1
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "YouTube-Awareness",
+        "YouTube-Shorts"
+      ],
+      "max": 1
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "Display-Programmatic",
+        "Display-Native"
+      ],
+      "max": 1
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "Email-CRM",
+        "SMS-CRM"
+      ],
+      "max": 1
+    },
+    {
+      "type": "objective_bound",
+      "objective": "ROAS",
+      "operator": "min",
+      "value": 2.0
     }
   ],
   "scenarios": [
     {
-      "name": "email_sunset",
-      "description": "Email channel retired \u2014 reallocate across the rest.",
-      "constraint_overrides": [
+      "name": "ios_privacy",
+      "description": "Signal loss from app-tracking changes cuts measured conversions on social/programmatic by ~20%.",
+      "score_adjustments": [
         {
-          "type": "max_allocation",
-          "max": 40
-        },
-        {
-          "type": "force_exclude",
-          "option": "Email"
+          "objective": "Conversions",
+          "multiply": 0.8
         }
       ]
     }

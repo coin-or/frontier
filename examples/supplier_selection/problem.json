@@ -1,7 +1,7 @@
 {
   "name": "Supplier Selection",
   "domain": "procurement",
-  "context": "Allocate order share across suppliers to balance blended unit cost against reliability, capped so no single supplier exceeds 45% (diversification). Options + scores in scores.json.",
+  "context": "Allocate order share across 25 suppliers in 6 regions to balance unit cost, reliability, lead time, ESG risk, and correlated regional concentration risk. Cheaper suppliers tend to be less reliable, slower, and higher ESG/concentration risk \u2014 genuinely conflicting. No supplier over 15%, \u22643 active suppliers per region, and a weighted reliability floor. Options, scores, and the ConcentrationRisk interaction matrix are in scores.json.",
   "approach": "proportional",
   "objectives": [
     {
@@ -15,26 +15,194 @@
       "direction": "maximize",
       "unit": "score",
       "aggregation": "avg"
+    },
+    {
+      "name": "LeadTime",
+      "direction": "minimize",
+      "unit": "days",
+      "aggregation": "avg"
+    },
+    {
+      "name": "ESGRisk",
+      "direction": "minimize",
+      "unit": "score",
+      "aggregation": "avg"
+    },
+    {
+      "name": "ConcentrationRisk",
+      "direction": "minimize",
+      "unit": "score",
+      "aggregation": "quadratic"
     }
   ],
   "constraints": [
     {
       "type": "max_allocation",
-      "max": 45
+      "max": 15
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "NA01",
+        "NA02",
+        "NA03",
+        "NA04"
+      ],
+      "max": 3
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "EU01",
+        "EU02",
+        "EU03",
+        "EU04"
+      ],
+      "max": 3
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "CN01",
+        "CN02",
+        "CN03",
+        "CN04",
+        "CN05"
+      ],
+      "max": 3
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "SEA01",
+        "SEA02",
+        "SEA03",
+        "SEA04"
+      ],
+      "max": 3
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "IN01",
+        "IN02",
+        "IN03",
+        "IN04"
+      ],
+      "max": 3
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "LA01",
+        "LA02",
+        "LA03",
+        "LA04"
+      ],
+      "max": 3
+    },
+    {
+      "type": "objective_bound",
+      "objective": "Reliability",
+      "operator": "min",
+      "value": 78.0
     }
   ],
   "scenarios": [
     {
-      "name": "supplierC_disruption",
-      "description": "Cheapest supplier (C) goes offline \u2014 reallocate to the rest.",
+      "name": "china_disruption",
+      "description": "China-region suppliers offline (tariffs/port closure) \u2014 reallocate share to the remaining 20 suppliers.",
       "constraint_overrides": [
         {
           "type": "max_allocation",
-          "max": 45
+          "max": 15
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "NA01",
+            "NA02",
+            "NA03",
+            "NA04"
+          ],
+          "max": 3
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "EU01",
+            "EU02",
+            "EU03",
+            "EU04"
+          ],
+          "max": 3
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "CN01",
+            "CN02",
+            "CN03",
+            "CN04",
+            "CN05"
+          ],
+          "max": 3
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "SEA01",
+            "SEA02",
+            "SEA03",
+            "SEA04"
+          ],
+          "max": 3
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "IN01",
+            "IN02",
+            "IN03",
+            "IN04"
+          ],
+          "max": 3
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "LA01",
+            "LA02",
+            "LA03",
+            "LA04"
+          ],
+          "max": 3
+        },
+        {
+          "type": "objective_bound",
+          "objective": "Reliability",
+          "operator": "min",
+          "value": 78.0
         },
         {
           "type": "force_exclude",
-          "option": "SupplierC"
+          "option": "CN01"
+        },
+        {
+          "type": "force_exclude",
+          "option": "CN02"
+        },
+        {
+          "type": "force_exclude",
+          "option": "CN03"
+        },
+        {
+          "type": "force_exclude",
+          "option": "CN04"
+        },
+        {
+          "type": "force_exclude",
+          "option": "CN05"
         }
       ]
     }

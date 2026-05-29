@@ -1,0 +1,1196 @@
+{
+  "options": [
+    {
+      "name": "Solar_Mojave",
+      "description": "Solar farm"
+    },
+    {
+      "name": "Solar_Sonoran",
+      "description": "Solar farm"
+    },
+    {
+      "name": "Solar_HighPlains",
+      "description": "Solar farm"
+    },
+    {
+      "name": "Wind_GreatPlains",
+      "description": "Onshore wind"
+    },
+    {
+      "name": "Wind_Texas",
+      "description": "Onshore wind"
+    },
+    {
+      "name": "Wind_Midwest",
+      "description": "Onshore wind"
+    },
+    {
+      "name": "Wind_Atlantic",
+      "description": "Offshore wind"
+    },
+    {
+      "name": "Wind_GulfCoast",
+      "description": "Offshore wind"
+    },
+    {
+      "name": "Wind_PacificNW",
+      "description": "Offshore wind"
+    },
+    {
+      "name": "Gas_Riverbend",
+      "description": "Gas CCGT"
+    },
+    {
+      "name": "Gas_Lakeside",
+      "description": "Gas CCGT"
+    },
+    {
+      "name": "Gas_Delta",
+      "description": "Gas CCGT"
+    },
+    {
+      "name": "Nuclear_SMR_North",
+      "description": "Nuclear SMR"
+    },
+    {
+      "name": "Nuclear_SMR_East",
+      "description": "Nuclear SMR"
+    },
+    {
+      "name": "Battery_GridA",
+      "description": "Battery storage"
+    },
+    {
+      "name": "Battery_GridB",
+      "description": "Battery storage"
+    },
+    {
+      "name": "Geo_Cascades",
+      "description": "Geothermal"
+    },
+    {
+      "name": "Geo_Basin",
+      "description": "Geothermal"
+    },
+    {
+      "name": "Hydro_Canyon",
+      "description": "Hydro"
+    },
+    {
+      "name": "Hydro_RiverGorge",
+      "description": "Hydro"
+    },
+    {
+      "name": "Biomass_Northwood",
+      "description": "Biomass"
+    },
+    {
+      "name": "Biomass_Southfield",
+      "description": "Biomass"
+    }
+  ],
+  "scores": [
+    {
+      "option": "Solar_Mojave",
+      "objective": "LCOE",
+      "value": 32.0
+    },
+    {
+      "option": "Solar_Mojave",
+      "objective": "CO2",
+      "value": 0.02
+    },
+    {
+      "option": "Solar_Mojave",
+      "objective": "Firmness",
+      "value": 12.0
+    },
+    {
+      "option": "Solar_Mojave",
+      "objective": "LandUse",
+      "value": 6.8
+    },
+    {
+      "option": "Solar_Mojave",
+      "objective": "VariabilityRisk",
+      "value": 42.0
+    },
+    {
+      "option": "Solar_Sonoran",
+      "objective": "LCOE",
+      "value": 35.0
+    },
+    {
+      "option": "Solar_Sonoran",
+      "objective": "CO2",
+      "value": 0.02
+    },
+    {
+      "option": "Solar_Sonoran",
+      "objective": "Firmness",
+      "value": 12.0
+    },
+    {
+      "option": "Solar_Sonoran",
+      "objective": "LandUse",
+      "value": 7.2
+    },
+    {
+      "option": "Solar_Sonoran",
+      "objective": "VariabilityRisk",
+      "value": 44.0
+    },
+    {
+      "option": "Solar_HighPlains",
+      "objective": "LCOE",
+      "value": 38.0
+    },
+    {
+      "option": "Solar_HighPlains",
+      "objective": "CO2",
+      "value": 0.03
+    },
+    {
+      "option": "Solar_HighPlains",
+      "objective": "Firmness",
+      "value": 14.0
+    },
+    {
+      "option": "Solar_HighPlains",
+      "objective": "LandUse",
+      "value": 6.4
+    },
+    {
+      "option": "Solar_HighPlains",
+      "objective": "VariabilityRisk",
+      "value": 39.0
+    },
+    {
+      "option": "Wind_GreatPlains",
+      "objective": "LCOE",
+      "value": 37.0
+    },
+    {
+      "option": "Wind_GreatPlains",
+      "objective": "CO2",
+      "value": 0.02
+    },
+    {
+      "option": "Wind_GreatPlains",
+      "objective": "Firmness",
+      "value": 18.0
+    },
+    {
+      "option": "Wind_GreatPlains",
+      "objective": "LandUse",
+      "value": 4.5
+    },
+    {
+      "option": "Wind_GreatPlains",
+      "objective": "VariabilityRisk",
+      "value": 46.0
+    },
+    {
+      "option": "Wind_Texas",
+      "objective": "LCOE",
+      "value": 34.0
+    },
+    {
+      "option": "Wind_Texas",
+      "objective": "CO2",
+      "value": 0.02
+    },
+    {
+      "option": "Wind_Texas",
+      "objective": "Firmness",
+      "value": 17.0
+    },
+    {
+      "option": "Wind_Texas",
+      "objective": "LandUse",
+      "value": 4.2
+    },
+    {
+      "option": "Wind_Texas",
+      "objective": "VariabilityRisk",
+      "value": 48.0
+    },
+    {
+      "option": "Wind_Midwest",
+      "objective": "LCOE",
+      "value": 40.0
+    },
+    {
+      "option": "Wind_Midwest",
+      "objective": "CO2",
+      "value": 0.03
+    },
+    {
+      "option": "Wind_Midwest",
+      "objective": "Firmness",
+      "value": 19.0
+    },
+    {
+      "option": "Wind_Midwest",
+      "objective": "LandUse",
+      "value": 4.8
+    },
+    {
+      "option": "Wind_Midwest",
+      "objective": "VariabilityRisk",
+      "value": 44.0
+    },
+    {
+      "option": "Wind_Atlantic",
+      "objective": "LCOE",
+      "value": 78.0
+    },
+    {
+      "option": "Wind_Atlantic",
+      "objective": "CO2",
+      "value": 0.03
+    },
+    {
+      "option": "Wind_Atlantic",
+      "objective": "Firmness",
+      "value": 30.0
+    },
+    {
+      "option": "Wind_Atlantic",
+      "objective": "LandUse",
+      "value": 0.6
+    },
+    {
+      "option": "Wind_Atlantic",
+      "objective": "VariabilityRisk",
+      "value": 38.0
+    },
+    {
+      "option": "Wind_GulfCoast",
+      "objective": "LCOE",
+      "value": 84.0
+    },
+    {
+      "option": "Wind_GulfCoast",
+      "objective": "CO2",
+      "value": 0.03
+    },
+    {
+      "option": "Wind_GulfCoast",
+      "objective": "Firmness",
+      "value": 28.0
+    },
+    {
+      "option": "Wind_GulfCoast",
+      "objective": "LandUse",
+      "value": 0.6
+    },
+    {
+      "option": "Wind_GulfCoast",
+      "objective": "VariabilityRisk",
+      "value": 40.0
+    },
+    {
+      "option": "Wind_PacificNW",
+      "objective": "LCOE",
+      "value": 81.0
+    },
+    {
+      "option": "Wind_PacificNW",
+      "objective": "CO2",
+      "value": 0.03
+    },
+    {
+      "option": "Wind_PacificNW",
+      "objective": "Firmness",
+      "value": 29.0
+    },
+    {
+      "option": "Wind_PacificNW",
+      "objective": "LandUse",
+      "value": 0.6
+    },
+    {
+      "option": "Wind_PacificNW",
+      "objective": "VariabilityRisk",
+      "value": 37.0
+    },
+    {
+      "option": "Gas_Riverbend",
+      "objective": "LCOE",
+      "value": 48.0
+    },
+    {
+      "option": "Gas_Riverbend",
+      "objective": "CO2",
+      "value": 0.45
+    },
+    {
+      "option": "Gas_Riverbend",
+      "objective": "Firmness",
+      "value": 92.0
+    },
+    {
+      "option": "Gas_Riverbend",
+      "objective": "LandUse",
+      "value": 0.3
+    },
+    {
+      "option": "Gas_Riverbend",
+      "objective": "VariabilityRisk",
+      "value": 4.0
+    },
+    {
+      "option": "Gas_Lakeside",
+      "objective": "LCOE",
+      "value": 52.0
+    },
+    {
+      "option": "Gas_Lakeside",
+      "objective": "CO2",
+      "value": 0.47
+    },
+    {
+      "option": "Gas_Lakeside",
+      "objective": "Firmness",
+      "value": 90.0
+    },
+    {
+      "option": "Gas_Lakeside",
+      "objective": "LandUse",
+      "value": 0.3
+    },
+    {
+      "option": "Gas_Lakeside",
+      "objective": "VariabilityRisk",
+      "value": 4.0
+    },
+    {
+      "option": "Gas_Delta",
+      "objective": "LCOE",
+      "value": 50.0
+    },
+    {
+      "option": "Gas_Delta",
+      "objective": "CO2",
+      "value": 0.46
+    },
+    {
+      "option": "Gas_Delta",
+      "objective": "Firmness",
+      "value": 91.0
+    },
+    {
+      "option": "Gas_Delta",
+      "objective": "LandUse",
+      "value": 0.3
+    },
+    {
+      "option": "Gas_Delta",
+      "objective": "VariabilityRisk",
+      "value": 5.0
+    },
+    {
+      "option": "Nuclear_SMR_North",
+      "objective": "LCOE",
+      "value": 118.0
+    },
+    {
+      "option": "Nuclear_SMR_North",
+      "objective": "CO2",
+      "value": 0.01
+    },
+    {
+      "option": "Nuclear_SMR_North",
+      "objective": "Firmness",
+      "value": 97.0
+    },
+    {
+      "option": "Nuclear_SMR_North",
+      "objective": "LandUse",
+      "value": 0.2
+    },
+    {
+      "option": "Nuclear_SMR_North",
+      "objective": "VariabilityRisk",
+      "value": 2.0
+    },
+    {
+      "option": "Nuclear_SMR_East",
+      "objective": "LCOE",
+      "value": 125.0
+    },
+    {
+      "option": "Nuclear_SMR_East",
+      "objective": "CO2",
+      "value": 0.01
+    },
+    {
+      "option": "Nuclear_SMR_East",
+      "objective": "Firmness",
+      "value": 96.0
+    },
+    {
+      "option": "Nuclear_SMR_East",
+      "objective": "LandUse",
+      "value": 0.2
+    },
+    {
+      "option": "Nuclear_SMR_East",
+      "objective": "VariabilityRisk",
+      "value": 2.0
+    },
+    {
+      "option": "Battery_GridA",
+      "objective": "LCOE",
+      "value": 95.0
+    },
+    {
+      "option": "Battery_GridA",
+      "objective": "CO2",
+      "value": 0.05
+    },
+    {
+      "option": "Battery_GridA",
+      "objective": "Firmness",
+      "value": 60.0
+    },
+    {
+      "option": "Battery_GridA",
+      "objective": "LandUse",
+      "value": 0.1
+    },
+    {
+      "option": "Battery_GridA",
+      "objective": "VariabilityRisk",
+      "value": 8.0
+    },
+    {
+      "option": "Battery_GridB",
+      "objective": "LCOE",
+      "value": 102.0
+    },
+    {
+      "option": "Battery_GridB",
+      "objective": "CO2",
+      "value": 0.05
+    },
+    {
+      "option": "Battery_GridB",
+      "objective": "Firmness",
+      "value": 58.0
+    },
+    {
+      "option": "Battery_GridB",
+      "objective": "LandUse",
+      "value": 0.1
+    },
+    {
+      "option": "Battery_GridB",
+      "objective": "VariabilityRisk",
+      "value": 9.0
+    },
+    {
+      "option": "Geo_Cascades",
+      "objective": "LCOE",
+      "value": 74.0
+    },
+    {
+      "option": "Geo_Cascades",
+      "objective": "CO2",
+      "value": 0.04
+    },
+    {
+      "option": "Geo_Cascades",
+      "objective": "Firmness",
+      "value": 93.0
+    },
+    {
+      "option": "Geo_Cascades",
+      "objective": "LandUse",
+      "value": 0.5
+    },
+    {
+      "option": "Geo_Cascades",
+      "objective": "VariabilityRisk",
+      "value": 3.0
+    },
+    {
+      "option": "Geo_Basin",
+      "objective": "LCOE",
+      "value": 80.0
+    },
+    {
+      "option": "Geo_Basin",
+      "objective": "CO2",
+      "value": 0.04
+    },
+    {
+      "option": "Geo_Basin",
+      "objective": "Firmness",
+      "value": 92.0
+    },
+    {
+      "option": "Geo_Basin",
+      "objective": "LandUse",
+      "value": 0.5
+    },
+    {
+      "option": "Geo_Basin",
+      "objective": "VariabilityRisk",
+      "value": 3.0
+    },
+    {
+      "option": "Hydro_Canyon",
+      "objective": "LCOE",
+      "value": 45.0
+    },
+    {
+      "option": "Hydro_Canyon",
+      "objective": "CO2",
+      "value": 0.02
+    },
+    {
+      "option": "Hydro_Canyon",
+      "objective": "Firmness",
+      "value": 85.0
+    },
+    {
+      "option": "Hydro_Canyon",
+      "objective": "LandUse",
+      "value": 9.5
+    },
+    {
+      "option": "Hydro_Canyon",
+      "objective": "VariabilityRisk",
+      "value": 18.0
+    },
+    {
+      "option": "Hydro_RiverGorge",
+      "objective": "LCOE",
+      "value": 49.0
+    },
+    {
+      "option": "Hydro_RiverGorge",
+      "objective": "CO2",
+      "value": 0.02
+    },
+    {
+      "option": "Hydro_RiverGorge",
+      "objective": "Firmness",
+      "value": 83.0
+    },
+    {
+      "option": "Hydro_RiverGorge",
+      "objective": "LandUse",
+      "value": 8.7
+    },
+    {
+      "option": "Hydro_RiverGorge",
+      "objective": "VariabilityRisk",
+      "value": 20.0
+    },
+    {
+      "option": "Biomass_Northwood",
+      "objective": "LCOE",
+      "value": 88.0
+    },
+    {
+      "option": "Biomass_Northwood",
+      "objective": "CO2",
+      "value": 0.23
+    },
+    {
+      "option": "Biomass_Northwood",
+      "objective": "Firmness",
+      "value": 80.0
+    },
+    {
+      "option": "Biomass_Northwood",
+      "objective": "LandUse",
+      "value": 3.2
+    },
+    {
+      "option": "Biomass_Northwood",
+      "objective": "VariabilityRisk",
+      "value": 10.0
+    },
+    {
+      "option": "Biomass_Southfield",
+      "objective": "LCOE",
+      "value": 92.0
+    },
+    {
+      "option": "Biomass_Southfield",
+      "objective": "CO2",
+      "value": 0.25
+    },
+    {
+      "option": "Biomass_Southfield",
+      "objective": "Firmness",
+      "value": 78.0
+    },
+    {
+      "option": "Biomass_Southfield",
+      "objective": "LandUse",
+      "value": 3.5
+    },
+    {
+      "option": "Biomass_Southfield",
+      "objective": "VariabilityRisk",
+      "value": 11.0
+    }
+  ],
+  "interaction_matrices": [
+    {
+      "objective": "VariabilityRisk",
+      "entries": {
+        "Solar_Mojave": {
+          "Solar_Mojave": 1764.0,
+          "Solar_Sonoran": 1570.8,
+          "Solar_HighPlains": 1392.3,
+          "Wind_GreatPlains": 676.2,
+          "Wind_Texas": 705.6,
+          "Wind_Midwest": 646.8,
+          "Wind_Atlantic": 558.6,
+          "Wind_GulfCoast": 588.0,
+          "Wind_PacificNW": 543.9,
+          "Gas_Riverbend": 0.0,
+          "Gas_Lakeside": 0.0,
+          "Gas_Delta": 0.0,
+          "Nuclear_SMR_North": 0.0,
+          "Nuclear_SMR_East": 0.0,
+          "Battery_GridA": 0.0,
+          "Battery_GridB": 0.0,
+          "Geo_Cascades": 0.0,
+          "Geo_Basin": 0.0,
+          "Hydro_Canyon": 189.0,
+          "Hydro_RiverGorge": 210.0,
+          "Biomass_Northwood": 0.0,
+          "Biomass_Southfield": 0.0
+        },
+        "Solar_Sonoran": {
+          "Solar_Mojave": 1570.8,
+          "Solar_Sonoran": 1936.0,
+          "Solar_HighPlains": 1458.6,
+          "Wind_GreatPlains": 708.4,
+          "Wind_Texas": 739.2,
+          "Wind_Midwest": 677.6,
+          "Wind_Atlantic": 585.2,
+          "Wind_GulfCoast": 616.0,
+          "Wind_PacificNW": 569.8,
+          "Gas_Riverbend": 0.0,
+          "Gas_Lakeside": 0.0,
+          "Gas_Delta": 0.0,
+          "Nuclear_SMR_North": 0.0,
+          "Nuclear_SMR_East": 0.0,
+          "Battery_GridA": 0.0,
+          "Battery_GridB": 0.0,
+          "Geo_Cascades": 0.0,
+          "Geo_Basin": 0.0,
+          "Hydro_Canyon": 198.0,
+          "Hydro_RiverGorge": 220.0,
+          "Biomass_Northwood": 0.0,
+          "Biomass_Southfield": 0.0
+        },
+        "Solar_HighPlains": {
+          "Solar_Mojave": 1392.3,
+          "Solar_Sonoran": 1458.6,
+          "Solar_HighPlains": 1521.0,
+          "Wind_GreatPlains": 627.9,
+          "Wind_Texas": 655.2,
+          "Wind_Midwest": 600.6,
+          "Wind_Atlantic": 518.7,
+          "Wind_GulfCoast": 546.0,
+          "Wind_PacificNW": 505.05,
+          "Gas_Riverbend": 0.0,
+          "Gas_Lakeside": 0.0,
+          "Gas_Delta": 0.0,
+          "Nuclear_SMR_North": 0.0,
+          "Nuclear_SMR_East": 0.0,
+          "Battery_GridA": 0.0,
+          "Battery_GridB": 0.0,
+          "Geo_Cascades": 0.0,
+          "Geo_Basin": 0.0,
+          "Hydro_Canyon": 175.5,
+          "Hydro_RiverGorge": 195.0,
+          "Biomass_Northwood": 0.0,
+          "Biomass_Southfield": 0.0
+        },
+        "Wind_GreatPlains": {
+          "Solar_Mojave": 676.2,
+          "Solar_Sonoran": 708.4,
+          "Solar_HighPlains": 627.9,
+          "Wind_GreatPlains": 2116.0,
+          "Wind_Texas": 1876.8,
+          "Wind_Midwest": 1720.4,
+          "Wind_Atlantic": 961.4,
+          "Wind_GulfCoast": 1012.0,
+          "Wind_PacificNW": 936.1,
+          "Gas_Riverbend": 0.0,
+          "Gas_Lakeside": 0.0,
+          "Gas_Delta": 0.0,
+          "Nuclear_SMR_North": 0.0,
+          "Nuclear_SMR_East": 0.0,
+          "Battery_GridA": 0.0,
+          "Battery_GridB": 0.0,
+          "Geo_Cascades": 0.0,
+          "Geo_Basin": 0.0,
+          "Hydro_Canyon": 165.6,
+          "Hydro_RiverGorge": 184.0,
+          "Biomass_Northwood": 0.0,
+          "Biomass_Southfield": 0.0
+        },
+        "Wind_Texas": {
+          "Solar_Mojave": 705.6,
+          "Solar_Sonoran": 739.2,
+          "Solar_HighPlains": 655.2,
+          "Wind_GreatPlains": 1876.8,
+          "Wind_Texas": 2304.0,
+          "Wind_Midwest": 1795.2,
+          "Wind_Atlantic": 1003.2,
+          "Wind_GulfCoast": 1056.0,
+          "Wind_PacificNW": 976.8,
+          "Gas_Riverbend": 0.0,
+          "Gas_Lakeside": 0.0,
+          "Gas_Delta": 0.0,
+          "Nuclear_SMR_North": 0.0,
+          "Nuclear_SMR_East": 0.0,
+          "Battery_GridA": 0.0,
+          "Battery_GridB": 0.0,
+          "Geo_Cascades": 0.0,
+          "Geo_Basin": 0.0,
+          "Hydro_Canyon": 172.8,
+          "Hydro_RiverGorge": 192.0,
+          "Biomass_Northwood": 0.0,
+          "Biomass_Southfield": 0.0
+        },
+        "Wind_Midwest": {
+          "Solar_Mojave": 646.8,
+          "Solar_Sonoran": 677.6,
+          "Solar_HighPlains": 600.6,
+          "Wind_GreatPlains": 1720.4,
+          "Wind_Texas": 1795.2,
+          "Wind_Midwest": 1936.0,
+          "Wind_Atlantic": 919.6,
+          "Wind_GulfCoast": 968.0,
+          "Wind_PacificNW": 895.4,
+          "Gas_Riverbend": 0.0,
+          "Gas_Lakeside": 0.0,
+          "Gas_Delta": 0.0,
+          "Nuclear_SMR_North": 0.0,
+          "Nuclear_SMR_East": 0.0,
+          "Battery_GridA": 0.0,
+          "Battery_GridB": 0.0,
+          "Geo_Cascades": 0.0,
+          "Geo_Basin": 0.0,
+          "Hydro_Canyon": 158.4,
+          "Hydro_RiverGorge": 176.0,
+          "Biomass_Northwood": 0.0,
+          "Biomass_Southfield": 0.0
+        },
+        "Wind_Atlantic": {
+          "Solar_Mojave": 558.6,
+          "Solar_Sonoran": 585.2,
+          "Solar_HighPlains": 518.7,
+          "Wind_GreatPlains": 961.4,
+          "Wind_Texas": 1003.2,
+          "Wind_Midwest": 919.6,
+          "Wind_Atlantic": 1444.0,
+          "Wind_GulfCoast": 1292.0,
+          "Wind_PacificNW": 1195.1,
+          "Gas_Riverbend": 0.0,
+          "Gas_Lakeside": 0.0,
+          "Gas_Delta": 0.0,
+          "Nuclear_SMR_North": 0.0,
+          "Nuclear_SMR_East": 0.0,
+          "Battery_GridA": 0.0,
+          "Battery_GridB": 0.0,
+          "Geo_Cascades": 0.0,
+          "Geo_Basin": 0.0,
+          "Hydro_Canyon": 136.8,
+          "Hydro_RiverGorge": 152.0,
+          "Biomass_Northwood": 0.0,
+          "Biomass_Southfield": 0.0
+        },
+        "Wind_GulfCoast": {
+          "Solar_Mojave": 588.0,
+          "Solar_Sonoran": 616.0,
+          "Solar_HighPlains": 546.0,
+          "Wind_GreatPlains": 1012.0,
+          "Wind_Texas": 1056.0,
+          "Wind_Midwest": 968.0,
+          "Wind_Atlantic": 1292.0,
+          "Wind_GulfCoast": 1600.0,
+          "Wind_PacificNW": 1258.0,
+          "Gas_Riverbend": 0.0,
+          "Gas_Lakeside": 0.0,
+          "Gas_Delta": 0.0,
+          "Nuclear_SMR_North": 0.0,
+          "Nuclear_SMR_East": 0.0,
+          "Battery_GridA": 0.0,
+          "Battery_GridB": 0.0,
+          "Geo_Cascades": 0.0,
+          "Geo_Basin": 0.0,
+          "Hydro_Canyon": 144.0,
+          "Hydro_RiverGorge": 160.0,
+          "Biomass_Northwood": 0.0,
+          "Biomass_Southfield": 0.0
+        },
+        "Wind_PacificNW": {
+          "Solar_Mojave": 543.9,
+          "Solar_Sonoran": 569.8,
+          "Solar_HighPlains": 505.05,
+          "Wind_GreatPlains": 936.1,
+          "Wind_Texas": 976.8,
+          "Wind_Midwest": 895.4,
+          "Wind_Atlantic": 1195.1,
+          "Wind_GulfCoast": 1258.0,
+          "Wind_PacificNW": 1369.0,
+          "Gas_Riverbend": 0.0,
+          "Gas_Lakeside": 0.0,
+          "Gas_Delta": 0.0,
+          "Nuclear_SMR_North": 0.0,
+          "Nuclear_SMR_East": 0.0,
+          "Battery_GridA": 0.0,
+          "Battery_GridB": 0.0,
+          "Geo_Cascades": 0.0,
+          "Geo_Basin": 0.0,
+          "Hydro_Canyon": 133.2,
+          "Hydro_RiverGorge": 148.0,
+          "Biomass_Northwood": 0.0,
+          "Biomass_Southfield": 0.0
+        },
+        "Gas_Riverbend": {
+          "Solar_Mojave": 0.0,
+          "Solar_Sonoran": 0.0,
+          "Solar_HighPlains": 0.0,
+          "Wind_GreatPlains": 0.0,
+          "Wind_Texas": 0.0,
+          "Wind_Midwest": 0.0,
+          "Wind_Atlantic": 0.0,
+          "Wind_GulfCoast": 0.0,
+          "Wind_PacificNW": 0.0,
+          "Gas_Riverbend": 16.0,
+          "Gas_Lakeside": 13.6,
+          "Gas_Delta": 17.0,
+          "Nuclear_SMR_North": 0.0,
+          "Nuclear_SMR_East": 0.0,
+          "Battery_GridA": 0.0,
+          "Battery_GridB": 0.0,
+          "Geo_Cascades": 0.0,
+          "Geo_Basin": 0.0,
+          "Hydro_Canyon": 0.0,
+          "Hydro_RiverGorge": 0.0,
+          "Biomass_Northwood": 0.0,
+          "Biomass_Southfield": 0.0
+        },
+        "Gas_Lakeside": {
+          "Solar_Mojave": 0.0,
+          "Solar_Sonoran": 0.0,
+          "Solar_HighPlains": 0.0,
+          "Wind_GreatPlains": 0.0,
+          "Wind_Texas": 0.0,
+          "Wind_Midwest": 0.0,
+          "Wind_Atlantic": 0.0,
+          "Wind_GulfCoast": 0.0,
+          "Wind_PacificNW": 0.0,
+          "Gas_Riverbend": 13.6,
+          "Gas_Lakeside": 16.0,
+          "Gas_Delta": 17.0,
+          "Nuclear_SMR_North": 0.0,
+          "Nuclear_SMR_East": 0.0,
+          "Battery_GridA": 0.0,
+          "Battery_GridB": 0.0,
+          "Geo_Cascades": 0.0,
+          "Geo_Basin": 0.0,
+          "Hydro_Canyon": 0.0,
+          "Hydro_RiverGorge": 0.0,
+          "Biomass_Northwood": 0.0,
+          "Biomass_Southfield": 0.0
+        },
+        "Gas_Delta": {
+          "Solar_Mojave": 0.0,
+          "Solar_Sonoran": 0.0,
+          "Solar_HighPlains": 0.0,
+          "Wind_GreatPlains": 0.0,
+          "Wind_Texas": 0.0,
+          "Wind_Midwest": 0.0,
+          "Wind_Atlantic": 0.0,
+          "Wind_GulfCoast": 0.0,
+          "Wind_PacificNW": 0.0,
+          "Gas_Riverbend": 17.0,
+          "Gas_Lakeside": 17.0,
+          "Gas_Delta": 25.0,
+          "Nuclear_SMR_North": 0.0,
+          "Nuclear_SMR_East": 0.0,
+          "Battery_GridA": 0.0,
+          "Battery_GridB": 0.0,
+          "Geo_Cascades": 0.0,
+          "Geo_Basin": 0.0,
+          "Hydro_Canyon": 0.0,
+          "Hydro_RiverGorge": 0.0,
+          "Biomass_Northwood": 0.0,
+          "Biomass_Southfield": 0.0
+        },
+        "Nuclear_SMR_North": {
+          "Solar_Mojave": 0.0,
+          "Solar_Sonoran": 0.0,
+          "Solar_HighPlains": 0.0,
+          "Wind_GreatPlains": 0.0,
+          "Wind_Texas": 0.0,
+          "Wind_Midwest": 0.0,
+          "Wind_Atlantic": 0.0,
+          "Wind_GulfCoast": 0.0,
+          "Wind_PacificNW": 0.0,
+          "Gas_Riverbend": 0.0,
+          "Gas_Lakeside": 0.0,
+          "Gas_Delta": 0.0,
+          "Nuclear_SMR_North": 4.0,
+          "Nuclear_SMR_East": 3.4,
+          "Battery_GridA": 0.0,
+          "Battery_GridB": 0.0,
+          "Geo_Cascades": 0.0,
+          "Geo_Basin": 0.0,
+          "Hydro_Canyon": 0.0,
+          "Hydro_RiverGorge": 0.0,
+          "Biomass_Northwood": 0.0,
+          "Biomass_Southfield": 0.0
+        },
+        "Nuclear_SMR_East": {
+          "Solar_Mojave": 0.0,
+          "Solar_Sonoran": 0.0,
+          "Solar_HighPlains": 0.0,
+          "Wind_GreatPlains": 0.0,
+          "Wind_Texas": 0.0,
+          "Wind_Midwest": 0.0,
+          "Wind_Atlantic": 0.0,
+          "Wind_GulfCoast": 0.0,
+          "Wind_PacificNW": 0.0,
+          "Gas_Riverbend": 0.0,
+          "Gas_Lakeside": 0.0,
+          "Gas_Delta": 0.0,
+          "Nuclear_SMR_North": 3.4,
+          "Nuclear_SMR_East": 4.0,
+          "Battery_GridA": 0.0,
+          "Battery_GridB": 0.0,
+          "Geo_Cascades": 0.0,
+          "Geo_Basin": 0.0,
+          "Hydro_Canyon": 0.0,
+          "Hydro_RiverGorge": 0.0,
+          "Biomass_Northwood": 0.0,
+          "Biomass_Southfield": 0.0
+        },
+        "Battery_GridA": {
+          "Solar_Mojave": 0.0,
+          "Solar_Sonoran": 0.0,
+          "Solar_HighPlains": 0.0,
+          "Wind_GreatPlains": 0.0,
+          "Wind_Texas": 0.0,
+          "Wind_Midwest": 0.0,
+          "Wind_Atlantic": 0.0,
+          "Wind_GulfCoast": 0.0,
+          "Wind_PacificNW": 0.0,
+          "Gas_Riverbend": 0.0,
+          "Gas_Lakeside": 0.0,
+          "Gas_Delta": 0.0,
+          "Nuclear_SMR_North": 0.0,
+          "Nuclear_SMR_East": 0.0,
+          "Battery_GridA": 64.0,
+          "Battery_GridB": 61.2,
+          "Geo_Cascades": 0.0,
+          "Geo_Basin": 0.0,
+          "Hydro_Canyon": 0.0,
+          "Hydro_RiverGorge": 0.0,
+          "Biomass_Northwood": 0.0,
+          "Biomass_Southfield": 0.0
+        },
+        "Battery_GridB": {
+          "Solar_Mojave": 0.0,
+          "Solar_Sonoran": 0.0,
+          "Solar_HighPlains": 0.0,
+          "Wind_GreatPlains": 0.0,
+          "Wind_Texas": 0.0,
+          "Wind_Midwest": 0.0,
+          "Wind_Atlantic": 0.0,
+          "Wind_GulfCoast": 0.0,
+          "Wind_PacificNW": 0.0,
+          "Gas_Riverbend": 0.0,
+          "Gas_Lakeside": 0.0,
+          "Gas_Delta": 0.0,
+          "Nuclear_SMR_North": 0.0,
+          "Nuclear_SMR_East": 0.0,
+          "Battery_GridA": 61.2,
+          "Battery_GridB": 81.0,
+          "Geo_Cascades": 0.0,
+          "Geo_Basin": 0.0,
+          "Hydro_Canyon": 0.0,
+          "Hydro_RiverGorge": 0.0,
+          "Biomass_Northwood": 0.0,
+          "Biomass_Southfield": 0.0
+        },
+        "Geo_Cascades": {
+          "Solar_Mojave": 0.0,
+          "Solar_Sonoran": 0.0,
+          "Solar_HighPlains": 0.0,
+          "Wind_GreatPlains": 0.0,
+          "Wind_Texas": 0.0,
+          "Wind_Midwest": 0.0,
+          "Wind_Atlantic": 0.0,
+          "Wind_GulfCoast": 0.0,
+          "Wind_PacificNW": 0.0,
+          "Gas_Riverbend": 0.0,
+          "Gas_Lakeside": 0.0,
+          "Gas_Delta": 0.0,
+          "Nuclear_SMR_North": 0.0,
+          "Nuclear_SMR_East": 0.0,
+          "Battery_GridA": 0.0,
+          "Battery_GridB": 0.0,
+          "Geo_Cascades": 9.0,
+          "Geo_Basin": 7.65,
+          "Hydro_Canyon": 0.0,
+          "Hydro_RiverGorge": 0.0,
+          "Biomass_Northwood": 0.0,
+          "Biomass_Southfield": 0.0
+        },
+        "Geo_Basin": {
+          "Solar_Mojave": 0.0,
+          "Solar_Sonoran": 0.0,
+          "Solar_HighPlains": 0.0,
+          "Wind_GreatPlains": 0.0,
+          "Wind_Texas": 0.0,
+          "Wind_Midwest": 0.0,
+          "Wind_Atlantic": 0.0,
+          "Wind_GulfCoast": 0.0,
+          "Wind_PacificNW": 0.0,
+          "Gas_Riverbend": 0.0,
+          "Gas_Lakeside": 0.0,
+          "Gas_Delta": 0.0,
+          "Nuclear_SMR_North": 0.0,
+          "Nuclear_SMR_East": 0.0,
+          "Battery_GridA": 0.0,
+          "Battery_GridB": 0.0,
+          "Geo_Cascades": 7.65,
+          "Geo_Basin": 9.0,
+          "Hydro_Canyon": 0.0,
+          "Hydro_RiverGorge": 0.0,
+          "Biomass_Northwood": 0.0,
+          "Biomass_Southfield": 0.0
+        },
+        "Hydro_Canyon": {
+          "Solar_Mojave": 189.0,
+          "Solar_Sonoran": 198.0,
+          "Solar_HighPlains": 175.5,
+          "Wind_GreatPlains": 165.6,
+          "Wind_Texas": 172.8,
+          "Wind_Midwest": 158.4,
+          "Wind_Atlantic": 136.8,
+          "Wind_GulfCoast": 144.0,
+          "Wind_PacificNW": 133.2,
+          "Gas_Riverbend": 0.0,
+          "Gas_Lakeside": 0.0,
+          "Gas_Delta": 0.0,
+          "Nuclear_SMR_North": 0.0,
+          "Nuclear_SMR_East": 0.0,
+          "Battery_GridA": 0.0,
+          "Battery_GridB": 0.0,
+          "Geo_Cascades": 0.0,
+          "Geo_Basin": 0.0,
+          "Hydro_Canyon": 324.0,
+          "Hydro_RiverGorge": 306.0,
+          "Biomass_Northwood": 0.0,
+          "Biomass_Southfield": 0.0
+        },
+        "Hydro_RiverGorge": {
+          "Solar_Mojave": 210.0,
+          "Solar_Sonoran": 220.0,
+          "Solar_HighPlains": 195.0,
+          "Wind_GreatPlains": 184.0,
+          "Wind_Texas": 192.0,
+          "Wind_Midwest": 176.0,
+          "Wind_Atlantic": 152.0,
+          "Wind_GulfCoast": 160.0,
+          "Wind_PacificNW": 148.0,
+          "Gas_Riverbend": 0.0,
+          "Gas_Lakeside": 0.0,
+          "Gas_Delta": 0.0,
+          "Nuclear_SMR_North": 0.0,
+          "Nuclear_SMR_East": 0.0,
+          "Battery_GridA": 0.0,
+          "Battery_GridB": 0.0,
+          "Geo_Cascades": 0.0,
+          "Geo_Basin": 0.0,
+          "Hydro_Canyon": 306.0,
+          "Hydro_RiverGorge": 400.0,
+          "Biomass_Northwood": 0.0,
+          "Biomass_Southfield": 0.0
+        },
+        "Biomass_Northwood": {
+          "Solar_Mojave": 0.0,
+          "Solar_Sonoran": 0.0,
+          "Solar_HighPlains": 0.0,
+          "Wind_GreatPlains": 0.0,
+          "Wind_Texas": 0.0,
+          "Wind_Midwest": 0.0,
+          "Wind_Atlantic": 0.0,
+          "Wind_GulfCoast": 0.0,
+          "Wind_PacificNW": 0.0,
+          "Gas_Riverbend": 0.0,
+          "Gas_Lakeside": 0.0,
+          "Gas_Delta": 0.0,
+          "Nuclear_SMR_North": 0.0,
+          "Nuclear_SMR_East": 0.0,
+          "Battery_GridA": 0.0,
+          "Battery_GridB": 0.0,
+          "Geo_Cascades": 0.0,
+          "Geo_Basin": 0.0,
+          "Hydro_Canyon": 0.0,
+          "Hydro_RiverGorge": 0.0,
+          "Biomass_Northwood": 100.0,
+          "Biomass_Southfield": 93.5
+        },
+        "Biomass_Southfield": {
+          "Solar_Mojave": 0.0,
+          "Solar_Sonoran": 0.0,
+          "Solar_HighPlains": 0.0,
+          "Wind_GreatPlains": 0.0,
+          "Wind_Texas": 0.0,
+          "Wind_Midwest": 0.0,
+          "Wind_Atlantic": 0.0,
+          "Wind_GulfCoast": 0.0,
+          "Wind_PacificNW": 0.0,
+          "Gas_Riverbend": 0.0,
+          "Gas_Lakeside": 0.0,
+          "Gas_Delta": 0.0,
+          "Nuclear_SMR_North": 0.0,
+          "Nuclear_SMR_East": 0.0,
+          "Battery_GridA": 0.0,
+          "Battery_GridB": 0.0,
+          "Geo_Cascades": 0.0,
+          "Geo_Basin": 0.0,
+          "Hydro_Canyon": 0.0,
+          "Hydro_RiverGorge": 0.0,
+          "Biomass_Northwood": 93.5,
+          "Biomass_Southfield": 121.0
+        }
+      },
+      "mode": "replace",
+      "scale_groups": [
+        {
+          "options": [
+            "Solar_Mojave",
+            "Solar_Sonoran",
+            "Solar_HighPlains",
+            "Wind_GreatPlains",
+            "Wind_Texas",
+            "Wind_Midwest",
+            "Wind_Atlantic",
+            "Wind_GulfCoast",
+            "Wind_PacificNW"
+          ],
+          "factor": 1.4
+        }
+      ]
+    }
+  ]
+}

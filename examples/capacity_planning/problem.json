@@ -1,0 +1,170 @@
+{
+  "name": "Generation Capacity Mix",
+  "domain": "energy",
+  "context": "Allocate planned generation capacity share (%) across 22 candidate projects spanning solar, onshore/offshore wind, gas CCGT, nuclear SMR, battery storage, geothermal, hydro, and biomass. Balance the energy trilemma -- LCOE (cost), CO2 (carbon), Firmness (dispatchable reliability) -- plus land use, while a quadratic VariabilityRisk objective penalizes stacking correlated intermittent renewables. Options, scores, and the VariabilityRisk interaction (covariance) matrix are in scores.json.",
+  "approach": "proportional",
+  "objectives": [
+    {
+      "name": "LCOE",
+      "direction": "minimize",
+      "unit": "$/MWh",
+      "aggregation": "avg"
+    },
+    {
+      "name": "CO2",
+      "direction": "minimize",
+      "unit": "t/MWh",
+      "aggregation": "avg"
+    },
+    {
+      "name": "Firmness",
+      "direction": "maximize",
+      "unit": "score",
+      "aggregation": "avg"
+    },
+    {
+      "name": "VariabilityRisk",
+      "direction": "minimize",
+      "unit": "score",
+      "aggregation": "quadratic"
+    },
+    {
+      "name": "LandUse",
+      "direction": "minimize",
+      "unit": "acres/MW",
+      "aggregation": "avg"
+    }
+  ],
+  "constraints": [
+    {
+      "type": "max_allocation",
+      "max": 25
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "Solar_Mojave",
+        "Solar_Sonoran",
+        "Solar_HighPlains"
+      ],
+      "max": 60
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "Wind_GreatPlains",
+        "Wind_Texas",
+        "Wind_Midwest"
+      ],
+      "max": 60
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "Wind_Atlantic",
+        "Wind_GulfCoast",
+        "Wind_PacificNW"
+      ],
+      "max": 60
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "Gas_Riverbend",
+        "Gas_Lakeside",
+        "Gas_Delta"
+      ],
+      "max": 60
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "Nuclear_SMR_North",
+        "Nuclear_SMR_East"
+      ],
+      "max": 60
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "Battery_GridA",
+        "Battery_GridB"
+      ],
+      "max": 60
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "Geo_Cascades",
+        "Geo_Basin"
+      ],
+      "max": 60
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "Hydro_Canyon",
+        "Hydro_RiverGorge"
+      ],
+      "max": 60
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "Biomass_Northwood",
+        "Biomass_Southfield"
+      ],
+      "max": 60
+    },
+    {
+      "type": "objective_bound",
+      "objective": "CO2",
+      "operator": "max",
+      "value": 0.2
+    },
+    {
+      "type": "objective_bound",
+      "objective": "Firmness",
+      "operator": "min",
+      "value": 50
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "carbon_price",
+      "description": "A carbon price raises the effective cost of high-emitters (illustrative blanket LCOE uplift).",
+      "score_adjustments": [
+        {
+          "objective": "LCOE",
+          "multiply": 1.15
+        }
+      ]
+    },
+    {
+      "name": "low_renewables_year",
+      "description": "A poor solar+wind year: renewable output swings harder and co-moves more, so within-renewable correlations rise (regime shift via scale_groups on the VariabilityRisk matrix).",
+      "interaction_matrix_overrides": [
+        {
+          "objective": "VariabilityRisk",
+          "mode": "upsert",
+          "scale_groups": [
+            {
+              "options": [
+                "Solar_Mojave",
+                "Solar_Sonoran",
+                "Solar_HighPlains",
+                "Wind_GreatPlains",
+                "Wind_Texas",
+                "Wind_Midwest",
+                "Wind_Atlantic",
+                "Wind_GulfCoast",
+                "Wind_PacificNW"
+              ],
+              "factor": 1.4
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

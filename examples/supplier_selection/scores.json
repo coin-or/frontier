@@ -1,62 +1,1413 @@
 {
   "options": [
     {
-      "name": "SupplierA",
-      "description": "capacity 500"
+      "name": "NA01",
+      "description": "North America \u2014 tier 2 supplier"
     },
     {
-      "name": "SupplierB",
-      "description": "capacity 400"
+      "name": "NA02",
+      "description": "North America \u2014 tier 2 supplier"
     },
     {
-      "name": "SupplierC",
-      "description": "capacity 600"
+      "name": "NA03",
+      "description": "North America \u2014 tier 1 supplier"
     },
     {
-      "name": "SupplierD",
-      "description": "capacity 350"
+      "name": "NA04",
+      "description": "North America \u2014 tier 1 supplier"
+    },
+    {
+      "name": "EU01",
+      "description": "EU \u2014 tier 2 supplier"
+    },
+    {
+      "name": "EU02",
+      "description": "EU \u2014 tier 2 supplier"
+    },
+    {
+      "name": "EU03",
+      "description": "EU \u2014 tier 3 supplier"
+    },
+    {
+      "name": "EU04",
+      "description": "EU \u2014 tier 3 supplier"
+    },
+    {
+      "name": "CN01",
+      "description": "China \u2014 tier 1 supplier"
+    },
+    {
+      "name": "CN02",
+      "description": "China \u2014 tier 1 supplier"
+    },
+    {
+      "name": "CN03",
+      "description": "China \u2014 tier 1 supplier"
+    },
+    {
+      "name": "CN04",
+      "description": "China \u2014 tier 2 supplier"
+    },
+    {
+      "name": "CN05",
+      "description": "China \u2014 tier 1 supplier"
+    },
+    {
+      "name": "SEA01",
+      "description": "SE Asia \u2014 tier 1 supplier"
+    },
+    {
+      "name": "SEA02",
+      "description": "SE Asia \u2014 tier 1 supplier"
+    },
+    {
+      "name": "SEA03",
+      "description": "SE Asia \u2014 tier 1 supplier"
+    },
+    {
+      "name": "SEA04",
+      "description": "SE Asia \u2014 tier 2 supplier"
+    },
+    {
+      "name": "IN01",
+      "description": "India \u2014 tier 3 supplier"
+    },
+    {
+      "name": "IN02",
+      "description": "India \u2014 tier 2 supplier"
+    },
+    {
+      "name": "IN03",
+      "description": "India \u2014 tier 1 supplier"
+    },
+    {
+      "name": "IN04",
+      "description": "India \u2014 tier 2 supplier"
+    },
+    {
+      "name": "LA01",
+      "description": "LatAm \u2014 tier 2 supplier"
+    },
+    {
+      "name": "LA02",
+      "description": "LatAm \u2014 tier 1 supplier"
+    },
+    {
+      "name": "LA03",
+      "description": "LatAm \u2014 tier 1 supplier"
+    },
+    {
+      "name": "LA04",
+      "description": "LatAm \u2014 tier 1 supplier"
     }
   ],
   "scores": [
     {
-      "option": "SupplierA",
+      "option": "NA01",
       "objective": "Cost",
-      "value": 11.0
+      "value": 11.74
     },
     {
-      "option": "SupplierA",
+      "option": "NA01",
       "objective": "Reliability",
-      "value": 0.95
+      "value": 90.3
     },
     {
-      "option": "SupplierB",
+      "option": "NA01",
+      "objective": "LeadTime",
+      "value": 9.0
+    },
+    {
+      "option": "NA01",
+      "objective": "ESGRisk",
+      "value": 13.6
+    },
+    {
+      "option": "NA01",
+      "objective": "ConcentrationRisk",
+      "value": 30.9
+    },
+    {
+      "option": "NA02",
       "objective": "Cost",
-      "value": 8.0
+      "value": 12.54
     },
     {
-      "option": "SupplierB",
+      "option": "NA02",
       "objective": "Reliability",
-      "value": 0.85
+      "value": 87.8
     },
     {
-      "option": "SupplierC",
+      "option": "NA02",
+      "objective": "LeadTime",
+      "value": 9.0
+    },
+    {
+      "option": "NA02",
+      "objective": "ESGRisk",
+      "value": 13.1
+    },
+    {
+      "option": "NA02",
+      "objective": "ConcentrationRisk",
+      "value": 39.4
+    },
+    {
+      "option": "NA03",
       "objective": "Cost",
-      "value": 6.0
+      "value": 12.33
     },
     {
-      "option": "SupplierC",
+      "option": "NA03",
       "objective": "Reliability",
-      "value": 0.75
+      "value": 91.0
     },
     {
-      "option": "SupplierD",
+      "option": "NA03",
+      "objective": "LeadTime",
+      "value": 12.0
+    },
+    {
+      "option": "NA03",
+      "objective": "ESGRisk",
+      "value": 21.9
+    },
+    {
+      "option": "NA03",
+      "objective": "ConcentrationRisk",
+      "value": 32.2
+    },
+    {
+      "option": "NA04",
       "objective": "Cost",
+      "value": 13.37
+    },
+    {
+      "option": "NA04",
+      "objective": "Reliability",
+      "value": 91.1
+    },
+    {
+      "option": "NA04",
+      "objective": "LeadTime",
       "value": 10.0
     },
     {
-      "option": "SupplierD",
+      "option": "NA04",
+      "objective": "ESGRisk",
+      "value": 20.5
+    },
+    {
+      "option": "NA04",
+      "objective": "ConcentrationRisk",
+      "value": 40.3
+    },
+    {
+      "option": "EU01",
+      "objective": "Cost",
+      "value": 12.43
+    },
+    {
+      "option": "EU01",
       "objective": "Reliability",
-      "value": 0.9
+      "value": 87.1
+    },
+    {
+      "option": "EU01",
+      "objective": "LeadTime",
+      "value": 15.0
+    },
+    {
+      "option": "EU01",
+      "objective": "ESGRisk",
+      "value": 9.6
+    },
+    {
+      "option": "EU01",
+      "objective": "ConcentrationRisk",
+      "value": 32.3
+    },
+    {
+      "option": "EU02",
+      "objective": "Cost",
+      "value": 12.86
+    },
+    {
+      "option": "EU02",
+      "objective": "Reliability",
+      "value": 90.4
+    },
+    {
+      "option": "EU02",
+      "objective": "LeadTime",
+      "value": 21.0
+    },
+    {
+      "option": "EU02",
+      "objective": "ESGRisk",
+      "value": 18.2
+    },
+    {
+      "option": "EU02",
+      "objective": "ConcentrationRisk",
+      "value": 38.1
+    },
+    {
+      "option": "EU03",
+      "objective": "Cost",
+      "value": 11.86
+    },
+    {
+      "option": "EU03",
+      "objective": "Reliability",
+      "value": 84.7
+    },
+    {
+      "option": "EU03",
+      "objective": "LeadTime",
+      "value": 19.0
+    },
+    {
+      "option": "EU03",
+      "objective": "ESGRisk",
+      "value": 15.8
+    },
+    {
+      "option": "EU03",
+      "objective": "ConcentrationRisk",
+      "value": 34.3
+    },
+    {
+      "option": "EU04",
+      "objective": "Cost",
+      "value": 11.29
+    },
+    {
+      "option": "EU04",
+      "objective": "Reliability",
+      "value": 88.2
+    },
+    {
+      "option": "EU04",
+      "objective": "LeadTime",
+      "value": 20.0
+    },
+    {
+      "option": "EU04",
+      "objective": "ESGRisk",
+      "value": 13.8
+    },
+    {
+      "option": "EU04",
+      "objective": "ConcentrationRisk",
+      "value": 40.5
+    },
+    {
+      "option": "CN01",
+      "objective": "Cost",
+      "value": 7.43
+    },
+    {
+      "option": "CN01",
+      "objective": "Reliability",
+      "value": 73.6
+    },
+    {
+      "option": "CN01",
+      "objective": "LeadTime",
+      "value": 35.0
+    },
+    {
+      "option": "CN01",
+      "objective": "ESGRisk",
+      "value": 48.2
+    },
+    {
+      "option": "CN01",
+      "objective": "ConcentrationRisk",
+      "value": 64.9
+    },
+    {
+      "option": "CN02",
+      "objective": "Cost",
+      "value": 7.99
+    },
+    {
+      "option": "CN02",
+      "objective": "Reliability",
+      "value": 81.7
+    },
+    {
+      "option": "CN02",
+      "objective": "LeadTime",
+      "value": 41.0
+    },
+    {
+      "option": "CN02",
+      "objective": "ESGRisk",
+      "value": 49.4
+    },
+    {
+      "option": "CN02",
+      "objective": "ConcentrationRisk",
+      "value": 70.5
+    },
+    {
+      "option": "CN03",
+      "objective": "Cost",
+      "value": 7.05
+    },
+    {
+      "option": "CN03",
+      "objective": "Reliability",
+      "value": 81.1
+    },
+    {
+      "option": "CN03",
+      "objective": "LeadTime",
+      "value": 49.0
+    },
+    {
+      "option": "CN03",
+      "objective": "ESGRisk",
+      "value": 57.0
+    },
+    {
+      "option": "CN03",
+      "objective": "ConcentrationRisk",
+      "value": 62.8
+    },
+    {
+      "option": "CN04",
+      "objective": "Cost",
+      "value": 7.54
+    },
+    {
+      "option": "CN04",
+      "objective": "Reliability",
+      "value": 78.5
+    },
+    {
+      "option": "CN04",
+      "objective": "LeadTime",
+      "value": 35.0
+    },
+    {
+      "option": "CN04",
+      "objective": "ESGRisk",
+      "value": 46.7
+    },
+    {
+      "option": "CN04",
+      "objective": "ConcentrationRisk",
+      "value": 70.3
+    },
+    {
+      "option": "CN05",
+      "objective": "Cost",
+      "value": 8.48
+    },
+    {
+      "option": "CN05",
+      "objective": "Reliability",
+      "value": 80.8
+    },
+    {
+      "option": "CN05",
+      "objective": "LeadTime",
+      "value": 44.0
+    },
+    {
+      "option": "CN05",
+      "objective": "ESGRisk",
+      "value": 57.0
+    },
+    {
+      "option": "CN05",
+      "objective": "ConcentrationRisk",
+      "value": 59.4
+    },
+    {
+      "option": "SEA01",
+      "objective": "Cost",
+      "value": 8.18
+    },
+    {
+      "option": "SEA01",
+      "objective": "Reliability",
+      "value": 74.7
+    },
+    {
+      "option": "SEA01",
+      "objective": "LeadTime",
+      "value": 31.0
+    },
+    {
+      "option": "SEA01",
+      "objective": "ESGRisk",
+      "value": 43.2
+    },
+    {
+      "option": "SEA01",
+      "objective": "ConcentrationRisk",
+      "value": 63.9
+    },
+    {
+      "option": "SEA02",
+      "objective": "Cost",
+      "value": 8.35
+    },
+    {
+      "option": "SEA02",
+      "objective": "Reliability",
+      "value": 80.2
+    },
+    {
+      "option": "SEA02",
+      "objective": "LeadTime",
+      "value": 39.0
+    },
+    {
+      "option": "SEA02",
+      "objective": "ESGRisk",
+      "value": 49.1
+    },
+    {
+      "option": "SEA02",
+      "objective": "ConcentrationRisk",
+      "value": 59.5
+    },
+    {
+      "option": "SEA03",
+      "objective": "Cost",
+      "value": 7.63
+    },
+    {
+      "option": "SEA03",
+      "objective": "Reliability",
+      "value": 82.6
+    },
+    {
+      "option": "SEA03",
+      "objective": "LeadTime",
+      "value": 42.0
+    },
+    {
+      "option": "SEA03",
+      "objective": "ESGRisk",
+      "value": 47.5
+    },
+    {
+      "option": "SEA03",
+      "objective": "ConcentrationRisk",
+      "value": 65.6
+    },
+    {
+      "option": "SEA04",
+      "objective": "Cost",
+      "value": 7.84
+    },
+    {
+      "option": "SEA04",
+      "objective": "Reliability",
+      "value": 76.6
+    },
+    {
+      "option": "SEA04",
+      "objective": "LeadTime",
+      "value": 42.0
+    },
+    {
+      "option": "SEA04",
+      "objective": "ESGRisk",
+      "value": 40.0
+    },
+    {
+      "option": "SEA04",
+      "objective": "ConcentrationRisk",
+      "value": 56.6
+    },
+    {
+      "option": "IN01",
+      "objective": "Cost",
+      "value": 8.62
+    },
+    {
+      "option": "IN01",
+      "objective": "Reliability",
+      "value": 76.4
+    },
+    {
+      "option": "IN01",
+      "objective": "LeadTime",
+      "value": 38.0
+    },
+    {
+      "option": "IN01",
+      "objective": "ESGRisk",
+      "value": 40.2
+    },
+    {
+      "option": "IN01",
+      "objective": "ConcentrationRisk",
+      "value": 53.0
+    },
+    {
+      "option": "IN02",
+      "objective": "Cost",
+      "value": 8.79
+    },
+    {
+      "option": "IN02",
+      "objective": "Reliability",
+      "value": 76.0
+    },
+    {
+      "option": "IN02",
+      "objective": "LeadTime",
+      "value": 34.0
+    },
+    {
+      "option": "IN02",
+      "objective": "ESGRisk",
+      "value": 40.6
+    },
+    {
+      "option": "IN02",
+      "objective": "ConcentrationRisk",
+      "value": 56.2
+    },
+    {
+      "option": "IN03",
+      "objective": "Cost",
+      "value": 8.41
+    },
+    {
+      "option": "IN03",
+      "objective": "Reliability",
+      "value": 82.1
+    },
+    {
+      "option": "IN03",
+      "objective": "LeadTime",
+      "value": 27.0
+    },
+    {
+      "option": "IN03",
+      "objective": "ESGRisk",
+      "value": 43.2
+    },
+    {
+      "option": "IN03",
+      "objective": "ConcentrationRisk",
+      "value": 54.6
+    },
+    {
+      "option": "IN04",
+      "objective": "Cost",
+      "value": 8.89
+    },
+    {
+      "option": "IN04",
+      "objective": "Reliability",
+      "value": 81.5
+    },
+    {
+      "option": "IN04",
+      "objective": "LeadTime",
+      "value": 31.0
+    },
+    {
+      "option": "IN04",
+      "objective": "ESGRisk",
+      "value": 43.5
+    },
+    {
+      "option": "IN04",
+      "objective": "ConcentrationRisk",
+      "value": 52.2
+    },
+    {
+      "option": "LA01",
+      "objective": "Cost",
+      "value": 10.13
+    },
+    {
+      "option": "LA01",
+      "objective": "Reliability",
+      "value": 85.3
+    },
+    {
+      "option": "LA01",
+      "objective": "LeadTime",
+      "value": 19.0
+    },
+    {
+      "option": "LA01",
+      "objective": "ESGRisk",
+      "value": 41.1
+    },
+    {
+      "option": "LA01",
+      "objective": "ConcentrationRisk",
+      "value": 50.0
+    },
+    {
+      "option": "LA02",
+      "objective": "Cost",
+      "value": 9.94
+    },
+    {
+      "option": "LA02",
+      "objective": "Reliability",
+      "value": 85.7
+    },
+    {
+      "option": "LA02",
+      "objective": "LeadTime",
+      "value": 24.0
+    },
+    {
+      "option": "LA02",
+      "objective": "ESGRisk",
+      "value": 41.9
+    },
+    {
+      "option": "LA02",
+      "objective": "ConcentrationRisk",
+      "value": 45.2
+    },
+    {
+      "option": "LA03",
+      "objective": "Cost",
+      "value": 10.21
+    },
+    {
+      "option": "LA03",
+      "objective": "Reliability",
+      "value": 80.4
+    },
+    {
+      "option": "LA03",
+      "objective": "LeadTime",
+      "value": 28.0
+    },
+    {
+      "option": "LA03",
+      "objective": "ESGRisk",
+      "value": 39.4
+    },
+    {
+      "option": "LA03",
+      "objective": "ConcentrationRisk",
+      "value": 40.0
+    },
+    {
+      "option": "LA04",
+      "objective": "Cost",
+      "value": 9.93
+    },
+    {
+      "option": "LA04",
+      "objective": "Reliability",
+      "value": 87.2
+    },
+    {
+      "option": "LA04",
+      "objective": "LeadTime",
+      "value": 27.0
+    },
+    {
+      "option": "LA04",
+      "objective": "ESGRisk",
+      "value": 31.4
+    },
+    {
+      "option": "LA04",
+      "objective": "ConcentrationRisk",
+      "value": 50.2
+    }
+  ],
+  "interaction_matrices": [
+    {
+      "objective": "ConcentrationRisk",
+      "entries": {
+        "NA01": {
+          "NA01": 9.5481,
+          "NA02": 9.4962,
+          "NA03": 7.7608,
+          "NA04": 9.7131,
+          "EU01": 0.3992,
+          "EU02": 0.4709,
+          "EU03": 0.4239,
+          "EU04": 0.5006,
+          "CN01": 0.8022,
+          "CN02": 0.8714,
+          "CN03": 0.7762,
+          "CN04": 0.8689,
+          "CN05": 0.7342,
+          "SEA01": 0.7898,
+          "SEA02": 0.7354,
+          "SEA03": 0.8108,
+          "SEA04": 0.6996,
+          "IN01": 0.6551,
+          "IN02": 0.6946,
+          "IN03": 0.6749,
+          "IN04": 0.6452,
+          "LA01": 0.618,
+          "LA02": 0.5587,
+          "LA03": 0.4944,
+          "LA04": 0.6205
+        },
+        "NA02": {
+          "NA01": 9.4962,
+          "NA02": 15.5236,
+          "NA03": 9.8957,
+          "NA04": 12.385,
+          "EU01": 0.509,
+          "EU02": 0.6005,
+          "EU03": 0.5406,
+          "EU04": 0.6383,
+          "CN01": 1.0228,
+          "CN02": 1.1111,
+          "CN03": 0.9897,
+          "CN04": 1.1079,
+          "CN05": 0.9361,
+          "SEA01": 1.0071,
+          "SEA02": 0.9377,
+          "SEA03": 1.0339,
+          "SEA04": 0.892,
+          "IN01": 0.8353,
+          "IN02": 0.8857,
+          "IN03": 0.8605,
+          "IN04": 0.8227,
+          "LA01": 0.788,
+          "LA02": 0.7124,
+          "LA03": 0.6304,
+          "LA04": 0.7912
+        },
+        "NA03": {
+          "NA01": 7.7608,
+          "NA02": 9.8957,
+          "NA03": 10.3684,
+          "NA04": 10.1217,
+          "EU01": 0.416,
+          "EU02": 0.4907,
+          "EU03": 0.4418,
+          "EU04": 0.5216,
+          "CN01": 0.8359,
+          "CN02": 0.908,
+          "CN03": 0.8089,
+          "CN04": 0.9055,
+          "CN05": 0.7651,
+          "SEA01": 0.823,
+          "SEA02": 0.7664,
+          "SEA03": 0.8449,
+          "SEA04": 0.729,
+          "IN01": 0.6826,
+          "IN02": 0.7239,
+          "IN03": 0.7032,
+          "IN04": 0.6723,
+          "LA01": 0.644,
+          "LA02": 0.5822,
+          "LA03": 0.5152,
+          "LA04": 0.6466
+        },
+        "NA04": {
+          "NA01": 9.7131,
+          "NA02": 12.385,
+          "NA03": 10.1217,
+          "NA04": 16.2409,
+          "EU01": 0.5207,
+          "EU02": 0.6142,
+          "EU03": 0.5529,
+          "EU04": 0.6529,
+          "CN01": 1.0462,
+          "CN02": 1.1365,
+          "CN03": 1.0123,
+          "CN04": 1.1332,
+          "CN05": 0.9575,
+          "SEA01": 1.0301,
+          "SEA02": 0.9591,
+          "SEA03": 1.0575,
+          "SEA04": 0.9124,
+          "IN01": 0.8544,
+          "IN02": 0.9059,
+          "IN03": 0.8802,
+          "IN04": 0.8415,
+          "LA01": 0.806,
+          "LA02": 0.7286,
+          "LA03": 0.6448,
+          "LA04": 0.8092
+        },
+        "EU01": {
+          "NA01": 0.3992,
+          "NA02": 0.509,
+          "NA03": 0.416,
+          "NA04": 0.5207,
+          "EU01": 10.4329,
+          "EU02": 9.5989,
+          "EU03": 8.6415,
+          "EU04": 10.2036,
+          "CN01": 0.8385,
+          "CN02": 0.9109,
+          "CN03": 0.8114,
+          "CN04": 0.9083,
+          "CN05": 0.7674,
+          "SEA01": 0.8256,
+          "SEA02": 0.7687,
+          "SEA03": 0.8476,
+          "SEA04": 0.7313,
+          "IN01": 0.6848,
+          "IN02": 0.7261,
+          "IN03": 0.7054,
+          "IN04": 0.6744,
+          "LA01": 0.646,
+          "LA02": 0.584,
+          "LA03": 0.5168,
+          "LA04": 0.6486
+        },
+        "EU02": {
+          "NA01": 0.4709,
+          "NA02": 0.6005,
+          "NA03": 0.4907,
+          "NA04": 0.6142,
+          "EU01": 9.5989,
+          "EU02": 14.5161,
+          "EU03": 10.1933,
+          "EU04": 12.0358,
+          "CN01": 0.9891,
+          "CN02": 1.0744,
+          "CN03": 0.9571,
+          "CN04": 1.0714,
+          "CN05": 0.9053,
+          "SEA01": 0.9738,
+          "SEA02": 0.9068,
+          "SEA03": 0.9997,
+          "SEA04": 0.8626,
+          "IN01": 0.8077,
+          "IN02": 0.8565,
+          "IN03": 0.8321,
+          "IN04": 0.7955,
+          "LA01": 0.762,
+          "LA02": 0.6888,
+          "LA03": 0.6096,
+          "LA04": 0.765
+        },
+        "EU03": {
+          "NA01": 0.4239,
+          "NA02": 0.5406,
+          "NA03": 0.4418,
+          "NA04": 0.5529,
+          "EU01": 8.6415,
+          "EU02": 10.1933,
+          "EU03": 11.7649,
+          "EU04": 10.8354,
+          "CN01": 0.8904,
+          "CN02": 0.9673,
+          "CN03": 0.8616,
+          "CN04": 0.9645,
+          "CN05": 0.815,
+          "SEA01": 0.8767,
+          "SEA02": 0.8163,
+          "SEA03": 0.9,
+          "SEA04": 0.7766,
+          "IN01": 0.7272,
+          "IN02": 0.7711,
+          "IN03": 0.7491,
+          "IN04": 0.7162,
+          "LA01": 0.686,
+          "LA02": 0.6201,
+          "LA03": 0.5488,
+          "LA04": 0.6887
+        },
+        "EU04": {
+          "NA01": 0.5006,
+          "NA02": 0.6383,
+          "NA03": 0.5216,
+          "NA04": 0.6529,
+          "EU01": 10.2036,
+          "EU02": 12.0358,
+          "EU03": 10.8354,
+          "EU04": 16.4025,
+          "CN01": 1.0514,
+          "CN02": 1.1421,
+          "CN03": 1.0174,
+          "CN04": 1.1389,
+          "CN05": 0.9623,
+          "SEA01": 1.0352,
+          "SEA02": 0.9639,
+          "SEA03": 1.0627,
+          "SEA04": 0.9169,
+          "IN01": 0.8586,
+          "IN02": 0.9104,
+          "IN03": 0.8845,
+          "IN04": 0.8456,
+          "LA01": 0.81,
+          "LA02": 0.7322,
+          "LA03": 0.648,
+          "LA04": 0.8132
+        },
+        "CN01": {
+          "NA01": 0.8022,
+          "NA02": 1.0228,
+          "NA03": 0.8359,
+          "NA04": 1.0462,
+          "EU01": 0.8385,
+          "EU02": 0.9891,
+          "EU03": 0.8904,
+          "EU04": 1.0514,
+          "CN01": 42.1201,
+          "CN02": 35.6885,
+          "CN03": 31.7906,
+          "CN04": 35.5873,
+          "CN05": 30.0695,
+          "SEA01": 1.6588,
+          "SEA02": 1.5446,
+          "SEA03": 1.703,
+          "SEA04": 1.4693,
+          "IN01": 1.3759,
+          "IN02": 1.459,
+          "IN03": 1.4174,
+          "IN04": 1.3551,
+          "LA01": 1.298,
+          "LA02": 1.1734,
+          "LA03": 1.0384,
+          "LA04": 1.3032
+        },
+        "CN02": {
+          "NA01": 0.8714,
+          "NA02": 1.1111,
+          "NA03": 0.908,
+          "NA04": 1.1365,
+          "EU01": 0.9109,
+          "EU02": 1.0744,
+          "EU03": 0.9673,
+          "EU04": 1.1421,
+          "CN01": 35.6885,
+          "CN02": 49.7025,
+          "CN03": 34.5337,
+          "CN04": 38.658,
+          "CN05": 32.6641,
+          "SEA01": 1.802,
+          "SEA02": 1.6779,
+          "SEA03": 1.8499,
+          "SEA04": 1.5961,
+          "IN01": 1.4946,
+          "IN02": 1.5848,
+          "IN03": 1.5397,
+          "IN04": 1.472,
+          "LA01": 1.41,
+          "LA02": 1.2746,
+          "LA03": 1.128,
+          "LA04": 1.4156
+        },
+        "CN03": {
+          "NA01": 0.7762,
+          "NA02": 0.9897,
+          "NA03": 0.8089,
+          "NA04": 1.0123,
+          "EU01": 0.8114,
+          "EU02": 0.9571,
+          "EU03": 0.8616,
+          "EU04": 1.0174,
+          "CN01": 31.7906,
+          "CN02": 34.5337,
+          "CN03": 39.4384,
+          "CN04": 34.4358,
+          "CN05": 29.0965,
+          "SEA01": 1.6052,
+          "SEA02": 1.4946,
+          "SEA03": 1.6479,
+          "SEA04": 1.4218,
+          "IN01": 1.3314,
+          "IN02": 1.4117,
+          "IN03": 1.3716,
+          "IN04": 1.3113,
+          "LA01": 1.256,
+          "LA02": 1.1354,
+          "LA03": 1.0048,
+          "LA04": 1.261
+        },
+        "CN04": {
+          "NA01": 0.8689,
+          "NA02": 1.1079,
+          "NA03": 0.9055,
+          "NA04": 1.1332,
+          "EU01": 0.9083,
+          "EU02": 1.0714,
+          "EU03": 0.9645,
+          "EU04": 1.1389,
+          "CN01": 35.5873,
+          "CN02": 38.658,
+          "CN03": 34.4358,
+          "CN04": 49.4209,
+          "CN05": 32.5714,
+          "SEA01": 1.7969,
+          "SEA02": 1.6731,
+          "SEA03": 1.8447,
+          "SEA04": 1.5916,
+          "IN01": 1.4904,
+          "IN02": 1.5803,
+          "IN03": 1.5354,
+          "IN04": 1.4679,
+          "LA01": 1.406,
+          "LA02": 1.271,
+          "LA03": 1.1248,
+          "LA04": 1.4116
+        },
+        "CN05": {
+          "NA01": 0.7342,
+          "NA02": 0.9361,
+          "NA03": 0.7651,
+          "NA04": 0.9575,
+          "EU01": 0.7674,
+          "EU02": 0.9053,
+          "EU03": 0.815,
+          "EU04": 0.9623,
+          "CN01": 30.0695,
+          "CN02": 32.6641,
+          "CN03": 29.0965,
+          "CN04": 32.5714,
+          "CN05": 35.2836,
+          "SEA01": 1.5183,
+          "SEA02": 1.4137,
+          "SEA03": 1.5587,
+          "SEA04": 1.3448,
+          "IN01": 1.2593,
+          "IN02": 1.3353,
+          "IN03": 1.2973,
+          "IN04": 1.2403,
+          "LA01": 1.188,
+          "LA02": 1.074,
+          "LA03": 0.9504,
+          "LA04": 1.1928
+        },
+        "SEA01": {
+          "NA01": 0.7898,
+          "NA02": 1.0071,
+          "NA03": 0.823,
+          "NA04": 1.0301,
+          "EU01": 0.8256,
+          "EU02": 0.9738,
+          "EU03": 0.8767,
+          "EU04": 1.0352,
+          "CN01": 1.6588,
+          "CN02": 1.802,
+          "CN03": 1.6052,
+          "CN04": 1.7969,
+          "CN05": 1.5183,
+          "SEA01": 40.8321,
+          "SEA02": 29.656,
+          "SEA03": 32.6964,
+          "SEA04": 28.2106,
+          "IN01": 1.3547,
+          "IN02": 1.4365,
+          "IN03": 1.3956,
+          "IN04": 1.3342,
+          "LA01": 1.278,
+          "LA02": 1.1553,
+          "LA03": 1.0224,
+          "LA04": 1.2831
+        },
+        "SEA02": {
+          "NA01": 0.7354,
+          "NA02": 0.9377,
+          "NA03": 0.7664,
+          "NA04": 0.9591,
+          "EU01": 0.7687,
+          "EU02": 0.9068,
+          "EU03": 0.8163,
+          "EU04": 0.9639,
+          "CN01": 1.5446,
+          "CN02": 1.6779,
+          "CN03": 1.4946,
+          "CN04": 1.6731,
+          "CN05": 1.4137,
+          "SEA01": 29.656,
+          "SEA02": 35.4025,
+          "SEA03": 30.445,
+          "SEA04": 26.2681,
+          "IN01": 1.2614,
+          "IN02": 1.3376,
+          "IN03": 1.2995,
+          "IN04": 1.2424,
+          "LA01": 1.19,
+          "LA02": 1.0758,
+          "LA03": 0.952,
+          "LA04": 1.1948
+        },
+        "SEA03": {
+          "NA01": 0.8108,
+          "NA02": 1.0339,
+          "NA03": 0.8449,
+          "NA04": 1.0575,
+          "EU01": 0.8476,
+          "EU02": 0.9997,
+          "EU03": 0.9,
+          "EU04": 1.0627,
+          "CN01": 1.703,
+          "CN02": 1.8499,
+          "CN03": 1.6479,
+          "CN04": 1.8447,
+          "CN05": 1.5587,
+          "SEA01": 32.6964,
+          "SEA02": 30.445,
+          "SEA03": 43.0336,
+          "SEA04": 28.9611,
+          "IN01": 1.3907,
+          "IN02": 1.4747,
+          "IN03": 1.4327,
+          "IN04": 1.3697,
+          "LA01": 1.312,
+          "LA02": 1.186,
+          "LA03": 1.0496,
+          "LA04": 1.3172
+        },
+        "SEA04": {
+          "NA01": 0.6996,
+          "NA02": 0.892,
+          "NA03": 0.729,
+          "NA04": 0.9124,
+          "EU01": 0.7313,
+          "EU02": 0.8626,
+          "EU03": 0.7766,
+          "EU04": 0.9169,
+          "CN01": 1.4693,
+          "CN02": 1.5961,
+          "CN03": 1.4218,
+          "CN04": 1.5916,
+          "CN05": 1.3448,
+          "SEA01": 28.2106,
+          "SEA02": 26.2681,
+          "SEA03": 28.9611,
+          "SEA04": 32.0356,
+          "IN01": 1.1999,
+          "IN02": 1.2724,
+          "IN03": 1.2361,
+          "IN04": 1.1818,
+          "LA01": 1.132,
+          "LA02": 1.0233,
+          "LA03": 0.9056,
+          "LA04": 1.1365
+        },
+        "IN01": {
+          "NA01": 0.6551,
+          "NA02": 0.8353,
+          "NA03": 0.6826,
+          "NA04": 0.8544,
+          "EU01": 0.6848,
+          "EU02": 0.8077,
+          "EU03": 0.7272,
+          "EU04": 0.8586,
+          "CN01": 1.3759,
+          "CN02": 1.4946,
+          "CN03": 1.3314,
+          "CN04": 1.4904,
+          "CN05": 1.2593,
+          "SEA01": 1.3547,
+          "SEA02": 1.2614,
+          "SEA03": 1.3907,
+          "SEA04": 1.1999,
+          "IN01": 28.09,
+          "IN02": 23.2331,
+          "IN03": 22.5716,
+          "IN04": 21.5795,
+          "LA01": 1.06,
+          "LA02": 0.9582,
+          "LA03": 0.848,
+          "LA04": 1.0642
+        },
+        "IN02": {
+          "NA01": 0.6946,
+          "NA02": 0.8857,
+          "NA03": 0.7239,
+          "NA04": 0.9059,
+          "EU01": 0.7261,
+          "EU02": 0.8565,
+          "EU03": 0.7711,
+          "EU04": 0.9104,
+          "CN01": 1.459,
+          "CN02": 1.5848,
+          "CN03": 1.4117,
+          "CN04": 1.5803,
+          "CN05": 1.3353,
+          "SEA01": 1.4365,
+          "SEA02": 1.3376,
+          "SEA03": 1.4747,
+          "SEA04": 1.2724,
+          "IN01": 23.2331,
+          "IN02": 31.5844,
+          "IN03": 23.9345,
+          "IN04": 22.8824,
+          "LA01": 1.124,
+          "LA02": 1.0161,
+          "LA03": 0.8992,
+          "LA04": 1.1285
+        },
+        "IN03": {
+          "NA01": 0.6749,
+          "NA02": 0.8605,
+          "NA03": 0.7032,
+          "NA04": 0.8802,
+          "EU01": 0.7054,
+          "EU02": 0.8321,
+          "EU03": 0.7491,
+          "EU04": 0.8845,
+          "CN01": 1.4174,
+          "CN02": 1.5397,
+          "CN03": 1.3716,
+          "CN04": 1.5354,
+          "CN05": 1.2973,
+          "SEA01": 1.3956,
+          "SEA02": 1.2995,
+          "SEA03": 1.4327,
+          "SEA04": 1.2361,
+          "IN01": 22.5716,
+          "IN02": 23.9345,
+          "IN03": 29.8116,
+          "IN04": 22.2309,
+          "LA01": 1.092,
+          "LA02": 0.9872,
+          "LA03": 0.8736,
+          "LA04": 1.0964
+        },
+        "IN04": {
+          "NA01": 0.6452,
+          "NA02": 0.8227,
+          "NA03": 0.6723,
+          "NA04": 0.8415,
+          "EU01": 0.6744,
+          "EU02": 0.7955,
+          "EU03": 0.7162,
+          "EU04": 0.8456,
+          "CN01": 1.3551,
+          "CN02": 1.472,
+          "CN03": 1.3113,
+          "CN04": 1.4679,
+          "CN05": 1.2403,
+          "SEA01": 1.3342,
+          "SEA02": 1.2424,
+          "SEA03": 1.3697,
+          "SEA04": 1.1818,
+          "IN01": 21.5795,
+          "IN02": 22.8824,
+          "IN03": 22.2309,
+          "IN04": 27.2484,
+          "LA01": 1.044,
+          "LA02": 0.9438,
+          "LA03": 0.8352,
+          "LA04": 1.0482
+        },
+        "LA01": {
+          "NA01": 0.618,
+          "NA02": 0.788,
+          "NA03": 0.644,
+          "NA04": 0.806,
+          "EU01": 0.646,
+          "EU02": 0.762,
+          "EU03": 0.686,
+          "EU04": 0.81,
+          "CN01": 1.298,
+          "CN02": 1.41,
+          "CN03": 1.256,
+          "CN04": 1.406,
+          "CN05": 1.188,
+          "SEA01": 1.278,
+          "SEA02": 1.19,
+          "SEA03": 1.312,
+          "SEA04": 1.132,
+          "IN01": 1.06,
+          "IN02": 1.124,
+          "IN03": 1.092,
+          "IN04": 1.044,
+          "LA01": 25.0,
+          "LA02": 17.628,
+          "LA03": 15.6,
+          "LA04": 19.578
+        },
+        "LA02": {
+          "NA01": 0.5587,
+          "NA02": 0.7124,
+          "NA03": 0.5822,
+          "NA04": 0.7286,
+          "EU01": 0.584,
+          "EU02": 0.6888,
+          "EU03": 0.6201,
+          "EU04": 0.7322,
+          "CN01": 1.1734,
+          "CN02": 1.2746,
+          "CN03": 1.1354,
+          "CN04": 1.271,
+          "CN05": 1.074,
+          "SEA01": 1.1553,
+          "SEA02": 1.0758,
+          "SEA03": 1.186,
+          "SEA04": 1.0233,
+          "IN01": 0.9582,
+          "IN02": 1.0161,
+          "IN03": 0.9872,
+          "IN04": 0.9438,
+          "LA01": 17.628,
+          "LA02": 20.4304,
+          "LA03": 14.1024,
+          "LA04": 17.6985
+        },
+        "LA03": {
+          "NA01": 0.4944,
+          "NA02": 0.6304,
+          "NA03": 0.5152,
+          "NA04": 0.6448,
+          "EU01": 0.5168,
+          "EU02": 0.6096,
+          "EU03": 0.5488,
+          "EU04": 0.648,
+          "CN01": 1.0384,
+          "CN02": 1.128,
+          "CN03": 1.0048,
+          "CN04": 1.1248,
+          "CN05": 0.9504,
+          "SEA01": 1.0224,
+          "SEA02": 0.952,
+          "SEA03": 1.0496,
+          "SEA04": 0.9056,
+          "IN01": 0.848,
+          "IN02": 0.8992,
+          "IN03": 0.8736,
+          "IN04": 0.8352,
+          "LA01": 15.6,
+          "LA02": 14.1024,
+          "LA03": 16.0,
+          "LA04": 15.6624
+        },
+        "LA04": {
+          "NA01": 0.6205,
+          "NA02": 0.7912,
+          "NA03": 0.6466,
+          "NA04": 0.8092,
+          "EU01": 0.6486,
+          "EU02": 0.765,
+          "EU03": 0.6887,
+          "EU04": 0.8132,
+          "CN01": 1.3032,
+          "CN02": 1.4156,
+          "CN03": 1.261,
+          "CN04": 1.4116,
+          "CN05": 1.1928,
+          "SEA01": 1.2831,
+          "SEA02": 1.1948,
+          "SEA03": 1.3172,
+          "SEA04": 1.1365,
+          "IN01": 1.0642,
+          "IN02": 1.1285,
+          "IN03": 1.0964,
+          "IN04": 1.0482,
+          "LA01": 19.578,
+          "LA02": 17.6985,
+          "LA03": 15.6624,
+          "LA04": 25.2004
+        }
+      }
     }
   ]
 }

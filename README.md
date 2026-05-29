@@ -12,19 +12,20 @@ The design is **explainable, governable optimization**: the engine owns the *det
 
 ## Purpose
 
-LLMs can reason about tradeoffs conversationally but can't *solve* them — they lack the machinery to enumerate a combinatorial option space, enforce hard constraints, and produce the actual Pareto frontier. Frontier fills that gap, for problems where data is available to score options, objectives genuinely conflict (no single "best"), and the space is too large for intuition.
+LLMs can reason about tradeoffs conversationally but can't *solve* them — they can't reliably enumerate a combinatorial option space, enforce hard constraints, and produce the actual Pareto frontier. These are the decisions teams used to grind out in spreadsheets, until the spreadsheet hit a complexity wall: too many options, too many interacting constraints, objectives that genuinely conflict. Frontier supplies the missing half — the **LLM translates** the decision into a structured model and narrates the result; a real **optimization solver** does the math neither a spreadsheet nor an LLM can. It fits problems where data can score options, objectives genuinely conflict (no single "best"), and the space is too large and too constrained for intuition.
 
 **Typical problems:** investment portfolio construction, product feature prioritization, budget or channel allocation, vendor selection, resource allocation under uncertainty — any "pick a subset from many, balance conflicting goals, with real data" decision.
 
 **What Frontier adds beyond an LLM alone:**
-- The full set of non-dominated solutions, not a single recommendation
-- Hard constraint enforcement — 8 constraint types (cardinality, forced include/exclude, objective bounds, exclusion pairs, dependencies, group limits, allocation caps), never violated during search
-- Reproducibility — same inputs → same frontier (`seed` echoed when omitted)
-- Explainability — every reported tradeoff traces to returned data (scores, shadow prices, dominance relations), not a fluent guess, so a stakeholder can audit the reasoning line by line
-- Scenario modeling — independent frontiers per scenario, plus CVaR / worst-case / expected risk per objective
-- Longitudinal state — problems persist across sessions; curated picks track survival across re-runs
+- **The full non-dominated frontier** — every Pareto-optimal tradeoff, not a single recommendation or a weighted ranking
+- **Hard constraints, enforced** — 8 constraint types (cardinality, forced include/exclude, objective bounds, exclusion pairs, dependencies, group limits, allocation caps), never violated during search
+- **Auditable by construction** — every reported tradeoff traces to returned data (scores, shadow prices, dominance), not a fluent guess; runs are reproducible (same inputs → same frontier), so a stakeholder can re-examine the decision line by line
+- **Scenario & risk modeling** — independent frontiers per scenario, plus CVaR / worst-case / expected risk per objective
+- **Longitudinal state** — problems persist across sessions; curated picks track survival across re-runs
 
-**Worked examples:** [`examples/`](examples/) — loadable problem definitions for portfolio construction, channel-budget allocation, and supplier selection.
+*Why not just ask an agent to write a solver?* You can — for a one-shot problem. Frontier is the turnkey pairing: an LLM translation-and-narration layer over a real solver, grounded (every number computed, not guessed), auditable, and reusable across problems and re-runs — instead of bespoke optimization code rebuilt and re-verified each time.
+
+**Worked examples:** [`examples/`](examples/) — loadable problem definitions for portfolio construction, channel-budget allocation, supplier selection, and generation-capacity planning.
 
 ## Workflow
 
