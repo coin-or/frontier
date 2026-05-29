@@ -37,7 +37,12 @@ Skills auto-inject at workflow transitions, so domain rigor — how to classify 
 
 ## Setup
 
-The hosted beta instance (`https://frontier-592q.onrender.com/sse`) is **gated by a bearer token** — ask the operator for `FRONTIER_TOKEN`. Prefer your own engine? See [Self-host](#self-host) (ungated by default). The snippets below assume the hosted instance.
+Two ways to use Frontier:
+
+- **Web UI** — a browser chat shell over the engine. A hosted instance is available to beta users; or run/deploy your own (see [`ui/`](ui/) and [Deploy your own](#deploy-your-own)).
+- **MCP client** — connect any MCP-compatible client (Claude Code, Claude Desktop, claude.ai, Cursor, Codex). The hosted beta engine (`https://frontier-592q.onrender.com/sse`) is **gated by a bearer token** — ask the operator for `FRONTIER_TOKEN`; or [self-host](#self-host) your own (ungated by default).
+
+The MCP-client snippets below assume the hosted engine.
 
 ### Claude Code (terminal)
 
@@ -89,9 +94,16 @@ FRONTIER_MCP_TOKEN=your-secret MCP_TRANSPORT=sse python -m mcp_server.server
 
 Point your MCP client at the local server — for SSE that's `http://localhost:8000/sse`. The optional web UI lives in [`ui/`](ui/) — see its [README](ui/README.md).
 
-### Deploy your own to Render
+### Deploy your own
 
-[`render.yaml`](render.yaml) is a Render blueprint that provisions both services — the MCP engine and the web UI — and auto-generates one shared `FRONTIER_MCP_TOKEN` that gates the engine and is shared with the web app. Point Render at your fork (New → Blueprint), and after the first deploy set `ANTHROPIC_API_KEY` in the dashboard (the only secret not auto-wired). Beta users then reach your instance via the web UI, or by pasting the token into their MCP client (snippets above).
+Both pieces are plain web services — host them anywhere (Render, Fly, Railway, a VPS, Docker):
+
+- **Engine** (Python) — `pip install -r requirements.txt`, then `MCP_TRANSPORT=sse python -m mcp_server.server`. Set `MCP_HOST=0.0.0.0` and `FRONTIER_MCP_TOKEN`; the host supplies `$PORT`. Must be publicly reachable — Anthropic's MCP connector calls it.
+- **Web UI** (Node, in `ui/`) — `npm install && npm run build`, then `npm start`. Set `FRONTIER_MCP_URL` (the engine's `/sse`), `FRONTIER_MCP_TOKEN`, `ANTHROPIC_API_KEY`, `AGENT_BACKEND=messages-api`, and `UI_ACCESS_PASSWORD`.
+
+`FRONTIER_MCP_TOKEN` must match on both — that's what authenticates the UI to the engine.
+
+**Render (one-click example):** [`render.yaml`](render.yaml) provisions both as a blueprint — auto-generates the shared token, derives the engine URL, leaves only `ANTHROPIC_API_KEY` to set. Point Render at your fork (New → Blueprint).
 
 ## Architecture
 
