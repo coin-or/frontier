@@ -1,0 +1,62 @@
+{
+  "options": [
+    {
+      "name": "SupplierA",
+      "description": "capacity 500"
+    },
+    {
+      "name": "SupplierB",
+      "description": "capacity 400"
+    },
+    {
+      "name": "SupplierC",
+      "description": "capacity 600"
+    },
+    {
+      "name": "SupplierD",
+      "description": "capacity 350"
+    }
+  ],
+  "scores": [
+    {
+      "option": "SupplierA",
+      "objective": "Cost",
+      "value": 11.0
+    },
+    {
+      "option": "SupplierA",
+      "objective": "Reliability",
+      "value": 0.95
+    },
+    {
+      "option": "SupplierB",
+      "objective": "Cost",
+      "value": 8.0
+    },
+    {
+      "option": "SupplierB",
+      "objective": "Reliability",
+      "value": 0.85
+    },
+    {
+      "option": "SupplierC",
+      "objective": "Cost",
+      "value": 6.0
+    },
+    {
+      "option": "SupplierC",
+      "objective": "Reliability",
+      "value": 0.75
+    },
+    {
+      "option": "SupplierD",
+      "objective": "Cost",
+      "value": 10.0
+    },
+    {
+      "option": "SupplierD",
+      "objective": "Reliability",
+      "value": 0.9
+    }
+  ]
+}

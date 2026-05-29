@@ -24,6 +24,8 @@ LLMs can reason about tradeoffs conversationally but can't *solve* them — they
 - Scenario modeling — independent frontiers per scenario, plus CVaR / worst-case / expected risk per objective
 - Longitudinal state — problems persist across sessions; curated picks track survival across re-runs
 
+**Worked examples:** [`examples/`](examples/) — loadable problem definitions for portfolio construction, channel-budget allocation, and supplier selection.
+
 ## Workflow
 
 You describe a decision to an AI agent in natural language; the agent translates it into Frontier's structured model, runs optimization, and interprets the results back. The 4 tools, in order:

@@ -1,0 +1,48 @@
+{
+  "name": "Marketing Channel Budget",
+  "domain": "marketing",
+  "context": "Allocate budget across 5 channels to balance conversions across 3 campaign goals. Channels specialize, so the mix trades off campaign outcomes. Options + scores in scores.json.",
+  "approach": "proportional",
+  "objectives": [
+    {
+      "name": "Brand_Awareness",
+      "direction": "maximize",
+      "unit": "conv/$",
+      "aggregation": "avg"
+    },
+    {
+      "name": "Product_Launch",
+      "direction": "maximize",
+      "unit": "conv/$",
+      "aggregation": "avg"
+    },
+    {
+      "name": "Seasonal_Sale",
+      "direction": "maximize",
+      "unit": "conv/$",
+      "aggregation": "avg"
+    }
+  ],
+  "constraints": [
+    {
+      "type": "max_allocation",
+      "max": 40
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "email_sunset",
+      "description": "Email channel retired \u2014 reallocate across the rest.",
+      "constraint_overrides": [
+        {
+          "type": "max_allocation",
+          "max": 40
+        },
+        {
+          "type": "force_exclude",
+          "option": "Email"
+        }
+      ]
+    }
+  ]
+}

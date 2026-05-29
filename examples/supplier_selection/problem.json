@@ -1,0 +1,42 @@
+{
+  "name": "Supplier Selection",
+  "domain": "procurement",
+  "context": "Allocate order share across suppliers to balance blended unit cost against reliability, capped so no single supplier exceeds 45% (diversification). Options + scores in scores.json.",
+  "approach": "proportional",
+  "objectives": [
+    {
+      "name": "Cost",
+      "direction": "minimize",
+      "unit": "$/unit",
+      "aggregation": "avg"
+    },
+    {
+      "name": "Reliability",
+      "direction": "maximize",
+      "unit": "score",
+      "aggregation": "avg"
+    }
+  ],
+  "constraints": [
+    {
+      "type": "max_allocation",
+      "max": 45
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "supplierC_disruption",
+      "description": "Cheapest supplier (C) goes offline \u2014 reallocate to the rest.",
+      "constraint_overrides": [
+        {
+          "type": "max_allocation",
+          "max": 45
+        },
+        {
+          "type": "force_exclude",
+          "option": "SupplierC"
+        }
+      ]
+    }
+  ]
+}

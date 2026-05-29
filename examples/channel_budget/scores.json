@@ -1,0 +1,96 @@
+{
+  "options": [
+    {
+      "name": "Search"
+    },
+    {
+      "name": "Social"
+    },
+    {
+      "name": "Display"
+    },
+    {
+      "name": "Video"
+    },
+    {
+      "name": "Email"
+    }
+  ],
+  "scores": [
+    {
+      "option": "Search",
+      "objective": "Brand_Awareness",
+      "value": 0.05
+    },
+    {
+      "option": "Search",
+      "objective": "Product_Launch",
+      "value": 0.08
+    },
+    {
+      "option": "Search",
+      "objective": "Seasonal_Sale",
+      "value": 0.1
+    },
+    {
+      "option": "Social",
+      "objective": "Brand_Awareness",
+      "value": 0.06
+    },
+    {
+      "option": "Social",
+      "objective": "Product_Launch",
+      "value": 0.05
+    },
+    {
+      "option": "Social",
+      "objective": "Seasonal_Sale",
+      "value": 0.07
+    },
+    {
+      "option": "Display",
+      "objective": "Brand_Awareness",
+      "value": 0.03
+    },
+    {
+      "option": "Display",
+      "objective": "Product_Launch",
+      "value": 0.04
+    },
+    {
+      "option": "Display",
+      "objective": "Seasonal_Sale",
+      "value": 0.05
+    },
+    {
+      "option": "Video",
+      "objective": "Brand_Awareness",
+      "value": 0.04
+    },
+    {
+      "option": "Video",
+      "objective": "Product_Launch",
+      "value": 0.07
+    },
+    {
+      "option": "Video",
+      "objective": "Seasonal_Sale",
+      "value": 0.06
+    },
+    {
+      "option": "Email",
+      "objective": "Brand_Awareness",
+      "value": 0.08
+    },
+    {
+      "option": "Email",
+      "objective": "Product_Launch",
+      "value": 0.06
+    },
+    {
+      "option": "Email",
+      "objective": "Seasonal_Sale",
+      "value": 0.12
+    }
+  ]
+}
