@@ -5,20 +5,24 @@ Lightweight web UI prototype for [Frontier](../README.md). Chat shell on top of 
 ## Setup
 
 ```bash
+# 1. Start a local engine (ungated — no token) from the repo root:
+MCP_TRANSPORT=sse python -m mcp_server.server   # serves http://localhost:8000/sse
+
+# 2. Run the web app:
 cd ui
 cp .env.example .env.local         # add your ANTHROPIC_API_KEY
 npm install
 npm run dev                        # http://localhost:3000
 ```
 
-By default points at the live Frontier MCP at `https://frontier-592q.onrender.com/sse`. Override via `FRONTIER_MCP_URL` in `.env.local` to point at a local instance.
+The default `.env.example` uses the `anthropic-local` backend, which runs the agent loop in this app and talks to the local engine directly — **no public URL or token required**. Point elsewhere via `FRONTIER_MCP_URL` (full URL) or `FRONTIER_MCP_HOST` (host only — composes `https://$HOST/sse`); set `FRONTIER_MCP_TOKEN` if the target engine is gated.
 
 ## Stack
 
 - **Next.js 15** (App Router, Node runtime for `/api/chat`)
 - **React 19**, **Tailwind CSS**, **react-markdown** + `remark-gfm` for ASCII viz / table rendering
 - **Anthropic SDK** (Messages API + MCP connector, `mcp-client-2025-11-20` beta)
-- No DB, no auth, no AI SDK — straight SSE proxy from Anthropic streaming events to the client
+- No DB; no per-user auth (optional shared-token gate on the engine); no AI SDK — straight SSE proxy from Anthropic streaming events to the client
 
 ## Pluggable agent runtime
 
@@ -26,9 +30,11 @@ By default points at the live Frontier MCP at `https://frontier-592q.onrender.co
 
 | Value | Status | What it gets you |
 |---|---|---|
-| `messages-api` (default) | ✅ working | Anthropic Messages API + MCP connector — simplest, fewest deps |
-| `managed-agents` | 🚧 stub | Claude Managed Agents — adds memory, dreaming, telemetry, event SSE |
-| `agent-sdk` | 🚧 stub | Claude Agent SDK — for local dev / async workers |
+| `messages-api` (prod default) | ✅ working | Messages API + server-side MCP connector — needs a public https engine |
+| `anthropic-local` (local default) | ✅ working | Messages API + client-side MCP loop — works with a local or gated engine |
+| `openai-compatible` | ✅ working | Any OpenAI-compatible provider + client-side MCP loop |
+| `managed-agents` | 🚧 stub | Claude Managed Agents — memory, dreaming, telemetry, event SSE |
+| `agent-sdk` | 🚧 stub | Claude Agent SDK — async workers |
 
 Anthropic lock-in is bounded to this file. Swap cost: 3–5 days, mostly conversation-memory + telemetry reimplementation.
 
@@ -42,32 +48,35 @@ Anthropic lock-in is bounded to this file. Swap cost: 3–5 days, mostly convers
 
 ## Deployment
 
-`frontier-web` ships as a second service in the repo's [`render.yaml`](../render.yaml) — pushing to `main` auto-deploys both the MCP engine and the web app. After Render provisions the new service for the first time, set `ANTHROPIC_API_KEY` (or `CLAUDE_API_KEY`) manually in the Render dashboard — it's declared `sync: false` so it stays out of source control.
+Both services ship in the repo's [`render.yaml`](../render.yaml) — pushing to `main` (or pointing Render at your fork as a Blueprint, see the root [README](../README.md)) provisions the MCP engine and the web app together. The blueprint:
 
-Reference (already in `render.yaml`):
+- **auto-generates one shared `FRONTIER_MCP_TOKEN`** (a Render env group) injected into both services, so the web app's connector calls carry the token the engine expects — no manual copying;
+- **derives the engine URL** from the engine service's host via `fromService` (`FRONTIER_MCP_HOST`), so nothing is hardcoded;
+- leaves only **`ANTHROPIC_API_KEY`** to set by hand (`sync: false`, so it stays out of source control).
 
 ```yaml
+envVarGroups:
+  - name: frontier-shared
+    envVars:
+      - key: FRONTIER_MCP_TOKEN
+        generateValue: true            # shared by both services
+
 services:
   - type: web
-    name: frontier              # existing MCP service — unchanged
-    runtime: python
+    name: frontier                     # MCP engine — gated by FRONTIER_MCP_TOKEN
     # ...
-
   - type: web
     name: frontier-web
-    runtime: node
-    rootDir: ui
-    buildCommand: npm install && npm run build
-    startCommand: npm start
     envVars:
+      - fromGroup: frontier-shared      # sends the token via the MCP connector
+      - key: FRONTIER_MCP_HOST
+        fromService: { name: frontier, type: web, property: host }
       - key: ANTHROPIC_API_KEY
-        sync: false             # set in Render dashboard
-      - key: FRONTIER_MCP_URL
-        value: https://frontier-592q.onrender.com/sse
+        sync: false                     # set in Render dashboard
       - key: AGENT_BACKEND
         value: messages-api
 ```
 
 ## Status
 
-Phase 0.b MVP — pre-D.1, no auth, ephemeral sessions, single-user (every browser is a fresh user as far as Frontier MCP knows). Validates the chat UX + Anthropic Messages API + MCP connector path end-to-end before any heavier work.
+Phase 0.b MVP — pre-D.1. A single shared `FRONTIER_MCP_TOKEN` gates the engine, but there's no per-user identity yet: sessions are ephemeral and every browser shares one problem namespace (fine for a trusted closed beta; per-user `owner_id` scoping is the next step). Validates the chat UX + Anthropic Messages API + MCP connector path end-to-end before any heavier work.

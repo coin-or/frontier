@@ -1,3 +1,19 @@
+# Render blueprint — deploys the Frontier MCP engine + the web UI together.
+# Point Render at your fork (New → Blueprint) or push to a connected repo. Two
+# free web services + one shared bearer token (auto-generated below) that gates
+# the public engine. The only thing to set by hand after the first deploy is
+# ANTHROPIC_API_KEY.
+
+envVarGroups:
+  - name: frontier-shared
+    envVars:
+      # Shared secret that gates the engine. Render generates it once and
+      # injects the SAME value into both services so they always match. Copy it
+      # from the dashboard to hand MCP-client beta users (Claude Code / Codex /
+      # Cursor) their bearer token. Rotate by regenerating here.
+      - key: FRONTIER_MCP_TOKEN
+        generateValue: true
+
 services:
   - type: web
     name: frontier
@@ -8,6 +24,11 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.11"
+      # Bind on all interfaces so Render can route to the engine.
+      - key: MCP_HOST
+        value: 0.0.0.0
+      # FRONTIER_MCP_TOKEN — the expected bearer token (shared with the web app).
+      - fromGroup: frontier-shared
 
   - type: web
     name: frontier-web
@@ -19,16 +40,17 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "22"
-      # Anthropic API key — set manually in the Render dashboard so it isn't
-      # tracked in this YAML. Reads either name; CLAUDE_API_KEY also works.
+      # FRONTIER_MCP_TOKEN — sent to the engine via the MCP connector.
+      - fromGroup: frontier-shared
+      # Engine URL is derived from the sibling service's host (no hardcoded URL).
+      # The web app composes https://$FRONTIER_MCP_HOST/sse.
+      - key: FRONTIER_MCP_HOST
+        fromService:
+          name: frontier
+          type: web
+          property: host
+      # Anthropic key — the one secret to set by hand (CLAUDE_API_KEY also works).
       - key: ANTHROPIC_API_KEY
         sync: false
-      # Frontier MCP must be externally reachable — Anthropic's Messages API
-      # calls it from Anthropic infrastructure, not from this service. Use the
-      # public URL of the `frontier` service above.
-      - key: FRONTIER_MCP_URL
-        value: https://frontier-592q.onrender.com/sse
-      # Default to Messages API + MCP connector; switch to managed-agents
-      # later once that adapter is implemented.
       - key: AGENT_BACKEND
         value: messages-api

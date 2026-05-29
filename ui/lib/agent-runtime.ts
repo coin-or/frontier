@@ -29,7 +29,12 @@ export type AgentRuntime = {
 };
 
 const FRONTIER_MCP_URL =
-  process.env.FRONTIER_MCP_URL ?? "https://frontier-592q.onrender.com/sse";
+  process.env.FRONTIER_MCP_URL ??
+  (process.env.FRONTIER_MCP_HOST
+    ? `https://${process.env.FRONTIER_MCP_HOST}/sse`
+    : "http://localhost:8000/sse");
+// Single shared bearer token gating a hosted engine. Unset = local/ungated.
+const FRONTIER_MCP_TOKEN = process.env.FRONTIER_MCP_TOKEN;
 const MODEL = process.env.ANTHROPIC_MODEL ?? "claude-opus-4-7";
 
 // ─── messages-api adapter (default) ─────────────────────────────────────────
@@ -57,7 +62,12 @@ const messagesApiAdapter: AgentRuntime = {
       system: SYSTEM_PROMPT,
       thinking: { type: "enabled", budget_tokens: thinkingBudget },
       mcp_servers: [
-        { type: "url", url: FRONTIER_MCP_URL, name: "frontier" },
+        {
+          type: "url",
+          url: FRONTIER_MCP_URL,
+          name: "frontier",
+          ...(FRONTIER_MCP_TOKEN ? { authorization_token: FRONTIER_MCP_TOKEN } : {}),
+        },
       ],
       tools: [
         { type: "mcp_toolset", mcp_server_name: "frontier" },

@@ -34,10 +34,14 @@ Skills auto-inject at workflow transitions, so domain rigor — how to classify 
 
 ## Setup
 
+The hosted beta instance (`https://frontier-592q.onrender.com/sse`) is **gated by a bearer token** — ask the operator for `FRONTIER_TOKEN`. Prefer your own engine? See [Self-host](#self-host) (ungated by default). The snippets below assume the hosted instance.
+
 ### Claude Code (terminal)
 
 ```bash
-claude mcp add frontier --transport sse --url https://frontier-592q.onrender.com/sse
+claude mcp add frontier --transport sse \
+  --url https://frontier-592q.onrender.com/sse \
+  --header "Authorization: Bearer $FRONTIER_TOKEN"
 ```
 
 ### Claude Desktop
@@ -49,7 +53,8 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
   "mcpServers": {
     "frontier": {
       "transport": "sse",
-      "url": "https://frontier-592q.onrender.com/sse"
+      "url": "https://frontier-592q.onrender.com/sse",
+      "headers": { "Authorization": "Bearer YOUR_FRONTIER_TOKEN" }
     }
   }
 }
@@ -57,7 +62,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 ### claude.ai (MCP integrations)
 
-Add Frontier as a remote MCP server in claude.ai settings using the SSE URL: `https://frontier-592q.onrender.com/sse`
+Add Frontier as a remote MCP server in claude.ai settings using the SSE URL `https://frontier-592q.onrender.com/sse`, with an `Authorization: Bearer <FRONTIER_TOKEN>` header.
 
 ### Self-host
 
@@ -73,9 +78,17 @@ python -m mcp_server.server
 
 # SSE transport (for remote MCP clients)
 MCP_TRANSPORT=sse python -m mcp_server.server
+
+# Gate a public instance with a shared bearer token — clients must then send
+# `Authorization: Bearer <token>`. Leave unset for an open local instance.
+FRONTIER_MCP_TOKEN=your-secret MCP_TRANSPORT=sse python -m mcp_server.server
 ```
 
 Point your MCP client at the local server — for SSE that's `http://localhost:8000/sse`. The optional web UI lives in [`ui/`](ui/) — see its [README](ui/README.md).
+
+### Deploy your own to Render
+
+[`render.yaml`](render.yaml) is a Render blueprint that provisions both services — the MCP engine and the web UI — and auto-generates one shared `FRONTIER_MCP_TOKEN` that gates the engine and is shared with the web app. Point Render at your fork (New → Blueprint), and after the first deploy set `ANTHROPIC_API_KEY` in the dashboard (the only secret not auto-wired). Beta users then reach your instance via the web UI, or by pasting the token into their MCP client (snippets above).
 
 ## Architecture
 

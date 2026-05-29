@@ -1238,9 +1238,51 @@ def _explore_feedback(
 # ─── Entry point ───
 
 
+def _bearer_gate(app, token: str, gated_prefixes: tuple[str, ...]):
+    """ASGI wrapper that requires `Authorization: Bearer <token>` on MCP paths.
+
+    Only HTTP requests to the transport endpoints are gated, leaving health
+    checks and other paths open. When FRONTIER_MCP_TOKEN is unset the engine
+    runs ungated (local dev / single-user self-host); set it to lock a publicly
+    hosted engine. Per-user scoping (owner_id) is a later step — this is a
+    single shared secret shared by the web app and direct MCP-client users.
+    """
+    import hmac
+
+    expected = f"Bearer {token}"
+
+    async def gated(scope, receive, send):
+        if scope["type"] == "http" and scope.get("path", "").startswith(gated_prefixes):
+            headers = dict(scope.get("headers") or [])
+            provided = headers.get(b"authorization", b"").decode()
+            if not hmac.compare_digest(provided, expected):
+                await send({"type": "http.response.start", "status": 401,
+                            "headers": [(b"content-type", b"text/plain")]})
+                await send({"type": "http.response.body", "body": b"Unauthorized"})
+                return
+        await app(scope, receive, send)
+
+    return gated
+
+
 def main():
     transport = os.environ.get("MCP_TRANSPORT", "stdio")
-    mcp.run(transport=transport)
+    token = os.environ.get("FRONTIER_MCP_TOKEN")
+
+    # Gate the HTTP transports when a shared token is configured; stdio is
+    # local-trust and never gated.
+    if token and transport in ("sse", "streamable-http"):
+        import uvicorn
+
+        app = mcp.sse_app() if transport == "sse" else mcp.streamable_http_app()
+        app = _bearer_gate(app, token, ("/sse", "/messages", "/mcp"))
+        uvicorn.run(
+            app,
+            host=os.environ.get("MCP_HOST", "127.0.0.1"),
+            port=int(os.environ.get("PORT", "8000")),
+        )
+    else:
+        mcp.run(transport=transport)
 
 
 if __name__ == "__main__":
