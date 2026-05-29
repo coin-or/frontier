@@ -394,6 +394,48 @@ def _nondominated(solutions: list[Solution], obj_list: list) -> list[Solution]:
     return [solutions[i] for i in keep]
 
 
+def _seed_cardinality_population(
+    linear_coefs: list[np.ndarray],
+    cov: np.ndarray,
+    eps_bounds: list[tuple[float, float]],
+    k: int,
+    pop: int,
+    seed: int,
+) -> np.ndarray:
+    """Domain-informed initial population for the cardinality EA (proof #1).
+
+    The support search is combinatorial, so at a small pop/gen the EA can miss the
+    high-return corner (the support = the few top-return assets). We seed the initial
+    population with sensible supports — **lowest-volatility K, highest-return K,
+    highest return/vol K** — each across a span of return targets, so cuOpt solves
+    those corner portfolios *exactly* from generation 0 and the EA refines around
+    them. This is standard practice for cardinality-constrained portfolios, and every
+    seeded support is still solved exactly by cuOpt — no hand-placed answers.
+
+    Genome row = ``[eps per linear objective] + [priority vector]``; a support is
+    selected by giving its assets the top-K priorities (≥0.7 vs ≤0.3 elsewhere).
+    """
+    rng = np.random.default_rng(seed)
+    n_assets = cov.shape[0]
+    vols = np.sqrt(np.clip(np.diag(cov), 0.0, None))
+    ret = np.asarray(linear_coefs[0], float)
+    sharpe = ret / np.where(vols > 0, vols, 1e-9)
+    supports = [np.argsort(vols)[:k], np.argsort(ret)[-k:], np.argsort(sharpe)[-k:]]
+    lo0, hi0 = eps_bounds[0]
+    n_frac = max(2, pop // (len(supports) * 2))
+    rows: list[list[float]] = []
+    for supp in supports:
+        for frac in np.linspace(0.0, 1.0, n_frac):
+            eps = [lo0 + frac * (hi0 - lo0)] + [b[0] for b in eps_bounds[1:]]
+            pri = rng.uniform(0.0, 0.3, n_assets)
+            pri[np.asarray(supp)] = rng.uniform(0.7, 1.0, len(supp))
+            rows.append(eps + list(pri))
+    while len(rows) < pop:                       # fill remainder with random genomes
+        eps = [rng.uniform(b[0], b[1]) for b in eps_bounds]
+        rows.append(eps + list(rng.uniform(0.0, 1.0, n_assets)))
+    return np.array(rows[:pop], dtype=float)
+
+
 def _optimize_cuopt(
     problem: Problem,
     mode: OptimizeMode,
@@ -454,7 +496,14 @@ def _optimize_cuopt(
     pymoo_problem = _CuOptFrontierProblem(
         prop, cov, linear_coefs, linear_maximize, max_weight, eps_bounds, cardinality_k,
     )
-    algorithm = NSGA2(pop_size=_SPIKE_POP)
+    # Cardinality (proof #1): seed the combinatorial support search with domain-informed
+    # supports so cuOpt reaches the exact corners even at the spike's small pop/gen.
+    if cardinality_k is not None:
+        seed_X = _seed_cardinality_population(
+            linear_coefs, cov, eps_bounds, cardinality_k, _SPIKE_POP, seed)
+        algorithm = NSGA2(pop_size=_SPIKE_POP, sampling=seed_X)
+    else:
+        algorithm = NSGA2(pop_size=_SPIKE_POP)
     result = pymoo_minimize(
         pymoo_problem, algorithm, ("n_gen", _SPIKE_GEN), seed=seed, verbose=False,
     )
