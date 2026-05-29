@@ -1,11 +1,13 @@
 # Examples
 
-Sample problems for Frontier — combinatorial, multi-objective decisions that need a real solver. Each is a loadable `problem.json` (definition) + `scores.json` (options + scores) with a paste-able prompt, one per target problem type.
+Loadable Frontier problems — combinatorial, multi-objective decisions that need a real solver, not a spreadsheet. Each has a `problem.json` (objectives, approach, constraints, scenarios) + a `scores.json` (options, scores, interaction matrices), and a paste-able prompt in its own README.
 
-- **[Portfolio optimization](investment_portfolio/)** — *investment portfolio construction.* 30 ETFs × return / volatility (quadratic covariance) / yield, with scenarios.
-- **[Marketing channel budget](channel_budget/)** — *budget / channel allocation.* 22 channels × 4 conflicting goals (conversions, reach, ROAS, brand) with quadratic audience overlap and per-platform caps.
-- **[Supplier selection](supplier_selection/)** — *vendor selection.* 25 suppliers × 5 goals (cost, reliability, lead time, ESG, quadratic concentration risk) with per-region caps.
-- **[Generation capacity planning](capacity_planning/)** — *infrastructure planning.* 22 generation projects across the energy trilemma (cost, CO2, firmness) with quadratic intermittency risk and an emissions cap.
-- **[cuOpt portfolio](cuopt_portfolio/)** — the portfolio problem via the opt-in GPU cuOpt QP backend (notebook).
+| Example | Decision & objectives | Files |
+|---|---|---|
+| **[Investment portfolio](investment_portfolio/)** | allocate across 30 ETFs — return / volatility *(quadratic covariance)* / yield, with scenarios | [problem.json](investment_portfolio/problem.json) · [scores.json](investment_portfolio/scores.json) |
+| **[Marketing channel budget](channel_budget/)** | allocate budget across 22 channels — conversions / reach *(quadratic overlap)* / ROAS / brand, per-platform caps | [problem.json](channel_budget/problem.json) · [scores.json](channel_budget/scores.json) |
+| **[Supplier selection](supplier_selection/)** | multi-source across 25 suppliers — cost / reliability / lead time / ESG / *quadratic concentration risk*, per-region caps | [problem.json](supplier_selection/problem.json) · [scores.json](supplier_selection/scores.json) |
+| **[Generation capacity planning](capacity_planning/)** | mix 22 generation projects — cost / CO2 / firmness + *quadratic intermittency*, emissions cap | [problem.json](capacity_planning/problem.json) · [scores.json](capacity_planning/scores.json) |
+| **[cuOpt portfolio](cuopt_portfolio/)** | the portfolio problem via the opt-in GPU cuOpt backend | [notebook](cuopt_portfolio/cuopt_portfolio_frontier.ipynb) |
 
 See the [main README](../README.md) for setup and [architecture.md](../architecture.md) for technical reference.

@@ -14,7 +14,7 @@ The design is **explainable, governable optimization**: the engine owns the *det
 
 LLMs can reason about tradeoffs conversationally but can't *solve* them — they can't reliably enumerate a combinatorial option space, enforce hard constraints, and produce the actual Pareto frontier. These are the decisions teams used to grind out in spreadsheets, until the spreadsheet hit a complexity wall: too many options, too many interacting constraints, objectives that genuinely conflict. Frontier supplies the missing half — the **LLM translates** the decision into a structured model and narrates the result; a real **optimization solver** does the math neither a spreadsheet nor an LLM can. It fits problems where data can score options, objectives genuinely conflict (no single "best"), and the space is too large and too constrained for intuition.
 
-**Typical problems:** investment portfolio construction, product feature prioritization, budget or channel allocation, vendor selection, resource allocation under uncertainty — any "pick a subset from many, balance conflicting goals, with real data" decision.
+**By shape, not domain:** any decision that selects a subset from many options (which K of N) or allocates a budget across them (how much of each), balancing conflicting objectives under hard constraints — with data to score the options and a space too large for a spreadsheet or intuition. Pairwise interactions (covariance, audience overlap, correlated risk) make it genuinely nonlinear.
 
 **What Frontier adds beyond an LLM alone:**
 - **The full non-dominated frontier** — every Pareto-optimal tradeoff, not a single recommendation or a weighted ranking
@@ -25,7 +25,7 @@ LLMs can reason about tradeoffs conversationally but can't *solve* them — they
 
 *Why not just ask an agent to write a solver?* You can — for a one-shot problem. Frontier is the turnkey pairing: an LLM translation-and-narration layer over a real solver, grounded (every number computed, not guessed), auditable, and reusable across problems and re-runs — instead of bespoke optimization code rebuilt and re-verified each time.
 
-**Worked examples:** [`examples/`](examples/) — loadable problem definitions for portfolio construction, channel-budget allocation, supplier selection, and generation-capacity planning.
+**Worked examples:** [`examples/`](examples/) — loadable, runnable problem definitions you can drop into Frontier.
 
 ## Workflow
 
