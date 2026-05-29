@@ -35,7 +35,7 @@ const FRONTIER_MCP_URL =
     : "http://localhost:8000/sse");
 // Single shared bearer token gating a hosted engine. Unset = local/ungated.
 const FRONTIER_MCP_TOKEN = process.env.FRONTIER_MCP_TOKEN;
-const MODEL = process.env.ANTHROPIC_MODEL ?? "claude-opus-4-7";
+const MODEL = process.env.ANTHROPIC_MODEL ?? "claude-opus-4-8";
 
 // ─── messages-api adapter (default) ─────────────────────────────────────────
 
@@ -51,16 +51,16 @@ const messagesApiAdapter: AgentRuntime = {
     // Per mcp-client-2025-11-20 schema: mcp_servers defines connections,
     // tools array references them via mcp_toolset entries.
     // SDK 0.40.1 partially types these; cast as any to keep the surface clean.
-    // Extended thinking parallels Mercury's `reasoning_effort=high` — Opus gets a
-    // private scratchpad so it doesn't narrate progress in text content. Budget
-    // tunable via ANTHROPIC_THINKING_BUDGET; max_tokens must exceed it.
-    const thinkingBudget = Number(process.env.ANTHROPIC_THINKING_BUDGET ?? "16000");
-    const maxTokens = Math.max(thinkingBudget + 8000, 24000);
+    // Opus 4.7/4.8 use adaptive thinking + output_config.effort; the older
+    // budget_tokens form 400s. Effort: low | medium | high | xhigh | max.
+    const effort = process.env.ANTHROPIC_EFFORT ?? "high";
+    const maxTokens = Number(process.env.ANTHROPIC_MAX_TOKENS ?? "32000");
     const params: any = {
       model: MODEL,
       max_tokens: maxTokens,
       system: SYSTEM_PROMPT,
-      thinking: { type: "enabled", budget_tokens: thinkingBudget },
+      thinking: { type: "adaptive" },
+      output_config: { effort },
       mcp_servers: [
         {
           type: "url",
