@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { ToolCallBlock } from "@/components/ToolCallBlock";
 import { VizRenderer } from "@/components/Viz";
 import { extractVizData } from "@/lib/viz-data";
 import {
@@ -196,6 +195,15 @@ export default function ChatPage() {
   );
 }
 
+// The engine attaches ASCII visualizations (── Frontier Scatter ──, Parallel
+// Coordinates …) to tool results for text/coding-agent surfaces; the model
+// often echoes them as fenced code blocks. This surface renders D3 charts from
+// the structured viz_data instead, so drop the redundant ASCII (identified by
+// the box-drawing rules in its headers/axes). Other code blocks are kept.
+function stripAsciiViz(md: string): string {
+  return md.replace(/```[\s\S]*?```/g, (block) => (/─{3,}/.test(block) ? "" : block));
+}
+
 function MessageView({ message }: { message: Message }) {
   const isUser = message.role === "user";
   const blocks: Block[] =
@@ -218,25 +226,21 @@ function MessageView({ message }: { message: Message }) {
             if (isUser) return <span key={i}>{b.text}</span>;
             return (
               <ReactMarkdown key={i} remarkPlugins={[remarkGfm]}>
-                {b.text}
+                {stripAsciiViz(b.text)}
               </ReactMarkdown>
             );
           }
           if (b.type === "mcp_tool_use") {
+            // Don't render raw tool plumbing (input/result JSON) — the LLM's
+            // prose carries the narrative. Surface only the rendered viz.
             const result = resultsByUseId[b.id];
             const resultText = result
               ? result.content.map((c) => c.text).join("\n")
               : undefined;
             const vizPayloads = resultText ? extractVizData(resultText) : [];
+            if (vizPayloads.length === 0) return null;
             return (
               <div key={i}>
-                <ToolCallBlock
-                  name={b.name}
-                  input={b.input}
-                  result={resultText}
-                  isError={result?.is_error}
-                  pending={!result}
-                />
                 {vizPayloads.map((vd, vi) => (
                   <VizRenderer key={vi} data={vd} />
                 ))}

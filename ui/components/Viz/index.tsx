@@ -8,8 +8,8 @@ import { ScenarioSummary } from "./ScenarioSummary";
 
 /**
  * Dispatcher: pick the right chart component for a viz_data payload.
- * Unknown types render nothing (silently — the ASCII fallback is still in the
- * tool_result text and remains visible inside the ToolCallBlock).
+ * Unknown types render nothing — the UI surfaces only the LLM's prose and
+ * charts, not raw tool output, so there is no ASCII fallback to show.
  */
 export function VizRenderer({ data }: { data: VizData }) {
   switch (data.type) {
