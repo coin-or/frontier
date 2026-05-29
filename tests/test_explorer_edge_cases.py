@@ -2,8 +2,8 @@
 
 import pytest
 
-from frontier.engine.explorer import _find_balanced, _require_run
-from frontier.engine.models import (
+from engine.explorer import _find_balanced, _require_run
+from engine.models import (
     Objective,
     Option,
     Problem,
@@ -12,7 +12,7 @@ from frontier.engine.models import (
     Score,
     Solution,
 )
-from frontier.engine.explorer import get_tradeoffs, get_solution, get_solutions
+from engine.explorer import get_tradeoffs, get_solution, get_solutions
 
 
 class TestFindBalanced:

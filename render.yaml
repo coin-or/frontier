@@ -4,7 +4,7 @@ services:
     runtime: python
     branch: main
     buildCommand: pip install -r requirements.txt
-    startCommand: MCP_TRANSPORT=sse python -m frontier.mcp_server.server
+    startCommand: MCP_TRANSPORT=sse python -m mcp_server.server
     envVars:
       - key: PYTHON_VERSION
         value: "3.11"
@@ -13,7 +13,7 @@ services:
     name: frontier-web
     runtime: node
     branch: main
-    rootDir: frontier-web
+    rootDir: ui
     buildCommand: npm install && npm run build
     startCommand: npm start
     envVars:

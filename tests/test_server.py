@@ -4,11 +4,11 @@ import tempfile
 
 import pytest
 
-from frontier.engine.store import Store
+from engine.store import Store
 
 # We test the internal handler functions directly, not via MCP protocol.
 # This validates the logic without needing an MCP client.
-import frontier.mcp_server.server as srv
+import mcp_server.server as srv
 
 
 @pytest.fixture(autouse=True)

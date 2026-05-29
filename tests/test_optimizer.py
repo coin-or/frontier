@@ -2,7 +2,7 @@
 
 import pytest
 
-from frontier.engine.models import (
+from engine.models import (
     CardinalityConstraint,
     DependencyConstraint,
     ExclusionPairConstraint,
@@ -15,7 +15,7 @@ from frontier.engine.models import (
     Problem,
     Score,
 )
-from frontier.engine.optimizer import analyze_infeasibility, optimize, validate
+from engine.optimizer import analyze_infeasibility, optimize, validate
 
 
 def _make_problem(**overrides):
@@ -166,7 +166,7 @@ class TestValidation:
         """Scenario interaction_matrix_overrides with scale_groups referencing
         an unknown option name should produce a validation warning (typo-tolerance
         gap — prior behavior silently dropped unknown names)."""
-        from frontier.engine.models import (
+        from engine.models import (
             InteractionMatrix,
             InteractionScaleGroup,
             Scenario,
@@ -321,7 +321,7 @@ class TestConstraintConflictDetection:
 
     def test_max_allocation_arithmetic_infeasible(self):
         """In proportional mode, max_allocation × available_options < 100% → infeasible."""
-        from frontier.engine.models import Approach, MaxAllocationConstraint
+        from engine.models import Approach, MaxAllocationConstraint
         # 5 options × 15% cap = 75% < 100%
         p = _make_problem(
             approach=Approach.proportional,
@@ -333,7 +333,7 @@ class TestConstraintConflictDetection:
 
     def test_max_allocation_arithmetic_feasible(self):
         """max_allocation × available_options ≥ 100% → feasible."""
-        from frontier.engine.models import Approach, MaxAllocationConstraint
+        from engine.models import Approach, MaxAllocationConstraint
         # 5 options × 25% cap = 125% ≥ 100%
         p = _make_problem(
             approach=Approach.proportional,
@@ -344,7 +344,7 @@ class TestConstraintConflictDetection:
 
     def test_max_allocation_only_applies_to_proportional(self):
         """In binary mode, max_allocation arithmetic check should not fire (warning already emitted elsewhere)."""
-        from frontier.engine.models import MaxAllocationConstraint
+        from engine.models import MaxAllocationConstraint
         p = _make_problem(constraints=[
             CardinalityConstraint(min=2, max=3),
             MaxAllocationConstraint(max=15),
@@ -729,7 +729,7 @@ class TestGroupLimit:
 class TestBindingDetection:
     def test_cardinality_binding_detected(self):
         """Cardinality at max should surface as binding."""
-        from frontier.engine import metrics
+        from engine import metrics
         p = _make_problem(constraints=[CardinalityConstraint(min=2, max=2)])
         run = optimize(p)
         p.run = run
@@ -740,7 +740,7 @@ class TestBindingDetection:
 
     def test_group_limit_binding_detected(self):
         """Group limit at max should surface as binding."""
-        from frontier.engine import metrics
+        from engine import metrics
         p = _make_problem(constraints=[
             CardinalityConstraint(min=2, max=3),
             GroupLimitConstraint(options=["A", "B", "C"], max=1),
@@ -772,7 +772,7 @@ class TestApplyMatrixOverride:
     """_apply_matrix_override: replace | upsert | scale_groups composition."""
 
     def _base(self):
-        from frontier.engine.models import InteractionMatrix
+        from engine.models import InteractionMatrix
         return InteractionMatrix(
             objective="Vol",
             entries={
@@ -783,8 +783,8 @@ class TestApplyMatrixOverride:
         )
 
     def test_replace_is_default(self):
-        from frontier.engine.models import InteractionMatrix
-        from frontier.engine.optimizer import _apply_matrix_override
+        from engine.models import InteractionMatrix
+        from engine.optimizer import _apply_matrix_override
 
         override = InteractionMatrix(
             objective="Vol",
@@ -796,8 +796,8 @@ class TestApplyMatrixOverride:
         assert merged.entries["A"]["B"] == 0.9
 
     def test_upsert_merges_cells_with_symmetry(self):
-        from frontier.engine.models import InteractionMatrix
-        from frontier.engine.optimizer import _apply_matrix_override
+        from engine.models import InteractionMatrix
+        from engine.optimizer import _apply_matrix_override
 
         override = InteractionMatrix(
             objective="Vol",
@@ -813,8 +813,8 @@ class TestApplyMatrixOverride:
         assert merged.entries["C"]["B"] == 0.3
 
     def test_upsert_with_no_base_creates_fresh_matrix(self):
-        from frontier.engine.models import InteractionMatrix
-        from frontier.engine.optimizer import _apply_matrix_override
+        from engine.models import InteractionMatrix
+        from engine.optimizer import _apply_matrix_override
 
         override = InteractionMatrix(
             objective="Vol",
@@ -826,8 +826,8 @@ class TestApplyMatrixOverride:
         assert merged.entries["B"]["A"] == 0.5
 
     def test_scale_groups_multiplies_off_diagonals_within_group(self):
-        from frontier.engine.models import InteractionMatrix, InteractionScaleGroup
-        from frontier.engine.optimizer import _apply_matrix_override
+        from engine.models import InteractionMatrix, InteractionScaleGroup
+        from engine.optimizer import _apply_matrix_override
 
         override = InteractionMatrix(
             objective="Vol",
@@ -846,8 +846,8 @@ class TestApplyMatrixOverride:
         assert merged.entries["B"]["C"] == 0.3
 
     def test_replace_then_scale_groups_compose(self):
-        from frontier.engine.models import InteractionMatrix, InteractionScaleGroup
-        from frontier.engine.optimizer import _apply_matrix_override
+        from engine.models import InteractionMatrix, InteractionScaleGroup
+        from engine.optimizer import _apply_matrix_override
 
         override = InteractionMatrix(
             objective="Vol",
@@ -874,7 +874,7 @@ class TestExtremeSeeds:
 
     def test_seeds_are_built_per_objective(self):
         """One seed per objective, respecting cardinality + group limits."""
-        from frontier.engine.optimizer import _compute_extreme_seeds, _parse_constraints, _build_score_matrix
+        from engine.optimizer import _compute_extreme_seeds, _parse_constraints, _build_score_matrix
 
         p = _make_problem(constraints=[CardinalityConstraint(min=2, max=3)])
         score_matrix = _build_score_matrix(p)
@@ -893,8 +893,8 @@ class TestExtremeSeeds:
 
     def test_proportional_seeds_sum_to_100_and_respect_cap(self):
         """Proportional seeds: allocations sum to 100 and no allocation exceeds max_allocation."""
-        from frontier.engine.models import MaxAllocationConstraint
-        from frontier.engine.optimizer import _compute_extreme_seeds, _parse_constraints, _build_score_matrix
+        from engine.models import MaxAllocationConstraint
+        from engine.optimizer import _compute_extreme_seeds, _parse_constraints, _build_score_matrix
 
         p = Problem(
             approach="proportional",
@@ -935,7 +935,7 @@ class TestExtremeSeeds:
 
     def test_seeds_respect_group_limits(self):
         """Seeds respect group_limit: no more than max options from the group."""
-        from frontier.engine.optimizer import _compute_extreme_seeds, _parse_constraints, _build_score_matrix
+        from engine.optimizer import _compute_extreme_seeds, _parse_constraints, _build_score_matrix
 
         # A, B, C are in a group with max=1. Even though they might rank highest for an objective,
         # the seed should only include one.
@@ -955,7 +955,7 @@ class TestExtremeSeeds:
 
     def test_no_seeds_when_cardinality_infeasible(self):
         """If constraints block ever reaching cardinality_min, return empty seeds (optimizer falls back)."""
-        from frontier.engine.optimizer import _compute_extreme_seeds, _parse_constraints, _build_score_matrix
+        from engine.optimizer import _compute_extreme_seeds, _parse_constraints, _build_score_matrix
 
         # Force-exclude everything reachable → cardinality_min unreachable
         p = _make_problem(constraints=[
@@ -998,7 +998,7 @@ class TestElitePreservation:
         This is the core claim: neutral NSGA operators may dilute the seeds
         during evolution; post-hoc union restores them.
         """
-        from frontier.engine.optimizer import (
+        from engine.optimizer import (
             _build_score_matrix, _compute_extreme_seeds, _parse_constraints,
         )
 

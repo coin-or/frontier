@@ -5,7 +5,7 @@ Lightweight web UI prototype for [Frontier](../README.md). Chat shell on top of 
 ## Setup
 
 ```bash
-cd frontier-web
+cd ui
 cp .env.example .env.local         # add your ANTHROPIC_API_KEY
 npm install
 npm run dev                        # http://localhost:3000
@@ -56,7 +56,7 @@ services:
   - type: web
     name: frontier-web
     runtime: node
-    rootDir: frontier-web
+    rootDir: ui
     buildCommand: npm install && npm run build
     startCommand: npm start
     envVars:

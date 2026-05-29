@@ -754,7 +754,7 @@ def optimize(
     # Cheap env gate first so the default path never imports the backend; the
     # backend itself imports cuOpt lazily, so this is safe with no GPU installed.
     if os.environ.get("FRONTIER_SOLVER", "").lower() == "cuopt":
-        from ..solvers.cuopt_backend import _optimize_cuopt, _use_cuopt
+        from solvers.cuopt_backend import _optimize_cuopt, _use_cuopt
         if _use_cuopt(problem):
             return _optimize_cuopt(problem, mode, max_solutions=max_solutions, seed=seed)
 

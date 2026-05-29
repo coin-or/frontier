@@ -69,13 +69,13 @@ cd frontier
 pip install -e .
 
 # stdio transport (for Claude Desktop / coding agents on the same machine)
-python -m frontier.mcp_server.server
+python -m mcp_server.server
 
 # SSE transport (for remote MCP clients)
-MCP_TRANSPORT=sse python -m frontier.mcp_server.server
+MCP_TRANSPORT=sse python -m mcp_server.server
 ```
 
-Point your MCP client at the local server — for SSE that's `http://localhost:8000/sse`. The optional web UI lives in [`frontier-web/`](frontier-web/) — see its [README](frontier-web/README.md).
+Point your MCP client at the local server — for SSE that's `http://localhost:8000/sse`. The optional web UI lives in [`ui/`](ui/) — see its [README](ui/README.md).
 
 ## Architecture
 

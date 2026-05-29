@@ -23,8 +23,8 @@ from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
 
-from frontier.engine import explorer, metrics, optimizer
-from frontier.engine.models import (
+from engine import explorer, metrics, optimizer
+from engine.models import (
     Approach,
     Constraint,
     CardinalityConstraint,
@@ -49,7 +49,7 @@ from frontier.engine.models import (
     ScenarioRun,
     Score,
 )
-from frontier.engine.store import Store
+from engine.store import Store
 
 mcp = FastMCP(
     "Frontier",
@@ -868,7 +868,7 @@ def _solve_preview(solutions: list, objectives: list) -> dict:
 
     preview: dict = {"extremes": extremes}
     try:
-        from frontier.engine.explorer import _find_balanced
+        from engine.explorer import _find_balanced
         balanced = _find_balanced(solutions, objectives)
         if balanced is not None:
             preview["balanced"] = {

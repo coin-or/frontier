@@ -2,7 +2,7 @@
 
 import pytest
 
-from frontier.engine.metrics import (
+from engine.metrics import (
     compute_metrics,
     data_metrics,
     diagnostics,
@@ -11,7 +11,7 @@ from frontier.engine.metrics import (
     outcome_metrics,
     solve_metrics,
 )
-from frontier.engine.models import (
+from engine.models import (
     CardinalityConstraint,
     Feedback,
     ObjectiveBoundConstraint,
@@ -23,7 +23,7 @@ from frontier.engine.models import (
     Score,
     Solution,
 )
-from frontier.engine.optimizer import optimize
+from engine.optimizer import optimize
 
 
 @pytest.fixture

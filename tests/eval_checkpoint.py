@@ -6,8 +6,8 @@ Plus v1 features: aggregation, run comparison, proportional allocation.
 Run: python -m tests.eval_checkpoint
 """
 
-from frontier.engine.metrics import compute_metrics, diagnostics
-from frontier.engine.models import (
+from engine.metrics import compute_metrics, diagnostics
+from engine.models import (
     CardinalityConstraint,
     ExclusionPairConstraint,
     DependencyConstraint,
@@ -23,8 +23,8 @@ from frontier.engine.models import (
     ScenarioConfig,
     Score,
 )
-from frontier.engine.optimizer import optimize, optimize_scenarios, validate
-from frontier.engine.explorer import (
+from engine.optimizer import optimize, optimize_scenarios, validate
+from engine.explorer import (
     compare_runs, compare_solutions, curate_solution, list_curated,
     compare_curated, get_scenario_results, get_solution, get_tradeoffs,
 )
@@ -411,7 +411,7 @@ def run_checkpoint():
         ]),
     )
     scenario_results = optimize_scenarios(p_scen)
-    from frontier.engine.models import ScenarioRun
+    from engine.models import ScenarioRun
     p_scen.scenario_run = ScenarioRun(scenario_runs=scenario_results)
     check("3 scenarios optimized", len(scenario_results) == 3)
     for name, run in scenario_results.items():

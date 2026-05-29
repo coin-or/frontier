@@ -2,7 +2,7 @@
 
 import pytest
 
-from frontier.engine.models import (
+from engine.models import (
     CardinalityConstraint,
     ForceExcludeConstraint,
     ForceIncludeConstraint,
@@ -12,7 +12,7 @@ from frontier.engine.models import (
     Problem,
     Score,
 )
-from frontier.engine.optimizer import optimize, validate
+from engine.optimizer import optimize, validate
 
 
 def _make_proportional(**overrides):

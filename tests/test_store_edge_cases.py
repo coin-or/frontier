@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from frontier.engine.models import Option, Problem
-from frontier.engine.store import Store
+from engine.models import Option, Problem
+from engine.store import Store
 
 
 @pytest.fixture

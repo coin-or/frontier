@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from frontier.engine.models import (
+from engine.models import (
     BoundOperator,
     CardinalityConstraint,
     ForceExcludeConstraint,
@@ -16,7 +16,7 @@ from frontier.engine.models import (
     Score,
     Solution,
 )
-from frontier.engine.optimizer import (
+from engine.optimizer import (
     _approx_hypervolume,
     _compute_quality,
     _FrontierProblem,

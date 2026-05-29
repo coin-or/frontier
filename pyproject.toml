@@ -35,4 +35,10 @@ Repository = "https://github.com/cafzal/frontier"
 Issues = "https://github.com/cafzal/frontier/issues"
 
 [project.scripts]
-frontier = "frontier.mcp_server.server:main"
+frontier = "mcp_server.server:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["engine", "mcp_server", "solvers"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

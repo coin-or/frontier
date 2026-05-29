@@ -2,7 +2,7 @@
  * Types and extractor for the structured viz_data payloads that Frontier's
  * `explore/*` tools attach alongside ASCII visualizations.
  *
- * Engine source: `frontier/engine/explorer.py` `_viz_data_*` builders.
+ * Engine source: `engine/explorer.py` `_viz_data_*` builders.
  * Hosts that can render charts (this web UI) consume viz_data; chat / coding-
  * agent surfaces ignore it and render the ASCII `visualization` field instead.
  */

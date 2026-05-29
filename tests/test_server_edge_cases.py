@@ -5,9 +5,9 @@ from unittest.mock import patch
 
 import pytest
 
-from frontier.engine.models import Run
-from frontier.engine.store import Store
-import frontier.mcp_server.server as srv
+from engine.models import Run
+from engine.store import Store
+import mcp_server.server as srv
 
 
 @pytest.fixture(autouse=True)

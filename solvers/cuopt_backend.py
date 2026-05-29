@@ -45,8 +45,8 @@ from pymoo.algorithms.moo.nsga2 import NSGA2
 from pymoo.core.problem import Problem as PymooProblem
 from pymoo.optimize import minimize as pymoo_minimize
 
-from ..engine import optimizer as _opt
-from ..engine.models import (
+from engine import optimizer as _opt
+from engine.models import (
     Aggregation,
     Approach,
     OptimizeMode,

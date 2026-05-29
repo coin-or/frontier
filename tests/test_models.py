@@ -1,6 +1,6 @@
 """Tests for Frontier engine models — round-trip serialization."""
 
-from frontier.engine.models import (
+from engine.models import (
     CardinalityConstraint,
     ForceExcludeConstraint,
     ForceIncludeConstraint,

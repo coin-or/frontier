@@ -2,13 +2,13 @@
 
 import pytest
 
-from frontier.engine.explorer import (
+from engine.explorer import (
     compare_solutions,
     get_solution,
     get_solutions,
     get_tradeoffs,
 )
-from frontier.engine.models import (
+from engine.models import (
     CardinalityConstraint,
     Objective,
     ObjectiveBoundConstraint,
@@ -16,7 +16,7 @@ from frontier.engine.models import (
     Problem,
     Score,
 )
-from frontier.engine.optimizer import optimize
+from engine.optimizer import optimize
 
 
 @pytest.fixture

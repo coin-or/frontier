@@ -8,7 +8,7 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/cafzal/frontier.git",
-    "directory": "frontier-web"
+    "directory": "ui"
   },
   "scripts": {
     "dev": "next dev",
