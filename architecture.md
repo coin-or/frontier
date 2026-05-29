@@ -187,7 +187,7 @@ flowchart TB
 
 ### Solver Backend (Pluggable)
 
-The default solve path is pymoo's NSGA-II/III for all problem shapes. An **opt-in cuOpt QP backend** (`solvers/cuopt_backend.py`) is gated behind `FRONTIER_SOLVER=cuopt` and engages only for proportional portfolio problems carrying a quadratic interaction matrix (the mean-variance QP shape); cuOpt is imported lazily, so the module loads cleanly with no GPU present. It mirrors `optimizer._optimize_proportional`'s contract exactly (identical `Run` / `Solution` shape), so explorer, metrics, and store need zero changes. Additive, gated, and reversible — the default path never imports it. Feasibility spike; see `.claude/plans/cuopt-integration.md`.
+The default solve path is pymoo's NSGA-II/III for all problem shapes. An **opt-in cuOpt QP backend** (`solvers/cuopt_backend.py`) is gated behind `FRONTIER_SOLVER=cuopt` and engages only for proportional portfolio problems carrying a quadratic interaction matrix (the mean-variance QP shape); cuOpt is imported lazily, so the module loads cleanly with no GPU present. It mirrors `optimizer._optimize_proportional`'s contract exactly (identical `Run` / `Solution` shape), so explorer, metrics, and store need zero changes. Additive, gated, and reversible — the default path never imports it.
 
 ### Skill Auto-Injection
 
