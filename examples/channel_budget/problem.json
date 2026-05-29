@@ -91,8 +91,8 @@
   ],
   "scenarios": [
     {
-      "name": "ios_privacy",
-      "description": "Signal loss from app-tracking changes cuts measured conversions on social/programmatic by ~20%.",
+      "name": "signal_loss",
+      "description": "Privacy/measurement erosion reduces attributable conversions.",
       "score_adjustments": [
         {
           "objective": "Conversions",
@@ -101,74 +101,16 @@
       ]
     },
     {
-      "name": "tiktok_ban",
-      "description": "A regulatory ban removes TikTok inventory; reallocate across the rest.",
-      "constraint_overrides": [
+      "name": "demand_pullback",
+      "description": "A consumer downturn softens response and efficiency.",
+      "score_adjustments": [
         {
-          "type": "max_allocation",
-          "max": 15
+          "objective": "Conversions",
+          "multiply": 0.85
         },
         {
-          "type": "group_limit",
-          "options": [
-            "Search-US",
-            "Search-Intl"
-          ],
-          "max": 1
-        },
-        {
-          "type": "group_limit",
-          "options": [
-            "Meta-Prospecting",
-            "Meta-Retargeting"
-          ],
-          "max": 1
-        },
-        {
-          "type": "group_limit",
-          "options": [
-            "TikTok-GenZ",
-            "TikTok-Spark"
-          ],
-          "max": 1
-        },
-        {
-          "type": "group_limit",
-          "options": [
-            "YouTube-Awareness",
-            "YouTube-Shorts"
-          ],
-          "max": 1
-        },
-        {
-          "type": "group_limit",
-          "options": [
-            "Display-Programmatic",
-            "Display-Native"
-          ],
-          "max": 1
-        },
-        {
-          "type": "group_limit",
-          "options": [
-            "Email-CRM",
-            "SMS-CRM"
-          ],
-          "max": 1
-        },
-        {
-          "type": "objective_bound",
           "objective": "ROAS",
-          "operator": "min",
-          "value": 2.0
-        },
-        {
-          "type": "force_exclude",
-          "option": "TikTok-GenZ"
-        },
-        {
-          "type": "force_exclude",
-          "option": "TikTok-Spark"
+          "multiply": 0.9
         }
       ]
     }

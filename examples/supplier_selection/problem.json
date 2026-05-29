@@ -207,12 +207,79 @@
       ]
     },
     {
-      "name": "cost_inflation",
-      "description": "Input-cost inflation lifts unit costs ~15% across the board.",
-      "score_adjustments": [
+      "name": "demand_surge",
+      "description": "Order volume spikes \u2014 no single supplier can cover as much, forcing broader sourcing (per-supplier cap tightens to 10%).",
+      "constraint_overrides": [
         {
-          "objective": "Cost",
-          "multiply": 1.15
+          "type": "max_allocation",
+          "max": 10
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "NA01",
+            "NA02",
+            "NA03",
+            "NA04"
+          ],
+          "max": 3
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "EU01",
+            "EU02",
+            "EU03",
+            "EU04"
+          ],
+          "max": 3
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "CN01",
+            "CN02",
+            "CN03",
+            "CN04",
+            "CN05"
+          ],
+          "max": 3
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "SEA01",
+            "SEA02",
+            "SEA03",
+            "SEA04"
+          ],
+          "max": 3
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "IN01",
+            "IN02",
+            "IN03",
+            "IN04"
+          ],
+          "max": 3
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "LA01",
+            "LA02",
+            "LA03",
+            "LA04"
+          ],
+          "max": 3
+        },
+        {
+          "type": "objective_bound",
+          "objective": "Reliability",
+          "operator": "min",
+          "value": 78.0
         }
       ]
     }

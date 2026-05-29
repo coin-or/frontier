@@ -128,6 +128,20 @@
           ]
         }
       ]
+    },
+    {
+      "name": "inflation",
+      "description": "High inflation: rates rise (yields up) while real returns are eroded.",
+      "score_adjustments": [
+        {
+          "objective": "Return",
+          "multiply": 0.9
+        },
+        {
+          "objective": "Yield",
+          "multiply": 1.15
+        }
+      ]
     }
   ]
 }
