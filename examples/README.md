@@ -10,4 +10,6 @@ Loadable Frontier problems — combinatorial, multi-objective decisions that nee
 | **[Generation capacity planning](capacity_planning/)** | mix 22 generation projects — cost / CO2 / firmness + *quadratic intermittency*, emissions cap | [problem.json](capacity_planning/problem.json) · [scores.json](capacity_planning/scores.json) |
 | **[cuOpt portfolio](cuopt_portfolio/)** | the portfolio problem via the opt-in GPU cuOpt backend | [notebook](cuopt_portfolio/cuopt_portfolio_frontier.ipynb) |
 
+**Load by name:** with the engine running, `model load source="investment_portfolio"` rebuilds any example directly — scenarios, interaction matrices, and all — with no manual re-entry. Problems you build save back to this same format (into a gitignored `saved/` library) via `model save`. See [Saving & loading problems](../README.md#saving--loading-problems).
+
 See the [main README](../README.md) for setup and [architecture.md](../architecture.md) for technical reference.

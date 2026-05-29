@@ -5,6 +5,7 @@ __pycache__/
 dist/
 build/
 data/
+saved/
 .venv/
 dev_temp/
 **/archived/

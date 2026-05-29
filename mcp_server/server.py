@@ -23,7 +23,7 @@ from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
 
-from engine import explorer, metrics, optimizer
+from engine import explorer, metrics, optimizer, problem_io
 from engine.models import (
     Approach,
     Constraint,
@@ -233,6 +233,8 @@ def model(
     scenario_config: dict | None = None,
     interaction_matrices: list[dict] | None = None,
     section: str | None = None,
+    source: str | None = None,
+    save_as: str | None = None,
 ) -> dict:
     """Build and modify the optimization problem.
 
@@ -267,6 +269,17 @@ def model(
       delete  — Remove problem. Params: problem_id
                 Side effects: deletes the problem and its run history; resets all skill-injection
                 flags for the problem id.
+      load    — Load a problem by name from the bundled examples or the user's saved
+                library, in the portable examples format (problem.json + scores.json
+                [+ solutions.json]). Params: source (the name, e.g. "facility_location").
+                Resolves saved/ first, then examples/ — a saved problem shadows a bundled
+                example of the same name. Registers a fresh problem in the store and returns
+                its problem_id. Scenarios and prior results (when present) are restored.
+                Omit source to list the available names.
+      save    — Save a problem to the user's library (saved/<name>/) in the portable format,
+                always including the current solutions when the problem has been solved.
+                Params: problem_id, save_as? (the name; defaults to a slug of the problem name).
+                The bundle round-trips back via `load`.
 
     Key guidance:
     - Objectives: 2-4 is the sweet spot. If >4, consolidate.
@@ -285,6 +298,7 @@ def model(
             "scores": scores, "constraints": constraints, "approach": approach,
             "reference_points": reference_points, "scenario_config": scenario_config,
             "interaction_matrices": interaction_matrices, "section": section,
+            "source": source, "save_as": save_as,
         }.items() if v is not None
     }
     match action:
@@ -298,8 +312,12 @@ def model(
             return _model_list()
         case "delete":
             return _model_delete(params)
+        case "save":
+            return _model_save(params)
+        case "load":
+            return _model_load(params)
         case _:
-            return {"error": f"Unknown action: {action}. Use create/update/get/list/delete."}
+            return {"error": f"Unknown action: {action}. Use create/update/get/list/delete/save/load."}
 
 
 def _model_create(params: dict) -> dict:
@@ -647,6 +665,84 @@ def _model_delete(params: dict) -> dict:
         return {"error": f"Problem {pid} not found."}
     _reset_all_injections(pid)
     return {"deleted": pid}
+
+
+def _model_save(params: dict) -> dict:
+    pid = params.get("problem_id")
+    if not pid:
+        return {"error": "problem_id is required."}
+    try:
+        p = store.load(pid)
+    except FileNotFoundError:
+        return {"error": f"Problem {pid} not found."}
+    name = problem_io.slugify(params.get("save_as") or p.name)
+    info = problem_io.save_problem(p, name)
+    includes_solutions = "solutions" in info["files"]
+    return {
+        "saved": True,
+        "problem_id": pid,
+        "name": info["name"],
+        "dir": info["dir"],
+        "files": list(info["files"].keys()),
+        "includes_solutions": includes_solutions,
+        "note": (
+            "Saved in the portable examples format. Reload anytime with "
+            f'model load source="{info["name"]}".'
+        ),
+    }
+
+
+def _model_load(params: dict) -> dict:
+    source = params.get("source")
+    if not source:
+        return {
+            "error": "source is required — the example or saved-problem name to load.",
+            "available": problem_io.list_available(),
+        }
+    try:
+        p = problem_io.load_problem(source)
+    except FileNotFoundError as e:
+        return {"error": str(e), "available": problem_io.list_available()}
+    except ValueError as e:
+        return {"error": str(e)}
+
+    store.save(p)
+    _reset_all_injections(p.problem_id)
+
+    total = len(p.objectives) * len(p.options)
+    result = {
+        "problem_id": p.problem_id,
+        "name": p.name,
+        "domain": p.domain,
+        "loaded_from": source,
+        "approach": p.approach.value,
+        "status": {
+            "objectives": len(p.objectives),
+            "options": len(p.options),
+            "scores_complete": round(len(p.scores) / total, 2) if total else 0.0,
+            "constraints": len(p.constraints),
+            "scenarios": len(p.scenario_config.scenarios) if p.scenario_config else 0,
+            "interaction_matrices": len(p.interaction_matrices),
+            "has_run": p.run is not None,
+            "has_scenario_run": p.scenario_run is not None,
+            "results_stale": p.results_stale,
+            "curated": len(p.curated_solutions),
+        },
+    }
+
+    # Next-phase guidance: restored, fresh results mean explore; otherwise solve.
+    has_results = (p.run is not None or p.scenario_run is not None) and not p.results_stale
+    if has_results:
+        _inject_skill(result, "solution_interpreter",
+            "Loaded a solved problem with results. Use this guide to present the "
+            "frontier — never say 'best', start with extremes and the balanced solution.")
+        _mark_injected(p.problem_id, "solution_interpreter")
+    else:
+        _inject_skill(result, "optimization_strategy",
+            "Problem loaded and ready. Use this guide before solving — it covers "
+            "mode selection, constraint strategy, and iteration expectations.")
+        _mark_injected(p.problem_id, "optimization_strategy")
+    return result
 
 
 def _parse_constraint(c: dict | Constraint) -> Constraint:

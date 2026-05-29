@@ -24,6 +24,8 @@ Frontier exposes 4 tools — 3 domain tools with multiple actions, plus a skill 
 | | `get` | Return problem state. Optional `section` param for targeted slices: summary, objectives, options, scores, constraints, matrices, scenarios, run, runs, curated, references. Without section: full dump. |
 | | `list` | List all problems with metadata snapshots |
 | | `delete` | Remove a problem and its data file |
+| | `save` | Save a problem to the user's library (`saved/<name>/`) in the portable examples format. Params: `problem_id`, `save_as` (name; defaults to a slug of the problem name). Always includes `solutions.json` when the problem has a run. |
+| | `load` | Load a problem by name in the portable format, resolving `saved/` first then bundled `examples/` (a save shadows a like-named example). Mints a fresh `problem_id`, registers it in the store, restores scenarios + prior results. Omit `source` to list available names. |
 | **solve** | `validate` | Pre-flight check: ≥2 objectives, ≥3 options, complete score matrix, feasible constraints |
 | | `run` | Validate then optimize. Returns compact result — `objective_ranges`, `preview` (per-objective extremes + balanced solution by id/objective_values only), `quality`, `seed_used`, `total_pareto_found` (pre-pruning count), `frontier_complete` (bool — true when returned set is the full Pareto frontier, false when pruning truncated it), `frontier_quality` (status GOOD/WARNING/POOR with progressive gates and issues), `metrics`, `full_result_path` (disk path to complete JSON with all solutions — preferred for bulk export or artifact assembly), and `next_steps` pointer. Full solution detail also retrievable via `explore solutions` / `explore solution <id>`. Optional `mode`: "fast" (default, quick iterations) or "thorough" (final convergence). Optional `max_solutions` caps Pareto set size (default 100). Optional `seed` (int) for reproducibility; omitted = fresh random seed drawn and echoed. Auto-selects NSGA-II (2-3 obj) or NSGA-III (4+ obj). Parameters adapt to solution space size and objective count. |
 | | `run_scenarios` | Independently optimize each scenario with score overrides/adjustments. Accepts optional `mode`, `max_solutions`, and `seed` (per-scenario seeds are deterministically derived so each scenario reproduces while starting from distinct initializations). |
@@ -184,6 +186,15 @@ flowchart TB
     MET --> MODELS
     STORE --> FS
 ```
+
+### Problem Persistence: Live Store vs Portable Bundles
+
+A problem persists two ways, for two purposes:
+
+- **Live store** (`store.py` → `data/{problem_id}.json`) — the full canonical `Problem` (definition + runs + curated + feedback), keyed by UUID. This is session state; a *stateful deployment* just mounts a persistent disk here.
+- **Portable bundles** (`problem_io.py`) — the human-named, shareable format the bundled [`examples/`](examples/) use, and the format `model save` / `model load` read and write. A bundle splits the `Problem` across up to three files: `problem.json` (definition — name, domain, context, approach, objectives, constraints, scenarios, reference_points), `scores.json` (data — options, scores, interaction_matrices), and `solutions.json` (results — run, runs, scenario_run, curated_solutions, feedback; written only when solved). `model save` writes to a gitignored `saved/` library (`FRONTIER_SAVED_DIR`); `model load` resolves a name against `saved/` then `examples/` (`FRONTIER_EXAMPLES_DIR`), minting a fresh `problem_id`.
+
+`problem_io` is the single (de)serializer for this format, and is where the examples' top-level **`scenarios`** list is bridged to the engine's **`scenario_config`** (`enabled=True` on load, so loaded scenarios are immediately active). This bridge is load-bearing: a naive `Problem(**problem_json)` silently drops scenarios, since the model field is named `scenario_config` and pydantic ignores the unknown key.
 
 ### Solver Backend (Pluggable)
 

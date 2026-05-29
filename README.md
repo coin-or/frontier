@@ -122,6 +122,7 @@ For full schemas, action parameters, data model, persistence layout, and the ski
 - 8 constraint types: cardinality, force include/exclude, objective bounds, exclusion pairs, dependencies, group limits, max allocation (proportional only)
 - Interaction matrices for quadratic aggregation (e.g. covariance matrices for portfolio risk), with scale groups for regime shifts
 - Reference points (baseline / aspirational) and scenarios (probability-weighted alternative scores + interaction matrices)
+- Save & load problems by name in the portable two-file format (`problem.json` + `scores.json` [+ `solutions.json`]) — the same layout as [`examples/`](examples/); saves land in a gitignored `saved/` library and reload anywhere
 
 **`solve`** — run optimization
 - NSGA-II (2-3 objectives) and NSGA-III (4+ objectives) via pymoo
@@ -155,6 +156,15 @@ Skills are markdown files the server auto-injects into tool responses at workflo
 - **`data_collection`** — score elicitation, anchoring techniques, batch efficiency, source evaluation, conflict resolution, quality signals (variance, scale mismatch), completeness drive
 - **`optimization_strategy`** — iteration expectations, validate → run → examine flow, constraint strategy, infeasibility response, binding-constraint detection, curated-solution survival tracking, stale-result judgment
 - **`solution_interpreter`** — present results without bias ("never say best"), five explanation dimensions, presentation order (Extremes → Balanced → Inflection → Risk → Preference), tradeoff framing, objective-ranking elicitation, scenario presentation, preference learning
+
+## Saving & loading problems
+
+Problems persist in a portable, human-named format — the same one the [examples](examples/) use, so anything in `examples/` loads by name, and anything you build can be saved the same way:
+
+- **`model load source="<name>"`** rebuilds a problem from `<name>/problem.json` + `scores.json` (+ `solutions.json` if it was solved). It searches your `saved/` library first, then the bundled `examples/` — so `model load source="facility_location"` works out of the box. Omit `source` to list what's available. Scenarios and prior results are restored intact.
+- **`model save problem_id=… save_as="<name>"`** writes the problem to `saved/<name>/` in that format, always capturing the current Pareto frontier once the problem has been solved. Reload it later — locally or on a stateful deployment — with `model load`.
+
+`saved/` is gitignored (it's your library, not the curated showcase). Point it elsewhere with `FRONTIER_SAVED_DIR`; override the example search root with `FRONTIER_EXAMPLES_DIR`.
 
 ## License
 

@@ -1657,3 +1657,82 @@ class TestSkillInjectionOnDelete:
         assert srv._was_injected(pid, "data_collection")
         srv.model(action="delete", problem_id=pid)
         assert not srv._was_injected(pid, "data_collection")
+
+
+class TestModelLoadSave:
+    @pytest.fixture
+    def tmp_saved(self, tmp_path, monkeypatch):
+        """Redirect saves to a temp library; leave examples/ pointed at the repo."""
+        monkeypatch.setenv("FRONTIER_SAVED_DIR", str(tmp_path / "saved"))
+        return tmp_path / "saved"
+
+    def _scored_problem(self) -> str:
+        pid = srv.model(action="create", name="Roundtrip")["problem_id"]
+        srv.model(action="update", problem_id=pid,
+                  objectives=[{"name": "Rev", "direction": "maximize"},
+                              {"name": "Cost", "direction": "minimize"}],
+                  options=[{"name": "A"}, {"name": "B"}, {"name": "C"}],
+                  scores=[{"option": o, "objective": obj, "value": v}
+                          for o, (r, c) in {"A": (8, 3), "B": (5, 2), "C": (9, 5)}.items()
+                          for obj, v in (("Rev", r), ("Cost", c))])
+        return pid
+
+    def test_save_then_load_round_trip(self, tmp_saved):
+        pid = self._scored_problem()
+        saved = srv.model(action="save", problem_id=pid, save_as="my_decision")
+        assert saved["saved"] is True
+        assert saved["name"] == "my_decision"
+        assert set(saved["files"]) == {"problem", "scores"}  # unsolved → no solutions
+
+        loaded = srv.model(action="load", source="my_decision")
+        assert loaded["problem_id"] != pid  # fresh id
+        assert loaded["status"]["objectives"] == 2
+        assert loaded["status"]["options"] == 3
+        assert loaded["status"]["scores_complete"] == 1.0
+
+    def test_save_name_defaults_to_slug_of_problem_name(self, tmp_saved):
+        pid = self._scored_problem()
+        saved = srv.model(action="save", problem_id=pid)
+        assert saved["name"] == "Roundtrip"
+
+    def test_save_includes_solutions_after_solve(self, tmp_saved):
+        pid = self._scored_problem()
+        srv.solve(action="run", problem_id=pid)
+        saved = srv.model(action="save", problem_id=pid, save_as="solved")
+        assert saved["includes_solutions"] is True
+        assert "solutions" in saved["files"]
+
+        loaded = srv.model(action="load", source="solved")
+        assert loaded["status"]["has_run"] is True
+        assert loaded["status"]["results_stale"] is False
+        # A loaded, solved problem is ready to explore.
+        assert loaded["_skill_guidance"]["skill"] == "solution_interpreter"
+
+    def test_load_unsolved_injects_optimization_strategy(self, tmp_saved):
+        pid = self._scored_problem()
+        srv.model(action="save", problem_id=pid, save_as="unsolved")
+        loaded = srv.model(action="load", source="unsolved")
+        assert loaded["_skill_guidance"]["skill"] == "optimization_strategy"
+
+    def test_load_bundled_example_keeps_scenarios(self, tmp_saved):
+        loaded = srv.model(action="load", source="investment_portfolio")
+        assert loaded["status"]["scenarios"] == 3
+        assert loaded["status"]["interaction_matrices"] == 1
+
+    def test_load_without_source_lists_available(self, tmp_saved):
+        result = srv.model(action="load")
+        assert "error" in result
+        assert "investment_portfolio" in result["available"]["examples"]
+
+    def test_load_unknown_name_errors_with_available(self, tmp_saved):
+        result = srv.model(action="load", source="nope_not_here")
+        assert "error" in result
+        assert "available" in result
+
+    def test_save_missing_problem_errors(self, tmp_saved):
+        result = srv.model(action="save", problem_id="does-not-exist")
+        assert "error" in result
+
+    def test_load_rejects_unsafe_source(self, tmp_saved):
+        result = srv.model(action="load", source="../../etc/passwd")
+        assert "error" in result and "Invalid" in result["error"]
