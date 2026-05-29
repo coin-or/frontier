@@ -203,7 +203,12 @@ def _solve_qp_cuopt(
             prob.addConstraint(ret_expr <= float(target_return), name="return_target")
 
     prob.solve()
-    if prob.Status != 1:  # 1 == optimal in the cuOpt LP/QP API
+    # ``prob.Status`` is an ``LPTerminationStatus`` IntEnum. Accept BOTH certified
+    # Optimal (==1) and PrimalFeasible (==7): cuOpt's PDLP (the first-order solver
+    # behind the QP beta) frequently terminates PrimalFeasible rather than
+    # certified-Optimal on these convex QPs, and NVIDIA's own portfolio reference
+    # treats both as solved. ``getattr`` guards the pre-solve int sentinel (-1).
+    if getattr(prob.Status, "name", "") not in ("Optimal", "PrimalFeasible"):
         return np.zeros(n), False
     weights = np.array([w[i].Value for i in range(n)], dtype=float)
     return weights, True
