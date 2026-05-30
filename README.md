@@ -16,17 +16,17 @@ The design is **explainable, governable optimization**: the engine owns the *det
 
 ## Examples
 
-Two [worked examples](examples/) rendered in the web UI — the agent frames the decision, the engine solves it, and the result comes back as an interactive chart with a plain-language read of the tradeoffs.
+Several [worked examples](examples/) are included for you to learn from and adapt. Select results displayed below. 
 
 <table>
 <tr>
 <td width="50%" valign="top">
 <img src="assets/example-portfolio.png" alt="ETF efficient frontier with a plain-language tradeoff read" /><br/>
-<sub><b>ETF portfolio</b> — a Return × Volatility efficient frontier (the classic reverse-J), with the tradeoff read in plain language and curated picks marked.</sub>
+<sub>Investment portfolio</sub>
 </td>
 <td width="50%" valign="top">
 <img src="assets/example-capital.png" alt="Capital project formulation and per-scenario frontiers" /><br/>
-<sub><b>Capital project selection</b> — a binary MILP: the structured formulation (typed objectives, real constraints, scenarios) over per-scenario tradeoff frontiers, with curated picks.</sub>
+<sub>Capital project selection</sub>
 </td>
 </tr>
 </table>
@@ -63,8 +63,8 @@ Skills auto-inject at workflow transitions, so domain rigor — how to classify 
 
 Two ways to use Frontier:
 
-- **Web UI** — a browser chat shell over the engine, with interactive charts (2D/3D scatter and parallel coordinates that adapt to objective count, per-scenario overlays) and curate-straight-from-the-chart. A hosted instance is available to beta users; or run/deploy your own (see [`ui/`](ui/) and [Deploy your own](#deploy-your-own)).
-- **MCP client** — connect any MCP-compatible client (Claude Code, Claude Desktop, claude.ai, Cursor, Codex). The hosted beta engine (`https://frontier-592q.onrender.com/sse`) is **gated by a bearer token** — ask the operator for `FRONTIER_TOKEN`; or [self-host](#self-host) your own (ungated by default).
+- **Web UI** — a browser chat shell over the engine, with interactive charts (2D/3D scatter and parallel coordinates that adapt to objective count, per-scenario overlays) and curate-straight-from-the-chart. A hosted instance is available to beta users; or run/deploy your own (requires API key; see [`ui/`](ui/) and [Deploy your own](#deploy-your-own))
+- **MCP client** — connect any MCP-compatible client (Claude Code, Claude Desktop, claude.ai, Cursor, Codex). The hosted beta engine (`https://frontier-592q.onrender.com/sse`) is gated by a token — ask @cafzal for `FRONTIER_TOKEN`; or [self-host](#self-host) your own (ungated by default).
 
 The MCP-client snippets below assume the hosted engine.
 
