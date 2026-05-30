@@ -36,6 +36,7 @@ Frontier exposes 4 tools — 3 domain tools with multiple actions, plus a skill 
 | | `feedback` | Record user feedback: solution_id or content_signature, rating (1-5), notes, stage. Links to content_signature (stable across runs) and attaches to matching curated solution. |
 | | `compare_runs` | Diff run history: criteria changes, frontier diffs, option coverage |
 | | `scenario_results` | Per-scenario analysis with frequency-weighted option importance. Returns option_robustness sorted by importance (avg_frequency x avg_weight) with tiers: core (>50% in all scenarios), common (>25%), marginal (<25%). Also: scenario-specific options, expected values (ideal-point, probability-weighted), scenario_risk per objective (expected / worst_case / best_case / cvar_<alpha>%). Optional `cvar_alpha` (float in (0,1), default 0.2) sets the CVaR tail fraction. |
+| | `scenario_frontiers` | Per-scenario Pareto frontiers overlaid for visualization. `viz_data` colors each scenario's frontier for the web UI's parallel-coordinates overlay; ASCII surfaces a per-scenario objective-range table. Shows how the achievable tradeoffs shift across futures. |
 | | `curate` | Add a solution to the curated set with custom name and notes. Optional `scenario` param for curating from scenario frontiers. |
 | | `uncurate` | Remove a solution from the curated set by content signature |
 | | `rename_curated` | Update a curated solution's custom name |
@@ -44,6 +45,8 @@ Frontier exposes 4 tools — 3 domain tools with multiple actions, plus a skill 
 | | `compare_curated` | Compare curated solutions side-by-side by content signature. Default: compact (shared/differentiating options + objective values). Pass `detail=true` for full selected_options and allocations per solution. |
 | | `marginal_analysis` | Marginal rate analysis: cost-per-unit between adjacent solutions, inflection point detection (where marginal cost jumps sharply). Default summary; `detail=true` for per-pair breakdown. Optional `scenario` param. |
 | **get_skill** | *(single action)* | Retrieve workflow guidance by name. Returns full skill markdown. Works with all MCP clients (unlike resources, which require client-side resource support). Available skills: `problem_framing`, `data_collection`, `optimization_strategy`, `solution_interpreter`. |
+
+**Rendering surfaces.** `explore` actions (and `model get` summary) emit both an ASCII `visualization` for chat / coding-agent clients and a structured `viz_data` payload for chart-rendering surfaces. The web UI renders `viz_data` via Plotly: frontier solutions adapt to dimensionality (2 obj → 2D scatter, 3 → 3D scatter, ≥4 → parallel coordinates, with a scatter⇄PC toggle), scenarios overlay as colored parallel coordinates, and the formulation renders as a typed card. Clicking a point (or brushing parallel coordinates) curates it through the agent.
 
 ### MCP Skills (Resources + Tool)
 
@@ -145,7 +148,7 @@ flowchart TB
             GETSKILL["get_skill<br/><i>Retrieve workflow guidance by name</i>"]
             MODEL["model<br/><i>create | update | get | list | delete</i>"]
             SOLVE["solve<br/><i>validate | run | run_scenarios</i>"]
-            EXPLORE["explore<br/><i>tradeoffs | compare | solutions | solution<br/>feedback | compare_runs | scenario_results<br/>curate | uncurate | rename_curated<br/>curated | export_curated | compare_curated | marginal_analysis</i>"]
+            EXPLORE["explore<br/><i>tradeoffs | compare | solutions | solution<br/>feedback | compare_runs | scenario_results | scenario_frontiers<br/>curate | uncurate | rename_curated<br/>curated | export_curated | compare_curated | marginal_analysis</i>"]
         end
         subgraph RESOURCES["Skills (MCP Resources)"]
             R1["problem_framing<br/><i>Objective/option/constraint guidance</i>"]
@@ -159,7 +162,7 @@ flowchart TB
         direction TB
         MODELS["models.py<br/><i>Problem, Objective, Option, Score,<br/>Constraint (8 types incl. max_allocation),<br/>InteractionMatrix (mode: replace/upsert,<br/>scale_groups for regime shifts),<br/>InteractionScaleGroup,<br/>Run (mode, total_pareto_found, seed_used),<br/>QualityIndicators,<br/>Scenario (incl. interaction_matrix_overrides),<br/>ScenarioConfig, ScenarioRun,<br/>ScoreAdjustment, CuratedSolution<br/>(+ feedback history), ReferencePoint,<br/>Feedback, ValidationResult</i>"]
         OPT["optimizer.py<br/><i>NSGA-II/III (pymoo)<br/>Binary & Proportional modes<br/>Adaptive parameter tuning<br/>Constraint encoding (8 types)<br/>Quadratic aggregation (interaction matrices)<br/>Scenario optimization<br/>Infeasibility analysis</i>"]
-        EXP["explorer.py<br/><i>Tradeoff analysis, comparisons,<br/>balanced solution detection,<br/>scenario aggregation, curation,<br/>reference point analysis,<br/>marginal rate analysis,<br/>built-in ASCII visualizations</i>"]
+        EXP["explorer.py<br/><i>Tradeoff analysis, comparisons,<br/>balanced solution detection,<br/>scenario aggregation, curation,<br/>reference point analysis,<br/>marginal rate analysis,<br/>dual viz: ASCII + structured viz_data</i>"]
         MET["metrics.py<br/><i>Framing, data, solve,<br/>outcome metrics, diagnostics,<br/>frontier_quality classifier<br/>(GOOD/WARNING/POOR)</i>"]
         STORE["store.py<br/><i>File-based JSON persistence</i>"]
     end

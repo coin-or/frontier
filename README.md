@@ -42,7 +42,7 @@ Skills auto-inject at workflow transitions, so domain rigor — how to classify 
 
 Two ways to use Frontier:
 
-- **Web UI** — a browser chat shell over the engine. A hosted instance is available to beta users; or run/deploy your own (see [`ui/`](ui/) and [Deploy your own](#deploy-your-own)).
+- **Web UI** — a browser chat shell over the engine, with interactive charts (2D/3D scatter and parallel coordinates that adapt to objective count, per-scenario overlays) and curate-straight-from-the-chart. A hosted instance is available to beta users; or run/deploy your own (see [`ui/`](ui/) and [Deploy your own](#deploy-your-own)).
 - **MCP client** — connect any MCP-compatible client (Claude Code, Claude Desktop, claude.ai, Cursor, Codex). The hosted beta engine (`https://frontier-592q.onrender.com/sse`) is **gated by a bearer token** — ask the operator for `FRONTIER_TOKEN`; or [self-host](#self-host) your own (ungated by default).
 
 The MCP-client snippets below assume the hosted engine.
@@ -144,7 +144,7 @@ For full schemas, action parameters, data model, persistence layout, and the ski
 - Run comparison: criteria diffs, frontier diffs, option coverage changes across runs
 - Curation: bookmark solutions with custom names; content-signature identity tracks survival across re-runs; `export_curated` ships a formatted handoff artifact (markdown table or CSV)
 - Feedback: rating + notes linked to curated set via content signatures
-- Visualizations: inline ASCII scatter plots, parallel coordinates, marginal rate charts
+- Visualizations: inline ASCII for coding agents (scatter, parallel coordinates, marginal rates), plus structured `viz_data` the web UI renders as interactive Plotly charts — dimensionality-adaptive 2D/3D scatter and parallel coordinates, per-scenario overlays, and a formulation card
 
 **`get_skill`** — fetch workflow guidance by name (works with any MCP client)
 
