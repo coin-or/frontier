@@ -159,10 +159,10 @@ Skills are markdown files the server auto-injects into tool responses at workflo
 
 ## Saving & loading problems
 
-Problems save and load by name in the portable format the [examples](examples/) use:
+Every problem is auto-persisted in the engine's internal store (`data/`, keyed by id) — session state you don't manage. Separately, `save` writes a **named, portable copy** in the same format as the [examples](examples/), to reload or share by name:
 
-- **`model load source="<name>"`** — rebuild a problem (resolves your `saved/` library first, then bundled `examples/`); omit `source` to list available names.
-- **`model save problem_id=… save_as="<name>"`** — save to a gitignored `saved/` library (`FRONTIER_SAVED_DIR`), bundling the solved frontier when present.
+- **`model save problem_id=… save_as="<name>"`** — save to your gitignored `saved/` library (sibling of `examples/`; override with `FRONTIER_SAVED_DIR`), bundling the solved frontier when present.
+- **`model load source="<name>"`** — rebuild a problem, resolving your `saved/` library first, then bundled `examples/`; omit `source` to list available names.
 
 ## License
 
