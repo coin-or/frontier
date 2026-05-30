@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  Multi-objective decision optimization engine, exposed as an MCP server. Works with any MCP-compatible client.
+  Multi-objective decision optimization toolkit. Use in any MCP client or via the integrated web UI.
 </p>
 
 ## Summary
