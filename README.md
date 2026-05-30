@@ -1,6 +1,10 @@
-# Frontier
+<p align="center">
+  <img src="assets/frontier-logo.png" alt="Frontier" width="300" />
+</p>
 
-Multi-objective decision optimization engine, exposed as an MCP server. Works with any MCP-compatible client.
+<p align="center">
+  Multi-objective decision optimization engine, exposed as an MCP server. Works with any MCP-compatible client.
+</p>
 
 **Developer docs:** [`architecture.md`](architecture.md) — system architecture & data flow | [`best-practices.md`](best-practices.md) — skill & prompt design guidelines
 
@@ -9,6 +13,23 @@ Multi-objective decision optimization engine, exposed as an MCP server. Works wi
 Frontier gives AI agents a grounded optimization engine for hard decisions. The agent describes a problem in business terms; Frontier enumerates the full Pareto frontier — every non-dominated solution that balances conflicting objectives under hard constraints — and the agent narrates the tradeoffs back. NSGA-II/III under the hood (via pymoo), exposed as 4 MCP tools (`model`, `solve`, `explore`, `get_skill`). Frontier is the engine; the agent is the interface.
 
 The design is **explainable, governable optimization**: the engine owns the *deterministic guardrails* — hard constraints it never violates, reproducible runs (same inputs → same frontier), dominance filtering, pre-solve validation, and quality gates — while the *human judgment* stays at the two calls that matter: which objectives and constraints define the problem, and which non-dominated solution to commit to. The agent explains every tradeoff (shadow prices, frontier shape, marginal rates, dominance) and never names a "best"; every claim it makes traces back to returned data, so the result is explainable and the decision is auditable line by line. The wedge is combinatorial, constrained, portfolio-like decisions with conflicting objectives.
+
+## Examples
+
+Two [worked examples](examples/) rendered in the web UI — the agent frames the decision, the engine solves it, and the result comes back as an interactive chart with a plain-language read of the tradeoffs.
+
+<table>
+<tr>
+<td width="50%" valign="top">
+<img src="assets/example-portfolio.png" alt="ETF efficient frontier with a plain-language tradeoff read" /><br/>
+<sub><b>ETF portfolio</b> — a Return × Volatility efficient frontier (the classic reverse-J), with the tradeoff read in plain language and curated picks marked.</sub>
+</td>
+<td width="50%" valign="top">
+<img src="assets/example-capital.png" alt="Capital project formulation and per-scenario frontiers" /><br/>
+<sub><b>Capital project selection</b> — a binary MILP: the structured formulation (typed objectives, real constraints, scenarios) over per-scenario tradeoff frontiers, with curated picks.</sub>
+</td>
+</tr>
+</table>
 
 ## Purpose
 

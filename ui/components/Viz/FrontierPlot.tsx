@@ -215,7 +215,7 @@ export function FrontierPlot({ data }: { data: ScatterVizData }) {
         : "parallel coordinates";
 
   return (
-    <div className="my-3 rounded border border-stone-200 bg-white p-3">
+    <div data-viz="frontier" className="my-3 rounded border border-stone-200 bg-white p-3">
       <div className="mb-1 flex items-center justify-between text-[10px] text-stone-500">
         <span>
           {kind} · {data.points.length} solutions · {nObj} objectives
