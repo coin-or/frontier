@@ -755,6 +755,27 @@ def get_scenario_results(problem: Problem, cvar_alpha: float | None = None) -> d
     return result
 
 
+def get_scenario_frontiers(problem: Problem) -> dict:
+    """Per-scenario Pareto frontiers overlaid as parallel coordinates, colored by scenario.
+
+    Each scenario's frontier is a separate non-dominated set; overlaying them shows how
+    the achievable tradeoffs shift across futures (recession / inflation / rate_cuts …).
+    """
+    if not problem.scenario_run or not problem.scenario_run.scenario_runs:
+        raise ValueError("No scenario runs found. Use solve run_scenarios first.")
+    scenario_runs = problem.scenario_run.scenario_runs
+    counts = {name: len(run.solutions) for name, run in scenario_runs.items()}
+    return {
+        "scenarios": list(scenario_runs.keys()),
+        "solution_counts": counts,
+        "viz_data": _viz_data_scenario_parcoords(scenario_runs, problem.objectives),
+        "note": (
+            "Per-scenario frontiers overlaid as parallel coordinates, colored by scenario. "
+            "Narrate how the achievable tradeoffs shift across scenarios."
+        ),
+    }
+
+
 def marginal_analysis(problem: Problem, scenario: str | None = None, detail: bool = False) -> dict:
     """Marginal rate analysis: cost-per-unit improvement between adjacent Pareto solutions.
 
@@ -1904,6 +1925,46 @@ def _viz_data_marginal_rates(
         "to_objective": {"name": obj_b.name, "direction": obj_b.direction.value},
         "rates": sliced,
         "inflection": inflection,
+    }
+
+
+def _viz_data_scenario_parcoords(scenario_runs: dict, objectives: list, max_per_scenario: int = 80) -> dict:
+    """Parallel-coords payload overlaying each scenario's frontier, colored by scenario.
+
+    Lines are evenly sampled per scenario (cap max_per_scenario) so the overlay stays
+    readable; the UI colors each line by its scenario index.
+    """
+    obj_names = [o.name for o in objectives]
+    axes = []
+    for o in objectives:
+        vals = [
+            s.objective_values.get(o.name, 0.0)
+            for run in scenario_runs.values()
+            for s in run.solutions
+        ]
+        axes.append({
+            "name": o.name,
+            "direction": o.direction.value,
+            "min": min(vals) if vals else 0.0,
+            "max": max(vals) if vals else 0.0,
+        })
+    scenario_names = list(scenario_runs.keys())
+    lines = []
+    for idx, name in enumerate(scenario_names):
+        sols = scenario_runs[name].solutions
+        if len(sols) > max_per_scenario:
+            step = len(sols) / max_per_scenario
+            sols = [sols[int(i * step)] for i in range(max_per_scenario)]
+        for s in sols:
+            lines.append({
+                "scenario": idx,
+                "values": {n: s.objective_values.get(n, 0.0) for n in obj_names},
+            })
+    return {
+        "type": "scenario_parcoords",
+        "axes": axes,
+        "scenarios": scenario_names,
+        "lines": lines,
     }
 
 

@@ -1225,6 +1225,11 @@ def explore(
                 return _format_explore(explorer.get_scenario_results(p, cvar_alpha=cvar_alpha))
             except ValueError as e:
                 return {"error": str(e)}
+        case "scenario_frontiers":
+            try:
+                return explorer.get_scenario_frontiers(p)
+            except ValueError as e:
+                return {"error": str(e)}
         case "curate":
             if solution_id is None:
                 return {"error": "solution_id required for curate action."}

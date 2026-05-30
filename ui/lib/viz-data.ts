@@ -64,11 +64,19 @@ export type ScenarioSummaryVizData = {
   scenario_risk: Record<string, unknown>;
 };
 
+export type ScenarioParcoordsVizData = {
+  type: "scenario_parcoords";
+  axes: ObjectiveMeta[];
+  scenarios: string[];
+  lines: Array<{ scenario: number; values: Record<string, number> }>;
+};
+
 export type VizData =
   | ScatterVizData
   | ParallelCoordsVizData
   | MarginalRatesVizData
-  | ScenarioSummaryVizData;
+  | ScenarioSummaryVizData
+  | ScenarioParcoordsVizData;
 
 /**
  * Walk a tool_result's text payload and pull out every viz_data block.
