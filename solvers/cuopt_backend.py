@@ -163,6 +163,7 @@ def _round_weights_to_pct(
     for this reversible spike (plan P2/P6).
     """
     x = np.asarray(w_frac, dtype=float) * 100.0
+    x = np.where(np.isfinite(x), x, 0.0)  # NaN/inf → 0 before the int cast (NaN→int is garbage)
     raw = np.maximum(np.round(x), 0).astype(int)
     if max_allocation is not None:
         raw = np.minimum(raw, max_allocation)
@@ -205,6 +206,24 @@ def _nearest_psd(M: np.ndarray, rel_floor: float = 1e-8) -> np.ndarray:
     eigvals = np.maximum(eigvals, floor)
     A_psd = (eigvecs * eigvals) @ eigvecs.T
     return 0.5 * (A_psd + A_psd.T)  # re-symmetrize away float asymmetry
+
+
+def _qp_weights_ok(weights: "np.ndarray | None", ub: float, tol: float = 1e-3) -> bool:
+    """Feasibility gate on cuOpt's *returned* QP weights — not just its status.
+
+    cuOpt's QP beta sometimes terminates ``PrimalFeasible`` on a degenerate point
+    whose weights are non-finite or violate Σw=1 / the [0, ub] box. Status alone
+    accepts those; the downstream ``avg``/``quadratic`` aggregation (and the
+    NaN→int cast in ``_round_weights_to_pct``) then explode one point by ~1e21,
+    blowing out the whole frontier plot. Reject them here so the scalarization is
+    treated as infeasible (penalized / skipped), exactly the check the scipy CPU
+    reference already applies. Pure + GPU-free so it is unit-testable on CPU.
+    """
+    if weights is None or not np.all(np.isfinite(weights)):
+        return False
+    if abs(float(weights.sum()) - 1.0) > tol:
+        return False
+    return bool(weights.min() >= -1e-6 and weights.max() <= ub + 1e-4)
 
 
 def _solve_qp_cuopt(
@@ -290,6 +309,11 @@ def _solve_qp_cuopt(
     # treats both as solved. ``getattr`` guards the pre-solve int sentinel (-1).
     ok = getattr(prob.Status, "name", "") in ("Optimal", "PrimalFeasible")
     weights = np.array([w[i].Value for i in range(n)], dtype=float) if ok else np.zeros(n)
+    # Status says "solved" but the returned point can still be degenerate (non-finite
+    # or off the Σw=1 / box) — gate on the weights themselves, else one bad solve
+    # blows up the frontier (see _qp_weights_ok).
+    if ok and not _qp_weights_ok(weights, ub):
+        weights, ok = np.zeros(n), False
     # Free the cuOpt problem before the next inner solve (the EA issues many).
     del prob
     gc.collect()
