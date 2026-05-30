@@ -572,6 +572,50 @@ type AnthropicMessage =
   | { role: "user"; content: string | Array<Record<string, unknown>> }
   | { role: "assistant"; content: Array<Record<string, unknown>> };
 
+// Translate one stored UI block to its Anthropic API shape (or null to drop).
+function translateBlock(b: Record<string, unknown>): Record<string, unknown> | null {
+  if (b.type === "text") return { type: "text", text: b.text };
+  if (b.type === "mcp_tool_use")
+    return { type: "tool_use", id: b.id, name: b.name, input: b.input };
+  if (b.type === "mcp_tool_result")
+    return { type: "tool_result", tool_use_id: b.tool_use_id, content: b.content, is_error: b.is_error };
+  return null;
+}
+
+// Anthropic requires tool_result blocks in a user message that FOLLOWS the
+// assistant's tool_use. The UI flattens an entire multi-iteration turn (text +
+// tool_use + tool_result, interleaved) into one assistant message, so replaying
+// it verbatim puts tool_result in an assistant turn → API 400 on the next turn.
+// Walk the flattened blocks and emit the alternation the API expects:
+// assistant (text + tool_use) → user (tool_result) → assistant …
+function splitAssistantTurn(blocks: Array<Record<string, unknown>>): AnthropicMessage[] {
+  const out: AnthropicMessage[] = [];
+  let assistant: Array<Record<string, unknown>> = [];
+  let results: Array<Record<string, unknown>> = [];
+  const flushResults = () => {
+    if (!results.length) return;
+    if (assistant.length) {
+      out.push({ role: "assistant", content: assistant });
+      assistant = [];
+    }
+    out.push({ role: "user", content: results });
+    results = [];
+  };
+  for (const b of blocks) {
+    const t = translateBlock(b);
+    if (!t) continue;
+    if (t.type === "tool_result") {
+      results.push(t);
+    } else {
+      flushResults(); // assistant content after a result batch starts a new turn
+      assistant.push(t);
+    }
+  }
+  flushResults();
+  if (assistant.length) out.push({ role: "assistant", content: assistant });
+  return out;
+}
+
 const anthropicLocalAdapter: AgentRuntime = {
   async stream(messages) {
     const apiKey = process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY;
@@ -624,22 +668,16 @@ const anthropicLocalAdapter: AgentRuntime = {
               continue;
             }
             const blocks = m.content as Array<Record<string, unknown>>;
-            const translated = blocks
-              .map((b) => {
-                if (b.type === "text") return { type: "text", text: b.text };
-                if (b.type === "mcp_tool_use")
-                  return { type: "tool_use", id: b.id, name: b.name, input: b.input };
-                if (b.type === "mcp_tool_result")
-                  return {
-                    type: "tool_result",
-                    tool_use_id: b.tool_use_id,
-                    content: b.content,
-                    is_error: b.is_error,
-                  };
-                return null;
-              })
-              .filter(Boolean) as Array<Record<string, unknown>>;
-            convo.push({ role: m.role, content: translated });
+            if (m.role === "assistant") {
+              // Split the flattened assistant turn into assistant/user alternation
+              // (tool_result must live in a following user message).
+              convo.push(...splitAssistantTurn(blocks));
+            } else {
+              const translated = blocks
+                .map(translateBlock)
+                .filter(Boolean) as Array<Record<string, unknown>>;
+              convo.push({ role: "user", content: translated });
+            }
           }
 
           // 4. Tool loop. Each iteration is a streaming call. We rewrite

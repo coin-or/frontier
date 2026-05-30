@@ -8,7 +8,8 @@ from pathlib import Path
 
 from .models import Problem
 
-DEFAULT_DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
+# store.py is at <repo-root>/engine/store.py, so two parents up is the repo root.
+DEFAULT_DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
 
 class Store:
