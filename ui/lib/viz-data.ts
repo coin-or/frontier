@@ -71,12 +71,25 @@ export type ScenarioParcoordsVizData = {
   lines: Array<{ scenario: number; values: Record<string, number> }>;
 };
 
+export type FormulationVizData = {
+  type: "formulation";
+  name: string;
+  domain: string;
+  approach: string;
+  options_count: number;
+  scores_complete: number;
+  objectives: Array<{ name: string; direction: string; aggregation: string; unit?: string | null }>;
+  constraints: string[];
+  scenarios: string[];
+};
+
 export type VizData =
   | ScatterVizData
   | ParallelCoordsVizData
   | MarginalRatesVizData
   | ScenarioSummaryVizData
-  | ScenarioParcoordsVizData;
+  | ScenarioParcoordsVizData
+  | FormulationVizData;
 
 /**
  * Walk a tool_result's text payload and pull out every viz_data block.

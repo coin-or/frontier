@@ -596,6 +596,48 @@ def _model_get(params: dict) -> dict:
     return json.loads(p.model_dump_json())
 
 
+def _format_constraint(c) -> str:
+    """Best-effort human-readable summary of a constraint for the formulation card."""
+    d = c.model_dump(mode="json") if hasattr(c, "model_dump") else dict(c)
+    t = d.get("type")
+    if t == "max_allocation":
+        return f"≤{d.get('max')}% per option"
+    if t == "min_allocation":
+        return f"≥{d.get('min')}% per option"
+    if t == "objective_bound":
+        op = {"max": "≤", "min": "≥"}.get(d.get("operator"), str(d.get("operator")))
+        return f"{d.get('objective')} {op} {d.get('value')}"
+    if t == "group_limit":
+        return f"≤{d.get('max')} per group ({len(d.get('options', []))} options)"
+    if t == "cardinality":
+        return f"select {d.get('min', '?')}–{d.get('max', '?')}"
+    return t or "constraint"
+
+
+def _viz_data_formulation(p: Problem) -> dict:
+    """Structured formulation card for the web UI: typed objectives, constraints, scenarios."""
+    total = len(p.objectives) * len(p.options)
+    return {
+        "type": "formulation",
+        "name": p.name,
+        "domain": p.domain,
+        "approach": p.approach.value,
+        "options_count": len(p.options),
+        "scores_complete": round(len(p.scores) / total, 2) if total else 0.0,
+        "objectives": [
+            {
+                "name": o.name,
+                "direction": o.direction.value,
+                "aggregation": o.aggregation.value,
+                "unit": o.unit,
+            }
+            for o in p.objectives
+        ],
+        "constraints": [_format_constraint(c) for c in p.constraints],
+        "scenarios": [s.name for s in p.scenario_config.scenarios] if p.scenario_config else [],
+    }
+
+
 def _model_get_section(p: Problem, section: str) -> dict:
     """Return a targeted slice of the Problem for progressive inspection.
 
@@ -620,6 +662,7 @@ def _model_get_section(p: Problem, section: str) -> dict:
                 "has_scenario_run": p.scenario_run is not None,
                 "results_stale": p.results_stale,
                 "curated_count": len(p.curated_solutions),
+                "viz_data": _viz_data_formulation(p),
             }
         case "objectives":
             return {**header, "objectives": [o.model_dump(mode="json") for o in p.objectives]}

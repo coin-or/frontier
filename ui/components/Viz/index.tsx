@@ -6,6 +6,7 @@ import { ParallelCoords } from "./ParallelCoords";
 import { MarginalRates } from "./MarginalRates";
 import { ScenarioSummary } from "./ScenarioSummary";
 import { ScenarioParcoords } from "./ScenarioParcoords";
+import { FormulationPanel } from "./FormulationPanel";
 
 /**
  * Dispatcher: pick the right chart component for a viz_data payload.
@@ -24,6 +25,8 @@ export function VizRenderer({ data }: { data: VizData }) {
       return <ScenarioSummary data={data} />;
     case "scenario_parcoords":
       return <ScenarioParcoords data={data} />;
+    case "formulation":
+      return <FormulationPanel data={data} />;
     default:
       return null;
   }
