@@ -839,11 +839,29 @@ def marginal_analysis(problem: Problem, scenario: str | None = None, detail: boo
             pair_result["visualization"] = _render_marginal_rates(
                 rates, obj_a, obj_b, inflection, max_rows=20,
             )
-            pair_result["viz_data"] = _viz_data_marginal_rates(rates, obj_a, obj_b, inflection)
+            pair_result["viz_data"] = _viz_data_marginal_rates(
+                rates, obj_a, obj_b, inflection, max_rows=20,
+            )
 
         pairs.append(pair_result)
 
     return {"pairs": pairs}
+
+
+def _marginal_window(n: int, inflection: dict | None, max_rows: int | None) -> tuple[int, int]:
+    """[start, end) slice of rate rows to show, centered on the inflection.
+
+    Returns (0, n) when no cap applies. Shared by the ASCII and viz_data
+    renderers so both show the same window around the knee.
+    """
+    if not max_rows or n <= max_rows:
+        return 0, n
+    center = inflection["position"] if inflection else n // 2
+    half = max_rows // 2
+    start = max(0, center - half)
+    end = min(n, start + max_rows)
+    start = max(0, end - max_rows)
+    return start, end
 
 
 def _render_marginal_rates(rates: list[dict], obj_a, obj_b, inflection: dict | None,
@@ -864,19 +882,10 @@ def _render_marginal_rates(rates: list[dict], obj_a, obj_b, inflection: dict | N
     if max_rate == 0:
         max_rate = 1.0
 
-    # Determine which rows to show
-    if max_rows and len(rates) > max_rows:
-        # Center window on inflection point if available, else on middle
-        center = inflection["position"] if inflection else len(rates) // 2
-        half = max_rows // 2
-        start = max(0, center - half)
-        end = min(len(rates), start + max_rows)
-        start = max(0, end - max_rows)  # Adjust if near end
-        show_range = range(start, end)
-        truncated = True
-    else:
-        show_range = range(len(rates))
-        truncated = False
+    # Determine which rows to show (shared window logic with viz_data)
+    start, end = _marginal_window(len(rates), inflection, max_rows)
+    show_range = range(start, end)
+    truncated = (start, end) != (0, len(rates))
 
     BAR_W = 30
     if truncated and show_range.start > 0:
@@ -1862,14 +1871,25 @@ def _viz_data_parallel_coords(
 
 
 def _viz_data_marginal_rates(
-    rates: list[dict], obj_a, obj_b, inflection: dict | None
+    rates: list[dict], obj_a, obj_b, inflection: dict | None, max_rows: int | None = None
 ) -> dict:
-    """Marginal-rate bar payload: cost-per-unit between adjacent solutions."""
+    """Marginal-rate bar payload: cost-per-unit between adjacent solutions.
+
+    The full rate list is one row per Pareto transition — hundreds long on a
+    large frontier, which renders an unusably tall chart. max_rows windows the
+    rows around the inflection (the decision-relevant region) and re-indexes the
+    inflection marker into the slice. Omit max_rows (detail mode) for all rows.
+    """
+    start, end = _marginal_window(len(rates), inflection, max_rows)
+    sliced = rates[start:end]
+    if inflection is not None:
+        pos = inflection["position"] - start
+        inflection = {**inflection, "position": pos if 0 <= pos < len(sliced) else -1}
     return {
         "type": "marginal_rates",
         "from_objective": {"name": obj_a.name, "direction": obj_a.direction.value},
         "to_objective": {"name": obj_b.name, "direction": obj_b.direction.value},
-        "rates": rates,
+        "rates": sliced,
         "inflection": inflection,
     }
 
