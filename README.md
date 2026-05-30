@@ -164,6 +164,15 @@ Every problem is auto-persisted in the engine's internal store (`data/`, keyed b
 - **`model save problem_id=… save_as="<name>"`** — save to your gitignored `saved/` library (sibling of `examples/`; override with `FRONTIER_SAVED_DIR`), bundling the solved frontier when present.
 - **`model load source="<name>"`** — rebuild a problem, resolving your `saved/` library first, then bundled `examples/`; omit `source` to list available names.
 
+## Background
+
+Optional background — the thinking behind Frontier and how it's evolved:
+
+- [Building an AI-Powered Decision Tool Prototype: A Product Manager's Journey](https://camafzal.substack.com/p/building-an-ai-powered-decision-tool) — May 2025
+- [Lowering the Barriers to Decision Optimization with AI](https://camafzal.substack.com/p/lowering-the-barriers-to-decision) — Sep 2025
+- [Making optimization accessible: AI as the translation layer](https://camafzal.substack.com/p/making-optimization-accessible-ai) — Jan 2026
+- [Agents have a convergent reasoning gap](https://camafzal.substack.com/p/agents-have-a-convergent-reasoning) — Apr 2026
+
 ## License
 
 Apache License 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
