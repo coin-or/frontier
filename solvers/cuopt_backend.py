@@ -38,6 +38,7 @@ what Frontier's ``√(wᵀΣw)`` risk objective would pick), long-only, fully in
 
 from __future__ import annotations
 
+import gc
 import os
 
 import numpy as np
@@ -62,6 +63,19 @@ _SPIKE_POP = 30
 _SPIKE_GEN = 15
 # Dominate-everything cost assigned to scalarizations cuOpt reports infeasible.
 _INFEASIBLE_PENALTY = 1e9
+
+# Binary-MILP path. Each cuOpt MILP solve gets a wall-clock cap and a mild relative
+# gap. Without them, branch-and-bound finds the integer incumbent in <0.1s but then
+# spends *minutes* certifying optimality across a ~0.05% gap; on a small Colab box
+# that runaway exhausts host RAM (kernel restart) and, multiplied across the EA's
+# many inner solves, never returns. A 0.1% gap on integer scores is sub-unit, so the
+# returned incumbent is the exact optimum — only the (irrelevant) proof is skipped.
+_MILP_TIME_LIMIT = 8.0   # seconds, hard cap per MILP solve
+_MILP_REL_GAP = 1e-3     # stop B&B once the incumbent is within 0.1% of the bound
+# Smaller EA budget for the MILP path: each evaluation is an exact integer solve
+# (not a cheap continuous QP), so keep the total cuOpt-call count bounded on Colab.
+_MILP_POP = 16
+_MILP_GEN = 8
 
 
 def _use_cuopt(problem: Problem) -> bool:
@@ -274,10 +288,12 @@ def _solve_qp_cuopt(
     # behind the QP beta) frequently terminates PrimalFeasible rather than
     # certified-Optimal on these convex QPs, and NVIDIA's own portfolio reference
     # treats both as solved. ``getattr`` guards the pre-solve int sentinel (-1).
-    if getattr(prob.Status, "name", "") not in ("Optimal", "PrimalFeasible"):
-        return np.zeros(n), False
-    weights = np.array([w[i].Value for i in range(n)], dtype=float)
-    return weights, True
+    ok = getattr(prob.Status, "name", "") in ("Optimal", "PrimalFeasible")
+    weights = np.array([w[i].Value for i in range(n)], dtype=float) if ok else np.zeros(n)
+    # Free the cuOpt problem before the next inner solve (the EA issues many).
+    del prob
+    gc.collect()
+    return weights, ok
 
 
 def _solve_individual(
@@ -508,7 +524,12 @@ def _solve_milp_cuopt(min_coef, eps_list, mc, n):
     constraints in ``mc``. Returns ``(0/1 selection array, ok)``. The CPU stand-in
     (scipy.optimize.milp) used for verification has the identical signature.
     """
+    from cuopt.linear_programming import SolverSettings
     from cuopt.linear_programming.problem import INTEGER, MINIMIZE, Problem as CuProblem
+    from cuopt.linear_programming.solver.solver_parameters import (
+        CUOPT_MIP_RELATIVE_GAP,
+        CUOPT_TIME_LIMIT,
+    )
 
     prob = CuProblem("frontier_milp")
     x = [prob.addVariable(lb=0.0, ub=1.0, vtype=INTEGER, name=f"x{i}") for i in range(n)]
@@ -533,14 +554,23 @@ def _solve_milp_cuopt(min_coef, eps_list, mc, n):
         prob.addConstraint(x[a] + x[b] <= 1, name="excl")
     for grp, gmax in mc["groups"]:
         prob.addConstraint(sum(x[i] for i in grp) <= gmax, name="grp")
-    prob.solve()
+    # Bound the solve: cap wall-clock and accept a 0.1% gap so branch-and-bound returns
+    # the incumbent instead of grinding to certify optimality (see _MILP_* constants).
+    settings = SolverSettings()
+    settings.set_parameter(CUOPT_TIME_LIMIT, _MILP_TIME_LIMIT)
+    settings.set_parameter(CUOPT_MIP_RELATIVE_GAP, _MILP_REL_GAP)
+    prob.solve(settings)
     # MILP uses ``MILPTerminationStatus`` (NoTermination / Optimal / FeasibleFound) — a
     # DIFFERENT enum from the QP's ``LPTerminationStatus`` (which has PrimalFeasible).
-    # Accept Optimal AND FeasibleFound (branch-and-bound often returns a proven-feasible
-    # incumbent before certifying optimality on a node/time budget).
-    if getattr(prob.Status, "name", "") not in ("Optimal", "FeasibleFound"):
-        return np.zeros(n), False
-    return np.array([round(x[i].Value) for i in range(n)], dtype=float), True
+    # Accept Optimal AND FeasibleFound (a time/gap stop returns a proven-feasible
+    # incumbent as FeasibleFound rather than certified-Optimal).
+    ok = getattr(prob.Status, "name", "") in ("Optimal", "FeasibleFound")
+    sel = np.array([round(x[i].Value) for i in range(n)], dtype=float) if ok else np.zeros(n)
+    # Release the cuOpt problem's device/host buffers before the next inner solve — the
+    # EA issues hundreds of these, and on a small Colab box the creep tips into OOM.
+    del prob
+    gc.collect()
+    return sel, ok
 
 
 class _MilpFrontierProblem(PymooProblem):
@@ -595,7 +625,7 @@ def _optimize_cuopt_milp(problem, mode, max_solutions=None, seed=42):
         eps_bounds.append((lo, hi if hi > lo else lo + 1e-6))
 
     pp = _MilpFrontierProblem(S, dirs, primary, nonprimary, mc, n, objs, eps_bounds)
-    result = pymoo_minimize(pp, NSGA2(pop_size=_SPIKE_POP), ("n_gen", _SPIKE_GEN), seed=seed, verbose=False)
+    result = pymoo_minimize(pp, NSGA2(pop_size=_MILP_POP), ("n_gen", _MILP_GEN), seed=seed, verbose=False)
 
     solutions: list[Solution] = []
     seen: set = set()
