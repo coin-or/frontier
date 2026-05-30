@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/frontier-logo.png" alt="Frontier" width="300" />
+  <img src="assets/frontier-logo.png" alt="Frontier" width="160" />
 </p>
 
 <p align="center">
