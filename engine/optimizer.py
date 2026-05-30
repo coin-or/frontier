@@ -811,6 +811,109 @@ def _apply_matrix_override(base: "InteractionMatrix | None", override: "Interact
     )
 
 
+def build_scenario_problem(problem: Problem, scenario: "Scenario") -> Problem:
+    """Apply a scenario's overrides to a deep copy of ``problem`` and return a
+    base-case problem (``scenario_config`` cleared) ready to optimize or evaluate.
+
+    Overrides, in order: bulk score_adjustments (multiply/add), explicit
+    score_overrides (take precedence), constraint_overrides (full replacement),
+    interaction_matrix overrides (replace/upsert/scale_groups). Extracted from
+    ``optimize_scenarios`` so the same overridden scores can be reused to score a
+    specific slate under the scenario (see ``evaluate_slate``)."""
+    sp = problem.model_copy(deep=True)
+
+    if scenario.score_adjustments:
+        adj_map = {a.objective: a for a in scenario.score_adjustments}
+        for score in sp.scores:
+            if score.objective in adj_map:
+                adj = adj_map[score.objective]
+                if adj.multiply is not None:
+                    score.value *= adj.multiply
+                if adj.add is not None:
+                    score.value += adj.add
+
+    if scenario.score_overrides:
+        override_map = {(s.option, s.objective): s.value for s in scenario.score_overrides}
+        for score in sp.scores:
+            key = (score.option, score.objective)
+            if key in override_map:
+                score.value = override_map[key]
+
+    if scenario.constraint_overrides:
+        sp.constraints = list(scenario.constraint_overrides)
+
+    if scenario.interaction_matrix_overrides:
+        base_by_obj = {m.objective: m for m in sp.interaction_matrices}
+        for override in scenario.interaction_matrix_overrides:
+            base = base_by_obj.get(override.objective)
+            base_by_obj[override.objective] = _apply_matrix_override(base, override)
+        sp.interaction_matrices = list(base_by_obj.values())
+
+    sp.scenario_config = None
+    return sp
+
+
+def score_slate(
+    problem: Problem,
+    selected_options: list[str],
+    allocations: dict[str, int] | None = None,
+    scenario: "Scenario | None" = None,
+) -> dict:
+    """Objective vector **and** feasibility for one specific slate under the base case
+    or a named scenario, in a single problem build.
+
+    Reuses the optimizer's own aggregation (sum/avg/min/max/quadratic, incl. quadratic
+    interaction matrices) and constraint encoding, so values and feasibility match what
+    ``solve`` would report. ``scenario`` is a ``Scenario`` object (None = base case).
+    For proportional problems pass ``allocations``; for binary, ``selected_options``.
+    Returns ``{"values": {obj: v}, "feasible": bool}``."""
+    p = build_scenario_problem(problem, scenario) if scenario is not None else problem
+    n = len(p.options)
+    idx = {o.name: i for i, o in enumerate(p.options)}
+    score_matrix = _build_score_matrix(p)
+    im = _build_interaction_matrices(p)
+    cp = _parse_constraints(p)
+
+    x = np.zeros((1, n))
+    if p.approach == Approach.proportional:
+        for name, pct in (allocations or {}).items():
+            if name in idx:
+                x[0, idx[name]] = pct
+        prob = _ProportionalProblem(
+            n_options=n, score_matrix=score_matrix, objectives=p.objectives,
+            interaction_matrices=im, **cp,
+        )
+    else:
+        for name in selected_options:
+            if name in idx:
+                x[0, idx[name]] = 1.0
+        prob = _FrontierProblem(
+            n_options=n, score_matrix=score_matrix, objectives=p.objectives,
+            interaction_matrices=im, **cp,
+        )
+
+    values = {
+        obj.name: round(float(prob._aggregate_objective(x, j)[0]), 4)
+        for j, obj in enumerate(p.objectives)
+    }
+    out: dict = {}
+    prob._evaluate(x.copy(), out)
+    g = out.get("G")
+    feasible = bool(g is None or np.asarray(g).size == 0 or np.all(np.asarray(g) <= 1e-6))
+    return {"values": values, "feasible": feasible}
+
+
+def evaluate_slate(
+    problem: Problem,
+    selected_options: list[str],
+    allocations: dict[str, int] | None = None,
+    scenario: "Scenario | None" = None,
+) -> dict[str, float]:
+    """Objective vector for one slate under the base case or a scenario.
+    Thin wrapper over ``score_slate`` (which also returns feasibility)."""
+    return score_slate(problem, selected_options, allocations, scenario)["values"]
+
+
 def optimize_scenarios(
     problem: Problem,
     mode: OptimizeMode | None = None,
@@ -833,42 +936,8 @@ def optimize_scenarios(
         raise ValueError("No scenarios defined.")
 
     def _build_and_solve(scenario: "Scenario") -> tuple[str, Run]:
-        scenario_problem = problem.model_copy(deep=True)
+        scenario_problem = build_scenario_problem(problem, scenario)
 
-        # 1) Apply bulk score_adjustments (multiply/add) by objective
-        if scenario.score_adjustments:
-            adj_map = {a.objective: a for a in scenario.score_adjustments}
-            for score in scenario_problem.scores:
-                if score.objective in adj_map:
-                    adj = adj_map[score.objective]
-                    if adj.multiply is not None:
-                        score.value *= adj.multiply
-                    if adj.add is not None:
-                        score.value += adj.add
-
-        # 2) Apply explicit score_overrides (takes precedence)
-        if scenario.score_overrides:
-            override_map = {(s.option, s.objective): s.value for s in scenario.score_overrides}
-            for score in scenario_problem.scores:
-                key = (score.option, score.objective)
-                if key in override_map:
-                    score.value = override_map[key]
-
-        # 3) Apply constraint overrides (full replacement when provided)
-        if scenario.constraint_overrides:
-            scenario_problem.constraints = list(scenario.constraint_overrides)
-
-        # 4) Apply interaction_matrix overrides: replace / upsert / scale_groups,
-        # composable per override. See _apply_matrix_override.
-        if scenario.interaction_matrix_overrides:
-            base_by_obj = {m.objective: m for m in scenario_problem.interaction_matrices}
-            for override in scenario.interaction_matrix_overrides:
-                base = base_by_obj.get(override.objective)
-                merged = _apply_matrix_override(base, override)
-                base_by_obj[override.objective] = merged
-            scenario_problem.interaction_matrices = list(base_by_obj.values())
-
-        scenario_problem.scenario_config = None
         # Derive a distinct, deterministic per-scenario seed so they don't
         # collide on identical initializations while remaining reproducible.
         # Uses hashlib (not built-in hash) because Python's hash(str) is

@@ -17,7 +17,7 @@ export type ObjectiveMeta = {
 export type ScatterPoint = {
   solution_id: number;
   values: Record<string, number>;
-  name?: string | null; // curated custom_name when the solution is bookmarked
+  name?: string | null; // the solution's curated custom_name, if curated
 };
 
 export type ScatterVizData = {
@@ -64,11 +64,24 @@ export type ScenarioSummaryVizData = {
   scenario_risk: Record<string, unknown>;
 };
 
+export type CuratedScenarioPick = {
+  name: string;
+  // true when the pick's objective vector is identical across scenarios (e.g.
+  // constraint-only scenarios); then `lines` holds one entry with scenario = -1.
+  invariant: boolean;
+  // one line per distinct profile: scenario = -1 for an invariant pick, else the
+  // scenario index it was evaluated under (drift across score-based scenarios).
+  lines: Array<{ scenario: number; values: Record<string, number> }>;
+  // scenario indices the slate is feasible in — drives presence coloring.
+  present: number[];
+};
+
 export type ScenarioParcoordsVizData = {
   type: "scenario_parcoords";
   axes: ObjectiveMeta[];
   scenarios: string[];
   lines: Array<{ scenario: number; values: Record<string, number> }>;
+  curated?: CuratedScenarioPick[];
 };
 
 export type FormulationVizData = {

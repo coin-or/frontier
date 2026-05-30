@@ -596,27 +596,53 @@ def _model_get(params: dict) -> dict:
     return json.loads(p.model_dump_json())
 
 
-def _format_constraint(c) -> str:
-    """Best-effort human-readable summary of a constraint for the formulation card."""
+def _fmt_num(v) -> str:
+    """Trim a trailing .0 so integer-valued floats read as integers (140.0 → 140)."""
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return str(v)
+    return str(int(f)) if f.is_integer() else str(f)
+
+
+def _format_constraint(c, units: dict | None = None) -> str:
+    """Human-readable summary carrying the constraint's actual content — option
+    names, bounds, group members — so the formulation card reads as a precise
+    problem, not a list of constraint types. ``units`` maps objective→unit for bounds."""
     d = c.model_dump(mode="json") if hasattr(c, "model_dump") else dict(c)
     t = d.get("type")
+    units = units or {}
     if t == "max_allocation":
-        return f"≤{d.get('max')}% per option"
+        return f"≤{_fmt_num(d.get('max'))}% per option"
     if t == "min_allocation":
-        return f"≥{d.get('min')}% per option"
+        return f"≥{_fmt_num(d.get('min'))}% per option"
     if t == "objective_bound":
         op = {"max": "≤", "min": "≥"}.get(d.get("operator"), str(d.get("operator")))
-        return f"{d.get('objective')} {op} {d.get('value')}"
-    if t == "group_limit":
-        return f"≤{d.get('max')} per group ({len(d.get('options', []))} options)"
+        obj = d.get("objective")
+        unit = units.get(obj, "")
+        return f"{obj} {op} {_fmt_num(d.get('value'))}{(' ' + unit) if unit else ''}"
     if t == "cardinality":
-        return f"select {d.get('min', '?')}–{d.get('max', '?')}"
+        lo, hi = d.get("min"), d.get("max")
+        return f"select exactly {lo}" if lo == hi else f"select {lo}–{hi}"
+    if t == "force_include":
+        return f"must include {d.get('option')}"
+    if t == "force_exclude":
+        return f"exclude {d.get('option')}"
+    if t == "exclusion_pair":
+        return f"{d.get('option_a')} ⊕ {d.get('option_b')}"
+    if t == "dependency":
+        return f"{d.get('if_option')} requires {d.get('then_option')}"
+    if t == "group_limit":
+        opts = d.get("options", [])
+        members = ", ".join(opts) if 0 < len(opts) <= 5 else f"{len(opts)} options"
+        return f"≤{_fmt_num(d.get('max'))} of {{{members}}}"
     return t or "constraint"
 
 
 def _viz_data_formulation(p: Problem) -> dict:
     """Structured formulation card for the web UI: typed objectives, constraints, scenarios."""
     total = len(p.objectives) * len(p.options)
+    units = {o.name: o.unit for o in p.objectives}
     return {
         "type": "formulation",
         "name": p.name,
@@ -633,7 +659,7 @@ def _viz_data_formulation(p: Problem) -> dict:
             }
             for o in p.objectives
         ],
-        "constraints": [_format_constraint(c) for c in p.constraints],
+        "constraints": [_format_constraint(c, units) for c in p.constraints],
         "scenarios": [s.name for s in p.scenario_config.scenarios] if p.scenario_config else [],
     }
 
@@ -647,10 +673,11 @@ def _render_formulation(p: Problem) -> str:
         unit = f" {o.unit}" if o.unit else ""
         lines.append(f"  • {o.name}: {arrow}, {o.aggregation.value}{unit}")
     if p.constraints:
+        units = {o.name: o.unit for o in p.objectives}
         lines.append("")
         lines.append("Constraints:")
         for c in p.constraints:
-            lines.append(f"  • {_format_constraint(c)}")
+            lines.append(f"  • {_format_constraint(c, units)}")
     scens = [s.name for s in p.scenario_config.scenarios] if p.scenario_config else []
     if scens:
         lines.append("")

@@ -9,7 +9,7 @@ import type { FormulationVizData } from "@/lib/viz-data";
  */
 export function FormulationPanel({ data }: { data: FormulationVizData }) {
   return (
-    <div className="my-3 rounded border border-stone-200 bg-white p-3 text-sm">
+    <div data-viz="formulation" className="my-3 rounded border border-stone-200 bg-white p-3 text-sm">
       <div className="mb-2 flex items-baseline justify-between gap-2">
         <span className="font-semibold text-stone-900">{data.name || "Problem"}</span>
         <span className="text-[10px] text-stone-500">
@@ -24,12 +24,14 @@ export function FormulationPanel({ data }: { data: FormulationVizData }) {
           <tbody>
             {data.objectives.map((o) => (
               <tr key={o.name} className="border-t border-stone-100">
-                <td className="py-0.5 pr-2 font-medium text-stone-800">{o.name}</td>
+                <td className="py-0.5 pr-2 font-medium text-stone-800">
+                  {o.name}
+                  {o.unit ? <span className="ml-1 font-normal text-stone-500">({o.unit})</span> : null}
+                </td>
                 <td className="py-0.5 pr-2 text-stone-600">
                   {o.direction === "maximize" ? "max ↑" : "min ↓"}
                 </td>
-                <td className="py-0.5 pr-2 text-stone-500">{o.aggregation}</td>
-                <td className="py-0.5 text-stone-400">{o.unit || ""}</td>
+                <td className="py-0.5 text-stone-500">{o.aggregation}</td>
               </tr>
             ))}
           </tbody>

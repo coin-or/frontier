@@ -142,9 +142,9 @@ For full schemas, action parameters, data model, persistence layout, and the ski
 - Per-scenario exploration: tradeoffs, compare, solutions, marginal analysis, and curation all accept an optional `scenario` parameter
 - Scenario results: robust options across all scenarios, scenario-specific options, probability-weighted expected values, per-objective scenario risk (expected / worst-case / best-case / CVaR with tunable `cvar_alpha`)
 - Run comparison: criteria diffs, frontier diffs, option coverage changes across runs
-- Curation: bookmark solutions with custom names; content-signature identity tracks survival across re-runs; `export_curated` ships a formatted handoff artifact (markdown table or CSV)
+- Curation: curate solutions with custom names; content-signature identity tracks survival across re-runs; `export_curated` ships a formatted handoff artifact (markdown table or CSV)
 - Feedback: rating + notes linked to curated set via content signatures
-- Visualizations: inline ASCII for coding agents (scatter, parallel coordinates, marginal rates), plus structured `viz_data` the web UI renders as interactive Plotly charts — dimensionality-adaptive 2D/3D scatter and parallel coordinates, per-scenario overlays, and a formulation card
+- Visualizations: inline ASCII for coding agents (scatter, parallel coordinates, marginal rates), plus structured `viz_data` the web UI renders as interactive Plotly charts — dimensionality-adaptive 2D/3D scatter and parallel coordinates, per-scenario overlays with curated picks highlighted, and a formulation card
 
 **`get_skill`** — fetch workflow guidance by name (works with any MCP client)
 

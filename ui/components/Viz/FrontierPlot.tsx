@@ -77,14 +77,24 @@ export function FrontierPlot({ data }: { data: ScatterVizData }) {
 
   const { plotData, layout } = useMemo(() => {
     const is3d = effective === "scatter3d";
+    // A point with a name is a curated pick — emphasize it (larger + bold ring)
+    // so curation reads at a glance, same intent as the bold lines in the PC views.
+    const isCurated = (p: ScatterPoint) => !!nameOf(p);
     const colors = data.points.map((p) =>
       p.solution_id === selected?.id ? SELECTED_COLOR : ROLE_COLOR[roleOf(p.solution_id)]
     );
     const sizes = data.points.map((p) => {
-      const big = roleOf(p.solution_id) !== "other";
       if (p.solution_id === selected?.id) return is3d ? 7 : 16;
+      if (isCurated(p)) return is3d ? 6.5 : 15;
+      const big = roleOf(p.solution_id) !== "other";
       return is3d ? (big ? 4.5 : 3) : big ? 11 : 7;
     });
+    const lineWidths = data.points.map((p) =>
+      p.solution_id === selected?.id ? 2.5 : isCurated(p) ? 2 : 0.5
+    );
+    const lineColors = data.points.map((p) =>
+      p.solution_id === selected?.id ? "#000000" : isCurated(p) ? SELECTED_COLOR : "#ffffff"
+    );
     const customdata = data.points.map((p) => [p.solution_id, nameOf(p) ?? "—"]);
 
     if (effective === "scatter2d") {
@@ -97,7 +107,7 @@ export function FrontierPlot({ data }: { data: ScatterVizData }) {
             x: data.points.map((p) => p.values[objs[0].name]),
             y: data.points.map((p) => p.values[yName]),
             customdata,
-            marker: { color: colors, size: sizes, line: { width: 0.5, color: "#ffffff" } },
+            marker: { color: colors, size: sizes, line: { width: lineWidths, color: lineColors } },
             hovertemplate:
               `#%{customdata[0]} %{customdata[1]}<br>` +
               `${objs[0].name}: %{x:.2f}<br>${yName}: %{y:.2f}<extra></extra>`,
@@ -212,7 +222,7 @@ export function FrontierPlot({ data }: { data: ScatterVizData }) {
         </span>
         <div className="flex items-center gap-3">
           {canScatter && <Toggle mode={mode} setMode={setMode} nObj={nObj} />}
-          <Legend />
+          <Legend hasCurated={data.points.some((p) => !!p.name)} />
         </div>
       </div>
       <Plot
@@ -326,7 +336,7 @@ function Toggle({
   );
 }
 
-function Legend() {
+function Legend({ hasCurated = false }: { hasCurated?: boolean }) {
   const items: Array<[Role, string]> = [
     ["balanced", "balanced"],
     ["inflection", "inflection"],
@@ -344,6 +354,15 @@ function Legend() {
           {label}
         </span>
       ))}
+      {hasCurated && (
+        <span className="flex items-center gap-1">
+          <span
+            className="inline-block h-2.5 w-2.5 rounded-full bg-stone-200"
+            style={{ border: `2px solid ${SELECTED_COLOR}` }}
+          />
+          curated
+        </span>
+      )}
     </div>
   );
 }

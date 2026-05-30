@@ -769,7 +769,7 @@ def get_scenario_frontiers(problem: Problem) -> dict:
         "scenarios": list(scenario_runs.keys()),
         "solution_counts": counts,
         "visualization": _render_scenario_frontiers(scenario_runs, problem.objectives),
-        "viz_data": _viz_data_scenario_parcoords(scenario_runs, problem.objectives),
+        "viz_data": _viz_data_scenario_parcoords(scenario_runs, problem.objectives, problem=problem),
         "note": (
             "Per-scenario frontiers overlaid as parallel coordinates, colored by scenario. "
             "Narrate how the achievable tradeoffs shift across scenarios."
@@ -1854,7 +1854,7 @@ def _viz_data_tradeoffs(solutions: list, objectives: list, result: dict, curated
     """Scatter-matrix payload: every solution as a point across all objectives.
 
     Each point carries `name` = the curated custom_name when the solution has been
-    bookmarked (matched by content_signature), else None — so the UI can show
+    curated (matched by content_signature), else None — so the UI can show
     id + name on selection.
     """
     obj_meta = [
@@ -1951,27 +1951,26 @@ def _viz_data_marginal_rates(
     }
 
 
-def _viz_data_scenario_parcoords(scenario_runs: dict, objectives: list, max_per_scenario: int = 80) -> dict:
+def _viz_data_scenario_parcoords(
+    scenario_runs: dict, objectives: list, max_per_scenario: int = 80, problem: Problem | None = None
+) -> dict:
     """Parallel-coords payload overlaying each scenario's frontier, colored by scenario.
 
-    Lines are evenly sampled per scenario (cap max_per_scenario) so the overlay stays
-    readable; the UI colors each line by its scenario index.
+    Field lines (each scenario's frontier) are evenly sampled per scenario (cap
+    max_per_scenario) so the overlay stays readable. When the problem carries curated
+    picks, each pick is also evaluated under every scenario and returned in ``curated``
+    so the UI can render it as a bold, labelled line over the faint field — the
+    emphasis channel for curation (weight/opacity), leaving colour free for scenario.
+
+    A pick whose objective vector is identical across scenarios (e.g. constraint-only
+    scenarios leave a fixed slate's scores unchanged) collapses to one ``invariant``
+    line; a pick that shifts across scenarios (score-based scenarios) draws one line
+    per scenario. This is fully data-driven — no per-problem assumptions.
     """
     obj_names = [o.name for o in objectives]
-    axes = []
-    for o in objectives:
-        vals = [
-            s.objective_values.get(o.name, 0.0)
-            for run in scenario_runs.values()
-            for s in run.solutions
-        ]
-        axes.append({
-            "name": o.name,
-            "direction": o.direction.value,
-            "min": min(vals) if vals else 0.0,
-            "max": max(vals) if vals else 0.0,
-        })
     scenario_names = list(scenario_runs.keys())
+    name_to_idx = {n: i for i, n in enumerate(scenario_names)}
+
     lines = []
     for idx, name in enumerate(scenario_names):
         sols = scenario_runs[name].solutions
@@ -1983,11 +1982,54 @@ def _viz_data_scenario_parcoords(scenario_runs: dict, objectives: list, max_per_
                 "scenario": idx,
                 "values": {n: s.objective_values.get(n, 0.0) for n in obj_names},
             })
+
+    curated = []
+    if problem is not None and problem.curated_solutions and problem.scenario_config:
+        from . import optimizer
+        for cs in problem.curated_solutions:
+            per = []      # (scenario_idx, values) — pick's profile under each scenario
+            present = []  # scenario idxs where the slate is feasible (lives there)
+            for sc in problem.scenario_config.scenarios:
+                sidx = name_to_idx.get(sc.name)
+                if sidx is None:
+                    continue
+                r = optimizer.score_slate(problem, cs.selected_options, cs.allocations, scenario=sc)
+                per.append((sidx, {n: r["values"].get(n, 0.0) for n in obj_names}))
+                if r["feasible"]:
+                    present.append(sidx)
+            if not per:
+                continue
+            first = per[0][1]
+            invariant = all(v == first for _, v in per)
+            clines = (
+                [{"scenario": -1, "values": first}]
+                if invariant
+                else [{"scenario": sidx, "values": v} for sidx, v in per]
+            )
+            label = cs.custom_name or (cs.content_signature[:8] if cs.content_signature else "pick")
+            # present: which scenarios this pick is feasible in — the UI colors a
+            # multi-scenario pick distinctly (robust/shared) vs a single-scenario one.
+            curated.append({"name": label, "invariant": invariant, "lines": clines, "present": present})
+
+    # Axis ranges span field + curated so bold pick lines are never clipped.
+    axes = []
+    for o in objectives:
+        vals = [l["values"].get(o.name, 0.0) for l in lines]
+        for c in curated:
+            vals += [cl["values"].get(o.name, 0.0) for cl in c["lines"]]
+        axes.append({
+            "name": o.name,
+            "direction": o.direction.value,
+            "min": min(vals) if vals else 0.0,
+            "max": max(vals) if vals else 0.0,
+        })
+
     return {
         "type": "scenario_parcoords",
         "axes": axes,
         "scenarios": scenario_names,
         "lines": lines,
+        "curated": curated,
     }
 
 

@@ -408,14 +408,14 @@ When users express these, include the corresponding correction:
 
 ### Solution Curation
 
-Curation is how users build a decision set from the raw frontier. Use `explore curate` to bookmark solutions with names. Curated solutions persist across runs — they're the user's working shortlist.
+Curation is how users build a decision set from the raw frontier. Use `explore curate` to add solutions to the curated set, each with a name. Curated solutions persist across runs — they're the user's working shortlist.
 
-**Curation is a preference signal — including its absence.** What a user bookmarks reveals real-world considerations — political viability, team enthusiasm, strategic alignment — that scores and constraints don't capture. Treat curation choices as evidence of the user's actual priorities, potentially more reliable than their stated priorities. When a user curates a solution that's suboptimal on their stated priorities, probe why. When a user *hasn't* curated anything after exploring multiple solutions, that's also signal — the frontier may not contain what they're looking for. Surface it: "None of these grabbed you — what's missing? That might reveal a constraint or objective we haven't captured."
+**Curation is a preference signal — including its absence.** What a user curates reveals real-world considerations — political viability, team enthusiasm, strategic alignment — that scores and constraints don't capture. Treat curation choices as evidence of the user's actual priorities, potentially more reliable than their stated priorities. When a user curates a solution that's suboptimal on their stated priorities, probe why. When a user *hasn't* curated anything after exploring multiple solutions, that's also signal — the frontier may not contain what they're looking for. Surface it: "None of these grabbed you — what's missing? That might reveal a constraint or objective we haven't captured."
 
 **Curation belongs to the user.** Surface interesting candidates — extremes, balanced, inflection points — then ask which ones resonate and what the user would name them. Present candidates, then pause for the user to decide.
 
 **Guide users from frontier to shortlist:**
-1. After first solve: present the extremes + balanced with ASCII visualizations, then **stop and ask** which ones the user wants to bookmark and what they'd name them
+1. After first solve: present the extremes + balanced with ASCII visualizations, then **stop and ask** which ones the user wants to curate and what they'd name them
 2. After objective ranking: identify 3-5 candidate solutions that span the user's priority space, present them, **ask the user to pick and name** — don't curate automatically
 3. After each re-solve: report curated solution survival — "Your 'Conservative Pick' still appears in the new frontier, but 'Growth Bet' was eliminated by the tighter effort constraint"
 4. Once curated set has 3+ solutions: shift presentation to the curated set, not the raw frontier. Use custom names in all narration.
@@ -428,7 +428,7 @@ Curation is how users build a decision set from the raw frontier. Use `explore c
 
 **Cross-run and cross-scenario tracking:** After re-optimization, check curated solutions against the new frontier (`explore curated`). Report survival, explain eliminations, and connect to scenario robustness. When a curated solution is eliminated, explain which change caused it.
 
-**Robustness as curation signal:** After scenario analysis, core-tier options (from `option_robustness`) are natural curation candidates. Surface them: "These core options survive at high frequency and weight across all scenarios — worth bookmarking as safe bets." When a curated solution contains mostly core-tier options, note it as robust; when it relies on marginal or scenario-specific options, flag the conditional risk.
+**Robustness as curation signal:** After scenario analysis, core-tier options (from `option_robustness`) are natural curation candidates. Surface them: "These core options survive at high frequency and weight across all scenarios — worth curating as safe bets." When a curated solution contains mostly core-tier options, note it as robust; when it relies on marginal or scenario-specific options, flag the conditional risk.
 
 **Presentation framing:** Once the curated set has 3+ solutions, it IS the decision set. Present curated solutions first, the full frontier as background. Frame the final question around the curated set using custom names.
 
