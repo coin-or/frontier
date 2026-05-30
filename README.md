@@ -6,8 +6,6 @@
   Multi-objective decision optimization engine, exposed as an MCP server. Works with any MCP-compatible client.
 </p>
 
-**Developer docs:** [`architecture.md`](architecture.md) — system architecture & data flow | [`best-practices.md`](best-practices.md) — skill & prompt design guidelines
-
 ## Summary
 
 Frontier gives AI agents a grounded optimization engine for hard decisions. The agent describes a problem in business terms; Frontier enumerates the full Pareto frontier — every non-dominated solution that balances conflicting objectives under hard constraints — and the agent narrates the tradeoffs back. NSGA-II/III under the hood (via pymoo), exposed as 4 MCP tools (`model`, `solve`, `explore`, `get_skill`). Frontier is the engine; the agent is the interface.
@@ -46,18 +44,24 @@ LLMs can reason about tradeoffs conversationally but can't *solve* them — they
 
 *Why not just ask an agent to write a solver?* You can — for a one-shot problem. Frontier is the turnkey pairing: an LLM translation-and-narration layer over a real solver, grounded (every number computed, not guessed), auditable, and reusable across problems and re-runs — instead of bespoke optimization code rebuilt and re-verified each time.
 
-**Worked examples:** [`examples/`](examples/) — loadable, runnable problem definitions you can drop into Frontier.
-
 ## Workflow
 
-You describe a decision to an AI agent in natural language; the agent translates it into Frontier's structured model, runs optimization, and interprets the results back. The 4 tools, in order:
+You drive Frontier by talking to an AI agent — in a coding-agent MCP client or the hosted web chat — in plain language. The agent translates your decision into Frontier's model, runs the solver, and reads the results back. A typical sequence (you describe what you want; the agent picks the tools):
 
-1. **`model`** — define objectives, options, scores, constraints
-2. **`solve`** — run NSGA-II/III to produce the Pareto frontier
-3. **`explore`** — tradeoffs, comparisons, marginal analysis, scenarios, curation
-4. **`get_skill`** — workflow guidance: `problem_framing`, `data_collection`, `optimization_strategy`, `solution_interpreter`
+1. **Frame it.** Name the objectives (what to maximize / minimize), the options to choose among, and any hard constraints — plus scenarios if the future is uncertain. *e.g. "We're choosing a CRM for a 10-person startup: maximize features and support, minimize cost; budget under $50k/yr; pick one."*
+2. **Score the options.** Hand over the numbers, or let the agent estimate and flag what's shaky. *e.g. "Score these five CRMs on cost and support from their pricing pages."*
+3. **Solve.** The agent validates the setup, then runs the optimizer for the Pareto frontier — optionally once per scenario. *e.g. "Solve it."*
+4. **Explore the tradeoffs.** Frontier shape, the extremes, the balanced/knee, the marginal cost of pushing an objective, robustness across scenarios — and curate the picks you like. *e.g. "Show the tradeoffs, recommend a balanced pick, and curate it as 'Lean choice'."*
+5. **Iterate.** Tighten a constraint, add a scenario, re-solve, and compare against the previous run. *e.g. "Cap cost at $40k and re-run — what dropped off the frontier?"*
 
-Skills auto-inject at workflow transitions, so domain rigor — how to classify objectives vs constraints, elicit scores without anchoring bias, present tradeoffs without implying a "best" — extends past the solver into how the agent frames and communicates.
+Behind the conversation: four tools — `model` (define), `solve` (optimize), `explore` (navigate results), `get_skill` (workflow guidance) — with skills that auto-inject at each transition, so the agent classifies objectives vs constraints, elicits scores without anchoring bias, and presents tradeoffs without ever naming a single "best."
+
+### Saving & loading
+
+Every problem is auto-persisted in the engine's store (`data/`, keyed by id) — session state you don't manage. Separately, `model save` writes a **named, portable copy** in the [examples](examples/) format, to reload or share by name:
+
+- **`model save problem_id=… save_as="<name>"`** — save to your gitignored `saved/` library (override with `FRONTIER_SAVED_DIR`), bundling the solved frontier when present.
+- **`model load source="<name>"`** — rebuild a problem, resolving `saved/` first, then bundled `examples/`; omit `source` to list available names.
 
 ## Setup
 
@@ -178,13 +182,6 @@ Skills are markdown files the server auto-injects into tool responses at workflo
 - **`optimization_strategy`** — iteration expectations, validate → run → examine flow, constraint strategy, infeasibility response, binding-constraint detection, curated-solution survival tracking, stale-result judgment
 - **`solution_interpreter`** — present results without bias ("never say best"), five explanation dimensions, presentation order (Extremes → Balanced → Inflection → Risk → Preference), tradeoff framing, objective-ranking elicitation, scenario presentation, preference learning
 
-## Saving & loading problems
-
-Every problem is auto-persisted in the engine's internal store (`data/`, keyed by id) — session state you don't manage. Separately, `save` writes a **named, portable copy** in the same format as the [examples](examples/), to reload or share by name:
-
-- **`model save problem_id=… save_as="<name>"`** — save to your gitignored `saved/` library (sibling of `examples/`; override with `FRONTIER_SAVED_DIR`), bundling the solved frontier when present.
-- **`model load source="<name>"`** — rebuild a problem, resolving your `saved/` library first, then bundled `examples/`; omit `source` to list available names.
-
 ## Background
 
 Optional background — the thinking behind Frontier and how it's evolved:
@@ -193,6 +190,13 @@ Optional background — the thinking behind Frontier and how it's evolved:
 - [Lowering the Barriers to Decision Optimization with AI](https://camafzal.substack.com/p/lowering-the-barriers-to-decision) — Sep 2025
 - [Making optimization accessible: AI as the translation layer](https://camafzal.substack.com/p/making-optimization-accessible-ai) — Jan 2026
 - [Agents have a convergent reasoning gap](https://camafzal.substack.com/p/agents-have-a-convergent-reasoning) — Apr 2026
+
+## Contributing
+
+Contributions welcome — start with the developer docs:
+
+- [`architecture.md`](architecture.md) — system architecture & data flow
+- [`best-practices.md`](best-practices.md) — skill & prompt design guidelines
 
 ## License
 
