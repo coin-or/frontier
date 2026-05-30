@@ -1,7 +1,7 @@
 "use client";
 
 import type { VizData } from "@/lib/viz-data";
-import { Scatter } from "./Scatter";
+import { FrontierPlot } from "./FrontierPlot";
 import { ParallelCoords } from "./ParallelCoords";
 import { MarginalRates } from "./MarginalRates";
 import { ScenarioSummary } from "./ScenarioSummary";
@@ -14,7 +14,7 @@ import { ScenarioSummary } from "./ScenarioSummary";
 export function VizRenderer({ data }: { data: VizData }) {
   switch (data.type) {
     case "scatter":
-      return <Scatter data={data} />;
+      return <FrontierPlot data={data} />;
     case "parallel_coords":
       return <ParallelCoords data={data} />;
     case "marginal_rates":

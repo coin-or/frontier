@@ -117,7 +117,7 @@ def get_tradeoffs(problem: Problem, scenario: str | None = None) -> dict:
         }
 
     result["visualization"] = _render_tradeoffs_viz(result, problem.objectives, solutions)
-    result["viz_data"] = _viz_data_tradeoffs(solutions, problem.objectives, result)
+    result["viz_data"] = _viz_data_tradeoffs(solutions, problem.objectives, result, problem.curated_solutions)
     return result
 
 
@@ -1806,8 +1806,13 @@ def _find_balanced(solutions, objectives) -> object:
 # Hosts that don't render D3 simply ignore the field.
 
 
-def _viz_data_tradeoffs(solutions: list, objectives: list, result: dict) -> dict:
-    """Scatter-matrix payload: every solution as a point across all objectives."""
+def _viz_data_tradeoffs(solutions: list, objectives: list, result: dict, curated: list | None = None) -> dict:
+    """Scatter-matrix payload: every solution as a point across all objectives.
+
+    Each point carries `name` = the curated custom_name when the solution has been
+    bookmarked (matched by content_signature), else None — so the UI can show
+    id + name on selection.
+    """
     obj_meta = [
         {
             "name": o.name,
@@ -1817,10 +1822,18 @@ def _viz_data_tradeoffs(solutions: list, objectives: list, result: dict) -> dict
         }
         for o in objectives
     ]
+    name_by_sig = {
+        cs.content_signature: cs.custom_name
+        for cs in (curated or [])
+        if cs.custom_name
+    }
     points = [
         {
             "solution_id": s.solution_id,
             "values": dict(s.objective_values),
+            "name": name_by_sig.get(
+                s.content_signature or _content_signature(s.selected_options, s.allocations)
+            ),
         }
         for s in solutions
     ]

@@ -17,6 +17,7 @@ export type ObjectiveMeta = {
 export type ScatterPoint = {
   solution_id: number;
   values: Record<string, number>;
+  name?: string | null; // curated custom_name when the solution is bookmarked
 };
 
 export type ScatterVizData = {

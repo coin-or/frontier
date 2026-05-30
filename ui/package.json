@@ -20,11 +20,14 @@
     "@anthropic-ai/sdk": "^0.40.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@types/d3": "^7.4.3",
+    "@types/react-plotly.js": "^2.6.4",
     "d3": "^7.9.0",
     "next": "^15.0.0",
+    "plotly.js": "^3.5.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-markdown": "^9.0.1",
+    "react-plotly.js": "^2.6.0",
     "remark-gfm": "^4.0.0"
   },
   "devDependencies": {
