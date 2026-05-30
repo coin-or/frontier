@@ -13,6 +13,7 @@ import {
   type ToolUseBlock,
   type ToolResultBlock,
 } from "@/lib/stream-reducer";
+import { ChatActionContext } from "@/lib/chat-action";
 
 const STARTER_PROMPT =
   "Describe a decision you're trying to make — e.g., \"prioritize 3 of these 5 initiatives next quarter, balancing engineering cost, customer impact, and strategic fit.\"";
@@ -47,16 +48,14 @@ export default function ChatPage() {
       .map((b) => b.name);
   }, [messages, streaming]);
 
-  async function send() {
-    const trimmed = input.trim();
+  async function sendText(raw: string) {
+    const trimmed = raw.trim();
     if (!trimmed || streaming) return;
     setError(null);
 
     const userMsg: Message = { role: "user", content: trimmed };
     const assistantMsg: Message = { role: "assistant", content: [] };
-    const next = [...messages, userMsg, assistantMsg];
-    setMessages(next);
-    setInput("");
+    setMessages([...messages, userMsg, assistantMsg]);
     setStreaming(true);
 
     // Build the Anthropic-shaped payload (strips internal fields, drops empty text)
@@ -104,6 +103,14 @@ export default function ChatPage() {
     }
   }
 
+  function send() {
+    if (streaming) return;
+    const trimmed = input.trim();
+    if (!trimmed) return;
+    setInput("");
+    sendText(trimmed);
+  }
+
   function reset() {
     setMessages([]);
     setError(null);
@@ -136,9 +143,11 @@ export default function ChatPage() {
           </div>
         )}
 
-        {messages.map((m, i) => (
-          <MessageView key={i} message={m} />
-        ))}
+        <ChatActionContext.Provider value={{ sendMessage: sendText, streaming }}>
+          {messages.map((m, i) => (
+            <MessageView key={i} message={m} />
+          ))}
+        </ChatActionContext.Provider>
 
         {error && (
           <div className="my-3 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-700">

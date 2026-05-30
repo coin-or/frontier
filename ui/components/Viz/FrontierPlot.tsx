@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import type { ScatterVizData, ScatterPoint } from "@/lib/viz-data";
+import { useChatAction } from "@/lib/chat-action";
 
 // Plotly needs window/WebGL — load client-side only.
 const Plot = dynamic(() => import("react-plotly.js"), { ssr: false });
@@ -32,6 +33,7 @@ type Effective = "scatter2d" | "scatter3d" | "parcoords";
  */
 export function FrontierPlot({ data }: { data: ScatterVizData }) {
   const [selected, setSelected] = useState<Selected>(null);
+  const chat = useChatAction();
   const objs = data.objectives;
   const nObj = objs.length;
 
@@ -214,13 +216,29 @@ export function FrontierPlot({ data }: { data: ScatterVizData }) {
         onClick={onClick as never}
       />
       {selected && effective !== "parcoords" && (
-        <div className="mt-1 text-[11px] text-stone-700">
-          <span className="font-semibold">
-            Selected #{selected.id}
-            {selected.name ? ` · ${selected.name}` : ""}
+        <div className="mt-1 flex items-center gap-2 text-[11px] text-stone-700">
+          <span>
+            <span className="font-semibold">
+              Selected #{selected.id}
+              {selected.name ? ` · ${selected.name}` : ""}
+            </span>
+            {" — "}
+            {objs.map((o) => `${o.name} ${selected.values[o.name]?.toFixed(2) ?? "—"}`).join(" · ")}
           </span>
-          {" — "}
-          {objs.map((o) => `${o.name} ${selected.values[o.name]?.toFixed(2) ?? "—"}`).join(" · ")}
+          {chat && (
+            <button
+              type="button"
+              disabled={chat.streaming}
+              onClick={() =>
+                chat.sendMessage(
+                  `Curate solution #${selected.id}${selected.name ? ` as "${selected.name}"` : ""}.`
+                )
+              }
+              className="shrink-0 rounded bg-stone-800 px-1.5 py-0.5 text-[10px] text-white hover:bg-stone-700 disabled:bg-stone-300"
+            >
+              + Curate
+            </button>
+          )}
         </div>
       )}
       {effective === "parcoords" && (
