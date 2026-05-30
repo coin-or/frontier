@@ -6,3 +6,6 @@ node_modules/
 .DS_Store
 next-env.d.ts
 *.tsbuildinfo
+
+# npm lock file (not tracked)
+package-lock.json
