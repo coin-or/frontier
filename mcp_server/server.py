@@ -638,6 +638,30 @@ def _viz_data_formulation(p: Problem) -> dict:
     }
 
 
+def _render_formulation(p: Problem) -> str:
+    """Formulation as readable text — the ASCII/MD equivalent of the web UI's
+    formulation card, for chat / coding-agent surfaces."""
+    lines = [f"─── Formulation: {p.name} ({p.domain} · {p.approach.value}) ───", "", "Objectives:"]
+    for o in p.objectives:
+        arrow = "max ↑" if o.direction.value == "maximize" else "min ↓"
+        unit = f" {o.unit}" if o.unit else ""
+        lines.append(f"  • {o.name}: {arrow}, {o.aggregation.value}{unit}")
+    if p.constraints:
+        lines.append("")
+        lines.append("Constraints:")
+        for c in p.constraints:
+            lines.append(f"  • {_format_constraint(c)}")
+    scens = [s.name for s in p.scenario_config.scenarios] if p.scenario_config else []
+    if scens:
+        lines.append("")
+        lines.append("Scenarios: " + ", ".join(scens))
+    lines.append("")
+    total = len(p.objectives) * len(p.options)
+    pct = f", scores {round(100 * len(p.scores) / total)}% complete" if total and len(p.scores) < total else ""
+    lines.append(f"{len(p.options)} options{pct}")
+    return "\n".join(lines)
+
+
 def _model_get_section(p: Problem, section: str) -> dict:
     """Return a targeted slice of the Problem for progressive inspection.
 
@@ -662,6 +686,7 @@ def _model_get_section(p: Problem, section: str) -> dict:
                 "has_scenario_run": p.scenario_run is not None,
                 "results_stale": p.results_stale,
                 "curated_count": len(p.curated_solutions),
+                "visualization": _render_formulation(p),
                 "viz_data": _viz_data_formulation(p),
             }
         case "objectives":

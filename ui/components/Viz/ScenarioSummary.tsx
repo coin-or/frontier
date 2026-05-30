@@ -24,6 +24,8 @@ const TIER_STYLES: Record<string, string> = {
 };
 
 export function ScenarioSummary({ data }: { data: ScenarioSummaryVizData }) {
+  // No scenarios → nothing meaningful to show; suppress the empty panel.
+  if (!data.scenarios?.length) return null;
   const options = (data.option_robustness ?? []) as OptionRobustness[];
   const risks = (data.scenario_risk ?? {}) as Record<string, ScenarioRiskEntry>;
   const expected = (data.expected_values ?? {}) as Record<string, number>;

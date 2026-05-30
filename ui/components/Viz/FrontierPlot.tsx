@@ -31,8 +31,15 @@ type Effective = "scatter2d" | "scatter3d" | "parcoords";
  * role-colored (balanced / inflection / extreme / other); clicking a scatter
  * point reads out its id + curated name.
  */
+function inRanges(v: number, cr: number[] | number[][] | undefined): boolean {
+  if (!cr || cr.length === 0) return true;
+  const ranges = (Array.isArray(cr[0]) ? cr : [cr]) as number[][];
+  return ranges.some((r) => v >= Math.min(r[0], r[1]) && v <= Math.max(r[0], r[1]));
+}
+
 export function FrontierPlot({ data }: { data: ScatterVizData }) {
   const [selected, setSelected] = useState<Selected>(null);
+  const [brushIds, setBrushIds] = useState<number[]>([]);
   const chat = useChatAction();
   const objs = data.objectives;
   const nObj = objs.length;
@@ -173,6 +180,23 @@ export function FrontierPlot({ data }: { data: ScatterVizData }) {
     });
   }
 
+  // Parallel-coords selection is brushing: read the per-axis constraint ranges
+  // and keep the solutions inside all of them (for the "curate selected" action).
+  function onUpdate(figure: {
+    data?: Array<{ dimensions?: Array<{ constraintrange?: number[] | number[][] }> }>;
+  }) {
+    if (effective !== "parcoords") return;
+    const dims = figure?.data?.[0]?.dimensions;
+    if (!dims) return;
+    const next = dims.some((d) => d?.constraintrange)
+      ? data.points
+          .filter((p) => objs.every((o, i) => inRanges(p.values[o.name], dims[i]?.constraintrange)))
+          .map((p) => p.solution_id)
+      : [];
+    const same = next.length === brushIds.length && next.every((v, i) => v === brushIds[i]);
+    if (!same) setBrushIds(next);
+  }
+
   const kind =
     effective === "scatter2d"
       ? "2D scatter"
@@ -214,6 +238,7 @@ export function FrontierPlot({ data }: { data: ScatterVizData }) {
         useResizeHandler
         style={{ width: "100%" }}
         onClick={onClick as never}
+        onUpdate={onUpdate as never}
       />
       {selected && effective !== "parcoords" && (
         <div className="mt-1 flex items-center gap-2 text-[11px] text-stone-700">
@@ -231,19 +256,41 @@ export function FrontierPlot({ data }: { data: ScatterVizData }) {
               disabled={chat.streaming}
               onClick={() =>
                 chat.sendMessage(
-                  `Curate solution #${selected.id}${selected.name ? ` as "${selected.name}"` : ""}.`
+                  selected.name
+                    ? `Remove the curated solution "${selected.name}" (#${selected.id}) from curation.`
+                    : `Curate solution #${selected.id}.`
                 )
               }
               className="shrink-0 rounded bg-stone-800 px-1.5 py-0.5 text-[10px] text-white hover:bg-stone-700 disabled:bg-stone-300"
             >
-              + Curate
+              {selected.name ? "− Uncurate" : "+ Curate"}
             </button>
           )}
         </div>
       )}
       {effective === "parcoords" && (
-        <div className="mt-1 text-[10px] text-stone-400">
-          Drag along an axis to brush; double-click an axis to clear.
+        <div className="mt-1 flex items-center gap-2 text-[10px] text-stone-400">
+          <span>Drag along an axis to brush; double-click to clear.</span>
+          {chat && brushIds.length > 0 && (
+            <button
+              type="button"
+              disabled={chat.streaming}
+              onClick={() =>
+                chat.sendMessage(
+                  `Curate the ${brushIds.length} brushed solution${brushIds.length > 1 ? "s" : ""}: ` +
+                    brushIds
+                      .slice(0, 12)
+                      .map((id) => `#${id}`)
+                      .join(", ") +
+                    (brushIds.length > 12 ? `, and ${brushIds.length - 12} more` : "") +
+                    "."
+                )
+              }
+              className="shrink-0 rounded bg-stone-800 px-1.5 py-0.5 text-[10px] text-white hover:bg-stone-700 disabled:bg-stone-300"
+            >
+              + Curate selected ({brushIds.length})
+            </button>
+          )}
         </div>
       )}
     </div>

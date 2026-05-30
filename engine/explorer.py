@@ -768,12 +768,35 @@ def get_scenario_frontiers(problem: Problem) -> dict:
     return {
         "scenarios": list(scenario_runs.keys()),
         "solution_counts": counts,
+        "visualization": _render_scenario_frontiers(scenario_runs, problem.objectives),
         "viz_data": _viz_data_scenario_parcoords(scenario_runs, problem.objectives),
         "note": (
             "Per-scenario frontiers overlaid as parallel coordinates, colored by scenario. "
             "Narrate how the achievable tradeoffs shift across scenarios."
         ),
     }
+
+
+def _render_scenario_frontiers(scenario_runs: dict, objectives: list) -> str:
+    """Per-scenario frontier ranges as a readable table — the ASCII/MD equivalent of
+    the colored overlay, for chat / coding-agent surfaces that don't render charts."""
+    names = list(scenario_runs.keys())
+    lines = ["─── Per-Scenario Frontiers (objective ranges) ───", ""]
+    name_w = max(12, max((len(o.name) for o in objectives), default=12) + 2)
+    col_w = max(16, max((len(n) for n in names), default=10) + 2)
+    header = "objective".ljust(name_w) + "| " + "| ".join(n.ljust(col_w) for n in names)
+    lines.append(header)
+    lines.append("-" * len(header))
+    for o in objectives:
+        cells = []
+        for n in names:
+            vals = [s.objective_values[o.name] for s in scenario_runs[n].solutions if o.name in s.objective_values]
+            cells.append((f"{min(vals):.2f}–{max(vals):.2f}" if vals else "—").ljust(col_w))
+        arrow = "↑" if o.direction.value == "maximize" else "↓"
+        lines.append(f"{(o.name + ' ' + arrow).ljust(name_w)}| " + "| ".join(cells))
+    lines.append("")
+    lines.append("Each cell is the [min–max] achievable range for that objective under that scenario.")
+    return "\n".join(lines)
 
 
 def marginal_analysis(problem: Problem, scenario: str | None = None, detail: bool = False) -> dict:
