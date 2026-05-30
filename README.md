@@ -141,46 +141,21 @@ For full schemas, action parameters, data model, persistence layout, and the ski
 
 ### Tools
 
-**`model`** — define and edit a problem
-- Objectives (2-7) with aggregation modes: sum, avg, min, max, quadratic
-- Options scored against objectives; binary (select/reject) or proportional (allocate %) approach
-- 8 constraint types: cardinality, force include/exclude, objective bounds, exclusion pairs, dependencies, group limits, max allocation (proportional only)
-- Interaction matrices for quadratic aggregation (e.g. covariance matrices for portfolio risk), with scale groups for regime shifts
-- Reference points (baseline / aspirational) and scenarios (probability-weighted alternative scores + interaction matrices)
-- Save & load problems by name in the portable examples format (`model save` / `model load`)
+Four MCP tools — full action lists and parameters in [`architecture.md`](architecture.md):
 
-**`solve`** — run optimization
-- NSGA-II (2-3 objectives) and NSGA-III (4+ objectives) via pymoo
-- Fast mode for iterative exploration, thorough mode for final convergence; `max_solutions` caps the Pareto set size (default 100)
-- Quality signals: hypervolume and spacing per run; `frontier_complete` flag (full set vs pruned sample); `frontier_quality` status (GOOD / WARNING / POOR with progressive gates and actionable issues)
-- Reproducibility: optional `seed`; when omitted, the drawn seed is echoed as `seed_used` so any run can be reproduced after the fact
-- Per-scenario optimization with score overrides/adjustments; per-scenario seeds deterministically derived so each scenario reproduces while starting from distinct initializations
-- Infeasibility analysis identifies conflicting constraints with relaxation suggestions
-- Full result persisted to disk (`full_result_path`) for bulk export or artifact assembly; run history with constraint snapshots for cross-run comparison
-
-**`explore`** — navigate results
-- Tradeoff analysis: objective ranges, correlations (Pearson + normalized mutual information), extremes, balanced solution, inflection-point candidates, frontier shape per pair (linear / concave / convex / discontinuous), reference-point comparisons
-- Objective redundancy: Pearson/MI disagreement flags non-linear dependence
-- Binding-constraint analysis: shadow-price rates per binding constraint — how much each objective shifts per unit of slack relaxation (covers objective_bound, cardinality, group_limit)
-- Solution listing (compact by default; `detail=true` for full options/allocations), single-solution detail with reference analysis, side-by-side comparison
-- Marginal analysis: cost-per-unit rates between adjacent solutions with knee-point detection
-- Per-scenario exploration: tradeoffs, compare, solutions, marginal analysis, and curation all accept an optional `scenario` parameter
-- Scenario results: robust options across all scenarios, scenario-specific options, probability-weighted expected values, per-objective scenario risk (expected / worst-case / best-case / CVaR with tunable `cvar_alpha`)
-- Run comparison: criteria diffs, frontier diffs, option coverage changes across runs
-- Curation: curate solutions with custom names; content-signature identity tracks survival across re-runs; `export_curated` ships a formatted handoff artifact (markdown table or CSV)
-- Feedback: rating + notes linked to curated set via content signatures
-- Visualizations: inline ASCII for coding agents (scatter, parallel coordinates, marginal rates), plus structured `viz_data` the web UI renders as interactive charts — dimensionality-adaptive 2D/3D scatter and parallel coordinates, per-scenario overlays with curated picks highlighted, and a formulation card
-
-**`get_skill`** — fetch workflow guidance by name (works with any MCP client)
+- **`model`** — define and edit the problem: objectives (2–7; sum/avg/min/max/quadratic aggregation), options, scores, 8 constraint types, interaction matrices, reference points, and scenarios; plus save/load of named problems.
+- **`solve`** — validate and optimize via NSGA-II/III: fast/thorough modes, seeded reproducibility, per-scenario runs, frontier-quality gates, and infeasibility analysis.
+- **`explore`** — navigate results: tradeoffs and frontier shape, extremes / balanced / inflection points, shadow prices, marginal rates, scenario robustness (incl. CVaR), run comparison, curation, and feedback.
+- **`get_skill`** — fetch the workflow guidance below.
 
 ### Skills
 
-Skills are markdown files the server auto-injects into tool responses at workflow transitions, and also retrievable directly via `get_skill`. They encode domain judgment, not tool docs.
+Markdown guides the server auto-injects at workflow transitions (also fetchable via `get_skill`) — domain judgment, not tool docs:
 
-- **`problem_framing`** — classify objectives vs constraints (principle-based, not keyword matching), hidden objective detection, approach selection (binary vs proportional), aggregation modes, interaction matrices, reference points, scenario definition
-- **`data_collection`** — score elicitation, anchoring techniques, batch efficiency, source evaluation, conflict resolution, quality signals (variance, scale mismatch), completeness drive
-- **`optimization_strategy`** — iteration expectations, validate → run → examine flow, constraint strategy, infeasibility response, binding-constraint detection, curated-solution survival tracking, stale-result judgment
-- **`solution_interpreter`** — present results without bias ("never say best"), five explanation dimensions, presentation order (Extremes → Balanced → Inflection → Risk → Preference), tradeoff framing, objective-ranking elicitation, scenario presentation, preference learning
+- **`problem_framing`** — objectives vs constraints, approach + aggregation, scenario definition.
+- **`data_collection`** — score elicitation without anchoring bias, quality signals.
+- **`optimization_strategy`** — iteration, constraint strategy, infeasibility, re-run judgment.
+- **`solution_interpreter`** — presenting tradeoffs without a "best", eliciting preferences, curation.
 
 ## Background
 

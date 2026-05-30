@@ -20,7 +20,7 @@ Frontier exposes 4 tools — 3 domain tools with multiple actions, plus a skill 
 | Tool | Action | Purpose |
 |------|--------|---------|
 | **model** | `create` | Start a new optimization problem (name, domain, context, approach) |
-| | `update` | Add/modify objectives, options, scores, constraints, reference points, scenarios. Merge semantics for scores; full replacement for everything else. Marks results stale on structural changes. |
+| | `update` | Add/modify objectives (2–7), options, scores, constraints, reference points, scenarios. Merge semantics for scores; full replacement for everything else. Marks results stale on structural changes. |
 | | `get` | Return problem state. Optional `section` param for targeted slices: summary, objectives, options, scores, constraints, matrices, scenarios, run, runs, curated, references. Without section: full dump. |
 | | `list` | List all problems with metadata snapshots |
 | | `delete` | Remove a problem and its data file |
