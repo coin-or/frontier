@@ -137,8 +137,9 @@ export function FrontierPlot({ data }: { data: ScatterVizData }) {
       plotData: [
         {
           type: "parcoords",
+          labelfont: { size: 12 },
           dimensions: objs.map((o) => ({
-            label: `${o.name} (${o.direction})`,
+            label: `${o.name} ${o.direction === "maximize" ? "↑" : "↓"}`,
             range: [o.min, o.max],
             values: data.points.map((p) => p.values[o.name]),
           })),
@@ -153,7 +154,7 @@ export function FrontierPlot({ data }: { data: ScatterVizData }) {
           },
         },
       ],
-      layout: { margin: { l: 70, r: 50, t: 30, b: 20 } },
+      layout: { margin: { l: 80, r: 60, t: 56, b: 20 } },
     };
   }, [data, objs, effective, roleOf, selected]);
 
