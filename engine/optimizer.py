@@ -755,13 +755,19 @@ def optimize(
     if seed is None:
         seed = int(np.random.default_rng().integers(0, 2**31 - 1))
 
-    # Opt-in cuOpt QP backend (feasibility spike — .claude/plans/cuopt-integration.md).
-    # Cheap env gate first so the default path never imports the backend; the
-    # backend itself imports cuOpt lazily, so this is safe with no GPU installed.
-    if os.environ.get("FRONTIER_SOLVER", "").lower() == "cuopt":
+    # Opt-in exact-solver backends, selected by FRONTIER_SOLVER. Cheap env gate first so the
+    # default path never imports a backend; each backend imports its solver lazily, so this
+    # is safe whether or not cuOpt (GPU) or highspy (CPU) is installed. Both mirror the
+    # Run/Solution contract exactly, so downstream consumers are unaffected.
+    backend = os.environ.get("FRONTIER_SOLVER", "").lower()
+    if backend == "cuopt":
         from solvers.cuopt_backend import _optimize_cuopt, _use_cuopt
         if _use_cuopt(problem):
             return _optimize_cuopt(problem, mode, max_solutions=max_solutions, seed=seed, exact=exact)
+    elif backend == "highs":
+        from solvers.highs_backend import _optimize_highs, _use_highs
+        if _use_highs(problem):
+            return _optimize_highs(problem, mode, max_solutions=max_solutions, seed=seed, exact=exact)
 
     if problem.approach == Approach.proportional:
         return _optimize_proportional(problem, mode, max_solutions=max_solutions, seed=seed)
