@@ -33,6 +33,16 @@ from engine import optimizer as _opt
 from engine.models import Aggregation, Approach, OptimizeMode, Problem, Run
 from solvers._scalarization import _qp_weights_ok, optimize_milp, optimize_qp
 
+# Re-exported from the shared engine so notebooks/panels that reach into this module by its
+# historical name (e.g. ``cuopt_backend._nearest_psd``) keep resolving after the extraction.
+from solvers._scalarization import (  # noqa: F401  (back-compat re-exports)
+    _build_milp_data,
+    _group_limits,
+    _nearest_psd,
+    _resolve_linear_objectives,
+    _resolve_objective_roles,
+)
+
 # Deliberately small EA budget (smallest pop/gen): each cuOpt call is an expensive GPU solve,
 # so the total inner-solve count is kept bounded on Colab.
 _SPIKE_POP = 30
@@ -46,12 +56,9 @@ _SPIKE_GEN = 15
 # optimum — only the (irrelevant) proof is skipped.
 _MILP_TIME_LIMIT = 8.0   # seconds, hard cap per MILP solve
 _MILP_REL_GAP = 1e-3     # stop B&B once the incumbent is within 0.1% of the bound
-# Smaller EA budget for the MILP path: each evaluation is an exact integer solve (not a cheap
-# continuous QP), so keep the total cuOpt-call count bounded on Colab.
-_MILP_POP = 16
-_MILP_GEN = 8
 # Absolute MILP gap (default off). Set < the score granularity in code to make the
 # bounded-mode incumbent provably optimal cheaply; `optimize(..., exact=True)` certifies.
+# (The MILP EA pop/gen budget auto-scales in _scalarization._milp_budget — shared with HiGHS.)
 _MILP_ABS_GAP = 0.0
 
 
@@ -231,7 +238,6 @@ def _optimize_cuopt(
     MILP solve."""
     if problem.approach == Approach.binary:
         return optimize_milp(problem, mode, inner_milp=_solve_milp_cuopt,
-                             pop=_MILP_POP, gen=_MILP_GEN,
                              max_solutions=max_solutions, seed=seed, exact=exact)
     return optimize_qp(problem, mode, inner_qp=_solve_qp_cuopt,
                        pop=_SPIKE_POP, gen=_SPIKE_GEN,

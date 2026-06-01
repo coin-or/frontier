@@ -47,6 +47,28 @@ from engine.models import (
 # and constraint-flagged in the EA.
 _INFEASIBLE_PENALTY = 1e9
 
+# MILP EA budget, auto-scaled with the number of options ``n``. Each evaluation is an exact
+# integer solve (~seconds on a GPU, ~tens of ms on the CPU), so the inner-solve count
+# (≈ pop × gen) is the real budget — an order of magnitude below the NSGA path's cheap-eval
+# budget. A *fixed* small budget under-covers at scale: on the 120-project capital MILP,
+# pop16×gen8 reaches only HV 0.64 (below NSGA's 0.68), while pop50×gen15 reaches 0.87 (above
+# it). So ramp pop/gen with ``n`` — small problems (≤30 vars, which wash anyway) stay cheap;
+# large combinatorial ones get the budget to actually fill the frontier. Set _MILP_POP /
+# _MILP_GEN to pin either value (the notebook tuning knob). Shared by both backends.
+_MILP_POP: int | None = None
+_MILP_GEN: int | None = None
+
+
+def _milp_budget(n: int) -> tuple[int, int]:
+    """(pop, gen) for the MILP EA, scaled with the option count ``n``. Anchors: ``n ≤ 30 →
+    (16, 8)`` (the wash regime), ``n ≥ 120 → (50, 15)`` (the verified covering budget),
+    linearly interpolated between and held flat past 120 so the inner-solve count can't run
+    away. ``_MILP_POP`` / ``_MILP_GEN``, when set, pin either value."""
+    frac = min(1.0, max(0.0, (n - 30) / 90.0))   # 0 at n≤30, 1 at n≥120
+    pop = _MILP_POP if _MILP_POP is not None else int(round(16 + frac * 34))   # 16 → 50
+    gen = _MILP_GEN if _MILP_GEN is not None else int(round(8 + frac * 7))     # 8 → 15
+    return pop, gen
+
 
 # --------------------------------------------------------------------------- #
 # Problem readers (pure)
@@ -439,13 +461,14 @@ class _MilpFrontierProblem(PymooProblem):
         out["G"] = np.where(feas, -1.0, 1.0).reshape(-1, 1)
 
 
-def optimize_milp(problem, mode, *, inner_milp, pop, gen, max_solutions=None,
+def optimize_milp(problem, mode, *, inner_milp, max_solutions=None,
                   seed=42, exact=False) -> Run:
     """Binary selection solve: the EA evolves epsilon targets on the non-primary objectives
     while ``inner_milp`` solves the scalarized 0/1 MILP (minimizing objective 0) exactly per
-    individual. Same Run/Solution shape as the NSGA binary path. ``exact`` certifies each
-    inner solve."""
+    individual. The EA budget auto-scales with the option count (``_milp_budget``). Same
+    Run/Solution shape as the NSGA binary path. ``exact`` certifies each inner solve."""
     n, names, S, dirs, mc = _build_milp_data(problem)
+    pop, gen = _milp_budget(n)
     objs = problem.objectives
     primary = 0
     nonprimary = [j for j in range(len(objs)) if j != primary]

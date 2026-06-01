@@ -42,13 +42,10 @@ from solvers._scalarization import _qp_weights_ok, optimize_milp, optimize_qp
 _MILP_REL_GAP = 1e-4
 _MILP_TIME_LIMIT = 30.0
 
-# EA budget (pop, gen) by mode. HiGHS solves on the CPU with no per-call GPU cost or Colab
-# OOM ceiling, so it can afford a denser search than cuOpt's small Colab-tuned budget. The
-# returned frontier has at most ``pop`` points, and generations only refine them — so for the
-# expensive MILP inner solve we favor a large population over many generations (more frontier
-# coverage per solve), while the cheap QP can afford both.
+# QP EA budget (pop, gen) by mode. The cheap continuous QP can afford a dense search; the
+# returned frontier has at most ``pop`` points, so the population drives coverage. (The MILP
+# path's budget auto-scales with problem size in _scalarization._milp_budget, shared with cuOpt.)
 _QP_BUDGET = {"fast": (60, 20), "thorough": (100, 30)}
-_MILP_BUDGET = {"fast": (32, 6), "thorough": (64, 12)}
 
 
 def _use_highs(problem: Problem) -> bool:
@@ -196,11 +193,10 @@ def _optimize_highs(
     exact MILP per scalarization, proportional → exact convex QP per scalarization. Returns a
     ``Run`` in the engine's exact shape (identical to the NSGA paths). ``exact`` certifies each
     MILP solve."""
-    m = getattr(mode, "value", "fast")
     if problem.approach == Approach.binary:
-        pop, gen = _MILP_BUDGET.get(m, _MILP_BUDGET["fast"])
-        return optimize_milp(problem, mode, inner_milp=_solve_milp_highs, pop=pop, gen=gen,
+        return optimize_milp(problem, mode, inner_milp=_solve_milp_highs,
                              max_solutions=max_solutions, seed=seed, exact=exact)
+    m = getattr(mode, "value", "fast")
     pop, gen = _QP_BUDGET.get(m, _QP_BUDGET["fast"])
     return optimize_qp(problem, mode, inner_qp=_solve_qp_highs, pop=pop, gen=gen,
                        max_solutions=max_solutions, seed=seed)
