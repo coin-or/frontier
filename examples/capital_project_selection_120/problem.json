@@ -1,0 +1,271 @@
+{
+  "name": "Capital Project Selection (120 projects)",
+  "domain": "corporate finance",
+  "context": "Choose which of 120 capital projects to fund this cycle to maximize NPV and strategic fit while holding down spend and portfolio risk, under a hard $610M budget, per-category caps, enabler dependencies, and mutually-exclusive bets. At this scale the efficient frontier is large and irregular \u2014 an exact MILP per scalarization resolves it densely where a fixed-resolution metaheuristic leaves coverage on the table.",
+  "approach": "binary",
+  "objectives": [
+    {
+      "name": "NPV",
+      "direction": "maximize",
+      "unit": "$M",
+      "aggregation": "sum"
+    },
+    {
+      "name": "Cost",
+      "direction": "minimize",
+      "unit": "$M",
+      "aggregation": "sum"
+    },
+    {
+      "name": "Risk",
+      "direction": "minimize",
+      "unit": "score",
+      "aggregation": "sum"
+    },
+    {
+      "name": "StrategicFit",
+      "direction": "maximize",
+      "unit": "score",
+      "aggregation": "sum"
+    }
+  ],
+  "constraints": [
+    {
+      "type": "objective_bound",
+      "objective": "Cost",
+      "operator": "max",
+      "value": 610.0
+    },
+    {
+      "type": "cardinality",
+      "min": 18,
+      "max": 40
+    },
+    {
+      "type": "force_include",
+      "option": "P091"
+    },
+    {
+      "type": "force_include",
+      "option": "P092"
+    },
+    {
+      "type": "force_include",
+      "option": "P093"
+    },
+    {
+      "type": "dependency",
+      "if_option": "P001",
+      "then_option": "P106"
+    },
+    {
+      "type": "dependency",
+      "if_option": "P002",
+      "then_option": "P107"
+    },
+    {
+      "type": "dependency",
+      "if_option": "P003",
+      "then_option": "P108"
+    },
+    {
+      "type": "dependency",
+      "if_option": "P004",
+      "then_option": "P109"
+    },
+    {
+      "type": "dependency",
+      "if_option": "P005",
+      "then_option": "P110"
+    },
+    {
+      "type": "dependency",
+      "if_option": "P006",
+      "then_option": "P111"
+    },
+    {
+      "type": "dependency",
+      "if_option": "P031",
+      "then_option": "P112"
+    },
+    {
+      "type": "dependency",
+      "if_option": "P032",
+      "then_option": "P113"
+    },
+    {
+      "type": "dependency",
+      "if_option": "P033",
+      "then_option": "P114"
+    },
+    {
+      "type": "dependency",
+      "if_option": "P034",
+      "then_option": "P115"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "P001",
+      "option_b": "P002"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "P003",
+      "option_b": "P004"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "P005",
+      "option_b": "P006"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "P007",
+      "option_b": "P008"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "P009",
+      "option_b": "P010"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "P051",
+      "option_b": "P052"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "P053",
+      "option_b": "P054"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "P055",
+      "option_b": "P056"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "P057",
+      "option_b": "P058"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "P059",
+      "option_b": "P060"
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "P001",
+        "P002",
+        "P003",
+        "P004",
+        "P005",
+        "P006",
+        "P007",
+        "P008",
+        "P009",
+        "P010",
+        "P011",
+        "P012",
+        "P013",
+        "P014",
+        "P015",
+        "P016",
+        "P017",
+        "P018",
+        "P019",
+        "P020",
+        "P021",
+        "P022",
+        "P023",
+        "P024",
+        "P025",
+        "P026",
+        "P027",
+        "P028",
+        "P029",
+        "P030"
+      ],
+      "max": 8
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "P031",
+        "P032",
+        "P033",
+        "P034",
+        "P035",
+        "P036",
+        "P037",
+        "P038",
+        "P039",
+        "P040",
+        "P041",
+        "P042",
+        "P043",
+        "P044",
+        "P045",
+        "P046",
+        "P047",
+        "P048",
+        "P049",
+        "P050"
+      ],
+      "max": 6
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "P051",
+        "P052",
+        "P053",
+        "P054",
+        "P055",
+        "P056",
+        "P057",
+        "P058",
+        "P059",
+        "P060",
+        "P061",
+        "P062",
+        "P063",
+        "P064",
+        "P065",
+        "P066",
+        "P067",
+        "P068",
+        "P069",
+        "P070"
+      ],
+      "max": 6
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "P071",
+        "P072",
+        "P073",
+        "P074",
+        "P075",
+        "P076",
+        "P077",
+        "P078",
+        "P079",
+        "P080",
+        "P081",
+        "P082",
+        "P083",
+        "P084",
+        "P085",
+        "P086",
+        "P087",
+        "P088",
+        "P089",
+        "P090"
+      ],
+      "max": 7
+    }
+  ]
+}
