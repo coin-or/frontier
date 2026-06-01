@@ -84,26 +84,31 @@ _MILP_GEN: int | None = None
 _MILP_ABS_GAP = 0.0
 
 
-def _use_cuopt(problem: Problem) -> bool:
-    """Gate: route to cuOpt only for the portfolio-QP shape, and only when asked.
+def _use_exact_backend(problem: Problem, solver: str = "cuopt") -> bool:
+    """Gate: should this problem route to an exact-solver backend (vs the engine's NSGA paths)?
 
-    All three must hold (else the engine falls through to its NSGA paths):
-      1. ``FRONTIER_SOLVER=cuopt`` is set (opt-in; default behaviour unchanged),
-      2. the problem is a proportional allocation,
-      3. it has a quadratic objective backed by an interaction matrix.
+    The env opt-in (``FRONTIER_SOLVER`` ∈ {cuopt, highs}) is checked by the caller; ``solver``
+    is that selection. Routing by shape:
+      * binary (select-a-subset) → exact MILP — **both** backends handle it (cuOpt GPU / HiGHS CPU),
+      * proportional + quadratic-objective-with-interaction-matrix → portfolio QP — **cuOpt only**
+        (scipy/HiGHS has no quadratic objective), so 'highs' declines and it falls through to NSGA.
 
-    Kept self-contained so it is correct whether called from ``optimize()`` or
-    directly in a notebook.
+    Kept self-contained so it is correct whether called from ``optimize()`` or directly in a notebook.
     """
-    if os.environ.get("FRONTIER_SOLVER", "").lower() != "cuopt":
-        return False
     if problem.approach == Approach.binary:
-        return True   # binary select-a-subset → exact cuOpt MILP path
+        return True   # exact MILP path — cuOpt or HiGHS
+    if solver != "cuopt":
+        return False  # only cuOpt has the QP path
     if problem.approach != Approach.proportional:
         return False
     if not any(o.aggregation == Aggregation.quadratic for o in problem.objectives):
         return False
     return len(_opt._build_interaction_matrices(problem)) > 0
+
+
+# Back-compat alias: the original cuOpt-only gate name (callers/tests may import it).
+def _use_cuopt(problem: Problem) -> bool:
+    return os.environ.get("FRONTIER_SOLVER", "").lower() == "cuopt" and _use_exact_backend(problem, "cuopt")
 
 
 def _resolve_objective_roles(problem: Problem) -> tuple[int, int]:
@@ -552,8 +557,9 @@ def _solve_milp_cuopt(min_coef, eps_list, mc, n, exact=False):
     """One binary MILP via cuOpt: minimize ``min_coef·x`` over x∈{0,1}^n subject to epsilon
     constraints ``(coef, op, rhs)`` (op 'ge'/'le') and the combinatorial constraints in ``mc``.
     Returns ``(0/1 selection array, ok)``. ``exact=True`` certifies (gap→0, accept only
-    ``Optimal``); default bounds for speed. The scipy.optimize.milp CPU stand-in has the same
-    signature (it is always exact, so it ignores the flag).
+    ``Optimal``); default bounds for speed. ``_solve_milp_highs`` is the CPU/HiGHS sibling with
+    the identical signature — interchangeable via ``_milp_solver`` — so the EA-over-exact pattern
+    is solver-agnostic (the coverage panel's two backends + the speed benchmark's GPU/CPU pair).
     """
     from cuopt.linear_programming import SolverSettings
     from cuopt.linear_programming.problem import INTEGER, MINIMIZE, Problem as CuProblem
@@ -609,14 +615,63 @@ def _solve_milp_cuopt(min_coef, eps_list, mc, n, exact=False):
     return sel, ok
 
 
-class _MilpFrontierProblem(PymooProblem):
-    """EA genome for the binary MILP path: one epsilon target per non-primary objective.
-    cuOpt minimizes the primary objective exactly subject to those targets + the
-    combinatorial constraints; the EA (NSGA-II) explores the epsilon space."""
+def _solve_milp_highs(min_coef, eps_list, mc, n, exact=False):
+    """The CPU/HiGHS sibling of ``_solve_milp_cuopt`` — same signature, same return — built on
+    ``scipy.optimize.milp`` (which wraps the HiGHS solver). It makes the EA-over-exact pattern
+    *solver-agnostic*: the coverage panel runs it as a second exact backend (NSGA + HiGHS) to
+    show the pairing's value isn't cuOpt-specific, and the speed benchmark times it as the CPU
+    baseline against cuOpt's GPU. HiGHS solves to optimality; the bounded path passes the same
+    relative gap as cuOpt so the comparison is apples-to-apples (``exact=True`` → gap 0).
+    """
+    from scipy.optimize import Bounds, LinearConstraint, milp
 
-    def __init__(self, S, dirs, primary, nonprimary, mc, n, objectives, eps_bounds, exact=False):
+    cons = []
+    for coef, op, rhs in eps_list:
+        a = np.asarray(coef, float)
+        cons.append(LinearConstraint(a, rhs, np.inf) if op == "ge" else LinearConstraint(a, -np.inf, rhs))
+    if mc["card"] is not None:
+        lo, hi = mc["card"]
+        cons.append(LinearConstraint(np.ones(n), lo, hi))
+    for coef, op, val in mc["bounds"]:
+        a = np.asarray(coef, float)
+        cons.append(LinearConstraint(a, -np.inf, val) if op == "max" else LinearConstraint(a, val, np.inf))
+    lb, ub = np.zeros(n), np.ones(n)
+    for i in mc["force_in"]:
+        lb[i] = 1.0
+    for i in mc["force_out"]:
+        ub[i] = 0.0
+    for a, b in mc["deps"]:
+        d = np.zeros(n); d[a] = 1.0; d[b] = -1.0; cons.append(LinearConstraint(d, -np.inf, 0.0))  # if a then b
+    for a, b in mc["excl"]:
+        e = np.zeros(n); e[a] = 1.0; e[b] = 1.0; cons.append(LinearConstraint(e, -np.inf, 1.0))
+    for grp, gmax in mc["groups"]:
+        g = np.zeros(n)
+        for i in grp:
+            g[i] = 1.0
+        cons.append(LinearConstraint(g, -np.inf, gmax))
+    options = {"mip_rel_gap": 0.0 if exact else _MILP_REL_GAP}
+    res = milp(c=np.asarray(min_coef, float), constraints=cons, integrality=np.ones(n),
+               bounds=Bounds(lb, ub), options=options)
+    if not res.success or res.x is None:
+        return np.zeros(n), False
+    return np.round(res.x), True
+
+
+def _milp_solver(name: str):
+    """Resolve the exact-MILP solve fn by backend name, AT CALL TIME so a notebook/test
+    monkeypatch of ``_solve_milp_cuopt`` (the GPU-free CPU dry-run does this) is honored."""
+    return {"cuopt": _solve_milp_cuopt, "highs": _solve_milp_highs}[name]
+
+
+class _MilpFrontierProblem(PymooProblem):
+    """EA genome for the binary MILP path: one epsilon target per non-primary objective. The
+    chosen exact solver (``solver`` — cuOpt or HiGHS) minimizes the primary objective exactly
+    subject to those targets + the combinatorial constraints; the EA (NSGA-II) explores the
+    epsilon space. Same genome whichever solver is plugged in (the pairing is solver-agnostic)."""
+
+    def __init__(self, S, dirs, primary, nonprimary, mc, n, objectives, eps_bounds, exact=False, solver="cuopt"):
         self.S, self.dirs, self.primary, self.nonprimary = S, dirs, primary, nonprimary
-        self.mc, self.n, self.objectives, self.exact = mc, n, objectives, exact
+        self.mc, self.n, self.objectives, self.exact, self.solver = mc, n, objectives, exact, solver
         super().__init__(n_var=len(nonprimary), n_obj=len(objectives), n_ieq_constr=1,
                          xl=np.array([b[0] for b in eps_bounds]),
                          xu=np.array([b[1] for b in eps_bounds]))
@@ -624,8 +679,8 @@ class _MilpFrontierProblem(PymooProblem):
     def _solve_row(self, row):
         eps_list = [(self.S[:, j], "ge" if self.dirs[j] < 0 else "le", float(row[k]))
                     for k, j in enumerate(self.nonprimary)]
-        return _solve_milp_cuopt(self.dirs[self.primary] * self.S[:, self.primary], eps_list,
-                                 self.mc, self.n, exact=self.exact)
+        return _milp_solver(self.solver)(self.dirs[self.primary] * self.S[:, self.primary], eps_list,
+                                         self.mc, self.n, exact=self.exact)
 
     def _evaluate(self, X, out, *args, **kwargs):
         X = np.atleast_2d(X)
@@ -667,25 +722,27 @@ def _milp_budget(n: int) -> tuple[int, int]:
     return pop, gen
 
 
-def _optimize_cuopt_milp(problem, mode, max_solutions=None, seed=42, exact=False):
-    """Binary problems → exact MILP per scalarization. Same Run/Solution shape as the
-    NSGA binary path, so downstream consumers are unaffected. ``exact`` (from ``optimize``)
-    certifies each inner solve instead of gap/time-bounding it."""
+def _optimize_cuopt_milp(problem, mode, max_solutions=None, seed=42, exact=False, solver="cuopt"):
+    """Binary problems → exact MILP per scalarization. Same Run/Solution shape as the NSGA
+    binary path, so downstream consumers are unaffected. ``exact`` (from ``optimize``) certifies
+    each inner solve instead of gap/time-bounding it. ``solver`` ('cuopt'|'highs') picks the
+    exact backend — the EA machinery is identical either way (the pairing is solver-agnostic)."""
     n, names, S, dirs, mc = _build_milp_data(problem)
     objs = problem.objectives
     primary = 0
     nonprimary = [j for j in range(len(objs)) if j != primary]
+    solve = _milp_solver(solver)
 
     # epsilon range per non-primary objective = [min, max] over feasible sets.
     eps_bounds = []
     for j in nonprimary:
-        smin, ok1 = _solve_milp_cuopt(S[:, j], [], mc, n, exact=exact)
-        smax, ok2 = _solve_milp_cuopt(-S[:, j], [], mc, n, exact=exact)
+        smin, ok1 = solve(S[:, j], [], mc, n, exact=exact)
+        smax, ok2 = solve(-S[:, j], [], mc, n, exact=exact)
         lo = float(S[:, j] @ smin) if ok1 else float(S[:, j].min())
         hi = float(S[:, j] @ smax) if ok2 else float(S[:, j].sum())
         eps_bounds.append((lo, hi if hi > lo else lo + 1e-6))
 
-    pp = _MilpFrontierProblem(S, dirs, primary, nonprimary, mc, n, objs, eps_bounds, exact=exact)
+    pp = _MilpFrontierProblem(S, dirs, primary, nonprimary, mc, n, objs, eps_bounds, exact=exact, solver=solver)
     pop, gen = _milp_budget(n)
     result = pymoo_minimize(pp, NSGA2(pop_size=pop), ("n_gen", gen), seed=seed, verbose=False)
 
@@ -719,6 +776,7 @@ def _optimize_cuopt(
     max_solutions: int | None = None,
     seed: int = 42,
     exact: bool = False,
+    solver: str = "cuopt",
 ) -> Run:
     """Portfolio-QP solve: the EA walks an epsilon-constraint target per linear
     objective (and, under a cardinality cap, the asset-selection priorities) while
@@ -729,10 +787,12 @@ def _optimize_cuopt(
     Generalized for the bidirectional-benefit proofs: ≥2 objectives (extra linear
     floors, proof #2) and 'hold ≤ K of N' cardinality (proof #1). With one linear
     objective and no cardinality this is the verified convex walker unchanged.
-    Binary (`select-a-subset`) problems route to the exact MILP path instead.
+    Binary (`select-a-subset`) problems route to the exact MILP path instead, where
+    ``solver`` ('cuopt'|'highs') selects the exact backend. The QP path is cuOpt-only.
     """
     if problem.approach == Approach.binary:
-        return _optimize_cuopt_milp(problem, mode, max_solutions=max_solutions, seed=seed, exact=exact)
+        return _optimize_cuopt_milp(problem, mode, max_solutions=max_solutions, seed=seed,
+                                    exact=exact, solver=solver)
 
     n_options = len(problem.options)
     opt_names = [o.name for o in problem.options]

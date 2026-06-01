@@ -755,13 +755,16 @@ def optimize(
     if seed is None:
         seed = int(np.random.default_rng().integers(0, 2**31 - 1))
 
-    # Opt-in cuOpt QP backend (feasibility spike — .claude/plans/cuopt-integration.md).
-    # Cheap env gate first so the default path never imports the backend; the
-    # backend itself imports cuOpt lazily, so this is safe with no GPU installed.
-    if os.environ.get("FRONTIER_SOLVER", "").lower() == "cuopt":
-        from solvers.cuopt_backend import _optimize_cuopt, _use_cuopt
-        if _use_cuopt(problem):
-            return _optimize_cuopt(problem, mode, max_solutions=max_solutions, seed=seed, exact=exact)
+    # Opt-in exact-solver backends (feasibility spike — .claude/plans/cuopt-integration.md).
+    # FRONTIER_SOLVER selects: 'cuopt' (GPU QP + MILP) or 'highs' (CPU exact MILP, scipy/HiGHS).
+    # Cheap env gate first so the default path never imports the backend; cuOpt is imported
+    # lazily inside the backend, so this is safe with no GPU installed.
+    _solver = os.environ.get("FRONTIER_SOLVER", "").lower()
+    if _solver in ("cuopt", "highs"):
+        from solvers.cuopt_backend import _optimize_cuopt, _use_exact_backend
+        if _use_exact_backend(problem, _solver):
+            return _optimize_cuopt(problem, mode, max_solutions=max_solutions, seed=seed,
+                                   exact=exact, solver=_solver)
 
     if problem.approach == Approach.proportional:
         return _optimize_proportional(problem, mode, max_solutions=max_solutions, seed=seed)
