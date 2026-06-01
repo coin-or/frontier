@@ -76,29 +76,9 @@ _MILP_REL_GAP = 1e-3     # stop B&B once the incumbent is within 0.1% of the bou
 # (not a cheap continuous QP), so keep the total cuOpt-call count bounded on Colab.
 _MILP_POP = 16
 _MILP_GEN = 8
-
-
-def _milp_settings():
-    """Per-solve MILP solver settings, env-overridable (default = the GPU-safe bounded mode).
-
-    The default trades the optimality *proof* for speed (a 0.1% relative gap + a wall-clock cap,
-    accepting ``FeasibleFound``) — without it B&B can grind minutes certifying a sub-0.1% gap.
-    Toggles for the exact-vs-bounded comparison / honest-claim verification:
-      * ``FRONTIER_MILP_EXACT=1`` — push for certified optimality: gap→0, accept ONLY ``Optimal``
-        (a generous ``FRONTIER_MILP_TIME_LIMIT`` is still honored as a safety cap; unset ⇒ no cap).
-      * ``FRONTIER_MILP_ABS_GAP=<x>`` — absolute gap; setting it below the score granularity makes
-        the incumbent *provably* optimal cheaply (no value strictly between incumbent and bound).
-      * ``FRONTIER_MILP_TIME_LIMIT`` / ``FRONTIER_MILP_REL_GAP`` — override the bounded-mode defaults.
-    Returns ``(time_limit | None, rel_gap, abs_gap, accepted_status_names)``.
-    """
-    env = os.environ.get
-    if env("FRONTIER_MILP_EXACT") == "1":
-        tl = float(env("FRONTIER_MILP_TIME_LIMIT")) if env("FRONTIER_MILP_TIME_LIMIT") else None
-        return tl, 0.0, 0.0, ("Optimal",)
-    return (float(env("FRONTIER_MILP_TIME_LIMIT", _MILP_TIME_LIMIT)),
-            float(env("FRONTIER_MILP_REL_GAP", _MILP_REL_GAP)),
-            float(env("FRONTIER_MILP_ABS_GAP", 0.0)),
-            ("Optimal", "FeasibleFound"))
+# Absolute MILP gap (default off). Set < the score granularity in code to make the bounded-mode
+# incumbent provably optimal cheaply; `optimize(..., exact=True)` is the bundled certify mode.
+_MILP_ABS_GAP = 0.0
 
 
 def _use_cuopt(problem: Problem) -> bool:
@@ -565,11 +545,12 @@ def _build_milp_data(problem: Problem):
     return n, names, S, dirs, mc
 
 
-def _solve_milp_cuopt(min_coef, eps_list, mc, n):
-    """One exact binary MILP via cuOpt: minimize ``min_coef·x`` over x∈{0,1}^n subject
-    to epsilon constraints ``(coef, op, rhs)`` (op 'ge'/'le') and the combinatorial
-    constraints in ``mc``. Returns ``(0/1 selection array, ok)``. The CPU stand-in
-    (scipy.optimize.milp) used for verification has the identical signature.
+def _solve_milp_cuopt(min_coef, eps_list, mc, n, exact=False):
+    """One binary MILP via cuOpt: minimize ``min_coef·x`` over x∈{0,1}^n subject to epsilon
+    constraints ``(coef, op, rhs)`` (op 'ge'/'le') and the combinatorial constraints in ``mc``.
+    Returns ``(0/1 selection array, ok)``. ``exact=True`` certifies (gap→0, accept only
+    ``Optimal``); default bounds for speed. The scipy.optimize.milp CPU stand-in has the same
+    signature (it is always exact, so it ignores the flag).
     """
     from cuopt.linear_programming import SolverSettings
     from cuopt.linear_programming.problem import INTEGER, MINIMIZE, Problem as CuProblem
@@ -602,21 +583,20 @@ def _solve_milp_cuopt(min_coef, eps_list, mc, n):
         prob.addConstraint(x[a] + x[b] <= 1, name="excl")
     for grp, gmax in mc["groups"]:
         prob.addConstraint(sum(x[i] for i in grp) <= gmax, name="grp")
-    # Bound the solve (default) or push for certified optimality (FRONTIER_MILP_EXACT=1) —
-    # see _milp_settings(). Default trades the optimality proof for speed; the exact toggle
-    # lets the GPU run compare bounded vs certified through this same path.
-    time_limit, rel_gap, abs_gap, ok_statuses = _milp_settings()
+    # Bounded (default, trades the optimality proof for speed) vs exact (gap→0, accept only
+    # Optimal — _MILP_TIME_LIMIT still applies as a safety deadline). _MILP_ABS_GAP (default off)
+    # sets an absolute gap on the bounded path; below the score granularity it certifies cheaply.
     settings = SolverSettings()
-    if time_limit is not None:
-        settings.set_parameter(CUOPT_TIME_LIMIT, time_limit)
-    settings.set_parameter(CUOPT_MIP_RELATIVE_GAP, rel_gap)
-    if abs_gap > 0:
-        settings.set_parameter(CUOPT_MIP_ABSOLUTE_GAP, abs_gap)
+    if _MILP_TIME_LIMIT is not None:
+        settings.set_parameter(CUOPT_TIME_LIMIT, _MILP_TIME_LIMIT)
+    settings.set_parameter(CUOPT_MIP_RELATIVE_GAP, 0.0 if exact else _MILP_REL_GAP)
+    if not exact and _MILP_ABS_GAP > 0:
+        settings.set_parameter(CUOPT_MIP_ABSOLUTE_GAP, _MILP_ABS_GAP)
     prob.solve(settings)
-    # MILP uses ``MILPTerminationStatus`` (NoTermination / Optimal / FeasibleFound) — a
-    # DIFFERENT enum from the QP's ``LPTerminationStatus`` (which has PrimalFeasible). Default
-    # accepts Optimal AND FeasibleFound (a time/gap stop = a proven-feasible incumbent, not a
-    # certified optimum); exact mode accepts ONLY Optimal.
+    # MILP uses ``MILPTerminationStatus`` (NoTermination / Optimal / FeasibleFound) — a DIFFERENT
+    # enum from the QP's ``LPTerminationStatus`` (PrimalFeasible). Bounded accepts Optimal AND
+    # FeasibleFound (a time/gap stop = a proven-feasible incumbent, not certified); exact only Optimal.
+    ok_statuses = ("Optimal",) if exact else ("Optimal", "FeasibleFound")
     ok = getattr(prob.Status, "name", "") in ok_statuses
     sel = np.array([round(x[i].Value) for i in range(n)], dtype=float) if ok else np.zeros(n)
     # Release the cuOpt problem's device/host buffers before the next inner solve — the
@@ -631,9 +611,9 @@ class _MilpFrontierProblem(PymooProblem):
     cuOpt minimizes the primary objective exactly subject to those targets + the
     combinatorial constraints; the EA (NSGA-II) explores the epsilon space."""
 
-    def __init__(self, S, dirs, primary, nonprimary, mc, n, objectives, eps_bounds):
+    def __init__(self, S, dirs, primary, nonprimary, mc, n, objectives, eps_bounds, exact=False):
         self.S, self.dirs, self.primary, self.nonprimary = S, dirs, primary, nonprimary
-        self.mc, self.n, self.objectives = mc, n, objectives
+        self.mc, self.n, self.objectives, self.exact = mc, n, objectives, exact
         super().__init__(n_var=len(nonprimary), n_obj=len(objectives), n_ieq_constr=1,
                          xl=np.array([b[0] for b in eps_bounds]),
                          xu=np.array([b[1] for b in eps_bounds]))
@@ -641,7 +621,8 @@ class _MilpFrontierProblem(PymooProblem):
     def _solve_row(self, row):
         eps_list = [(self.S[:, j], "ge" if self.dirs[j] < 0 else "le", float(row[k]))
                     for k, j in enumerate(self.nonprimary)]
-        return _solve_milp_cuopt(self.dirs[self.primary] * self.S[:, self.primary], eps_list, self.mc, self.n)
+        return _solve_milp_cuopt(self.dirs[self.primary] * self.S[:, self.primary], eps_list,
+                                 self.mc, self.n, exact=self.exact)
 
     def _evaluate(self, X, out, *args, **kwargs):
         X = np.atleast_2d(X)
@@ -660,24 +641,25 @@ class _MilpFrontierProblem(PymooProblem):
         out["G"] = np.where(feas, -1.0, 1.0).reshape(-1, 1)
 
 
-def _optimize_cuopt_milp(problem, mode, max_solutions=None, seed=42):
+def _optimize_cuopt_milp(problem, mode, max_solutions=None, seed=42, exact=False):
     """Binary problems → exact MILP per scalarization. Same Run/Solution shape as the
-    NSGA binary path, so downstream consumers are unaffected."""
+    NSGA binary path, so downstream consumers are unaffected. ``exact`` (from ``optimize``)
+    certifies each inner solve instead of gap/time-bounding it."""
     n, names, S, dirs, mc = _build_milp_data(problem)
     objs = problem.objectives
     primary = 0
     nonprimary = [j for j in range(len(objs)) if j != primary]
 
-    # epsilon range per non-primary objective = [exact min, exact max] over feasible sets.
+    # epsilon range per non-primary objective = [min, max] over feasible sets.
     eps_bounds = []
     for j in nonprimary:
-        smin, ok1 = _solve_milp_cuopt(S[:, j], [], mc, n)
-        smax, ok2 = _solve_milp_cuopt(-S[:, j], [], mc, n)
+        smin, ok1 = _solve_milp_cuopt(S[:, j], [], mc, n, exact=exact)
+        smax, ok2 = _solve_milp_cuopt(-S[:, j], [], mc, n, exact=exact)
         lo = float(S[:, j] @ smin) if ok1 else float(S[:, j].min())
         hi = float(S[:, j] @ smax) if ok2 else float(S[:, j].sum())
         eps_bounds.append((lo, hi if hi > lo else lo + 1e-6))
 
-    pp = _MilpFrontierProblem(S, dirs, primary, nonprimary, mc, n, objs, eps_bounds)
+    pp = _MilpFrontierProblem(S, dirs, primary, nonprimary, mc, n, objs, eps_bounds, exact=exact)
     result = pymoo_minimize(pp, NSGA2(pop_size=_MILP_POP), ("n_gen", _MILP_GEN), seed=seed, verbose=False)
 
     solutions: list[Solution] = []
@@ -709,6 +691,7 @@ def _optimize_cuopt(
     mode: OptimizeMode,
     max_solutions: int | None = None,
     seed: int = 42,
+    exact: bool = False,
 ) -> Run:
     """Portfolio-QP solve: the EA walks an epsilon-constraint target per linear
     objective (and, under a cardinality cap, the asset-selection priorities) while
@@ -722,7 +705,7 @@ def _optimize_cuopt(
     Binary (`select-a-subset`) problems route to the exact MILP path instead.
     """
     if problem.approach == Approach.binary:
-        return _optimize_cuopt_milp(problem, mode, max_solutions=max_solutions, seed=seed)
+        return _optimize_cuopt_milp(problem, mode, max_solutions=max_solutions, seed=seed, exact=exact)
 
     n_options = len(problem.options)
     opt_names = [o.name for o in problem.options]

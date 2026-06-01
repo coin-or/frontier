@@ -734,12 +734,17 @@ def optimize(
     mode: OptimizeMode | None = None,
     max_solutions: int | None = None,
     seed: int | None = None,
+    exact: bool = False,
 ) -> Run:
     """Validate and run multi-objective optimization. Returns a Run with solutions.
 
     seed: deterministic RNG seed for reproducibility. When None, a fresh 32-bit
     seed is drawn and recorded on Run.seed_used so the run stays reproducible
     even when not requested up front.
+
+    exact: cuOpt backend only — certify each MILP scalarization (gap→0, accept only a
+    proven-Optimal status) instead of the default gap/time-bounded solve. Slower; lets a
+    run trade speed for certified optimality. No-op on the NSGA paths.
     """
     if mode is None:
         mode = OptimizeMode.fast
@@ -756,7 +761,7 @@ def optimize(
     if os.environ.get("FRONTIER_SOLVER", "").lower() == "cuopt":
         from solvers.cuopt_backend import _optimize_cuopt, _use_cuopt
         if _use_cuopt(problem):
-            return _optimize_cuopt(problem, mode, max_solutions=max_solutions, seed=seed)
+            return _optimize_cuopt(problem, mode, max_solutions=max_solutions, seed=seed, exact=exact)
 
     if problem.approach == Approach.proportional:
         return _optimize_proportional(problem, mode, max_solutions=max_solutions, seed=seed)
