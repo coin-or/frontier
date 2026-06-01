@@ -78,6 +78,29 @@ _MILP_POP = 16
 _MILP_GEN = 8
 
 
+def _milp_settings():
+    """Per-solve MILP solver settings, env-overridable (default = the GPU-safe bounded mode).
+
+    The default trades the optimality *proof* for speed (a 0.1% relative gap + a wall-clock cap,
+    accepting ``FeasibleFound``) — without it B&B can grind minutes certifying a sub-0.1% gap.
+    Toggles for the exact-vs-bounded comparison / honest-claim verification:
+      * ``FRONTIER_MILP_EXACT=1`` — push for certified optimality: gap→0, accept ONLY ``Optimal``
+        (a generous ``FRONTIER_MILP_TIME_LIMIT`` is still honored as a safety cap; unset ⇒ no cap).
+      * ``FRONTIER_MILP_ABS_GAP=<x>`` — absolute gap; setting it below the score granularity makes
+        the incumbent *provably* optimal cheaply (no value strictly between incumbent and bound).
+      * ``FRONTIER_MILP_TIME_LIMIT`` / ``FRONTIER_MILP_REL_GAP`` — override the bounded-mode defaults.
+    Returns ``(time_limit | None, rel_gap, abs_gap, accepted_status_names)``.
+    """
+    env = os.environ.get
+    if env("FRONTIER_MILP_EXACT") == "1":
+        tl = float(env("FRONTIER_MILP_TIME_LIMIT")) if env("FRONTIER_MILP_TIME_LIMIT") else None
+        return tl, 0.0, 0.0, ("Optimal",)
+    return (float(env("FRONTIER_MILP_TIME_LIMIT", _MILP_TIME_LIMIT)),
+            float(env("FRONTIER_MILP_REL_GAP", _MILP_REL_GAP)),
+            float(env("FRONTIER_MILP_ABS_GAP", 0.0)),
+            ("Optimal", "FeasibleFound"))
+
+
 def _use_cuopt(problem: Problem) -> bool:
     """Gate: route to cuOpt only for the portfolio-QP shape, and only when asked.
 
@@ -551,6 +574,7 @@ def _solve_milp_cuopt(min_coef, eps_list, mc, n):
     from cuopt.linear_programming import SolverSettings
     from cuopt.linear_programming.problem import INTEGER, MINIMIZE, Problem as CuProblem
     from cuopt.linear_programming.solver.solver_parameters import (
+        CUOPT_MIP_ABSOLUTE_GAP,
         CUOPT_MIP_RELATIVE_GAP,
         CUOPT_TIME_LIMIT,
     )
@@ -578,17 +602,22 @@ def _solve_milp_cuopt(min_coef, eps_list, mc, n):
         prob.addConstraint(x[a] + x[b] <= 1, name="excl")
     for grp, gmax in mc["groups"]:
         prob.addConstraint(sum(x[i] for i in grp) <= gmax, name="grp")
-    # Bound the solve: cap wall-clock and accept a 0.1% gap so branch-and-bound returns
-    # the incumbent instead of grinding to certify optimality (see _MILP_* constants).
+    # Bound the solve (default) or push for certified optimality (FRONTIER_MILP_EXACT=1) —
+    # see _milp_settings(). Default trades the optimality proof for speed; the exact toggle
+    # lets the GPU run compare bounded vs certified through this same path.
+    time_limit, rel_gap, abs_gap, ok_statuses = _milp_settings()
     settings = SolverSettings()
-    settings.set_parameter(CUOPT_TIME_LIMIT, _MILP_TIME_LIMIT)
-    settings.set_parameter(CUOPT_MIP_RELATIVE_GAP, _MILP_REL_GAP)
+    if time_limit is not None:
+        settings.set_parameter(CUOPT_TIME_LIMIT, time_limit)
+    settings.set_parameter(CUOPT_MIP_RELATIVE_GAP, rel_gap)
+    if abs_gap > 0:
+        settings.set_parameter(CUOPT_MIP_ABSOLUTE_GAP, abs_gap)
     prob.solve(settings)
     # MILP uses ``MILPTerminationStatus`` (NoTermination / Optimal / FeasibleFound) — a
-    # DIFFERENT enum from the QP's ``LPTerminationStatus`` (which has PrimalFeasible).
-    # Accept Optimal AND FeasibleFound (a time/gap stop returns a proven-feasible
-    # incumbent as FeasibleFound rather than certified-Optimal).
-    ok = getattr(prob.Status, "name", "") in ("Optimal", "FeasibleFound")
+    # DIFFERENT enum from the QP's ``LPTerminationStatus`` (which has PrimalFeasible). Default
+    # accepts Optimal AND FeasibleFound (a time/gap stop = a proven-feasible incumbent, not a
+    # certified optimum); exact mode accepts ONLY Optimal.
+    ok = getattr(prob.Status, "name", "") in ok_statuses
     sel = np.array([round(x[i].Value) for i in range(n)], dtype=float) if ok else np.zeros(n)
     # Release the cuOpt problem's device/host buffers before the next inner solve — the
     # EA issues hundreds of these, and on a small Colab box the creep tips into OOM.
