@@ -72,10 +72,13 @@ _INFEASIBLE_PENALTY = 1e9
 # returned incumbent is the exact optimum — only the (irrelevant) proof is skipped.
 _MILP_TIME_LIMIT = 8.0   # seconds, hard cap per MILP solve
 _MILP_REL_GAP = 1e-3     # stop B&B once the incumbent is within 0.1% of the bound
-# Smaller EA budget for the MILP path: each evaluation is an exact integer solve
-# (not a cheap continuous QP), so keep the total cuOpt-call count bounded on Colab.
-_MILP_POP = 16
-_MILP_GEN = 8
+# EA budget for the MILP path. Each evaluation is an exact integer solve (not a cheap
+# continuous QP), so the inner-solve count must stay bounded on Colab. Default None →
+# auto-scale with problem size (see _milp_budget): small problems wash and stay cheap;
+# large combinatorial ones get the budget to actually cover the frontier. Set to an int
+# in a notebook to pin the budget (the tuning knob).
+_MILP_POP: int | None = None
+_MILP_GEN: int | None = None
 # Absolute MILP gap (default off). Set < the score granularity in code to make the bounded-mode
 # incumbent provably optimal cheaply; `optimize(..., exact=True)` is the bundled certify mode.
 _MILP_ABS_GAP = 0.0
@@ -641,6 +644,29 @@ class _MilpFrontierProblem(PymooProblem):
         out["G"] = np.where(feas, -1.0, 1.0).reshape(-1, 1)
 
 
+def _milp_budget(n: int) -> tuple[int, int]:
+    """(pop, gen) for the MILP EA, scaled with the number of options ``n``.
+
+    Unlike the NSGA path — where each evaluation is a cheap score lookup, so pop/gen can
+    run to the hundreds (``_tune_parameters``) — every evaluation here is an *exact cuOpt
+    MILP solve* (~seconds). The inner-solve count (≈ pop × gen) is the real budget, so it
+    has to stay an order of magnitude below NSGA's. But a *fixed* small budget under-covers
+    at scale: on the 120-project capital MILP, pop16×gen8 reaches only HV 0.64 (below
+    NSGA's 0.68), while pop50×gen15 reaches HV 0.87 (above it). So ramp pop/gen with ``n``
+    — small problems (which wash anyway at ≤30 vars) stay cheap; large combinatorial ones
+    get the budget to actually fill the frontier. The module-level ``_MILP_POP``/
+    ``_MILP_GEN``, when set, pin either value (the notebook tuning knob).
+
+    Anchors: ``n ≤ 30 → (16, 8)`` (the wash regime); ``n ≥ 120 → (50, 15)`` (the verified
+    covering budget); linearly interpolated between, then held flat past 120 so the
+    inner-solve count can't run away on very large instances.
+    """
+    frac = min(1.0, max(0.0, (n - 30) / 90.0))   # 0 at n≤30, 1 at n≥120
+    pop = _MILP_POP if _MILP_POP is not None else int(round(16 + frac * 34))   # 16 → 50
+    gen = _MILP_GEN if _MILP_GEN is not None else int(round(8 + frac * 7))     # 8 → 15
+    return pop, gen
+
+
 def _optimize_cuopt_milp(problem, mode, max_solutions=None, seed=42, exact=False):
     """Binary problems → exact MILP per scalarization. Same Run/Solution shape as the
     NSGA binary path, so downstream consumers are unaffected. ``exact`` (from ``optimize``)
@@ -660,7 +686,8 @@ def _optimize_cuopt_milp(problem, mode, max_solutions=None, seed=42, exact=False
         eps_bounds.append((lo, hi if hi > lo else lo + 1e-6))
 
     pp = _MilpFrontierProblem(S, dirs, primary, nonprimary, mc, n, objs, eps_bounds, exact=exact)
-    result = pymoo_minimize(pp, NSGA2(pop_size=_MILP_POP), ("n_gen", _MILP_GEN), seed=seed, verbose=False)
+    pop, gen = _milp_budget(n)
+    result = pymoo_minimize(pp, NSGA2(pop_size=pop), ("n_gen", gen), seed=seed, verbose=False)
 
     solutions: list[Solution] = []
     seen: set = set()
