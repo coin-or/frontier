@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import math
-import os
 
 import numpy as np
 from pymoo.algorithms.moo.nsga2 import NSGA2
@@ -747,10 +746,8 @@ def optimize(
     evolutionary search that fits any problem shape. "highs" / "cuopt" select an
     exact inner-solve backend (each frontier point solved to optimality) — opt-in,
     so callers should pre-check ``solvers.available_solvers`` /
-    ``solvers.exact_solver_fits``. An explicit ``solver`` overrides the
-    ``FRONTIER_SOLVER`` env var; when both are unset the default NSGA path runs.
-    If an exact backend is requested but the shape doesn't fit, the run falls back
-    to NSGA (the env-var gate ``_use_*`` enforces the same shape check).
+    ``solvers.exact_solver_fits``. If an exact backend is requested but the shape
+    doesn't fit, the run falls back to NSGA.
 
     exact: exact backends only — certify each MILP scalarization (gap→0, accept only a
     proven-Optimal status) instead of the default gap/time-bounded solve. Slower; lets a
@@ -768,13 +765,13 @@ def optimize(
     if seed is None:
         seed = int(np.random.default_rng().integers(0, 2**31 - 1))
 
-    # Opt-in exact-solver backends. An explicit ``solver`` arg (agent-driven, via the
-    # solve tool) takes precedence over the FRONTIER_SOLVER env var (deployment default).
-    # Cheap string gate first so the default path never imports a backend; each backend
-    # imports its solver lazily, so this is safe whether or not cuOpt (GPU) or highspy
-    # (CPU) is installed. Both mirror the Run/Solution contract exactly, so downstream
-    # consumers are unaffected. A requested-but-ill-fitting shape falls through to NSGA.
-    backend = (solver or os.environ.get("FRONTIER_SOLVER", "")).lower()
+    # Opt-in exact-solver backends, selected by the ``solver`` arg (agent-driven, via the
+    # solve tool — the single selection mechanism). Cheap string gate first so the default
+    # path never imports a backend; each backend imports its solver lazily, so this is safe
+    # whether or not cuOpt (GPU) or highspy (CPU) is installed. Both mirror the Run/Solution
+    # contract exactly, so downstream consumers are unaffected. A requested-but-ill-fitting
+    # shape falls through to NSGA.
+    backend = (solver or "").lower()
     if backend == "cuopt":
         from solvers import exact_solver_fits
         if exact_solver_fits(problem)[0]:

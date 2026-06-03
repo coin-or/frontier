@@ -23,12 +23,8 @@ from engine.models import (
     Score,
 )
 from engine.optimizer import optimize
-from solvers.highs_backend import _optimize_highs, _use_highs
-
-
-@pytest.fixture
-def highs_env(monkeypatch):
-    monkeypatch.setenv("FRONTIER_SOLVER", "highs")
+from solvers import exact_solver_fits
+from solvers.highs_backend import _optimize_highs
 
 
 # ─── Fixtures ───
@@ -101,34 +97,39 @@ def _nondominated_ok(solutions, objs):
     return True
 
 
-# ─── Gate ───
+# ─── Shape gate (shared exact_solver_fits) + routing ───
 
 class TestGate:
-    def test_routes_binary(self, highs_env):
-        assert _use_highs(_binary_problem()) is True
+    def test_binary_fits(self):
+        assert exact_solver_fits(_binary_problem())[0] is True
 
-    def test_routes_quadratic_portfolio(self, highs_env):
-        assert _use_highs(_qp_problem()) is True
+    def test_quadratic_portfolio_fits(self):
+        assert exact_solver_fits(_qp_problem())[0] is True
 
-    def test_disabled_without_env(self):
-        assert _use_highs(_binary_problem()) is False  # FRONTIER_SOLVER unset
-
-    def test_routes_cardinality_qp(self, highs_env):
+    def test_cardinality_qp_fits(self):
         # which-K-of-N + quadratic is mixed-integer-quadratic; the EA support-search picks the
-        # K assets and HiGHS solves the continuous QP on them, so this IS in scope now.
+        # K assets and HiGHS solves the continuous QP on them, so this IS in scope.
         p = _qp_problem(constraints=[CardinalityConstraint(min=1, max=2)])
-        assert _use_highs(p) is True
+        assert exact_solver_fits(p)[0] is True
 
-    def test_routes_group_limited_qp(self, highs_env):
+    def test_group_limited_qp_fits(self):
         p = _qp_problem(constraints=[GroupLimitConstraint(options=["A", "B"], max=1)])
-        assert _use_highs(p) is True
+        assert exact_solver_fits(p)[0] is True
 
-    def test_rejects_proportional_without_quadratic(self, highs_env):
+    def test_proportional_without_quadratic_does_not_fit(self):
         # No quadratic objective + interaction matrix → not a mean-variance shape; NSGA owns it.
         p = _qp_problem(objectives=[Objective(name="Return", direction="maximize", aggregation="avg"),
                                     Objective(name="Risk", direction="minimize", aggregation="sum")],
                         interaction_matrices=[])
-        assert _use_highs(p) is False
+        assert exact_solver_fits(p)[0] is False
+
+    def test_ill_fitting_request_falls_back_to_nsga(self):
+        # Requesting highs on a shape it can't solve falls through to NSGA at the optimizer layer.
+        p = _qp_problem(objectives=[Objective(name="Return", direction="maximize", aggregation="avg"),
+                                    Objective(name="Risk", direction="minimize", aggregation="sum")],
+                        interaction_matrices=[])
+        run = optimize(p, mode=OptimizeMode.fast, solver="highs")
+        assert run.solver.startswith("nsga")
 
 
 # ─── Binary MILP path ───
@@ -155,9 +156,10 @@ class TestBinaryMILP:
         b = _optimize_highs(p, mode=OptimizeMode.fast)
         assert [s.objective_values for s in a.solutions] == [s.objective_values for s in b.solutions]
 
-    def test_routes_through_optimize(self, highs_env):
-        run = optimize(_binary_problem(), mode=OptimizeMode.fast)
+    def test_routes_through_optimize(self):
+        run = optimize(_binary_problem(), mode=OptimizeMode.fast, solver="highs")
         assert len(run.solutions) > 0
+        assert run.solver == "highs"
 
 
 # ─── Convex QP path ───

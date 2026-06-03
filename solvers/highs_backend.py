@@ -3,11 +3,10 @@ companion to cuOpt.
 
 The NSGA outer loop, genome decoding, seeding, and result marshaling live in
 ``solvers._scalarization`` and are shared with the cuOpt backend; this module supplies only
-the **HiGHS-specific inner solves** (a convex QP and a MILP) plus the gate and a thin
-delegation. So HiGHS *complements* NSGA exactly as cuOpt does — NSGA stays the outer
-evolutionary search, and HiGHS makes each evaluated scalarization optimal rather than
-heuristic. The two backends differ *only* in this inner solve: cuOpt on a GPU, HiGHS on the
-CPU.
+the **HiGHS-specific inner solves** (a convex QP and a MILP) plus a thin delegation. So HiGHS
+*complements* NSGA exactly as cuOpt does — NSGA stays the outer evolutionary search, and
+HiGHS makes each evaluated scalarization optimal rather than heuristic. The two backends
+differ *only* in this inner solve: cuOpt on a GPU, HiGHS on the CPU.
 
   * **Binary (select-a-subset)** → ``highspy`` MILP per scalarization. Every Frontier
     combinatorial constraint (cardinality, force in/out, dependency, exclusion, group limit,
@@ -17,18 +16,16 @@ CPU.
     never has to: the EA picks *which* assets are eligible (cardinality / group caps), and
     HiGHS solves the *continuous* convex QP on that support exactly.
 
-Gated + additive + reversible, like the cuOpt backend: ``_use_highs()`` returns True only
-under ``FRONTIER_SOLVER=highs``; ``highspy`` is imported lazily so the module loads whether
-or not it is installed; and the Run/Solution shape (preserved by the shared engine) means
-explorer / metrics / store need zero changes. Unlike cuOpt the solver is a plain
-``pip install highspy`` (CPU, cross-platform, no special index, no GPU) — so this exact path
-runs on the same machine as the engine, which also makes the shared NSGA engine testable
-locally for the first time.
+Additive + reversible, like the cuOpt backend: the engine routes here only when
+``optimize(solver="highs")`` is requested for a shape ``solvers.exact_solver_fits`` accepts;
+``highspy`` is imported lazily so the module loads whether or not it is installed; and the
+Run/Solution shape (preserved by the shared engine) means explorer / metrics / store need
+zero changes. Unlike cuOpt the solver is a plain ``pip install highspy`` (CPU, cross-platform,
+no special index, no GPU) — so this exact path runs on the same machine as the engine, which
+also makes the shared NSGA engine testable locally for the first time.
 """
 
 from __future__ import annotations
-
-import os
 
 import numpy as np
 
@@ -45,22 +42,6 @@ _MILP_TIME_LIMIT = 30.0
 # returned frontier has at most ``pop`` points, so the population drives coverage. (The MILP
 # path's budget auto-scales with problem size in _scalarization._milp_budget, shared with cuOpt.)
 _QP_BUDGET = {"fast": (60, 20), "thorough": (100, 30)}
-
-
-def _use_highs(problem: Problem) -> bool:
-    """Gate: route to HiGHS only when asked via the env var, for a shape it solves.
-
-    Requires ``FRONTIER_SOLVER=highs`` plus a shape the exact backends support (shared
-    check in ``solvers.exact_solver_fits``: binary → exact MILP, or proportional
-    mean-variance → convex QP). Self-contained so it is correct whether called from
-    ``optimize()`` or a notebook. The agent-driven path threads ``solver`` through
-    ``optimize()`` instead and does not need the env var.
-    """
-    from solvers import exact_solver_fits
-
-    if os.environ.get("FRONTIER_SOLVER", "").lower() != "highs":
-        return False
-    return exact_solver_fits(problem)[0]
 
 
 def _hessian_from_cov(cov: np.ndarray):

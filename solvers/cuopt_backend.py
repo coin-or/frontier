@@ -2,14 +2,15 @@
 
 The NSGA outer loop, genome decoding, seeding, and result marshaling live in
 ``solvers._scalarization`` and are shared with the HiGHS backend; this module supplies only
-the **cuOpt-specific inner solves** (a GPU convex QP and a GPU MILP) plus the gate and a thin
-delegation. cuOpt and HiGHS differ *only* in these inner solves.
+the **cuOpt-specific inner solves** (a GPU convex QP and a GPU MILP) plus a thin delegation.
+cuOpt and HiGHS differ *only* in these inner solves.
 
-This is **additive, gated, reversible**: ``_use_cuopt()`` returns True only under
-``FRONTIER_SOLVER=cuopt``; cuOpt is imported lazily *inside* each inner solve, so the module
-loads cleanly on a machine with no GPU (an actual solve needs ``cuopt-cu12`` + a GPU, which
-is why the prototype runs in Colab); and the engine's Run/Solution contract is preserved by
-the shared engine, so explorer / metrics / store need no changes.
+This is **additive, reversible**: the engine routes here only when ``optimize(solver="cuopt")``
+is requested for a shape ``solvers.exact_solver_fits`` accepts; cuOpt is imported lazily
+*inside* each inner solve, so the module loads cleanly on a machine with no GPU (an actual
+solve needs ``cuopt-cu12`` + a GPU, which is why the prototype runs in Colab); and the
+engine's Run/Solution contract is preserved by the shared engine, so explorer / metrics /
+store need no changes.
 
 EA ↔ cuOpt decomposition: the EA individual encodes a scalarization parameter (the
 epsilon-constraint return target, plus an asset-selection priority under a cardinality/group
@@ -25,7 +26,6 @@ multimodal, where the EA picks the support and cuOpt solves the continuous QP on
 from __future__ import annotations
 
 import gc
-import os
 
 import numpy as np
 
@@ -59,22 +59,6 @@ _MILP_REL_GAP = 1e-3     # stop B&B once the incumbent is within 0.1% of the bou
 # bounded-mode incumbent provably optimal cheaply; `optimize(..., exact=True)` certifies.
 # (The MILP EA pop/gen budget auto-scales in _scalarization._milp_budget — shared with HiGHS.)
 _MILP_ABS_GAP = 0.0
-
-
-def _use_cuopt(problem: Problem) -> bool:
-    """Gate: route to cuOpt only when asked via the env var, for a shape it solves.
-
-    Requires ``FRONTIER_SOLVER=cuopt`` plus a shape the exact backends support (shared
-    check in ``solvers.exact_solver_fits``: binary → exact MILP, or proportional
-    mean-variance → convex QP). Self-contained so it is correct whether called from
-    ``optimize()`` or directly in a notebook. The agent-driven path threads ``solver``
-    through ``optimize()`` instead and does not need the env var.
-    """
-    from solvers import exact_solver_fits
-
-    if os.environ.get("FRONTIER_SOLVER", "").lower() != "cuopt":
-        return False
-    return exact_solver_fits(problem)[0]
 
 
 def _solve_qp_cuopt(
