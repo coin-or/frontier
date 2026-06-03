@@ -875,6 +875,8 @@ def solve(
     mode: str | None = None,
     max_solutions: int | None = None,
     seed: int | None = None,
+    solver: str | None = None,
+    exact: bool = False,
 ) -> dict:
     """Validate and run the optimizer.
 
@@ -884,7 +886,8 @@ def solve(
     once-per-problem throttle.
 
     Actions:
-      validate       — Check if problem is ready. Returns issues and missing scores.
+      validate       — Check if problem is ready. Returns issues, missing scores, and the
+                       available solvers (`solvers` block) for this environment.
       run            — Validate, then optimize. Returns Pareto frontier + solution_interpreter skill.
                        Side effects: archives the previous run; clears results_stale; persists full
                        results to full_result_path on disk.
@@ -905,10 +908,24 @@ def solve(
             each scenario (per-scenario `seed_used` derived via SHA-256 of
             scenario name + parent seed), so pinning the parent makes the whole
             multi-scenario run reproducible across processes.
+      solver: Which engine to run. Omit (or "nsga") for the default NSGA-II/III
+            evolutionary search — it fits any problem shape and is the right choice for
+            exploration and most runs. "highs" (CPU) or "cuopt" (GPU) select an OPTIONAL
+            exact backend that solves each frontier point to optimality (provable, not
+            heuristic) — reach for it on a final/decision run over a supported shape
+            (binary selection, or a quadratic mean-variance portfolio), or to certify an
+            EA frontier. If the requested solver isn't installed or the shape doesn't fit,
+            this returns a clear error listing the available solvers — check `solve
+            validate`'s `solvers` block first. The engine that ran is echoed as
+            `solver_used`. See the optimization_strategy skill ("Exact Solvers").
+      exact: Exact backends only — certify each inner solve to a zero optimality gap instead
+            of the default speed-oriented bounded solve. Slower; use when stakeholders need
+            certified optimality. No-op on the default NSGA path.
 
     Key guidance:
     - Expect iteration: first run is exploration, not the answer.
     - Use "fast" while refining scores/constraints, "thorough" when finalized.
+    - Default NSGA explores; opt into an exact `solver` for provable optimality on a final run.
     - If zero solutions: check cardinality constraints and objective bounds for conflicts.
     - After re-run: check explore/curated to see which curated solutions survived.
     - 5-10 solutions is healthy; very few = constraints too tight.
@@ -929,6 +946,7 @@ def solve(
         case "validate":
             vr = optimizer.validate(p)
             result = json.loads(vr.model_dump_json())
+            result["solvers"] = _solver_availability(p)
             # If ready to solve, inject optimization_strategy
             if vr.ready and not _was_injected(problem_id, "optimization_strategy"):
                 _inject_skill(result, "optimization_strategy",
@@ -936,21 +954,75 @@ def solve(
                 _mark_injected(problem_id, "optimization_strategy")
             return result
         case "run":
-            return _solve_run(p, opt_mode, max_solutions=max_solutions, seed=seed)
+            return _solve_run(p, opt_mode, max_solutions=max_solutions, seed=seed,
+                              solver=solver, exact=exact)
         case "run_scenarios":
-            return _solve_run_scenarios(p, opt_mode, max_solutions=max_solutions, seed=seed)
+            return _solve_run_scenarios(p, opt_mode, max_solutions=max_solutions, seed=seed,
+                                        solver=solver, exact=exact)
         case _:
             return {"error": f"Unknown action: {action}. Use validate/run/run_scenarios."}
 
 
-def _solve_run(p: Problem, mode: OptimizeMode | None = None, max_solutions: int | None = None, seed: int | None = None) -> dict:
+def _solver_availability(p: Problem) -> dict:
+    """Which solver engines this environment can run, and whether the optional exact
+    backends fit this problem's shape. Surfaced on solve/validate so the agent knows
+    before requesting an exact `solver` — keeps the choice informed, not trial-and-error."""
+    from solvers import available_solvers, exact_solver_fits
+
+    avail = available_solvers()
+    fits, reason = exact_solver_fits(p)
+    return {
+        "default": "nsga",
+        "available": [k for k, ok in avail.items() if ok],
+        "exact_available": [k for k in ("highs", "cuopt") if avail.get(k)],
+        "exact_fits_shape": fits,
+        "exact_shape_note": reason or "shape supported (binary selection / mean-variance portfolio)",
+    }
+
+
+def _resolve_solver(p: Problem, solver: str | None) -> tuple[str | None, dict | None]:
+    """Validate an agent-requested solver before running. Returns ``(solver, None)`` to run,
+    or ``(None, error_dict)`` to abort with actionable guidance. Default/NSGA → ``(None, None)``
+    so the optimizer takes its normal path. Guards both availability (is the backend
+    installed) and shape fit (does it solve this problem), so the exact path never silently
+    degrades to NSGA — provable optionality means the agent knows which engine actually ran."""
+    from solvers import available_solvers, exact_solver_fits
+
+    if solver is None:
+        return None, None
+    key = solver.lower()
+    if key in ("", "nsga", "auto", "default"):
+        return None, None
+    avail = available_solvers()
+    if key not in avail:
+        return None, {"error": f"Unknown solver '{solver}'. Options: "
+                      f"{', '.join(sorted(avail))} (default: nsga)."}
+    if not avail[key]:
+        installed = ", ".join(k for k, ok in avail.items() if ok)
+        return None, {"error": f"Solver '{key}' is not available here — its dependency isn't "
+                      f"installed. Available: {installed}. Run with the default solver, or install "
+                      "the backend (highs: `pip install highspy`; cuopt: NVIDIA GPU + cuopt-cu12)."}
+    fits, reason = exact_solver_fits(p)
+    if not fits:
+        return None, {"error": f"Solver '{key}' doesn't fit this problem: {reason}. "
+                      "Use the default solver (nsga) for this shape."}
+    return key, None
+
+
+def _solve_run(p: Problem, mode: OptimizeMode | None = None, max_solutions: int | None = None,
+               seed: int | None = None, solver: str | None = None, exact: bool = False) -> dict:
     vr = optimizer.validate(p)
     if not vr.ready:
         vr_data = json.loads(vr.model_dump_json())
         return {"ready": False, "issues": vr_data["issues"], "missing_scores": vr_data["missing_scores"]}
 
+    solver, solver_err = _resolve_solver(p, solver)
+    if solver_err:
+        return solver_err
+
     try:
-        run = optimizer.optimize(p, mode=mode, max_solutions=max_solutions, seed=seed)
+        run = optimizer.optimize(p, mode=mode, max_solutions=max_solutions, seed=seed,
+                                 solver=solver, exact=exact)
     except Exception as e:
         return {"feasible": False, "error": str(e)}
 
@@ -989,6 +1061,8 @@ def _solve_run(p: Problem, mode: OptimizeMode | None = None, max_solutions: int 
         "constraints_snapshot": run.constraints_snapshot,
         "mode": run.mode.value if run.mode else None,
         "seed_used": run.seed_used,
+        "solver_used": run.solver,
+        "exact": run.exact,
     }
     full_result_path = store.write_run_result(p.problem_id, run.run_id, full_payload)
 
@@ -999,6 +1073,8 @@ def _solve_run(p: Problem, mode: OptimizeMode | None = None, max_solutions: int 
         "frontier_complete": frontier_complete,
         "frontier_quality": frontier_quality,
         "seed_used": run.seed_used,
+        "solver_used": run.solver,
+        "exact": run.exact,
         "objective_ranges": _objective_ranges(run.solutions, p.objectives),
         "preview": _solve_preview(run.solutions, p.objectives),
         "quality": json.loads(run.quality.model_dump_json()),
@@ -1071,14 +1147,20 @@ def _solve_preview(solutions: list, objectives: list) -> dict:
     return preview
 
 
-def _solve_run_scenarios(p: Problem, mode: OptimizeMode | None = None, max_solutions: int | None = None, seed: int | None = None) -> dict:
+def _solve_run_scenarios(p: Problem, mode: OptimizeMode | None = None, max_solutions: int | None = None,
+                         seed: int | None = None, solver: str | None = None, exact: bool = False) -> dict:
     vr = optimizer.validate(p)
     if not vr.ready:
         vr_data = json.loads(vr.model_dump_json())
         return {"ready": False, "issues": vr_data["issues"]}
 
+    solver, solver_err = _resolve_solver(p, solver)
+    if solver_err:
+        return solver_err
+
     try:
-        scenario_results = optimizer.optimize_scenarios(p, mode=mode, max_solutions=max_solutions, seed=seed)
+        scenario_results = optimizer.optimize_scenarios(p, mode=mode, max_solutions=max_solutions,
+                                                        seed=seed, solver=solver, exact=exact)
     except ValueError as e:
         return {"error": str(e)}
 
@@ -1104,6 +1186,8 @@ def _solve_run_scenarios(p: Problem, mode: OptimizeMode | None = None, max_solut
             "quality": json.loads(run.quality.model_dump_json()),
             "mode": run.mode.value if run.mode else None,
             "seed_used": run.seed_used,
+            "solver_used": run.solver,
+            "exact": run.exact,
         }
         path = store.write_run_result(p.problem_id, run.run_id, full_payload, scenario=name)
         result_paths[name] = str(path)
@@ -1115,6 +1199,8 @@ def _solve_run_scenarios(p: Problem, mode: OptimizeMode | None = None, max_solut
             "frontier_quality": frontier_quality,
             "quality": json.loads(run.quality.model_dump_json()),
             "seed_used": run.seed_used,
+            "solver_used": run.solver,
+            "exact": run.exact,
             "full_result_path": str(path),
         }
 

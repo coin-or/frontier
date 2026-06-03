@@ -1,6 +1,6 @@
 ---
 name: frontier-optimization-strategy
-description: Read frontier://skills/optimization_strategy before running. Use when validating a problem, choosing solve mode, diagnosing infeasibility, interpreting solver diagnostics, or deciding whether to re-run after changes.
+description: Read frontier://skills/optimization_strategy before running. Use when validating a problem, choosing solve mode, choosing a solver (default NSGA vs an optional exact backend), diagnosing infeasibility, interpreting solver diagnostics, or deciding whether to re-run after changes.
 version: 1.0.0
 ---
 
@@ -10,7 +10,7 @@ version: 1.0.0
 
 ## Expect Iteration
 
-Frontier uses evolutionary (approximate) methods. Unlike exact solvers that prove optimality, evolutionary methods explore the solution space heuristically. This means:
+By default Frontier uses evolutionary (approximate) methods. Unlike exact solvers that prove optimality, evolutionary methods explore the solution space heuristically. (Optional exact backends can certify each frontier point on supported shapes — see *Exact Solvers* below — but the default and the workflow's center of gravity is evolutionary search.) This means:
 
 - **The first run is exploration, not the answer.** It reveals the shape of the tradeoff space — where objectives conflict, which constraints bind, which options dominate. Use that insight to refine the formulation.
 - **Effort shifts downstream.** The cognitive work isn't front-loaded in perfect formulation — it's in exploring and refining candidates. Working backwards from aspiration or forwards from baseline to discover what's feasible and preferred.
@@ -71,6 +71,31 @@ Parameters adapt automatically to problem complexity (option count, objective co
 **When to suggest thorough**: The user has iterated on scores and constraints, scenarios are defined, and they're ready for a final answer. Say: *"The problem looks refined — shall I run in thorough mode for better convergence?"*
 
 **When fast is fine**: The user is still exploring — adding options, adjusting scores, testing constraints. Fast mode gives quick feedback to inform the next iteration.
+
+### Exact Solvers (Optional)
+
+`mode` controls how hard the *evolutionary* search works; `solver` controls *which engine* runs. The default (`solver` omitted, or `"nsga"`) is NSGA-II/III — evolutionary, fits **any** shape, and is the right choice for exploration and almost every run. Two optional **exact** backends sit alongside it and wrap the same NSGA search around an exact inner solve, so every returned frontier point is provably optimal for its scalarization rather than heuristic:
+
+| `solver` | Engine | Needs | Solves |
+|---|---|---|---|
+| `nsga` *(default)* | pymoo NSGA-II/III (evolutionary) | nothing extra | any shape |
+| `highs` | HiGHS exact inner solve (CPU) | `pip install highspy` | binary selection (MILP) · mean-variance portfolio (QP) |
+| `cuopt` | cuOpt exact inner solve (GPU) | NVIDIA GPU + `cuopt-cu12` | same shapes, GPU-accelerated |
+
+This is **provable optionality**: the EA still drives exploration; the exact backend, when you opt in, makes each evaluated point optimal instead of approximate. It *complements* NSGA, it doesn't replace it.
+
+**Supported shapes** (both exact backends, identical scope):
+- **Binary selection** ("pick a subset") — every Frontier combinatorial constraint (cardinality, force in/out, dependency, exclusion, group limit, objective bound) is linear-integer, solved exactly as a MILP.
+- **Proportional mean-variance portfolio** — a quadratic-aggregated risk objective backed by an interaction (covariance) matrix, solved as a convex QP (the EA picks the support under cardinality/group caps).
+
+Any other shape stays with NSGA. `solve validate` returns a `solvers` block — `available` (installed here) and `exact_fits_shape` (does this problem qualify) — so check it before requesting an exact solver rather than guessing. If you request one that isn't installed or doesn't fit, `solve run` returns a clear error instead of silently falling back, and the engine that actually ran is always echoed as `solver_used`.
+
+**When to reach for an exact solver** (not the default — a deliberate upgrade):
+- **The final / decision run** on a supported shape, when the user is committing to a choice and wants the frontier to be provably optimal, not "the best the EA found."
+- **Stakeholder defensibility** — a board or auditor needs "this is optimal," not "this is a strong heuristic result." Pair with `exact=true` to certify each inner solve to a zero optimality gap (slower; skip it for a sub-granularity bounded solve that is still the true optimum on integer scores).
+- **Validating an EA frontier** — re-run a finalized problem with an exact solver to confirm the evolutionary frontier wasn't leaving optimal points on the table.
+
+**How to invoke**: `solve run` with `solver="highs"` (or `"cuopt"`), optionally `exact=true`. Keep `mode` as you would otherwise. Tell the user which engine produced the result and what it means: *"Run with the exact HiGHS solver — each of these 7 portfolios is provably optimal for its risk/return target, not just the best the evolutionary search found."* Don't claim optimality on an NSGA run.
 
 ### Constraint Strategy
 
@@ -168,7 +193,7 @@ When scenarios are defined, optimization runs separately per scenario. At the ex
 Use this expertise at the boundary between modeling and solving, and when interpreting solver results that suggest structural changes.
 
 ## Scope Boundaries
-- **Owns:** Solve execution — validate→run→examine loop, mode selection, constraint strategy, infeasibility diagnosis, run comparison
+- **Owns:** Solve execution — validate→run→examine loop, mode selection, solver selection (default NSGA vs optional exact backend), constraint strategy, infeasibility diagnosis, run comparison
 - **Routes to solution_interpreter:** When results are healthy and ready for user presentation
 - **Routes back to problem_framing:** When infeasibility or bad results indicate a structural problem (missing constraint, wrong objective, approach mismatch)
 - **Routes back to data_collection:** When diagnostics suggest score quality issues (low variance driving flat frontiers, scale distortion)

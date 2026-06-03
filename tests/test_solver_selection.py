@@ -1,0 +1,186 @@
+"""Tests for agent-facing solver selection — the wiring that lets the agent opt into an
+exact backend per run alongside the default evolutionary search.
+
+Covers the shared selection surface (``solvers.available_solvers`` /
+``solvers.exact_solver_fits``), ``optimize(solver=...)`` routing + run stamping, and the
+``solve`` tool's guard/echo behavior. The exact backends themselves are tested in
+``test_highs_backend``; here we care about *selection*, not the inner solve, so the
+HiGHS-dependent cases are skipped when ``highspy`` isn't installed.
+"""
+
+import importlib.util
+import tempfile
+
+import pytest
+
+import mcp_server.server as srv
+from engine.models import (
+    CardinalityConstraint,
+    Objective,
+    OptimizeMode,
+    Option,
+    Problem,
+    Score,
+)
+from engine.optimizer import optimize
+from engine.store import Store
+from solvers import available_solvers, exact_solver_fits
+
+_HAS_HIGHS = importlib.util.find_spec("highspy") is not None
+
+
+@pytest.fixture(autouse=True)
+def tmp_store(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        s = Store(tmpdir)
+        monkeypatch.setattr(srv, "store", s)
+        srv._injected_skills.clear()
+        yield s
+
+
+# ─── Fixtures ───
+
+def _binary_problem(**overrides):
+    names = ["A", "B", "C", "D", "E"]
+    table = {"NPV": [9, 7, 8, 4, 6], "Cost": [5, 3, 6, 2, 4]}
+    scores = [Score(option=n, objective=o, value=col[i])
+              for o, col in table.items() for i, n in enumerate(names)]
+    defaults = dict(
+        approach="binary",
+        objectives=[Objective(name="NPV", direction="maximize"),
+                    Objective(name="Cost", direction="minimize")],
+        options=[Option(name=n) for n in names],
+        scores=scores,
+        constraints=[CardinalityConstraint(min=1, max=3)],
+    )
+    defaults.update(overrides)
+    return Problem(**defaults)
+
+
+def _four_objective_problem():
+    names = ["A", "B", "C", "D", "E"]
+    objs = ["W", "X", "Y", "Z"]
+    scores = [Score(option=n, objective=o, value=(i + j + 1))
+              for j, o in enumerate(objs) for i, n in enumerate(names)]
+    return Problem(
+        approach="binary",
+        objectives=[Objective(name=o, direction="maximize") for o in objs],
+        options=[Option(name=n) for n in names],
+        scores=scores,
+        constraints=[CardinalityConstraint(min=1, max=3)],
+    )
+
+
+def _proportional_no_quad():
+    """Proportional but sum-aggregated — NOT a mean-variance shape, so exact backends decline."""
+    names = ["A", "B", "C"]
+    scores = [Score(option=n, objective=o, value=v)
+              for o in ("Return", "Cost")
+              for n, v in zip(names, [10, 12, 8])]
+    return Problem(
+        approach="proportional",
+        objectives=[Objective(name="Return", direction="maximize", aggregation="avg"),
+                    Objective(name="Cost", direction="minimize", aggregation="sum")],
+        options=[Option(name=n) for n in names],
+        scores=scores,
+    )
+
+
+def _make_solvable_problem_via_tool() -> str:
+    """Create a ready-to-solve binary problem through the server tool; return problem_id."""
+    pid = srv.model(action="create")["problem_id"]
+    srv.model(action="update", problem_id=pid,
+              objectives=[{"name": "Rev", "direction": "maximize"},
+                          {"name": "Eff", "direction": "minimize"}],
+              options=[{"name": "A"}, {"name": "B"}, {"name": "C"}],
+              scores=[{"option": o, "objective": ob, "value": v}
+                      for o, ob, v in [("A", "Rev", 8), ("A", "Eff", 5),
+                                       ("B", "Rev", 6), ("B", "Eff", 3),
+                                       ("C", "Rev", 9), ("C", "Eff", 7)]],
+              constraints=[{"type": "cardinality", "min": 1, "max": 2}])
+    return pid
+
+
+# ─── Shared selection surface ───
+
+class TestSelectionSurface:
+    def test_nsga_always_available(self):
+        assert available_solvers()["nsga"] is True
+
+    def test_keys_present(self):
+        avail = available_solvers()
+        assert set(avail) == {"nsga", "highs", "cuopt"}
+
+    def test_binary_fits_exact(self):
+        fits, reason = exact_solver_fits(_binary_problem())
+        assert fits is True and reason == ""
+
+    def test_proportional_without_quadratic_does_not_fit(self):
+        fits, reason = exact_solver_fits(_proportional_no_quad())
+        assert fits is False
+        assert "quadratic" in reason
+
+
+# ─── optimize() routing + run stamping ───
+
+class TestOptimizeStamping:
+    def test_default_stamps_nsga_ii(self):
+        run = optimize(_binary_problem(), mode=OptimizeMode.fast, seed=1)
+        assert run.solver == "nsga-ii"
+        assert run.exact is False
+
+    def test_four_objectives_stamps_nsga_iii(self):
+        run = optimize(_four_objective_problem(), mode=OptimizeMode.fast, seed=1)
+        assert run.solver == "nsga-iii"
+
+    def test_ill_fitting_exact_request_falls_back_to_nsga(self):
+        # Requesting an exact solver on a shape it can't solve falls through to NSGA at the
+        # optimizer layer (the server tool blocks it earlier with an error — see below).
+        run = optimize(_proportional_no_quad(), mode=OptimizeMode.fast, seed=1, solver="highs")
+        assert run.solver.startswith("nsga")
+
+    @pytest.mark.skipif(not _HAS_HIGHS, reason="highspy not installed")
+    def test_explicit_highs_stamps_highs(self):
+        run = optimize(_binary_problem(), mode=OptimizeMode.fast, seed=1, solver="highs")
+        assert run.solver == "highs"
+
+
+# ─── solve tool: validate surfaces solvers, run guards + echoes ───
+
+class TestSolveToolSelection:
+    def test_validate_reports_solvers(self):
+        pid = _make_solvable_problem_via_tool()
+        res = srv.solve(action="validate", problem_id=pid)
+        assert "solvers" in res
+        assert res["solvers"]["default"] == "nsga"
+        assert "nsga" in res["solvers"]["available"]
+        assert res["solvers"]["exact_fits_shape"] is True  # binary problem
+
+    def test_run_default_echoes_solver_used(self):
+        pid = _make_solvable_problem_via_tool()
+        res = srv.solve(action="run", problem_id=pid)
+        assert res["solver_used"] == "nsga-ii"
+        assert res["exact"] is False
+
+    def test_run_unknown_solver_errors(self):
+        pid = _make_solvable_problem_via_tool()
+        res = srv.solve(action="run", problem_id=pid, solver="bogus")
+        assert "error" in res
+        assert "bogus" in res["error"]
+
+    def test_run_unavailable_solver_errors(self, monkeypatch):
+        pid = _make_solvable_problem_via_tool()
+        # Simulate highs not installed regardless of the test environment. _resolve_solver
+        # does `from solvers import available_solvers` at call time, so patching the module
+        # attribute takes effect.
+        monkeypatch.setattr("solvers.available_solvers",
+                            lambda: {"nsga": True, "highs": False, "cuopt": False})
+        res = srv.solve(action="run", problem_id=pid, solver="highs")
+        assert "error" in res
+        assert "not available" in res["error"]
+
+    @pytest.mark.skipif(not _HAS_HIGHS, reason="highspy not installed")
+    def test_run_highs_echoes_highs(self):
+        pid = _make_solvable_problem_via_tool()
+        res = srv.solve(action="run", problem_id=pid, solver="highs")
+        assert res["solver_used"] == "highs"

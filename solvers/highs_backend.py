@@ -32,8 +32,7 @@ import os
 
 import numpy as np
 
-from engine import optimizer as _opt
-from engine.models import Aggregation, Approach, OptimizeMode, Problem, Run
+from engine.models import Approach, OptimizeMode, Problem, Run
 from solvers._scalarization import _qp_weights_ok, optimize_milp, optimize_qp
 
 # Per-scalarization MILP controls. The default ``mip_rel_gap`` is far below unit score
@@ -49,22 +48,19 @@ _QP_BUDGET = {"fast": (60, 20), "thorough": (100, 30)}
 
 
 def _use_highs(problem: Problem) -> bool:
-    """Gate: route to HiGHS only when asked, for a shape it solves — mirrors ``_use_cuopt``.
+    """Gate: route to HiGHS only when asked via the env var, for a shape it solves.
 
-    Requires ``FRONTIER_SOLVER=highs`` and either a binary problem (→ exact MILP) or a
-    proportional allocation with a quadratic objective backed by an interaction matrix (→
-    convex QP, with cardinality/group caps handled by the EA support-search). Self-contained
-    so it is correct whether called from ``optimize()`` or a notebook.
+    Requires ``FRONTIER_SOLVER=highs`` plus a shape the exact backends support (shared
+    check in ``solvers.exact_solver_fits``: binary → exact MILP, or proportional
+    mean-variance → convex QP). Self-contained so it is correct whether called from
+    ``optimize()`` or a notebook. The agent-driven path threads ``solver`` through
+    ``optimize()`` instead and does not need the env var.
     """
+    from solvers import exact_solver_fits
+
     if os.environ.get("FRONTIER_SOLVER", "").lower() != "highs":
         return False
-    if problem.approach == Approach.binary:
-        return True
-    if problem.approach != Approach.proportional:
-        return False
-    if not any(o.aggregation == Aggregation.quadratic for o in problem.objectives):
-        return False
-    return len(_opt._build_interaction_matrices(problem)) > 0
+    return exact_solver_fits(problem)[0]
 
 
 def _hessian_from_cov(cov: np.ndarray):

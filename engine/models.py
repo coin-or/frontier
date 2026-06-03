@@ -244,6 +244,8 @@ class Run(BaseModel):
     quality: QualityIndicators = QualityIndicators()
     constraints_snapshot: list[dict] = []
     seed_used: int | None = None  # Deterministic RNG seed; echoed for reproducibility
+    solver: str = "nsga-ii"  # engine that produced this run: nsga-ii / nsga-iii / highs / cuopt
+    exact: bool = False  # exact backends only: each frontier point certified optimal (gap→0)
 
 
 # --- Feedback ---

@@ -735,6 +735,7 @@ def optimize(
     max_solutions: int | None = None,
     seed: int | None = None,
     exact: bool = False,
+    solver: str | None = None,
 ) -> Run:
     """Validate and run multi-objective optimization. Returns a Run with solutions.
 
@@ -742,9 +743,21 @@ def optimize(
     seed is drawn and recorded on Run.seed_used so the run stays reproducible
     even when not requested up front.
 
-    exact: cuOpt backend only — certify each MILP scalarization (gap→0, accept only a
+    solver: which engine to run. None/"nsga" (default) is the pymoo NSGA-II/III
+    evolutionary search that fits any problem shape. "highs" / "cuopt" select an
+    exact inner-solve backend (each frontier point solved to optimality) — opt-in,
+    so callers should pre-check ``solvers.available_solvers`` /
+    ``solvers.exact_solver_fits``. An explicit ``solver`` overrides the
+    ``FRONTIER_SOLVER`` env var; when both are unset the default NSGA path runs.
+    If an exact backend is requested but the shape doesn't fit, the run falls back
+    to NSGA (the env-var gate ``_use_*`` enforces the same shape check).
+
+    exact: exact backends only — certify each MILP scalarization (gap→0, accept only a
     proven-Optimal status) instead of the default gap/time-bounded solve. Slower; lets a
     run trade speed for certified optimality. No-op on the NSGA paths.
+
+    The chosen engine is recorded on ``Run.solver`` (and ``Run.exact``) so results stay
+    traceable to how they were produced.
     """
     if mode is None:
         mode = OptimizeMode.fast
@@ -755,23 +768,34 @@ def optimize(
     if seed is None:
         seed = int(np.random.default_rng().integers(0, 2**31 - 1))
 
-    # Opt-in exact-solver backends, selected by FRONTIER_SOLVER. Cheap env gate first so the
-    # default path never imports a backend; each backend imports its solver lazily, so this
-    # is safe whether or not cuOpt (GPU) or highspy (CPU) is installed. Both mirror the
-    # Run/Solution contract exactly, so downstream consumers are unaffected.
-    backend = os.environ.get("FRONTIER_SOLVER", "").lower()
+    # Opt-in exact-solver backends. An explicit ``solver`` arg (agent-driven, via the
+    # solve tool) takes precedence over the FRONTIER_SOLVER env var (deployment default).
+    # Cheap string gate first so the default path never imports a backend; each backend
+    # imports its solver lazily, so this is safe whether or not cuOpt (GPU) or highspy
+    # (CPU) is installed. Both mirror the Run/Solution contract exactly, so downstream
+    # consumers are unaffected. A requested-but-ill-fitting shape falls through to NSGA.
+    backend = (solver or os.environ.get("FRONTIER_SOLVER", "")).lower()
     if backend == "cuopt":
-        from solvers.cuopt_backend import _optimize_cuopt, _use_cuopt
-        if _use_cuopt(problem):
-            return _optimize_cuopt(problem, mode, max_solutions=max_solutions, seed=seed, exact=exact)
+        from solvers import exact_solver_fits
+        if exact_solver_fits(problem)[0]:
+            from solvers.cuopt_backend import _optimize_cuopt
+            run = _optimize_cuopt(problem, mode, max_solutions=max_solutions, seed=seed, exact=exact)
+            run.solver, run.exact = "cuopt", exact
+            return run
     elif backend == "highs":
-        from solvers.highs_backend import _optimize_highs, _use_highs
-        if _use_highs(problem):
-            return _optimize_highs(problem, mode, max_solutions=max_solutions, seed=seed, exact=exact)
+        from solvers import exact_solver_fits
+        if exact_solver_fits(problem)[0]:
+            from solvers.highs_backend import _optimize_highs
+            run = _optimize_highs(problem, mode, max_solutions=max_solutions, seed=seed, exact=exact)
+            run.solver, run.exact = "highs", exact
+            return run
 
     if problem.approach == Approach.proportional:
-        return _optimize_proportional(problem, mode, max_solutions=max_solutions, seed=seed)
-    return _optimize_binary(problem, mode, max_solutions=max_solutions, seed=seed)
+        run = _optimize_proportional(problem, mode, max_solutions=max_solutions, seed=seed)
+    else:
+        run = _optimize_binary(problem, mode, max_solutions=max_solutions, seed=seed)
+    run.solver = "nsga-iii" if len(problem.objectives) >= 4 else "nsga-ii"
+    return run
 
 
 def _apply_matrix_override(base: "InteractionMatrix | None", override: "InteractionMatrix") -> "InteractionMatrix":
@@ -930,6 +954,8 @@ def optimize_scenarios(
     mode: OptimizeMode | None = None,
     max_solutions: int | None = None,
     seed: int | None = None,
+    exact: bool = False,
+    solver: str | None = None,
 ) -> dict[str, Run]:
     """Run optimization independently per scenario. Returns {scenario_name: Run}.
 
@@ -959,6 +985,7 @@ def optimize_scenarios(
             scenario_seed = (seed + name_hash) % (2**31 - 1)
         return scenario.name, optimize(
             scenario_problem, mode=mode, max_solutions=max_solutions, seed=scenario_seed,
+            exact=exact, solver=solver,
         )
 
     with ThreadPoolExecutor(max_workers=len(problem.scenario_config.scenarios)) as pool:
