@@ -16,6 +16,7 @@ import pytest
 import mcp_server.server as srv
 from engine.models import (
     CardinalityConstraint,
+    InteractionMatrix,
     Objective,
     OptimizeMode,
     Option,
@@ -119,6 +120,27 @@ class TestSelectionSurface:
         fits, reason = exact_solver_fits(_proportional_no_quad())
         assert fits is False
         assert "quadratic" in reason
+
+    def test_maximize_quadratic_does_not_fit(self):
+        # The exact QP is a min-variance solver; a maximize-direction quadratic objective
+        # (e.g. channel_budget's "Reach") is non-convex maximization and must be declined,
+        # not silently minimized into a degenerate frontier.
+        names = ["A", "B", "C"]
+        cov = {a: {b: (0.1 if a == b else 0.01) for b in names} for a in names}
+        scores = [Score(option=n, objective=o, value=v)
+                  for o in ("Reach", "Cost")
+                  for n, v in zip(names, [10, 12, 8])]
+        p = Problem(
+            approach="proportional",
+            objectives=[Objective(name="Reach", direction="maximize", aggregation="quadratic"),
+                        Objective(name="Cost", direction="minimize", aggregation="sum")],
+            options=[Option(name=n) for n in names],
+            scores=scores,
+            interaction_matrices=[InteractionMatrix(objective="Reach", entries=cov)],
+        )
+        fits, reason = exact_solver_fits(p)
+        assert fits is False
+        assert "minimize" in reason
 
 
 # ─── optimize() routing + run stamping ───

@@ -63,7 +63,7 @@ def exact_solver_fits(problem: "Problem") -> tuple[bool, str]:
     rejection so the tool can tell the agent *why* an exact run was declined.
     """
     from engine import optimizer as _opt
-    from engine.models import Aggregation, Approach
+    from engine.models import Aggregation, Approach, Direction
 
     if problem.approach == Approach.binary:
         return True, ""
@@ -72,10 +72,20 @@ def exact_solver_fits(problem: "Problem") -> tuple[bool, str]:
             "exact backends support binary selection or proportional mean-variance "
             f"portfolios; approach is '{getattr(problem.approach, 'value', problem.approach)}'"
         )
-    if not any(o.aggregation == Aggregation.quadratic for o in problem.objectives):
+    quad = [o for o in problem.objectives if o.aggregation == Aggregation.quadratic]
+    if not quad:
         return False, (
             "proportional problems need a quadratic-aggregated objective (mean-variance "
             "risk) for the exact QP path; this one has none"
+        )
+    # The exact QP minimizes wᵀQw — it is strictly a min-variance/risk solver. A maximize
+    # quadratic objective is non-convex maximization, outside that shape; the QP would
+    # silently minimize it and return a degenerate frontier. Require minimize so the gate
+    # only accepts a genuine mean-variance formulation (matches the skill's "risk objective").
+    if any(o.direction != Direction.minimize for o in quad):
+        return False, (
+            "the exact QP is a min-variance solver, so the quadratic objective must be "
+            "minimize (risk/variance); a maximize quadratic is non-convex and out of scope"
         )
     if len(_opt._build_interaction_matrices(problem)) == 0:
         return False, (
