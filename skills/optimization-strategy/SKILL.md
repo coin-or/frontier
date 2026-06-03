@@ -10,7 +10,7 @@ version: 1.0.0
 
 ## Expect Iteration
 
-By default Frontier uses evolutionary (approximate) methods. Unlike exact solvers that prove optimality, evolutionary methods explore the solution space heuristically. (Optional exact backends can certify each frontier point on supported shapes — see *Exact Solvers* below — but the default and the workflow's center of gravity is evolutionary search.) This means:
+By default Frontier uses evolutionary (approximate) methods. Unlike exact solvers that prove optimality, evolutionary methods explore the solution space heuristically. (Optional exact backends certify each point on supported shapes — see *Exact Solvers* — but evolutionary search is the default and the workflow's center of gravity.) This means:
 
 - **The first run is exploration, not the answer.** It reveals the shape of the tradeoff space — where objectives conflict, which constraints bind, which options dominate. Use that insight to refine the formulation.
 - **Effort shifts downstream.** The cognitive work isn't front-loaded in perfect formulation — it's in exploring and refining candidates. Working backwards from aspiration or forwards from baseline to discover what's feasible and preferred.
@@ -74,7 +74,7 @@ Parameters adapt automatically to problem complexity (option count, objective co
 
 ### Exact Solvers (Optional)
 
-`mode` controls how hard the *evolutionary* search works; `solver` controls *which engine* runs. The default (`solver` omitted, or `"nsga"`) is NSGA-II/III — evolutionary, fits **any** shape, and is the right choice for exploration and almost every run. Two optional **exact** backends sit alongside it and wrap the same NSGA search around an exact inner solve, so every returned frontier point is provably optimal for its scalarization rather than heuristic:
+`mode` tunes how hard the *evolutionary* search works; `solver` picks *which engine* runs. The default (`solver` omitted, or `"nsga"`) is NSGA-II/III — evolutionary, fits **any** shape, the right call for exploration and almost every run. Two optional **exact** backends wrap that same NSGA search around an exact inner solve, so each frontier point is provably optimal for its scalarization instead of heuristic. They *complement* the EA — exact confirms what the EA explored; it doesn't replace it.
 
 | `solver` | Engine | Needs | Solves |
 |---|---|---|---|
@@ -82,25 +82,15 @@ Parameters adapt automatically to problem complexity (option count, objective co
 | `highs` | HiGHS exact inner solve (CPU) | `pip install highspy` | binary selection (MILP) · mean-variance portfolio (QP) |
 | `cuopt` | cuOpt exact inner solve (GPU) | NVIDIA GPU + `cuopt-cu12` | same shapes, GPU-accelerated |
 
-This is **provable optionality**: the EA still drives exploration; the exact backend, when you opt in, makes each evaluated point optimal instead of approximate. It *complements* NSGA, it doesn't replace it.
+Exact is possible **only** for two formulations: binary selection (every combinatorial constraint — cardinality, force in/out, dependency, exclusion, group limit, objective bound — is linear-integer, solved as a MILP) and a proportional mean-variance portfolio (a quadratic risk objective with an interaction/covariance matrix, solved as a convex QP). Everything else stays with NSGA. `solve validate` reports a `solvers` block — `available` here and `exact_fits_shape` for this problem — so you know whether exact is even on the table before raising it. A request that isn't installed or doesn't fit returns a clear error (no silent fallback), and the engine that ran is echoed as `solver_used`.
 
-**Supported shapes** (both exact backends, identical scope) — exact is a possibility *only* when the problem's formulation is one of these:
-- **Binary selection** ("pick a subset") — every Frontier combinatorial constraint (cardinality, force in/out, dependency, exclusion, group limit, objective bound) is linear-integer, solved exactly as a MILP.
-- **Proportional mean-variance portfolio** — a quadratic-aggregated risk objective backed by an interaction (covariance) matrix, solved as a convex QP (the EA picks the support under cardinality/group caps).
+**Reach for it by stage, not up front.** The trigger isn't an engine the user picks — it's a point they reach: a supported formulation, finalized, with curated candidates they're about to commit to. Let it emerge from the normal flow:
 
-Any other shape stays with NSGA, full stop. `solve validate` returns a `solvers` block — `available` (installed here) and `exact_fits_shape` (does this problem qualify) — so read it to know whether exact is even on the table before mentioning it to the user. If you request one that isn't installed or doesn't fit, `solve run` returns a clear error instead of silently falling back, and the engine that actually ran is always echoed as `solver_used`.
+1. **Explore with the EA.** NSGA reveals the frontier shape, tradeoffs, binding constraints, and how scenarios shift the achievable set. This is where the user does the real work — navigating, narrowing. Stay here through exploration and refinement.
+2. **Curate candidates.** The decision narrows to a handful of picks (`explore curate`).
+3. **Confirm optionality** (when the shape qualifies). Now an exact re-run earns its cost: re-solve the finalized problem with `solver="highs"` (or `"cuopt"`), then check which curated picks survive and whether the exact frontier dominates any of them (`explore curated`) — confirming the choice isn't leaving value the heuristic missed. Add `exact=true` for a certified zero-gap guarantee (slower; the bounded solve is already the true optimum on integer scores).
 
-#### Progressive disclosure: explore with the EA, then confirm optionality
-
-Don't lead with the exact solver, and don't ask the user to choose an engine up front — the choice depends on the problem's formulation and on where they are in the decision, and surfacing it too early is noise. Let it emerge:
-
-1. **Explore with the EA (default).** Run NSGA to reveal the frontier shape, tradeoffs, binding constraints, and — when scenarios are defined — how the achievable set shifts across futures. This is where the user does the real work: navigating tradeoffs, learning what's feasible, narrowing toward candidates. Fast, any shape, no extra dependency. Stay here for all of exploration and refinement.
-2. **Curate candidates.** As the user converges, they curate the solutions they're seriously considering (`explore curate`). The decision is now small and concrete: a handful of picks, not the whole space.
-3. **Confirm optionality on the finalized shape (exact, if it qualifies).** *Now* — once the formulation is settled and the user is committing — is when an exact run earns its cost. Re-solve the finalized problem with `solver="highs"` (or `"cuopt"`) to certify the frontier is provably optimal, then check which curated picks survive (`explore curated`) and whether the exact frontier surfaces a point that dominates one of them. This confirms the curated choice isn't leaving value on the table that the heuristic search missed. Use `exact=true` when a stakeholder needs a zero-gap guarantee (slower; otherwise the bounded solve is already the true optimum on integer scores).
-
-So the trigger isn't a mode the user picks — it's a **stage you reach**: a supported formulation + a finalized problem + curated candidates the user is about to commit to. Offer it then, in plain terms: *"You've narrowed to three portfolios. This is a mean-variance problem, so I can re-run it with an exact solver — that confirms each of these is provably optimal for its risk/return target, not just the best the evolutionary search found. Worth doing before you commit?"* If the shape doesn't qualify, don't raise it; the EA frontier is the answer.
-
-**How to invoke**: `solve run` with `solver="highs"` (or `"cuopt"`), optionally `exact=true`. Keep `mode` as you would otherwise. Always tell the user which engine produced the result and what it means — and **never claim optimality on an NSGA run**.
+Offer it plainly when you get there — *"You've narrowed to three; this shape lets me re-run it exactly, confirming each is provably optimal, not just the best the search found. Worth it before you commit?"* If the shape doesn't qualify, don't raise it — the EA frontier is the answer. Always say which engine produced a result, and claim optimality **only** on an exact run.
 
 ### Constraint Strategy
 
