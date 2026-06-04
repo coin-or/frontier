@@ -171,9 +171,14 @@ def _optimize_highs(
     ``Run`` in the engine's exact shape (identical to the NSGA paths). ``exact`` certifies each
     MILP solve."""
     if problem.approach == Approach.binary:
-        return optimize_milp(problem, mode, inner_milp=_solve_milp_highs,
-                             max_solutions=max_solutions, seed=seed, exact=exact)
-    m = getattr(mode, "value", "fast")
-    pop, gen = _QP_BUDGET.get(m, _QP_BUDGET["fast"])
-    return optimize_qp(problem, mode, inner_qp=_solve_qp_highs, pop=pop, gen=gen,
-                       max_solutions=max_solutions, seed=seed)
+        run = optimize_milp(problem, mode, inner_milp=_solve_milp_highs,
+                            max_solutions=max_solutions, seed=seed, exact=exact)
+    else:
+        m = getattr(mode, "value", "fast")
+        pop, gen = _QP_BUDGET.get(m, _QP_BUDGET["fast"])
+        run = optimize_qp(problem, mode, inner_qp=_solve_qp_highs, pop=pop, gen=gen,
+                          max_solutions=max_solutions, seed=seed)
+    # Provenance lives with the producer: stamp here so a direct call is labelled correctly,
+    # not only when routed through optimize(). exact is a no-op on the always-exact QP path.
+    run.solver, run.exact = "highs", exact
+    return run

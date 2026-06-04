@@ -123,13 +123,13 @@ class TestGate:
                         interaction_matrices=[])
         assert exact_solver_fits(p)[0] is False
 
-    def test_ill_fitting_request_falls_back_to_nsga(self):
-        # Requesting highs on a shape it can't solve falls through to NSGA at the optimizer layer.
+    def test_ill_fitting_request_raises(self):
+        # Requesting highs on a shape it can't solve raises rather than silently degrading.
         p = _qp_problem(objectives=[Objective(name="Return", direction="maximize", aggregation="avg"),
                                     Objective(name="Risk", direction="minimize", aggregation="sum")],
                         interaction_matrices=[])
-        run = optimize(p, mode=OptimizeMode.fast, solver="highs")
-        assert run.solver.startswith("nsga")
+        with pytest.raises(ValueError, match="does not fit"):
+            optimize(p, mode=OptimizeMode.fast, solver="highs")
 
 
 # ─── Binary MILP path ───
@@ -140,6 +140,8 @@ class TestBinaryMILP:
         run = _optimize_highs(p, mode=OptimizeMode.fast)
         assert len(run.solutions) > 0
         assert _nondominated_ok(run.solutions, p.objectives)
+        # Provenance is stamped by the backend, so a direct call is labelled correctly.
+        assert run.solver == "highs"
 
     def test_respects_cardinality_and_force_include(self):
         p = _binary_problem(constraints=[CardinalityConstraint(min=2, max=3),
@@ -170,6 +172,7 @@ class TestProportionalQP:
         run = _optimize_highs(p, mode=OptimizeMode.fast)
         assert len(run.solutions) > 0
         assert _nondominated_ok(run.solutions, p.objectives)
+        assert run.solver == "highs"  # backend stamps its own provenance
 
     def test_allocations_budget_and_box(self):
         p = _qp_problem(constraints=[MaxAllocationConstraint(max=50)])

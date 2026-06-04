@@ -155,11 +155,16 @@ class TestOptimizeStamping:
         run = optimize(_four_objective_problem(), mode=OptimizeMode.fast, seed=1)
         assert run.solver == "nsga-iii"
 
-    def test_ill_fitting_exact_request_falls_back_to_nsga(self):
-        # Requesting an exact solver on a shape it can't solve falls through to NSGA at the
-        # optimizer layer (the server tool blocks it earlier with an error — see below).
-        run = optimize(_proportional_no_quad(), mode=OptimizeMode.fast, seed=1, solver="highs")
-        assert run.solver.startswith("nsga")
+    def test_ill_fitting_exact_request_raises(self):
+        # Requesting an exact solver on a shape it can't solve raises rather than silently
+        # degrading to NSGA (no-silent-degradation). The server tool catches this earlier and
+        # returns a clean error dict; the library layer fails loud.
+        with pytest.raises(ValueError, match="does not fit"):
+            optimize(_proportional_no_quad(), mode=OptimizeMode.fast, seed=1, solver="highs")
+
+    def test_unknown_solver_raises(self):
+        with pytest.raises(ValueError, match="Unknown solver"):
+            optimize(_binary_problem(), mode=OptimizeMode.fast, seed=1, solver="bogus")
 
     @pytest.mark.skipif(not _HAS_HIGHS, reason="highspy not installed")
     def test_explicit_highs_stamps_highs(self):
@@ -200,6 +205,23 @@ class TestSolveToolSelection:
         res = srv.solve(action="run", problem_id=pid, solver="highs")
         assert "error" in res
         assert "not available" in res["error"]
+
+    @pytest.mark.skipif(not _HAS_HIGHS, reason="highspy not installed")
+    def test_run_ill_fitting_shape_errors_cleanly(self):
+        # An exact solver requested for a non-fitting shape returns a clean error dict from the
+        # tool (guarded by _resolve_solver) — optimize()'s raise is never reached, so the tool
+        # never surfaces an exception. Availability is checked first, so this needs highs present.
+        pid = srv.model(action="create")["problem_id"]
+        srv.model(action="update", problem_id=pid, approach="proportional",
+                  objectives=[{"name": "Rev", "direction": "maximize", "aggregation": "avg"},
+                              {"name": "Cost", "direction": "minimize", "aggregation": "sum"}],
+                  options=[{"name": "A"}, {"name": "B"}, {"name": "C"}],
+                  scores=[{"option": o, "objective": ob, "value": v}
+                          for o, ob, v in [("A", "Rev", 8), ("A", "Cost", 5),
+                                           ("B", "Rev", 6), ("B", "Cost", 3),
+                                           ("C", "Rev", 9), ("C", "Cost", 7)]])
+        res = srv.solve(action="run", problem_id=pid, solver="highs")
+        assert "error" in res and "doesn't fit" in res["error"]
 
     @pytest.mark.skipif(not _HAS_HIGHS, reason="highspy not installed")
     def test_run_highs_echoes_highs(self):

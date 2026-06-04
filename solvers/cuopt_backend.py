@@ -217,8 +217,13 @@ def _optimize_cuopt(
     ``Run`` in the engine's exact shape (identical to the NSGA paths). ``exact`` certifies each
     MILP solve."""
     if problem.approach == Approach.binary:
-        return optimize_milp(problem, mode, inner_milp=_solve_milp_cuopt,
-                             max_solutions=max_solutions, seed=seed, exact=exact)
-    return optimize_qp(problem, mode, inner_qp=_solve_qp_cuopt,
-                       pop=_SPIKE_POP, gen=_SPIKE_GEN,
-                       max_solutions=max_solutions, seed=seed)
+        run = optimize_milp(problem, mode, inner_milp=_solve_milp_cuopt,
+                            max_solutions=max_solutions, seed=seed, exact=exact)
+    else:
+        run = optimize_qp(problem, mode, inner_qp=_solve_qp_cuopt,
+                          pop=_SPIKE_POP, gen=_SPIKE_GEN,
+                          max_solutions=max_solutions, seed=seed)
+    # Provenance lives with the producer: stamp here so a direct call is labelled correctly,
+    # not only when routed through optimize(). exact is a no-op on the always-exact QP path.
+    run.solver, run.exact = "cuopt", exact
+    return run

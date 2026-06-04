@@ -967,14 +967,14 @@ def _solver_availability(p: Problem) -> dict:
     """Which solver engines this environment can run, and whether the optional exact
     backends fit this problem's shape. Surfaced on solve/validate so the agent knows
     before requesting an exact `solver` — keeps the choice informed, not trial-and-error."""
-    from solvers import available_solvers, exact_solver_fits
+    from solvers import EXACT_SOLVERS, available_solvers, exact_solver_fits
 
     avail = available_solvers()
     fits, reason = exact_solver_fits(p)
     return {
         "default": "nsga",
         "available": [k for k, ok in avail.items() if ok],
-        "exact_available": [k for k in ("highs", "cuopt") if avail.get(k)],
+        "exact_available": [k for k in EXACT_SOLVERS if avail.get(k)],
         "exact_fits_shape": fits,
         "exact_shape_note": reason or "shape supported (binary selection / mean-variance portfolio)",
     }
@@ -990,7 +990,7 @@ def _resolve_solver(p: Problem, solver: str | None) -> tuple[str | None, dict | 
 
     if solver is None:
         return None, None
-    key = solver.lower()
+    key = solver.strip().lower()
     if key in ("", "nsga", "auto", "default"):
         return None, None
     avail = available_solvers()
