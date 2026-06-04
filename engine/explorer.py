@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from .models import CuratedSolution, Problem, Run, _content_signature
+from .models import Aggregation, CuratedSolution, Direction, Problem, Run, _content_signature
 
 
 def get_tradeoffs(problem: Problem, scenario: str | None = None) -> dict:
@@ -327,6 +327,136 @@ def compare_runs(problem: Problem, run_ids: list[str]) -> dict:
         "criteria_diffs": criteria_diffs,
         "frontier_diffs": frontier_diffs,
         "option_coverage": option_coverage,
+    }
+
+
+def _dominates_min(a: np.ndarray, b: np.ndarray, eps: float = 1e-9) -> bool:
+    """In minimize-space, does point ``a`` strictly (Pareto) dominate ``b``? — no worse on every
+    axis and strictly better on at least one."""
+    return bool(np.all(a <= b + eps) and np.any(a < b - eps))
+
+
+def certify_against_exact(problem: Problem, nsga_run: Run, exact_run: Run) -> dict:
+    """Audit an approximate (NSGA) frontier against an exact-solver frontier — the
+    explore-then-certify workflow made measurable. **Solver-agnostic:** the exact run can come
+    from either first-class exact backend (HiGHS on CPU, cuOpt on GPU); the engine that produced
+    it is reported, never assumed.
+
+    An exact inner solve is provably optimal for its scalarization, so overlaying exact points on
+    the heuristic frontier can only **confirm or improve** it, never worsen it — exact acts as an
+    *auditor*. This certificate makes that concrete on three axes:
+
+    - **Dominance audit** — how many NSGA points the exact frontier strictly dominates: heuristic
+      slack, points presented as efficient that an exact solver beats at their own cost.
+    - **The invariant** — NSGA should dominate *no* exact point. A violation isn't a heuristic win
+      (the exact point is optimal for its scalarization); it flags that the exact run *under-sampled*
+      that region on its EA budget, so it's reported as a budget signal, not a defeat.
+    - **Corner sharpening** — per objective, the exact optimum vs NSGA's best. Strongest at the
+      convex risk/variance corner (a flat bowl where heuristics wobble and a QP is exact); where
+      exact looks *short* of NSGA on a corner, that's the same budget artifact (a targeted exact
+      solve would match it), flagged ``under-sampled``, not a capability limit.
+
+    Returns a JSON-friendly dict (the MCP ``explore certify`` payload).
+    """
+    if not nsga_run.solutions or not exact_run.solutions:
+        raise ValueError("certify needs both runs to have solutions (run NSGA and an exact solver first).")
+
+    objs = problem.objectives
+    names = [o.name for o in objs]
+    # Minimize-space sign per objective (+1 minimize, -1 maximize) so plain ≤ is "no worse".
+    sign = np.array([-1.0 if o.direction == Direction.maximize else 1.0 for o in objs])
+
+    def _matrix(run: Run) -> np.ndarray:
+        return np.array([[s.objective_values.get(n, 0.0) for n in names] for s in run.solutions], dtype=float)
+
+    nat_N, nat_E = _matrix(nsga_run), _matrix(exact_run)   # natural (reported) values
+    N, E = nat_N * sign, nat_E * sign                       # minimize-space
+
+    # Exact frontier reference = the non-dominated subset of the exact points (clean by
+    # construction, but integer rounding can introduce a few dominated ones — re-filter).
+    exact_front = np.array([i for i in range(len(E))
+                            if not any(_dominates_min(E[j], E[i]) for j in range(len(E)) if j != i)])
+    Eref = E[exact_front]
+
+    # Dominance audit: NSGA points strictly dominated by the exact frontier (heuristic slack).
+    dominated_idx = [i for i in range(len(N)) if any(_dominates_min(e, N[i]) for e in Eref)]
+    examples = []
+    for i in dominated_idx[:3]:
+        beater = next(k for k in exact_front if _dominates_min(E[k], N[i]))
+        examples.append({
+            "nsga_point": {n: round(float(v), 4) for n, v in zip(names, nat_N[i])},
+            "dominated_by_exact": {n: round(float(v), 4) for n, v in zip(names, nat_E[beater])},
+        })
+
+    # Invariant: exact points strictly dominated by any NSGA point (expected 0).
+    exact_dominated = sum(1 for k in range(len(E)) if any(_dominates_min(N[i], E[k]) for i in range(len(N))))
+
+    # Corner sharpening: per objective, exact optimum vs NSGA best (direction-aware natural terms).
+    risk_name = next((o.name for o in objs
+                      if o.aggregation == Aggregation.quadratic and o.direction == Direction.minimize), None)
+    corners = {}
+    for j, o in enumerate(objs):
+        if o.direction == Direction.maximize:
+            nb, eb = float(nat_N[:, j].max()), float(nat_E[:, j].max())
+            improvement = eb - nb
+        else:
+            nb, eb = float(nat_N[:, j].min()), float(nat_E[:, j].min())
+            improvement = nb - eb
+        corners[o.name] = {
+            "nsga_best": round(nb, 4),
+            "exact_best": round(eb, 4),
+            "improvement": round(improvement, 4),   # >0 exact sharpens; <0 exact under-samples (budget)
+            "direction": o.direction.value,
+            "status": "sharpened" if improvement > 1e-6 else ("matched" if improvement > -1e-6 else "under-sampled"),
+            "is_risk_corner": o.name == risk_name,
+        }
+
+    # Headline: the risk corner if exact sharpened it, else the objective with the largest gain.
+    sharpened = {n: c for n, c in corners.items() if c["status"] == "sharpened"}
+    if risk_name and corners[risk_name]["status"] == "sharpened":
+        headline = risk_name
+    elif sharpened:
+        headline = max(sharpened, key=lambda n: sharpened[n]["improvement"])
+    else:
+        headline = None
+
+    parts = []
+    if dominated_idx:
+        parts.append(f"exact audits {len(dominated_idx)}/{len(N)} NSGA points as dominated (heuristic slack)")
+    if headline:
+        c = corners[headline]
+        corner = "risk corner" if c["is_risk_corner"] else "corner"
+        parts.append(f"sharpens the {headline} {corner} {c['nsga_best']}→{c['exact_best']}")
+    if not parts:
+        parts.append("NSGA already matches the exact frontier here — exact confirms, adds no new points")
+    under = [n for n, c in corners.items() if c["status"] == "under-sampled"]
+    if under:
+        parts.append(f"under-samples {', '.join(under)} (EA budget, not a limit — raise the budget to close it)")
+    recommendation = "; ".join(parts) + "."
+
+    return {
+        "nsga_run_id": nsga_run.run_id,
+        "exact_run_id": exact_run.run_id,
+        "exact_solver": exact_run.solver,
+        "exact_certified": bool(exact_run.exact),
+        "nsga_count": len(N),
+        "exact_count": len(E),
+        "dominance_audit": {
+            "nsga_dominated_by_exact": len(dominated_idx),
+            "nsga_dominated_fraction": round(len(dominated_idx) / len(N), 4) if len(N) else 0.0,
+            "examples": examples,
+        },
+        "invariant": {
+            "holds": exact_dominated == 0,
+            "exact_dominated_by_nsga": exact_dominated,
+            "note": ("a few exact points edged out by NSGA — the integer rounding of the continuous QP "
+                     "optimum to whole-percent allocations, not a heuristic beating the exact solve "
+                     "(MILP corners, integer by construction, never show this)"
+                     if exact_dominated else "NSGA dominates no exact point — exact can only confirm or improve"),
+        },
+        "corner_sharpening": corners,
+        "headline_corner": headline,
+        "recommendation": recommendation,
     }
 
 

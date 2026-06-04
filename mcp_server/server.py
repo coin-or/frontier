@@ -1309,6 +1309,13 @@ def explore(
                    Optional: rating (1-5), notes, stage.
       compare_runs — Compare run history.
                    Requires: run_ids (list of 2+ run ID strings).
+      certify    — Audit an NSGA frontier against an exact-solver (highs/cuopt) run: how many
+                   NSGA points the exact frontier dominates (heuristic slack), the invariant that
+                   NSGA dominates no exact point, and per-objective corner sharpening (strongest at
+                   the convex risk/variance corner). The explore→certify workflow made measurable.
+                   Requires: run_ids (exactly 2 — one NSGA run and one exact run; order-free, the
+                   exact one is detected by its solver). Run the exact solver first via
+                   solve(solver="highs"|"cuopt").
       scenario_results — Per-scenario robustness analysis with frequency-weighted option importance.
                    Returns option_robustness (sorted by importance = avg_frequency × avg_weight),
                    with tiers: core (>50% freq in all scenarios), common (>25%), marginal (<25%).
@@ -1399,6 +1406,27 @@ def explore(
                 return {"error": "run_ids must contain at least 2 run IDs for compare_runs."}
             try:
                 return explorer.compare_runs(p, run_ids)
+            except ValueError as e:
+                return {"error": str(e)}
+        case "certify":
+            from solvers import EXACT_SOLVERS
+            if not run_ids or len(run_ids) != 2:
+                return {"error": "certify requires exactly 2 run_ids: an NSGA run and an exact "
+                                 "(highs/cuopt) run. Run the exact solver first."}
+            all_runs = {r.run_id: r for r in p.runs}
+            if p.run:
+                all_runs[p.run.run_id] = p.run
+            missing = [rid for rid in run_ids if rid not in all_runs]
+            if missing:
+                return {"error": f"Run(s) not found: {missing}. Available: {list(all_runs)}"}
+            runs = [all_runs[rid] for rid in run_ids]
+            exact = [r for r in runs if (r.solver or "") in EXACT_SOLVERS]
+            nsga = [r for r in runs if (r.solver or "") not in EXACT_SOLVERS]
+            if len(exact) != 1 or len(nsga) != 1:
+                return {"error": "certify needs one NSGA run and one exact-solver run; got solvers "
+                                 f"{[r.solver for r in runs]}. Run solve(solver='highs'|'cuopt') first."}
+            try:
+                return explorer.certify_against_exact(p, nsga[0], exact[0])
             except ValueError as e:
                 return {"error": str(e)}
         case "scenario_results":

@@ -1,0 +1,140 @@
+"""Tests for the exact-solver audit/certification helper (engine/explorer.py:certify_against_exact).
+
+Unit tests build hand-crafted NSGA/exact runs so the dominance audit, the invariant check, and
+corner sharpening are exercised deterministically (no solver needed). One integration test
+(skipped without highspy) loads a bundled MILP example, runs NSGA + an exact backend, and
+certifies — confirming the invariant holds strictly when the exact points are integer by
+construction. Solver-agnostic: the helper treats HiGHS and cuOpt identically.
+"""
+
+import numpy as np
+import pytest
+
+from engine.explorer import _dominates_min, certify_against_exact
+from engine.models import Objective, Option, Problem, Run, Score, Solution
+
+
+def _problem(objectives):
+    names = ["A", "B", "C", "D"]
+    return Problem(
+        name="t", approach="proportional", objectives=objectives,
+        options=[Option(name=n) for n in names],
+        scores=[Score(option=n, objective=o.name, value=1.0) for n in names for o in objectives],
+    )
+
+
+def _run(points, objectives, solver="nsga-ii", exact=False):
+    """A Run whose solutions carry the given (per-objective) value dicts."""
+    sols = [Solution(solution_id=i, selected_options=["A"], objective_values=dict(zip([o.name for o in objectives], p)))
+            for i, p in enumerate(points)]
+    return Run(solutions=sols, solver=solver, exact=exact)
+
+
+# Return ↑, Risk ↓ (quadratic) — a mean-variance shape.
+_OBJS = [Objective(name="Return", direction="maximize", aggregation="avg"),
+         Objective(name="Risk", direction="minimize", aggregation="quadratic")]
+
+
+# ─── dominance primitive ───
+
+def test_dominates_min_strict():
+    assert _dominates_min(np.array([1.0, 1.0]), np.array([2.0, 2.0]))      # better on both
+    assert _dominates_min(np.array([1.0, 2.0]), np.array([1.0, 3.0]))      # equal + better
+    assert not _dominates_min(np.array([1.0, 3.0]), np.array([2.0, 2.0]))  # trade-off, neither
+    assert not _dominates_min(np.array([2.0, 2.0]), np.array([2.0, 2.0]))  # equal → not strict
+
+
+# ─── dominance audit ───
+
+def test_audit_counts_nsga_points_dominated_by_exact():
+    prob = _problem(_OBJS)
+    # Exact point: Return 10, Risk 2. NSGA has one dominated point (Return 8, Risk 3) and one
+    # genuine trade-off (Return 12, Risk 5) the exact set doesn't dominate.
+    exact = _run([(10.0, 2.0)], _OBJS, solver="highs")
+    nsga = _run([(8.0, 3.0), (12.0, 5.0)], _OBJS)
+    c = certify_against_exact(prob, nsga, exact)
+    assert c["dominance_audit"]["nsga_dominated_by_exact"] == 1
+    assert c["dominance_audit"]["nsga_dominated_fraction"] == 0.5
+    assert c["exact_solver"] == "highs"
+    assert c["dominance_audit"]["examples"][0]["nsga_point"] == {"Return": 8.0, "Risk": 3.0}
+
+
+def test_invariant_holds_when_exact_undominated():
+    prob = _problem(_OBJS)
+    exact = _run([(10.0, 2.0), (14.0, 6.0)], _OBJS, solver="cuopt")
+    nsga = _run([(9.0, 3.0), (11.0, 4.0)], _OBJS)
+    c = certify_against_exact(prob, nsga, exact)
+    assert c["invariant"]["holds"] is True
+    assert c["invariant"]["exact_dominated_by_nsga"] == 0
+    assert c["exact_solver"] == "cuopt"
+
+
+def test_invariant_violation_is_flagged_not_celebrated():
+    prob = _problem(_OBJS)
+    # An exact point (Return 8, Risk 4) that an NSGA point (Return 10, Risk 2) dominates — the
+    # rounding/under-sampling artifact. Reported as a violation with a not-a-heuristic-win note.
+    exact = _run([(8.0, 4.0)], _OBJS, solver="highs")
+    nsga = _run([(10.0, 2.0)], _OBJS)
+    c = certify_against_exact(prob, nsga, exact)
+    assert c["invariant"]["holds"] is False
+    assert c["invariant"]["exact_dominated_by_nsga"] == 1
+    assert "not a heuristic" in c["invariant"]["note"]
+
+
+# ─── corner sharpening ───
+
+def test_corner_sharpening_marks_risk_corner_and_status():
+    prob = _problem(_OBJS)
+    # Exact reaches a lower (better) Risk minimum (1.8 vs NSGA 2.0) → sharpened risk corner.
+    # NSGA reaches a higher Return (14 vs exact 11) → exact under-samples that linear corner.
+    exact = _run([(11.0, 1.8), (9.0, 3.0)], _OBJS, solver="highs")
+    nsga = _run([(14.0, 2.0), (10.0, 2.5)], _OBJS)
+    c = certify_against_exact(prob, nsga, exact)
+    risk = c["corner_sharpening"]["Risk"]
+    assert risk["is_risk_corner"] is True and risk["status"] == "sharpened"
+    assert risk["nsga_best"] == 2.0 and risk["exact_best"] == 1.8 and risk["improvement"] == 0.2
+    ret = c["corner_sharpening"]["Return"]
+    assert ret["is_risk_corner"] is False and ret["status"] == "under-sampled"
+    assert c["headline_corner"] == "Risk"           # risk corner is the headline when sharpened
+    assert "under-samples Return" in c["recommendation"]
+
+
+def test_only_quadratic_minimize_is_the_risk_corner():
+    # A maximize-quadratic (e.g. Reach) is NOT a risk corner — the convex-bowl argument is
+    # minimize-variance only.
+    objs = [Objective(name="Return", direction="maximize", aggregation="avg"),
+            Objective(name="Reach", direction="maximize", aggregation="quadratic")]
+    prob = _problem(objs)
+    c = certify_against_exact(prob, _run([(10.0, 5.0)], objs, solver="highs"), _run([(9.0, 4.0)], objs))
+    assert all(not v["is_risk_corner"] for v in c["corner_sharpening"].values())
+
+
+def test_empty_run_raises():
+    prob = _problem(_OBJS)
+    with pytest.raises(ValueError):
+        certify_against_exact(prob, _run([], _OBJS), _run([(1.0, 1.0)], _OBJS))
+
+
+# ─── integration: real solver, MILP invariant is strict ───
+
+def test_certify_milp_example_invariant_strict():
+    """On a binary MILP the exact points are integer by construction, so the invariant holds
+    strictly (no rounding artifact) and the audit runs end-to-end through a real exact solver."""
+    pytest.importorskip("highspy")
+    from pathlib import Path
+
+    from engine.optimizer import optimize
+    from engine.problem_io import read_bundle
+
+    ex = Path(__file__).resolve().parent.parent / "examples" / "capital_project_selection"
+    prob = read_bundle(ex)
+    nsga = optimize(prob, seed=42)
+    exact = optimize(prob, seed=42, solver="highs")
+    c = certify_against_exact(prob, nsga, exact)
+
+    assert c["exact_solver"] == "highs"
+    assert c["invariant"]["holds"] is True                      # MILP: integer, never rounding-dominated
+    assert c["invariant"]["exact_dominated_by_nsga"] == 0
+    assert 0.0 <= c["dominance_audit"]["nsga_dominated_fraction"] <= 1.0
+    assert set(c["corner_sharpening"]) == {o.name for o in prob.objectives}
+    assert isinstance(c["recommendation"], str) and c["recommendation"]
