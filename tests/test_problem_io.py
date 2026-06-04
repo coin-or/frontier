@@ -166,6 +166,33 @@ def test_solutions_included_when_solved():
     assert p2.curated_solutions[0].custom_name == "balanced"
 
 
+def test_exact_run_overlay_round_trips_alongside_run():
+    """A single bundle carries both the exploratory `run` and the certified `exact_run`."""
+    p = _rich_problem()
+    p.run = Run(solver="nsga-ii",
+                solutions=[Solution(solution_id=0, selected_options=["A", "B"], objective_values={"Return": 6.5, "Risk": 2.5})])
+    p.exact_run = Run(solver="highs", exact=False,
+                      solutions=[Solution(solution_id=0, selected_options=["A", "C"], objective_values={"Return": 7.0, "Risk": 2.4})])
+    problem, scores, solutions = problem_io.to_portable(p)
+    assert "run" in solutions and "exact_run" in solutions
+    assert solutions["exact_run"]["solver"] == "highs"
+
+    p2 = problem_io.from_portable(problem, scores, solutions)
+    assert p2.run.solver == "nsga-ii"
+    assert p2.exact_run is not None
+    assert p2.exact_run.solver == "highs"
+    assert p2.exact_run.solutions[0].selected_options == ["A", "C"]
+
+
+def test_exact_run_alone_is_a_meaningful_bundle():
+    """An exact_run with no exploratory run still produces a solutions bundle."""
+    p = _rich_problem()
+    p.exact_run = Run(solver="highs",
+                      solutions=[Solution(solution_id=0, selected_options=["A"], objective_values={"Return": 7.0, "Risk": 2.4})])
+    _, _, solutions = problem_io.to_portable(p)
+    assert solutions is not None and "exact_run" in solutions
+
+
 # ─── file bundles + name resolution ───
 
 

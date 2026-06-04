@@ -10,7 +10,7 @@
 
 Frontier gives AI agents a grounded optimization engine for hard decisions. The agent describes a problem in business terms; Frontier enumerates the full Pareto frontier — every non-dominated solution that balances conflicting objectives under hard constraints — and the agent narrates the tradeoffs back. NSGA-II/III under the hood (via pymoo), exposed as 4 MCP tools (`model`, `solve`, `explore`, `get_skill`). Frontier is the engine; the agent is the interface.
 
-The design is **explainable, governable optimization**: the engine owns the *deterministic guardrails* — hard constraints it never violates, reproducible runs (same inputs → same frontier), dominance filtering, pre-solve validation, and quality gates — while the *human judgment* stays at the two calls that matter: which objectives and constraints define the problem, and which non-dominated solution to commit to. The agent explains every tradeoff (shadow prices, frontier shape, marginal rates, dominance) and never names a "best"; every claim it makes traces back to returned data, so the result is explainable and the decision is auditable line by line. The wedge is combinatorial, constrained, portfolio-like decisions with conflicting objectives.
+The design is **explainable, governable optimization**: the engine owns the *deterministic guardrails* — hard constraints it never violates, reproducible runs (same inputs + seed → same frontier), dominance filtering, pre-solve validation, and quality gates — while the *human judgment* stays at the two calls that matter: which objectives and constraints define the problem, and which non-dominated solution to commit to. The agent explains every tradeoff (shadow prices, frontier shape, marginal rates, dominance) and never names a "best"; every claim it makes traces back to returned data, so the result is explainable and the decision is auditable line by line. The wedge is combinatorial, constrained, portfolio-like decisions with conflicting objectives.
 
 ## Examples
 
@@ -39,7 +39,7 @@ LLMs can reason about tradeoffs conversationally but can't *solve* them — they
 - **The full non-dominated frontier** — every Pareto-optimal tradeoff, not a single recommendation or a weighted ranking
 - **Provably optimal where the shape supports it** — for subset selection and mean-variance allocation, the agent can certify the frontier with an exact solver: each point proven optimal, not just a strong heuristic — for when a stakeholder needs *this is optimal*, not *our best find*
 - **Hard constraints, enforced** — 8 constraint types (cardinality, forced include/exclude, objective bounds, exclusion pairs, dependencies, group limits, allocation caps), never violated during search
-- **Auditable by construction** — every reported tradeoff traces to returned data (scores, shadow prices, dominance), not a fluent guess; runs are reproducible (same inputs → same frontier), so a stakeholder can re-examine the decision line by line
+- **Auditable by construction** — every reported tradeoff traces to returned data (scores, shadow prices, dominance), not a fluent guess; runs are reproducible (same inputs + seed → same frontier; `seed_used` is recorded), so a stakeholder can re-examine the decision line by line
 - **Scenario & risk modeling** — independent frontiers per scenario, plus CVaR / worst-case / expected risk per objective
 - **Longitudinal state** — problems persist across sessions; curated picks track survival across re-runs
 
@@ -147,7 +147,7 @@ For full schemas, action parameters, data model, persistence layout, and the ski
 Four MCP tools — full action lists and parameters in [`architecture.md`](architecture.md):
 
 - **`model`** — define and edit the problem: objectives (2–7; sum/avg/min/max/quadratic aggregation), options, scores, 8 constraint types, interaction matrices, reference points, and scenarios; plus save/load of named problems.
-- **`solve`** — validate and optimize via NSGA-II/III: fast/thorough modes, seeded reproducibility, per-scenario runs, frontier-quality gates, and infeasibility analysis; plus optional exact-solver backends for a provably-optimal frontier on supported shapes.
+- **`solve`** — validate and optimize via NSGA-II/III: fast/thorough modes, seeded reproducibility (`seed_used`), per-scenario runs, frontier-quality gates, and infeasibility analysis; plus optional exact-solver backends for a provably-optimal frontier on supported shapes.
 - **`explore`** — navigate results: tradeoffs and frontier shape, extremes / balanced / inflection points, shadow prices, marginal rates, scenario robustness (incl. CVaR), run comparison, curation, and feedback.
 - **`get_skill`** — fetch the workflow guidance below.
 

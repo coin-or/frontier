@@ -515,6 +515,7 @@ def _model_update(params: dict) -> dict:
             "options": len(p.options),
             "scores_complete": round(len(p.scores) / total_possible, 2) if total_possible > 0 else 0.0,
             "has_run": p.run is not None,
+            "has_exact_run": p.exact_run is not None,
             "results_stale": p.results_stale,
             "total_runs": len(p.runs) + (1 if p.run else 0),
         },
@@ -710,6 +711,7 @@ def _model_get_section(p: Problem, section: str) -> dict:
                 "interaction_matrices_count": len(p.interaction_matrices),
                 "scenarios_count": len(p.scenario_config.scenarios) if p.scenario_config else 0,
                 "has_run": p.run is not None,
+                "has_exact_run": p.exact_run is not None,
                 "has_scenario_run": p.scenario_run is not None,
                 "results_stale": p.results_stale,
                 "curated_count": len(p.curated_solutions),
@@ -735,12 +737,14 @@ def _model_get_section(p: Problem, section: str) -> dict:
             return {**header, "run": p.run.model_dump(mode="json") if p.run else None}
         case "runs":
             return {**header, "runs": [r.model_dump(mode="json") for r in p.runs]}
+        case "exact_run":
+            return {**header, "exact_run": p.exact_run.model_dump(mode="json") if p.exact_run else None}
         case "curated":
             return {**header, "curated": [c.model_dump(mode="json") for c in p.curated_solutions]}
         case "references":
             return {**header, "reference_points": [r.model_dump(mode="json") for r in p.reference_points]}
         case _:
-            return {"error": f"Unknown section: {section}. Valid: summary, objectives, options, scores, constraints, matrices, scenarios, run, runs, curated, references."}
+            return {"error": f"Unknown section: {section}. Valid: summary, objectives, options, scores, constraints, matrices, scenarios, run, runs, exact_run, curated, references."}
 
 
 def _model_list() -> dict:
@@ -819,6 +823,7 @@ def _model_load(params: dict) -> dict:
             "scenarios": len(p.scenario_config.scenarios) if p.scenario_config else 0,
             "interaction_matrices": len(p.interaction_matrices),
             "has_run": p.run is not None,
+            "has_exact_run": p.exact_run is not None,
             "has_scenario_run": p.scenario_run is not None,
             "results_stale": p.results_stale,
             "curated": len(p.curated_solutions),
@@ -826,7 +831,8 @@ def _model_load(params: dict) -> dict:
     }
 
     # Next-phase guidance: restored, fresh results mean explore; otherwise solve.
-    has_results = (p.run is not None or p.scenario_run is not None) and not p.results_stale
+    has_results = (p.run is not None or p.exact_run is not None
+                   or p.scenario_run is not None) and not p.results_stale
     if has_results:
         _inject_skill(result, "solution_interpreter",
             "Loaded a solved problem with results. Use this guide to present the "
@@ -900,14 +906,13 @@ def solve(
             NSGA-III for 4+ objectives.
       max_solutions: Cap the number of Pareto solutions returned (default 100).
             Useful for proportional mode which can produce large frontiers.
-      seed: Deterministic RNG seed for reproducibility. When omitted a fresh seed
-            is drawn; either way the actual seed is echoed as `seed_used` in the
-            response so any run can be reproduced. Vary seeds to check frontier
-            stability; fix the seed to share reproducible results. For
-            `run_scenarios`, the parent seed is propagated deterministically to
-            each scenario (per-scenario `seed_used` derived via SHA-256 of
-            scenario name + parent seed), so pinning the parent makes the whole
-            multi-scenario run reproducible across processes.
+      seed: Optional RNG seed for reproducibility, echoed as `seed_used` on every
+            run. Same problem state + same seed → the same frontier (in- and
+            cross-process); omit it and a fresh seed is drawn and recorded. Vary
+            seeds to check frontier stability; fix the seed to reproduce or share a
+            result. For `run_scenarios`, the parent seed is propagated to each
+            scenario (per-scenario `seed_used` derived via SHA-256 of scenario name
+            + parent seed), so pinning the parent reproduces the whole run.
       solver: Which engine to run. Omit (or "nsga") for the default NSGA-II/III
             evolutionary search — it fits any problem shape and is the right choice for
             exploration and most runs. "highs" (CPU) or "cuopt" (GPU) select an OPTIONAL
@@ -1036,11 +1041,28 @@ def _solve_run(p: Problem, mode: OptimizeMode | None = None, max_solutions: int 
     # Snapshot constraints on the run
     run.constraints_snapshot = [c.model_dump() for c in p.constraints]
 
-    # Archive previous run before replacing
-    if p.run is not None:
-        p.runs.append(p.run)
+    # An exact solver is a certified *overlay* — store it in exact_run and leave the
+    # exploratory `run` (NSGA) intact, so a problem can hold both frontiers at once
+    # (explore-with-EA, then certify). A default/NSGA run replaces `run` and archives
+    # the prior one for comparison.
+    #
+    # A solve only refreshes the frontier it produces. If results were stale (the
+    # problem was edited since the last solve), the *other* stored frontier predates
+    # that edit and is no longer valid — drop it, so clearing results_stale below
+    # doesn't vouch for a frontier that no longer matches the problem.
+    from solvers import EXACT_SOLVERS
 
-    p.run = run
+    was_stale = p.results_stale
+    if run.solver in EXACT_SOLVERS:
+        p.exact_run = run
+        if was_stale:
+            p.run = None
+    else:
+        if p.run is not None:
+            p.runs.append(p.run)
+        p.run = run
+        if was_stale:
+            p.exact_run = None
     p.results_stale = False
     store.save(p)
 
@@ -1270,6 +1292,7 @@ def explore(
     content_signature: str | None = None,
     signatures: list[str] | None = None,
     scenario: str | None = None,
+    source: str | None = None,
     detail: bool = False,
     cvar_alpha: float | None = None,
     format: str | None = None,
@@ -1343,6 +1366,15 @@ def explore(
       Works with: tradeoffs, compare, solutions, solution, curate, marginal_analysis.
       Use scenario_results (no scenario param) for cross-scenario robustness analysis.
 
+    Source param (optional):
+      Selects which base-case frontier to analyze: "run" (default) is the exploratory
+      NSGA frontier; "exact" is the certified exact-solver overlay (exact_run). Use
+      source="exact" to run tradeoffs/marginal_analysis/etc. over the provably-optimal
+      set when a problem holds both frontiers (explore-with-NSGA, then certify). Works
+      with: tradeoffs, compare, solutions, solution, curate, marginal_analysis. When the
+      problem has only an exact_run (no NSGA run), the default already falls back to it.
+      Ignored when scenario is set (scenario runs are NSGA-only).
+
     Key guidance:
     - Never say "best" — every Pareto solution is optimal at its tradeoff.
     - Present extremes first, then balanced + inflection points, then ask what resonates.
@@ -1360,19 +1392,19 @@ def explore(
     match action:
         case "tradeoffs":
             try:
-                return _format_explore(explorer.get_tradeoffs(p, scenario=scenario))
+                return _format_explore(explorer.get_tradeoffs(p, scenario=scenario, source=source))
             except ValueError as e:
                 return {"error": str(e)}
         case "compare":
             if not solution_ids or len(solution_ids) < 2:
                 return {"error": "solution_ids must contain at least 2 IDs for compare."}
             try:
-                return _format_explore(explorer.compare_solutions(p, solution_ids, scenario=scenario))
+                return _format_explore(explorer.compare_solutions(p, solution_ids, scenario=scenario, source=source))
             except ValueError as e:
                 return {"error": str(e)}
         case "solutions":
             try:
-                result = explorer.get_solutions(p, scenario=scenario, detail=detail)
+                result = explorer.get_solutions(p, scenario=scenario, detail=detail, source=source)
             except ValueError as e:
                 return {"error": str(e)}
             # Soft-cap detail=true payloads — point at full_result_path on disk.
@@ -1389,7 +1421,7 @@ def explore(
             if solution_id is None:
                 return {"error": "solution_id required for solution action."}
             try:
-                return explorer.get_solution(p, solution_id, scenario=scenario)
+                return explorer.get_solution(p, solution_id, scenario=scenario, source=source)
             except ValueError as e:
                 return {"error": str(e)}
         case "feedback":
@@ -1415,7 +1447,7 @@ def explore(
             if solution_id is None:
                 return {"error": "solution_id required for curate action."}
             try:
-                result = explorer.curate_solution(p, solution_id, custom_name or "", notes or "", scenario=scenario)
+                result = explorer.curate_solution(p, solution_id, custom_name or "", notes or "", scenario=scenario, source=source)
                 store.save(p)
                 return result
             except ValueError as e:
@@ -1454,7 +1486,7 @@ def explore(
                 return {"error": str(e)}
         case "marginal_analysis":
             try:
-                return explorer.marginal_analysis(p, scenario=scenario, detail=detail)
+                return explorer.marginal_analysis(p, scenario=scenario, detail=detail, source=source)
             except ValueError as e:
                 return {"error": str(e)}
         case _:
@@ -1480,8 +1512,9 @@ def _explore_feedback(
 
     # Resolve content_signature from solution_id if not provided directly
     sig = content_signature
-    if sig is None and solution_id is not None and p.run:
-        for s in p.run.solutions:
+    frontier = p.run or p.exact_run  # exact-only solves carry the frontier in exact_run
+    if sig is None and solution_id is not None and frontier:
+        for s in frontier.solutions:
             if s.solution_id == solution_id:
                 sig = s.content_signature or _content_signature(
                     s.selected_options, s.allocations
