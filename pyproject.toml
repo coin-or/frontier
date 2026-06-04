@@ -35,7 +35,7 @@ dependencies = [
 # here — it installs from NVIDIA's index and is GPU-only:
 #   pip install --extra-index-url=https://pypi.nvidia.com cuopt-cu12
 examples = ["matplotlib>=3.7", "pandas>=2.0"]
-# CPU exact-solver backend (FRONTIER_SOLVER=highs). A plain, cross-platform pip package —
+# CPU exact-solver backend (solver="highs"). A plain, cross-platform pip package —
 # unlike cuOpt it needs no special index or GPU — but kept opt-in so the default NSGA path
 # stays dependency-light. `pip install frontier[highs]`.
 highs = ["highspy>=1.7"]

@@ -2,14 +2,15 @@
 
 The NSGA outer loop, genome decoding, seeding, and result marshaling live in
 ``solvers._scalarization`` and are shared with the HiGHS backend; this module supplies only
-the **cuOpt-specific inner solves** (a GPU convex QP and a GPU MILP) plus the gate and a thin
-delegation. cuOpt and HiGHS differ *only* in these inner solves.
+the **cuOpt-specific inner solves** (a GPU convex QP and a GPU MILP) plus a thin delegation.
+cuOpt and HiGHS differ *only* in these inner solves.
 
-This is **additive, gated, reversible**: ``_use_cuopt()`` returns True only under
-``FRONTIER_SOLVER=cuopt``; cuOpt is imported lazily *inside* each inner solve, so the module
-loads cleanly on a machine with no GPU (an actual solve needs ``cuopt-cu12`` + a GPU, which
-is why the prototype runs in Colab); and the engine's Run/Solution contract is preserved by
-the shared engine, so explorer / metrics / store need no changes.
+This is **additive, reversible**: the engine routes here only when ``optimize(solver="cuopt")``
+is requested for a shape ``solvers.exact_solver_fits`` accepts; cuOpt is imported lazily
+*inside* each inner solve, so the module loads cleanly on a machine with no GPU (an actual
+solve needs ``cuopt-cu12`` + a GPU, which is why the prototype runs in Colab); and the
+engine's Run/Solution contract is preserved by the shared engine, so explorer / metrics /
+store need no changes.
 
 EA ↔ cuOpt decomposition: the EA individual encodes a scalarization parameter (the
 epsilon-constraint return target, plus an asset-selection priority under a cardinality/group
@@ -25,12 +26,10 @@ multimodal, where the EA picks the support and cuOpt solves the continuous QP on
 from __future__ import annotations
 
 import gc
-import os
 
 import numpy as np
 
-from engine import optimizer as _opt
-from engine.models import Aggregation, Approach, OptimizeMode, Problem, Run
+from engine.models import Approach, OptimizeMode, Problem, Run
 from solvers._scalarization import _qp_weights_ok, optimize_milp, optimize_qp
 
 # Re-exported from the shared engine so notebooks/panels that reach into this module by its
@@ -60,25 +59,6 @@ _MILP_REL_GAP = 1e-3     # stop B&B once the incumbent is within 0.1% of the bou
 # bounded-mode incumbent provably optimal cheaply; `optimize(..., exact=True)` certifies.
 # (The MILP EA pop/gen budget auto-scales in _scalarization._milp_budget — shared with HiGHS.)
 _MILP_ABS_GAP = 0.0
-
-
-def _use_cuopt(problem: Problem) -> bool:
-    """Gate: route to cuOpt only when asked, for a shape it solves.
-
-    Requires ``FRONTIER_SOLVER=cuopt`` and either a binary problem (→ exact MILP) or a
-    proportional allocation with a quadratic objective backed by an interaction matrix (→
-    QP, with cardinality/group caps handled by the EA support-search). Self-contained so it
-    is correct whether called from ``optimize()`` or directly in a notebook.
-    """
-    if os.environ.get("FRONTIER_SOLVER", "").lower() != "cuopt":
-        return False
-    if problem.approach == Approach.binary:
-        return True   # binary select-a-subset → exact cuOpt MILP path
-    if problem.approach != Approach.proportional:
-        return False
-    if not any(o.aggregation == Aggregation.quadratic for o in problem.objectives):
-        return False
-    return len(_opt._build_interaction_matrices(problem)) > 0
 
 
 def _solve_qp_cuopt(
@@ -237,8 +217,13 @@ def _optimize_cuopt(
     ``Run`` in the engine's exact shape (identical to the NSGA paths). ``exact`` certifies each
     MILP solve."""
     if problem.approach == Approach.binary:
-        return optimize_milp(problem, mode, inner_milp=_solve_milp_cuopt,
-                             max_solutions=max_solutions, seed=seed, exact=exact)
-    return optimize_qp(problem, mode, inner_qp=_solve_qp_cuopt,
-                       pop=_SPIKE_POP, gen=_SPIKE_GEN,
-                       max_solutions=max_solutions, seed=seed)
+        run = optimize_milp(problem, mode, inner_milp=_solve_milp_cuopt,
+                            max_solutions=max_solutions, seed=seed, exact=exact)
+    else:
+        run = optimize_qp(problem, mode, inner_qp=_solve_qp_cuopt,
+                          pop=_SPIKE_POP, gen=_SPIKE_GEN,
+                          max_solutions=max_solutions, seed=seed)
+    # Provenance lives with the producer: stamp here so a direct call is labelled correctly,
+    # not only when routed through optimize(). exact is a no-op on the always-exact QP path.
+    run.solver, run.exact = "cuopt", exact
+    return run
