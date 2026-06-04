@@ -1443,7 +1443,7 @@ def _require_run(problem: Problem, scenario: str | None = None, source: str | No
             raise ValueError(f"Scenario '{scenario}' has no solutions.")
         return run
     if source == "exact":
-        # Explicitly target the certified exact frontier (e.g. when both an
+        # Explicitly target the exact-solver frontier (e.g. when both an
         # exploratory `run` and an `exact_run` overlay exist).
         if problem.exact_run is not None and problem.exact_run.solutions:
             return problem.exact_run
@@ -1453,7 +1453,7 @@ def _require_run(problem: Problem, scenario: str | None = None, source: str | No
         raise ValueError(f"Unknown source '{source}'. Use 'run' (default) or 'exact'.")
     if problem.run is None:
         # A problem solved only with an exact solver carries its frontier in
-        # exact_run (the certified overlay) with no exploratory run — fall back to
+        # exact_run (the exact overlay) with no exploratory run — fall back to
         # it so those results are explorable rather than reported as "no run".
         if problem.exact_run is not None and problem.exact_run.solutions:
             return problem.exact_run

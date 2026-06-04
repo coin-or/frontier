@@ -924,9 +924,9 @@ def solve(
             this returns a clear error listing the available solvers — check `solve
             validate`'s `solvers` block first. The engine that ran is echoed as
             `solver_used`. See the optimization_strategy skill ("Exact Solvers").
-      exact: Exact backends only — certify each inner solve to a zero optimality gap instead
-            of the default speed-oriented bounded solve. Slower; use when stakeholders need
-            certified optimality. No-op on the default NSGA path.
+      exact: Exact backends only — certify each MILP inner solve to a zero optimality gap
+            instead of the default speed-oriented bounded solve. Slower; use when stakeholders
+            need certified optimality. No-op on the always-exact QP and on the default NSGA path.
 
     Key guidance:
     - Expect iteration: first run is exploration, not the answer.
@@ -1042,7 +1042,7 @@ def _solve_run(p: Problem, mode: OptimizeMode | None = None, max_solutions: int 
     # Snapshot constraints on the run
     run.constraints_snapshot = [c.model_dump() for c in p.constraints]
 
-    # An exact solver is a certified *overlay* — store it in exact_run and leave the
+    # An exact solve is an *overlay* — store it in exact_run and leave the
     # exploratory `run` (NSGA) intact, so a problem can hold both frontiers at once
     # (explore-with-EA, then certify). A default/NSGA run replaces `run` and archives
     # the prior one for comparison.
@@ -1337,7 +1337,7 @@ def explore(
                    NSGA points the exact frontier dominates (heuristic slack), the invariant that
                    NSGA dominates no exact point, and per-objective corner sharpening (strongest at
                    the convex risk/variance corner). The explore→certify workflow made measurable.
-                   No params needed — certifies `run` (NSGA) against `exact_run` (the certified
+                   No params needed — audits `run` (NSGA) against `exact_run` (the exact
                    overlay), so the flow is: solve(), then solve(solver="highs"|"cuopt"), then
                    certify. Optional run_ids (exactly 2 — one NSGA, one exact, order-free) overrides
                    with explicit historical runs.
@@ -1377,9 +1377,10 @@ def explore(
 
     Source param (optional):
       Selects which base-case frontier to analyze: "run" (default) is the exploratory
-      NSGA frontier; "exact" is the certified exact-solver overlay (exact_run). Use
-      source="exact" to run tradeoffs/marginal_analysis/etc. over the provably-optimal
-      set when a problem holds both frontiers (explore-with-NSGA, then certify). Works
+      NSGA frontier; "exact" is the exact-solver overlay (exact_run). Use
+      source="exact" to run tradeoffs/marginal_analysis/etc. over the exact-solver
+      frontier (each point optimal to a 0.1% gap) when a problem holds both frontiers
+      (explore-with-NSGA, then certify). Works
       with: tradeoffs, compare, solutions, solution, curate, marginal_analysis. When the
       problem has only an exact_run (no NSGA run), the default already falls back to it.
       Ignored when scenario is set (scenario runs are NSGA-only).
