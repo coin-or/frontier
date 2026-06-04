@@ -60,6 +60,20 @@ _MILP_REL_GAP = 1e-3     # stop B&B once the incumbent is within 0.1% of the bou
 # (The MILP EA pop/gen budget auto-scales in _scalarization._milp_budget — shared with HiGHS.)
 _MILP_ABS_GAP = 0.0
 
+# Matrix (CSR `data_model`) QP path. The term-by-term high-level `Problem` API builds the
+# quadratic objective as an O(n²) Python expression — one `+` per covariance entry — which is
+# the real ceiling on a dense-covariance QP, *not* cuOpt itself. cuOpt's low-level
+# `data_model.DataModel` takes the objective Q and constraint matrix A directly as CSR arrays,
+# so the build is a single vectorised numpy→scipy conversion (O(nnz)) and the GPU solve is
+# unchanged. `_solve_qp_cuopt_matrix` is that path; it passes the SAME (PSD-projected)
+# covariance the verified term-by-term path packs into `set_quadratic_objective_matrix`
+# (cuOpt symmetrises Q+Qᵀ internally either way), so the two are equivalent *by construction*
+# and differ only in build cost. Default off until a GPU run confirms the equivalence — the
+# comparison notebook's dense-QP panel runs matrix vs term-by-term vs HiGHS for exactly that —
+# after which flipping to True routes `optimize(solver="cuopt")` proportional runs through the
+# scalable build with no other change.
+_USE_MATRIX_QP = False
+
 
 def _solve_qp_cuopt(
     cov: np.ndarray,
@@ -146,6 +160,125 @@ def _solve_qp_cuopt(
     return weights, ok
 
 
+def _qp_to_csr(cov, mu, target_return, return_maximize, max_weight,
+               support=None, extra_linears=None):
+    """Marshal one epsilon-constraint mean-variance QP into the CSR arrays cuOpt's low-level
+    ``data_model.DataModel`` consumes — the vectorised matrix build that replaces the
+    term-by-term ``Problem`` API. **Pure** (no cuOpt import), so it unit-tests on CPU by
+    reconstructing the dense problem and comparing to the intended QP.
+
+    Objective: minimize wᵀ(cov)w. ``Q`` is the FULL covariance as CSR — bit-for-bit the matrix
+    the verified term-by-term path packs into ``set_quadratic_objective_matrix`` (cuOpt
+    symmetrises Q+Qᵀ internally), so the solve is identical; only the build differs (O(nnz) one
+    vectorised conversion vs O(n²) Python ``+``). Sub-1e-12 entries are dropped to match that
+    path's ``abs(c) > 1e-12`` skip exactly. Constraint rows, in order: fully-invested Σw=1
+    ('E'), the return epsilon-constraint μ·w ≥/≤ target ('G' for a maximize return, else 'L'),
+    then one row per extra linear floor. Box: 0 ≤ w ≤ ``max_weight``, with off-``support`` assets
+    pinned to ub=0 (cardinality, stays in the continuous beta — no MIQP).
+
+    Returns a dict of numpy arrays ready for the DataModel setters.
+    """
+    from scipy.sparse import csr_matrix
+
+    n = len(mu)
+    ub = float(max_weight) if max_weight is not None else 1.0
+    var_ub = np.full(n, ub, dtype=np.float64)
+    if support is not None:
+        supp = {int(i) for i in support}
+        var_ub[[i for i in range(n) if i not in supp]] = 0.0
+
+    # Quadratic objective Q = full covariance (threshold to match the term-wise skip), as CSR.
+    Q = csr_matrix(np.where(np.abs(cov) > 1e-12, cov, 0.0).astype(np.float64))
+
+    # Constraint matrix A (few dense rows): fully-invested, return eps, extra linear floors.
+    rows = [np.ones(n, dtype=np.float64)]
+    b = [1.0]
+    row_types = ["E"]
+    if target_return is not None:
+        rows.append(np.asarray(mu, dtype=np.float64))
+        b.append(float(target_return))
+        row_types.append("G" if return_maximize else "L")
+    for coef, tgt, maximize in (extra_linears or []):
+        rows.append(np.asarray(coef, dtype=np.float64))
+        b.append(float(tgt))
+        row_types.append("G" if maximize else "L")
+    A = csr_matrix(np.vstack(rows))
+
+    return {
+        "Q_data": Q.data.astype(np.float64),
+        "Q_indices": Q.indices.astype(np.int32),
+        "Q_offsets": Q.indptr.astype(np.int32),
+        "A_data": A.data.astype(np.float64),
+        "A_indices": A.indices.astype(np.int32),
+        "A_offsets": A.indptr.astype(np.int32),
+        "b": np.asarray(b, dtype=np.float64),
+        "row_types": np.array(row_types, dtype="S1"),   # matches the high-level path's dtype
+        "c": np.zeros(n, dtype=np.float64),              # objective is purely quadratic
+        "var_lb": np.zeros(n, dtype=np.float64),
+        "var_ub": var_ub,
+    }
+
+
+def _solve_qp_cuopt_matrix(cov, mu, target_return, return_maximize, max_weight,
+                           support=None, extra_linears=None):
+    """Matrix-API twin of ``_solve_qp_cuopt`` — same contract, built via cuOpt's low-level
+    ``data_model.DataModel`` (CSR objective + constraints) and solved with ``Solve``, instead of
+    the term-by-term ``Problem`` API. The build is O(nnz) — one vectorised CSR conversion — so a
+    dense covariance no longer pays the O(n²) Python-expression cost; the GPU solve is identical
+    to the verified path. Returns ``(weights as fractions summing to 1, optimal_flag)``.
+
+    Marshaling (``_qp_to_csr``) is pure and CPU-tested; only the DataModel/Solve calls below
+    need a GPU, so this loads without one (like every solve in this module).
+    """
+    from cuopt.linear_programming import DataModel, Solve
+
+    n = len(mu)
+    ub = float(max_weight) if max_weight is not None else 1.0
+    a = _qp_to_csr(cov, mu, target_return, return_maximize, max_weight, support, extra_linears)
+
+    dm = DataModel()
+    dm.set_csr_constraint_matrix(a["A_data"], a["A_indices"], a["A_offsets"])
+    dm.set_constraint_bounds(a["b"])
+    dm.set_row_types(a["row_types"])
+    dm.set_objective_coefficients(a["c"])
+    dm.set_quadratic_objective_matrix(a["Q_data"], a["Q_indices"], a["Q_offsets"])
+    dm.set_variable_lower_bounds(a["var_lb"])
+    dm.set_variable_upper_bounds(a["var_ub"])
+    sol = Solve(dm)
+
+    # Same accept-both gate as the term-by-term path: PDLP (the QP beta's first-order solver)
+    # frequently terminates PrimalFeasible rather than certified-Optimal on these convex QPs.
+    # get_termination_status() is the same enum Problem.Status exposes (Problem.solve sets it
+    # from exactly this call), so the names match across both paths.
+    ok = getattr(sol.get_termination_status(), "name", "") in ("Optimal", "PrimalFeasible")
+    weights = np.asarray(sol.get_primal_solution(), dtype=float) if ok else np.zeros(n)
+    if ok and not _qp_weights_ok(weights, ub):
+        weights, ok = np.zeros(n), False
+    del dm, sol
+    gc.collect()
+    return weights, ok
+
+
+def _parallel_solve(fn, arg_tuples, max_workers=None):
+    """Run independent inner solves concurrently. The EA's scalarizations are independent, so a
+    **thread** pool lets their solves overlap: cuOpt releases the GIL during the C++/GPU
+    ``Solve`` (and HiGHS during its C++ solve), so threads — not processes — suffice and the
+    GPU/CPU overlaps the work. ``max_workers`` in ``(None, 0, 1)`` runs the **sequential
+    baseline** (the "CPU wins the loop" regime); ``>1`` is the **parallel throughput** test.
+    Each item in ``arg_tuples`` is the positional-arg tuple for one ``fn`` call; results
+    preserve input order.
+
+    Solver-agnostic on purpose — the same harness times cuOpt (GPU overlap) and HiGHS (CPU
+    cores), so the sequential-vs-parallel flip is *measured*, not assumed. This is the DIY
+    ``concurrent.futures`` pattern cuOpt's deprecated ``BatchSolve`` now points users to.
+    """
+    if not max_workers or max_workers <= 1:
+        return [fn(*args) for args in arg_tuples]
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=int(max_workers)) as ex:
+        return list(ex.map(lambda args: fn(*args), arg_tuples))
+
+
 def _solve_milp_cuopt(min_coef, eps_list, mc, n, exact=False):
     """One binary MILP via cuOpt: minimize ``min_coef·x`` over x∈{0,1}ⁿ subject to epsilon
     constraints ``(coef, op, rhs)`` (op 'ge'/'le') and the combinatorial constraints in
@@ -220,7 +353,9 @@ def _optimize_cuopt(
         run = optimize_milp(problem, mode, inner_milp=_solve_milp_cuopt,
                             max_solutions=max_solutions, seed=seed, exact=exact)
     else:
-        run = optimize_qp(problem, mode, inner_qp=_solve_qp_cuopt,
+        # Scalable matrix build when enabled, else the GPU-verified term-by-term path.
+        inner_qp = _solve_qp_cuopt_matrix if _USE_MATRIX_QP else _solve_qp_cuopt
+        run = optimize_qp(problem, mode, inner_qp=inner_qp,
                           pop=_SPIKE_POP, gen=_SPIKE_GEN,
                           max_solutions=max_solutions, seed=seed)
     # Provenance lives with the producer: stamp here so a direct call is labelled correctly,
