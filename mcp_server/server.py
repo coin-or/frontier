@@ -902,15 +902,13 @@ def solve(
             NSGA-III for 4+ objectives.
       max_solutions: Cap the number of Pareto solutions returned (default 100).
             Useful for proportional mode which can produce large frontiers.
-      seed: Optional RNG seed, echoed as `seed_used` on every run as provenance
-            (which run produced a result). NOT a reproduction guarantee — the NSGA
-            frontier is a stochastic sample, so re-running (even at the same seed)
-            can return a different solution set; the frontier *shape* is what's
-            stable. To keep a specific frontier, persist it (`full_result_path` /
-            `model save`), don't expect to regenerate it from the seed. For
-            `run_scenarios`, the parent seed is propagated to each scenario
-            (per-scenario `seed_used` derived via SHA-256 of scenario name + parent
-            seed) so each starts from a distinct initialization.
+      seed: Optional RNG seed for reproducibility, echoed as `seed_used` on every
+            run. Same problem state + same seed → the same frontier (in- and
+            cross-process); omit it and a fresh seed is drawn and recorded. Vary
+            seeds to check frontier stability; fix the seed to reproduce or share a
+            result. For `run_scenarios`, the parent seed is propagated to each
+            scenario (per-scenario `seed_used` derived via SHA-256 of scenario name
+            + parent seed), so pinning the parent reproduces the whole run.
       solver: Which engine to run. Omit (or "nsga") for the default NSGA-II/III
             evolutionary search — it fits any problem shape and is the right choice for
             exploration and most runs. "highs" (CPU) or "cuopt" (GPU) select an OPTIONAL
