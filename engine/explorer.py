@@ -1841,6 +1841,123 @@ def _binding_group_limit(c, solutions, objectives) -> dict | None:
     }
 
 
+# --------------------------------------------------------------------------- #
+# Sensitivity analysis from exact-solver duals (explainability)
+# --------------------------------------------------------------------------- #
+def sensitivity_analysis(problem: Problem, solution_id: int | None = None,
+                         scenario: str | None = None, source: str | None = None) -> dict:
+    """Post-optimal sensitivity from exact-solver duals — the explainability view.
+
+    Two reads, in decision language:
+      * **where_to_invest** — constraint shadow prices for a reference solution, ranked by
+        magnitude. A shadow price is the marginal change in the optimized objective per unit a
+        binding constraint is relaxed; the largest is where relaxing buys the most.
+      * **near_misses** — options the optimizer left at zero, ranked by reduced cost (smallest
+        first = closest to entering). ``capped_options`` lists any option pinned at its
+        allocation cap (a negative reduced cost — the cap binds).
+
+    Prefers solver-exact duals (attached to a continuous LP/QP exact run); when none are
+    present it falls back to the frontier-inferred binding analysis, clearly tagged, so the
+    action always answers. Integer/MILP solutions carry no exact duals."""
+    eff_source = source or ("exact" if (problem.exact_run is not None
+                                        and problem.exact_run.solutions) else None)
+    run = _require_run(problem, scenario, eff_source)
+    solutions = run.solutions
+    exact = [s for s in solutions
+             if getattr(s, "sensitivity", None) and s.sensitivity.source == "solver_exact"]
+
+    if not exact:
+        return {
+            "source": "frontier_inferred",
+            "solver": run.solver,
+            "scope": "frontier-regression estimates — no solver-exact duals on this run",
+            "note": ("Run solve(solver='highs' or 'cuopt') on a continuous/proportional (QP) "
+                     "problem for exact shadow prices + reduced costs. Integer/MILP solutions "
+                     "have no exact duals. Showing the frontier-inferred binding analysis below."),
+            "binding_analysis": _binding_analysis(problem, solutions),
+        }
+
+    if solution_id is not None:
+        ref = next((s for s in exact if s.solution_id == solution_id), None)
+        if ref is None:
+            return {"error": f"Solution {solution_id} not found or has no solver-exact sensitivity."}
+    else:
+        ref = _find_balanced(exact, problem.objectives)
+
+    where, near, capped = _format_solution_sensitivity(ref)
+    return {
+        "source": "solver_exact",
+        "solver": run.solver,
+        "scope": ("Exact LP/QP duals (continuous path). Shadow price = marginal change in the "
+                  "optimized objective per unit a binding constraint is relaxed; reduced cost = "
+                  "how far an unheld option must improve to enter. Undefined for integer/MILP."),
+        "reference_solution": {
+            "solution_id": ref.solution_id,
+            "objective_values": ref.objective_values,
+            "allocations": ref.allocations,
+        },
+        "where_to_invest": where,
+        "near_misses": near,
+        "capped_options": capped,
+        "frontier_shadow_price_trend": _shadow_price_trend(exact),
+        "note": ("Shadow prices and reduced costs are reported at the reference solution; the "
+                 "trend shows how the swept-constraint shadow price changes along the frontier "
+                 "(rising = diminishing returns)."),
+    }
+
+
+def _shadow_interpretation(sp) -> str:
+    if sp.role == "budget":
+        return ("marginal change in the optimized objective per unit of total budget "
+                "(allocations are normalized to 100%)")
+    if sp.role in ("return_floor", "linear_floor"):
+        return (f"marginal cost of '{sp.name}': raising the {sp.name} requirement by one unit "
+                f"shifts the optimized objective by ~{sp.shadow_price:.4g}")
+    return "marginal change in the optimized objective per unit this constraint is relaxed"
+
+
+def _format_solution_sensitivity(s):
+    """(where_to_invest, near_misses, capped) for one solution's solver-exact duals."""
+    sens = s.sensitivity
+    where = [{
+        "lever": sp.name,
+        "role": sp.role,
+        "shadow_price": sp.shadow_price,
+        "interpretation": _shadow_interpretation(sp),
+    } for sp in sorted(sens.shadow_prices, key=lambda x: -abs(x.shadow_price))]
+
+    near = [{
+        "option": rc.option,
+        "reduced_cost": rc.reduced_cost,
+        "interpretation": ("unheld — would enter the optimal mix if its marginal contribution "
+                           f"improved by ~{abs(rc.reduced_cost):.4g}"),
+    } for rc in sorted((r for r in sens.reduced_costs
+                        if r.allocation == 0 and abs(r.reduced_cost) > 1e-9),
+                       key=lambda x: abs(x.reduced_cost))]
+
+    capped = [{
+        "option": rc.option,
+        "allocation": rc.allocation,
+        "reduced_cost": rc.reduced_cost,
+        "interpretation": "at its allocation cap — the cap binds; it would take more if allowed",
+    } for rc in sorted((r for r in sens.reduced_costs
+                        if r.allocation > 0 and r.reduced_cost < -1e-9),
+                       key=lambda x: x.reduced_cost)]
+    return where, near, capped
+
+
+def _shadow_price_trend(solutions) -> list[dict]:
+    """The swept-constraint (return-floor) shadow price across the frontier, by solution_id —
+    the diminishing-returns curve made exact."""
+    trend = []
+    for s in sorted(solutions, key=lambda x: x.solution_id):
+        sp = next((x for x in s.sensitivity.shadow_prices if x.role == "return_floor"), None)
+        if sp is not None:
+            trend.append({"solution_id": s.solution_id, "lever": sp.name,
+                          "shadow_price": sp.shadow_price})
+    return trend
+
+
 def _compute_pair_rates(sorted_sols, obj_a, obj_b) -> list[dict]:
     """Compute direction-normalized marginal rates between adjacent sorted solutions.
 

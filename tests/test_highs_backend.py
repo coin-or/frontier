@@ -10,6 +10,7 @@ import pytest
 
 pytest.importorskip("highspy")
 
+from engine import explorer
 from engine.models import (
     CardinalityConstraint,
     ForceIncludeConstraint,
@@ -196,3 +197,58 @@ class TestProportionalQP:
         a = _optimize_highs(p, mode=OptimizeMode.fast)
         b = _optimize_highs(p, mode=OptimizeMode.fast)
         assert [s.objective_values for s in a.solutions] == [s.objective_values for s in b.solutions]
+
+
+# ─── Sensitivity (exact-solver duals) ───
+
+class TestSensitivity:
+    def test_qp_solutions_carry_solver_exact_duals(self):
+        p = _qp_problem()
+        run = _optimize_highs(p, mode=OptimizeMode.fast)
+        assert run.solutions
+        for s in run.solutions:
+            assert s.sensitivity is not None, "QP solution missing sensitivity"
+            assert s.sensitivity.source == "solver_exact"
+            assert len(s.sensitivity.reduced_costs) == len(p.options)  # one per option
+            roles = {sp.role for sp in s.sensitivity.shadow_prices}
+            assert "budget" in roles and "return_floor" in roles
+
+    def test_return_shadow_price_sign_and_variation(self):
+        # The return-floor shadow price = marginal risk per unit of required return: ≥ 0
+        # everywhere (more return costs more variance), and varies along the frontier (convex →
+        # not all equal). This is the exactness the frontier regression only approximates.
+        run = _optimize_highs(_qp_problem(), mode=OptimizeMode.fast)
+        sp = [next(x.shadow_price for x in s.sensitivity.shadow_prices if x.role == "return_floor")
+              for s in run.solutions]
+        assert min(sp) >= -1e-6                  # economically non-negative
+        assert max(sp) - min(sp) > 1e-4          # genuinely varies (diminishing returns)
+
+    def test_near_miss_reduced_cost_for_excluded_option(self):
+        # An option the optimizer leaves at 0 carries a non-zero reduced cost (a near-miss);
+        # held interior options are ~0. So at least one solution shows a near-miss.
+        run = _optimize_highs(_qp_problem(), mode=OptimizeMode.fast)
+        found = any(rc.allocation == 0 and abs(rc.reduced_cost) > 1e-6
+                    for s in run.solutions for rc in s.sensitivity.reduced_costs)
+        assert found, "expected at least one excluded-option near-miss on the frontier"
+
+    def test_milp_solutions_have_no_exact_duals(self):
+        # Duals/reduced costs are LP/QP-only — integer solutions must not carry them.
+        run = _optimize_highs(_binary_problem(), mode=OptimizeMode.fast)
+        assert run.solutions
+        assert all(s.sensitivity is None for s in run.solutions)
+
+    def test_explore_sensitivity_exact_path(self):
+        p = _qp_problem()
+        p.exact_run = _optimize_highs(p, mode=OptimizeMode.fast)
+        res = explorer.sensitivity_analysis(p)
+        assert res["source"] == "solver_exact"
+        assert res["where_to_invest"]                       # budget + return levers
+        assert "near_misses" in res and "frontier_shadow_price_trend" in res
+        assert all("shadow_price" in t for t in res["frontier_shadow_price_trend"])
+
+    def test_explore_sensitivity_falls_back_for_milp(self):
+        p = _binary_problem()
+        p.exact_run = _optimize_highs(p, mode=OptimizeMode.fast)
+        res = explorer.sensitivity_analysis(p)
+        assert res["source"] == "frontier_inferred"
+        assert "binding_analysis" in res

@@ -68,18 +68,13 @@ def _hessian_from_cov(cov: np.ndarray):
     return H
 
 
-def _solve_qp_highs(cov, mu, target_return, return_maximize, max_weight,
+def _build_qp_model(cov, mu, target_return, return_maximize, max_weight,
                     support=None, extra_linears=None):
-    """One min-variance QP via HiGHS — the convex inner solve contract shared with cuOpt::
-
-        minimize   wᵀ(cov)w
-        subject to Σw = 1,  0 ≤ w ≤ max_weight  (0 for assets off ``support``)
-                   mu·w ≥/≤ target_return,  and each (coef, target, maximize) in extra_linears
-
-    ``support`` (the EA's chosen eligible assets) is enforced by pinning excluded assets'
-    upper bound to 0, so HiGHS solves the exact continuous QP on that subset — no MIQP.
-    Returns ``(weights as fractions, ok)``. Convex and exact.
-    """
+    """Build (but don't solve) the min-variance QP shared by the plain and dual-returning
+    inner solves. Returns ``(h, w, has_return)``. **Constraint (row) order is the dual
+    reader's contract**: budget Σw=1 at idx 0, the return floor at idx 1 (iff
+    ``target_return`` is set), then one row per ``extra_linears`` entry — so a row dual can
+    be mapped back to the lever it prices."""
     import highspy
 
     n = len(mu)
@@ -93,22 +88,92 @@ def _solve_qp_highs(cov, mu, target_return, return_maximize, max_weight,
     h = highspy.Highs()
     h.silent()
     w = [h.addVariable(lb=0.0, ub=ubs[i]) for i in range(n)]
-    h.addConstr(sum(w) == 1)
-    if target_return is not None:
+    h.addConstr(sum(w) == 1)                                          # row 0: budget
+    has_return = target_return is not None
+    if has_return:
         ret = sum(float(mu[i]) * w[i] for i in range(n))
-        h.addConstr(ret >= float(target_return) if return_maximize else ret <= float(target_return))
-    for coef, tgt, maximize in (extra_linears or []):
+        h.addConstr(ret >= float(target_return) if return_maximize   # row 1: return floor
+                    else ret <= float(target_return))
+    for coef, tgt, maximize in (extra_linears or []):                # rows 2..: extra floors
         expr = sum(float(coef[i]) * w[i] for i in range(n))
         h.addConstr(expr >= float(tgt) if maximize else expr <= float(tgt))
     h.passHessian(_hessian_from_cov(cov))
-    h.minimize()
+    return h, w, has_return
 
+
+def _qp_primal(h, w, max_weight):
+    """Read primal weights + feasibility from a solved QP. Gates on the returned weights,
+    not just status (parity with the cuOpt inner solve): a degenerate 'solved' point whose
+    weights are non-finite or violate Σw=1 / the box is treated as infeasible."""
+    n = len(w)
+    ub = float(max_weight) if max_weight is not None else 1.0
     ok = h.modelStatusToString(h.getModelStatus()) == "Optimal"
     weights = np.array(h.vals(w), dtype=float) if ok else np.zeros(n)
-    # Gate on the returned weights, not just status (parity with the cuOpt inner solve).
     if ok and not _qp_weights_ok(weights, ub):
         weights, ok = np.zeros(n), False
     return weights, ok
+
+
+def _solve_qp_highs(cov, mu, target_return, return_maximize, max_weight,
+                    support=None, extra_linears=None):
+    """One min-variance QP via HiGHS — the convex inner solve contract shared with cuOpt::
+
+        minimize   wᵀ(cov)w
+        subject to Σw = 1,  0 ≤ w ≤ max_weight  (0 for assets off ``support``)
+                   mu·w ≥/≤ target_return,  and each (coef, target, maximize) in extra_linears
+
+    ``support`` (the EA's chosen eligible assets) is enforced by pinning excluded assets'
+    upper bound to 0, so HiGHS solves the exact continuous QP on that subset — no MIQP.
+    Returns ``(weights as fractions, ok)``. Convex and exact.
+    """
+    h, w, _ = _build_qp_model(cov, mu, target_return, return_maximize, max_weight,
+                              support, extra_linears)
+    h.minimize()
+    return _qp_primal(h, w, max_weight)
+
+
+def _extract_qp_sensitivity(h, w, has_return, n_extra):
+    """Read HiGHS duals into a role-tagged raw payload the engine maps to option names.
+
+    Row order matches ``_build_qp_model`` (budget, return floor, extra floors), so
+    ``row_dual`` becomes role-tagged shadow prices and ``col_dual`` the per-variable reduced
+    costs. ``ranging`` is left None: HiGHS ``getRanging()`` is classically LP-only and its QP
+    output is unverified (see plan L4), so the MVP ships duals + reduced costs only.
+    """
+    sol = h.getSolution()
+    row_dual = [float(x) for x in sol.row_dual]
+    col_dual = [float(x) for x in sol.col_dual]
+
+    def _row(i):  # defensive: HiGHS returns one dual per constraint, in add order
+        return row_dual[i] if 0 <= i < len(row_dual) else 0.0
+
+    shadow_prices = [{"role": "budget", "linear_index": None, "value": _row(0)}]
+    idx = 1
+    if has_return:
+        shadow_prices.append({"role": "return_floor", "linear_index": 0, "value": _row(idx)})
+        idx += 1
+    for t in range(n_extra):
+        shadow_prices.append({"role": "linear_floor", "linear_index": t + 1, "value": _row(idx)})
+        idx += 1
+
+    return {"shadow_prices": shadow_prices, "reduced_costs": col_dual, "ranging": None}
+
+
+def _solve_qp_highs_sensitivity(cov, mu, target_return, return_maximize, max_weight,
+                                support=None, extra_linears=None):
+    """Same convex inner solve as ``_solve_qp_highs``, plus the exact duals:
+    ``(weights, ok, raw_sensitivity)``. ``raw_sensitivity`` carries role-tagged constraint
+    shadow prices (row duals) and per-variable reduced costs (col duals); None when the
+    solve is rejected. Called only on the final-frontier re-solve, never in the EA hot loop,
+    so it adds at most one dual read per surviving point (no extra solves)."""
+    n_extra = len(extra_linears or [])
+    h, w, has_return = _build_qp_model(cov, mu, target_return, return_maximize, max_weight,
+                                       support, extra_linears)
+    h.minimize()
+    weights, ok = _qp_primal(h, w, max_weight)
+    if not ok:
+        return weights, ok, None
+    return weights, ok, _extract_qp_sensitivity(h, w, has_return, n_extra)
 
 
 def _solve_milp_highs(min_coef, eps_list, mc, n, exact=False):
@@ -176,7 +241,10 @@ def _optimize_highs(
     else:
         m = getattr(mode, "value", "fast")
         pop, gen = _QP_BUDGET.get(m, _QP_BUDGET["fast"])
-        run = optimize_qp(problem, mode, inner_qp=_solve_qp_highs, pop=pop, gen=gen,
+        # inner_qp_sensitivity attaches solver-exact duals (shadow prices + reduced costs) to
+        # each final-frontier point — the dual read rides the marshaling re-solve, no extra cost.
+        run = optimize_qp(problem, mode, inner_qp=_solve_qp_highs,
+                          inner_qp_sensitivity=_solve_qp_highs_sensitivity, pop=pop, gen=gen,
                           max_solutions=max_solutions, seed=seed)
     # Provenance lives with the producer: stamp here so a direct call is labelled correctly,
     # not only when routed through optimize(). exact is a no-op on the always-exact QP path.
