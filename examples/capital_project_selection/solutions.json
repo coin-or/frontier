@@ -1,7 +1,7 @@
 {
   "run": {
-    "run_id": "885dbffe-d52b-4767-a4b6-e49feb81f6f3",
-    "created_at": "2026-06-04T04:30:18.757467Z",
+    "run_id": "7c89a9c5-2ccc-409e-af80-aba1f1b3ad9a",
+    "created_at": "2026-06-04T19:17:14.554020Z",
     "mode": "fast",
     "solutions": [
       {
@@ -32,46 +32,6 @@
           "P09",
           "P11",
           "P13",
-          "P15",
-          "P19"
-        ],
-        "objective_values": {
-          "NPV": 136.7,
-          "Cost": 139.1,
-          "Risk": 352.8,
-          "StrategicFit": 506.8
-        },
-        "allocations": null,
-        "content_signature": "b10ad43613ec"
-      },
-      {
-        "solution_id": 3,
-        "selected_options": [
-          "P03",
-          "P04",
-          "P09",
-          "P11",
-          "P13",
-          "P14",
-          "P19"
-        ],
-        "objective_values": {
-          "NPV": 135.2,
-          "Cost": 133.8,
-          "Risk": 407.1,
-          "StrategicFit": 496.9
-        },
-        "allocations": null,
-        "content_signature": "b4a036d2ccfd"
-      },
-      {
-        "solution_id": 4,
-        "selected_options": [
-          "P03",
-          "P04",
-          "P09",
-          "P11",
-          "P13",
           "P19"
         ],
         "objective_values": {
@@ -84,46 +44,47 @@
         "content_signature": "df3793ba03cc"
       },
       {
-        "solution_id": 5,
+        "solution_id": 3,
         "selected_options": [
-          "P03",
+          "P01",
           "P04",
           "P09",
           "P11",
-          "P15",
+          "P13",
+          "P14",
           "P19"
         ],
         "objective_values": {
-          "NPV": 130.7,
-          "Cost": 134.1,
-          "Risk": 275.0,
-          "StrategicFit": 442.0
+          "NPV": 121.4,
+          "Cost": 124.0,
+          "Risk": 402.6,
+          "StrategicFit": 498.0
         },
         "allocations": null,
-        "content_signature": "a0eccf57e70d"
+        "content_signature": "828d4cf8e92e"
       },
       {
-        "solution_id": 6,
+        "solution_id": 4,
         "selected_options": [
           "P01",
-          "P05",
+          "P03",
           "P09",
+          "P10",
           "P11",
-          "P13",
           "P15",
           "P19"
         ],
         "objective_values": {
-          "NPV": 107.3,
-          "Cost": 137.2,
-          "Risk": 342.1,
-          "StrategicFit": 471.4
+          "NPV": 118.7,
+          "Cost": 139.7,
+          "Risk": 322.0,
+          "StrategicFit": 489.9
         },
         "allocations": null,
-        "content_signature": "cd160d4e408f"
+        "content_signature": "17c1bff1c304"
       },
       {
-        "solution_id": 7,
+        "solution_id": 5,
         "selected_options": [
           "P04",
           "P09",
@@ -142,7 +103,7 @@
         "content_signature": "7bb8e6bb9afd"
       },
       {
-        "solution_id": 8,
+        "solution_id": 6,
         "selected_options": [
           "P01",
           "P09",
@@ -163,7 +124,91 @@
         "content_signature": "d1bfcc87f934"
       },
       {
+        "solution_id": 7,
+        "selected_options": [
+          "P01",
+          "P07",
+          "P08",
+          "P09",
+          "P11",
+          "P13",
+          "P14",
+          "P19",
+          "P22"
+        ],
+        "objective_values": {
+          "NPV": 105.8,
+          "Cost": 139.7,
+          "Risk": 474.2,
+          "StrategicFit": 598.8
+        },
+        "allocations": null,
+        "content_signature": "c06150731254"
+      },
+      {
+        "solution_id": 8,
+        "selected_options": [
+          "P01",
+          "P03",
+          "P08",
+          "P09",
+          "P11",
+          "P13",
+          "P14",
+          "P19",
+          "P22"
+        ],
+        "objective_values": {
+          "NPV": 103.6,
+          "Cost": 135.6,
+          "Risk": 478.0,
+          "StrategicFit": 581.5
+        },
+        "allocations": null,
+        "content_signature": "a35ac981dc70"
+      },
+      {
         "solution_id": 9,
+        "selected_options": [
+          "P03",
+          "P08",
+          "P11",
+          "P16",
+          "P19",
+          "P22"
+        ],
+        "objective_values": {
+          "NPV": 102.6,
+          "Cost": 133.6,
+          "Risk": 265.4,
+          "StrategicFit": 379.2
+        },
+        "allocations": null,
+        "content_signature": "2af75f997614"
+      },
+      {
+        "solution_id": 10,
+        "selected_options": [
+          "P01",
+          "P07",
+          "P08",
+          "P09",
+          "P11",
+          "P15",
+          "P19",
+          "P22"
+        ],
+        "objective_values": {
+          "NPV": 101.3,
+          "Cost": 140.0,
+          "Risk": 342.1,
+          "StrategicFit": 543.9
+        },
+        "allocations": null,
+        "content_signature": "b342751d1d01"
+      },
+      {
+        "solution_id": 11,
         "selected_options": [
           "P01",
           "P09",
@@ -182,69 +227,46 @@
         "content_signature": "ab1bb17443e2"
       },
       {
-        "solution_id": 10,
+        "solution_id": 12,
         "selected_options": [
           "P01",
           "P03",
           "P08",
-          "P09",
           "P11",
           "P15",
           "P19",
           "P22"
         ],
         "objective_values": {
-          "NPV": 99.1,
-          "Cost": 135.9,
-          "Risk": 345.9,
-          "StrategicFit": 526.6
-        },
-        "allocations": null,
-        "content_signature": "94e3c55f4cc2"
-      },
-      {
-        "solution_id": 11,
-        "selected_options": [
-          "P03",
-          "P06",
-          "P09",
-          "P11",
-          "P15",
-          "P19"
-        ],
-        "objective_values": {
           "NPV": 97.5,
-          "Cost": 126.1,
-          "Risk": 258.9,
-          "StrategicFit": 432.9
+          "Cost": 130.5,
+          "Risk": 316.3,
+          "StrategicFit": 463.9
         },
         "allocations": null,
-        "content_signature": "52ded8f37666"
-      },
-      {
-        "solution_id": 12,
-        "selected_options": [
-          "P01",
-          "P03",
-          "P09",
-          "P11",
-          "P13",
-          "P14",
-          "P15",
-          "P19",
-          "P23"
-        ],
-        "objective_values": {
-          "NPV": 93.4,
-          "Cost": 137.2,
-          "Risk": 468.2,
-          "StrategicFit": 597.2
-        },
-        "allocations": null,
-        "content_signature": "36e39c00ba61"
+        "content_signature": "b4bd965cabb4"
       },
       {
         "solution_id": 13,
+        "selected_options": [
+          "P04",
+          "P06",
+          "P09",
+          "P15",
+          "P19",
+          "P22"
+        ],
+        "objective_values": {
+          "NPV": 92.2,
+          "Cost": 139.2,
+          "Risk": 208.6,
+          "StrategicFit": 412.2
+        },
+        "allocations": null,
+        "content_signature": "0bae10b599fc"
+      },
+      {
+        "solution_id": 14,
         "selected_options": [
           "P01",
           "P03",
@@ -264,7 +286,28 @@
         "content_signature": "58d06bd97bc8"
       },
       {
-        "solution_id": 14,
+        "solution_id": 15,
+        "selected_options": [
+          "P01",
+          "P03",
+          "P09",
+          "P11",
+          "P13",
+          "P15",
+          "P19",
+          "P21"
+        ],
+        "objective_values": {
+          "NPV": 86.0,
+          "Cost": 134.3,
+          "Risk": 365.4,
+          "StrategicFit": 574.9
+        },
+        "allocations": null,
+        "content_signature": "22f9713a3f52"
+      },
+      {
+        "solution_id": 16,
         "selected_options": [
           "P01",
           "P06",
@@ -284,7 +327,26 @@
         "content_signature": "24ffd4d732a6"
       },
       {
-        "solution_id": 15,
+        "solution_id": 17,
+        "selected_options": [
+          "P04",
+          "P09",
+          "P15",
+          "P16",
+          "P19",
+          "P21"
+        ],
+        "objective_values": {
+          "NPV": 80.7,
+          "Cost": 138.6,
+          "Risk": 183.3,
+          "StrategicFit": 429.5
+        },
+        "allocations": null,
+        "content_signature": "b285223e2719"
+      },
+      {
+        "solution_id": 18,
         "selected_options": [
           "P01",
           "P09",
@@ -305,26 +367,67 @@
         "content_signature": "2e07edee1a97"
       },
       {
-        "solution_id": 16,
+        "solution_id": 19,
         "selected_options": [
           "P01",
+          "P03",
+          "P07",
+          "P09",
+          "P13",
+          "P15",
+          "P19",
+          "P22"
+        ],
+        "objective_values": {
+          "NPV": 71.9,
+          "Cost": 131.2,
+          "Risk": 348.0,
+          "StrategicFit": 539.4
+        },
+        "allocations": null,
+        "content_signature": "531fbae8a572"
+      },
+      {
+        "solution_id": 20,
+        "selected_options": [
+          "P08",
           "P09",
           "P11",
           "P15",
           "P19",
-          "P24"
+          "P22"
         ],
         "objective_values": {
-          "NPV": 70.3,
-          "Cost": 112.4,
-          "Risk": 242.4,
-          "StrategicFit": 412.4
+          "NPV": 70.7,
+          "Cost": 107.5,
+          "Risk": 243.6,
+          "StrategicFit": 396.1
         },
         "allocations": null,
-        "content_signature": "7111e428d307"
+        "content_signature": "2cf593517748"
       },
       {
-        "solution_id": 17,
+        "solution_id": 21,
+        "selected_options": [
+          "P01",
+          "P09",
+          "P11",
+          "P13",
+          "P15",
+          "P19",
+          "P22"
+        ],
+        "objective_values": {
+          "NPV": 70.4,
+          "Cost": 111.7,
+          "Risk": 327.8,
+          "StrategicFit": 466.1
+        },
+        "allocations": null,
+        "content_signature": "eb3f4387472a"
+      },
+      {
+        "solution_id": 22,
         "selected_options": [
           "P01",
           "P09",
@@ -344,27 +447,7 @@
         "content_signature": "94b9d485bc17"
       },
       {
-        "solution_id": 18,
-        "selected_options": [
-          "P01",
-          "P09",
-          "P11",
-          "P13",
-          "P15",
-          "P19",
-          "P23"
-        ],
-        "objective_values": {
-          "NPV": 69.8,
-          "Cost": 111.6,
-          "Risk": 330.9,
-          "StrategicFit": 479.8
-        },
-        "allocations": null,
-        "content_signature": "1a926d9a1ec9"
-      },
-      {
-        "solution_id": 19,
+        "solution_id": 23,
         "selected_options": [
           "P01",
           "P11",
@@ -383,49 +466,29 @@
         "content_signature": "200efc865846"
       },
       {
-        "solution_id": 20,
+        "solution_id": 24,
         "selected_options": [
           "P01",
+          "P07",
+          "P08",
           "P09",
-          "P11",
           "P13",
+          "P14",
           "P15",
           "P19",
-          "P21",
           "P22"
         ],
         "objective_values": {
-          "NPV": 68.0,
-          "Cost": 133.9,
-          "Risk": 344.7,
-          "StrategicFit": 548.0
+          "NPV": 66.9,
+          "Cost": 128.7,
+          "Risk": 421.0,
+          "StrategicFit": 588.0
         },
         "allocations": null,
-        "content_signature": "14fc4fab4c64"
+        "content_signature": "4f2462b3814f"
       },
       {
-        "solution_id": 21,
-        "selected_options": [
-          "P01",
-          "P03",
-          "P06",
-          "P09",
-          "P13",
-          "P15",
-          "P19",
-          "P21"
-        ],
-        "objective_values": {
-          "NPV": 65.5,
-          "Cost": 139.8,
-          "Risk": 319.7,
-          "StrategicFit": 572.0
-        },
-        "allocations": null,
-        "content_signature": "093adfeca4ad"
-      },
-      {
-        "solution_id": 22,
+        "solution_id": 25,
         "selected_options": [
           "P01",
           "P03",
@@ -445,48 +508,26 @@
         "content_signature": "0b0edddd37d9"
       },
       {
-        "solution_id": 23,
+        "solution_id": 26,
         "selected_options": [
-          "P01",
-          "P03",
           "P08",
-          "P09",
-          "P13",
-          "P14",
           "P15",
+          "P16",
           "P19",
+          "P20",
           "P22"
         ],
         "objective_values": {
-          "NPV": 64.7,
-          "Cost": 124.6,
-          "Risk": 424.8,
-          "StrategicFit": 570.7
+          "NPV": 52.8,
+          "Cost": 139.5,
+          "Risk": 176.6,
+          "StrategicFit": 385.8
         },
         "allocations": null,
-        "content_signature": "100474819c95"
+        "content_signature": "006d5d9a4f21"
       },
       {
-        "solution_id": 24,
-        "selected_options": [
-          "P03",
-          "P06",
-          "P09",
-          "P15",
-          "P19",
-          "P24"
-        ],
-        "objective_values": {
-          "NPV": 63.6,
-          "Cost": 127.7,
-          "Risk": 201.2,
-          "StrategicFit": 408.4
-        },
-        "allocations": null,
-        "content_signature": "249d6337b7b5"
-      },
-      {
-        "solution_id": 25,
+        "solution_id": 27,
         "selected_options": [
           "P01",
           "P03",
@@ -505,7 +546,106 @@
         "content_signature": "afef8769e966"
       },
       {
-        "solution_id": 26,
+        "solution_id": 28,
+        "selected_options": [
+          "P01",
+          "P09",
+          "P13",
+          "P15",
+          "P16",
+          "P19"
+        ],
+        "objective_values": {
+          "NPV": 40.8,
+          "Cost": 94.4,
+          "Risk": 239.9,
+          "StrategicFit": 398.6
+        },
+        "allocations": null,
+        "content_signature": "329068d8176f"
+      },
+      {
+        "solution_id": 29,
+        "selected_options": [
+          "P01",
+          "P08",
+          "P09",
+          "P15",
+          "P19",
+          "P21",
+          "P22",
+          "P23"
+        ],
+        "objective_values": {
+          "NPV": 35.2,
+          "Cost": 134.8,
+          "Risk": 262.4,
+          "StrategicFit": 521.9
+        },
+        "allocations": null,
+        "content_signature": "73a4d7b353d5"
+      },
+      {
+        "solution_id": 30,
+        "selected_options": [
+          "P08",
+          "P09",
+          "P15",
+          "P19",
+          "P21",
+          "P22",
+          "P24"
+        ],
+        "objective_values": {
+          "NPV": 34.4,
+          "Cost": 131.3,
+          "Risk": 202.8,
+          "StrategicFit": 453.5
+        },
+        "allocations": null,
+        "content_signature": "f81ed95dcb8a"
+      },
+      {
+        "solution_id": 31,
+        "selected_options": [
+          "P01",
+          "P09",
+          "P15",
+          "P16",
+          "P19",
+          "P21"
+        ],
+        "objective_values": {
+          "NPV": 32.4,
+          "Cost": 111.6,
+          "Risk": 179.0,
+          "StrategicFit": 415.7
+        },
+        "allocations": null,
+        "content_signature": "32d95df4720a"
+      },
+      {
+        "solution_id": 32,
+        "selected_options": [
+          "P08",
+          "P09",
+          "P13",
+          "P15",
+          "P19",
+          "P21",
+          "P22"
+        ],
+        "objective_values": {
+          "NPV": 31.4,
+          "Cost": 111.9,
+          "Risk": 255.5,
+          "StrategicFit": 469.4
+        },
+        "allocations": null,
+        "content_signature": "b473e1aaa795"
+      },
+      {
+        "solution_id": 33,
         "selected_options": [
           "P01",
           "P09",
@@ -513,79 +653,21 @@
           "P14",
           "P15",
           "P19",
-          "P20",
-          "P21"
-        ],
-        "objective_values": {
-          "NPV": 34.7,
-          "Cost": 134.9,
-          "Risk": 330.9,
-          "StrategicFit": 571.6
-        },
-        "allocations": null,
-        "content_signature": "1bea37c45e05"
-      },
-      {
-        "solution_id": 27,
-        "selected_options": [
-          "P01",
-          "P09",
-          "P13",
-          "P15",
-          "P19",
           "P21",
-          "P23",
-          "P24"
-        ],
-        "objective_values": {
-          "NPV": 33.5,
-          "Cost": 135.4,
-          "Risk": 290.1,
-          "StrategicFit": 537.2
-        },
-        "allocations": null,
-        "content_signature": "178a807622ee"
-      },
-      {
-        "solution_id": 28,
-        "selected_options": [
-          "P01",
-          "P09",
-          "P13",
-          "P15",
-          "P19",
-          "P24"
-        ],
-        "objective_values": {
-          "NPV": 33.4,
-          "Cost": 94.6,
-          "Risk": 237.4,
-          "StrategicFit": 403.8
-        },
-        "allocations": null,
-        "content_signature": "06a300cf6842"
-      },
-      {
-        "solution_id": 29,
-        "selected_options": [
-          "P08",
-          "P09",
-          "P15",
-          "P19",
           "P22",
           "P23"
         ],
         "objective_values": {
-          "NPV": 30.3,
-          "Cost": 103.3,
-          "Risk": 196.6,
-          "StrategicFit": 374.2
+          "NPV": 30.1,
+          "Cost": 136.2,
+          "Risk": 381.6,
+          "StrategicFit": 578.8
         },
         "allocations": null,
-        "content_signature": "de73395abe0a"
+        "content_signature": "135a14d95e2d"
       },
       {
-        "solution_id": 30,
+        "solution_id": 34,
         "selected_options": [
           "P01",
           "P09",
@@ -605,47 +687,7 @@
         "content_signature": "57ff41b05907"
       },
       {
-        "solution_id": 31,
-        "selected_options": [
-          "P01",
-          "P09",
-          "P15",
-          "P19",
-          "P21",
-          "P22",
-          "P24"
-        ],
-        "objective_values": {
-          "NPV": 28.1,
-          "Cost": 130.5,
-          "Risk": 209.2,
-          "StrategicFit": 458.7
-        },
-        "allocations": null,
-        "content_signature": "ee94fee236f2"
-      },
-      {
-        "solution_id": 32,
-        "selected_options": [
-          "P08",
-          "P09",
-          "P14",
-          "P15",
-          "P19",
-          "P21",
-          "P22"
-        ],
-        "objective_values": {
-          "NPV": 27.9,
-          "Cost": 113.4,
-          "Risk": 261.6,
-          "StrategicFit": 457.3
-        },
-        "allocations": null,
-        "content_signature": "99640fb35f2b"
-      },
-      {
-        "solution_id": 33,
+        "solution_id": 35,
         "selected_options": [
           "P01",
           "P09",
@@ -654,41 +696,41 @@
           "P15",
           "P19",
           "P21",
-          "P23"
+          "P22"
         ],
         "objective_values": {
-          "NPV": 27.0,
-          "Cost": 117.5,
-          "Risk": 348.9,
-          "StrategicFit": 541.0
+          "NPV": 27.6,
+          "Cost": 117.6,
+          "Risk": 345.8,
+          "StrategicFit": 527.3
         },
         "allocations": null,
-        "content_signature": "2c81aa074b46"
+        "content_signature": "3758619419e9"
       },
       {
-        "solution_id": 34,
+        "solution_id": 36,
         "selected_options": [
+          "P01",
           "P09",
+          "P13",
           "P15",
           "P19",
-          "P21",
-          "P22",
-          "P23"
+          "P21"
         ],
         "objective_values": {
-          "NPV": 14.3,
-          "Cost": 115.4,
-          "Risk": 171.0,
-          "StrategicFit": 395.5
+          "NPV": 22.0,
+          "Cost": 92.4,
+          "Risk": 229.2,
+          "StrategicFit": 436.8
         },
         "allocations": null,
-        "content_signature": "881a9fd327bf"
+        "content_signature": "9645679908ab"
       }
     ],
-    "total_pareto_found": 34,
+    "total_pareto_found": 36,
     "quality": {
-      "hypervolume_normalized": 0.2461,
-      "spacing_cv": 0.2015
+      "hypervolume_normalized": 0.2463,
+      "spacing_cv": 0.2069
     },
     "constraints_snapshot": [
       {
@@ -731,33 +773,378 @@
     "solver": "nsga-iii",
     "exact": false
   },
+  "exact_run": {
+    "run_id": "faabc41e-8842-4afe-8edf-803525b4fc01",
+    "created_at": "2026-06-04T19:17:24.218019Z",
+    "mode": "fast",
+    "solutions": [
+      {
+        "solution_id": 1,
+        "selected_options": [
+          "P01",
+          "P03",
+          "P04",
+          "P11",
+          "P13",
+          "P19"
+        ],
+        "objective_values": {
+          "NPV": 138.4,
+          "Cost": 131.2,
+          "Risk": 342.5,
+          "StrategicFit": 447.3
+        },
+        "allocations": null,
+        "content_signature": "ed0494a040ce"
+      },
+      {
+        "solution_id": 2,
+        "selected_options": [
+          "P01",
+          "P04",
+          "P11",
+          "P13",
+          "P14",
+          "P19"
+        ],
+        "objective_values": {
+          "NPV": 119.8,
+          "Cost": 118.6,
+          "Risk": 373.0,
+          "StrategicFit": 435.3
+        },
+        "allocations": null,
+        "content_signature": "6cec5d5cf6b1"
+      },
+      {
+        "solution_id": 3,
+        "selected_options": [
+          "P04",
+          "P09",
+          "P11",
+          "P13",
+          "P19",
+          "P21"
+        ],
+        "objective_values": {
+          "NPV": 109.2,
+          "Cost": 130.4,
+          "Risk": 286.7,
+          "StrategicFit": 461.4
+        },
+        "allocations": null,
+        "content_signature": "ab613ce200cc"
+      },
+      {
+        "solution_id": 4,
+        "selected_options": [
+          "P01",
+          "P03",
+          "P06",
+          "P09",
+          "P11",
+          "P13",
+          "P19"
+        ],
+        "objective_values": {
+          "NPV": 106.8,
+          "Cost": 128.6,
+          "Risk": 356.0,
+          "StrategicFit": 500.9
+        },
+        "allocations": null,
+        "content_signature": "0d9544806fbc"
+      },
+      {
+        "solution_id": 5,
+        "selected_options": [
+          "P01",
+          "P09",
+          "P10",
+          "P11",
+          "P13",
+          "P14",
+          "P19"
+        ],
+        "objective_values": {
+          "NPV": 102.1,
+          "Cost": 120.3,
+          "Risk": 400.7,
+          "StrategicFit": 480.1
+        },
+        "allocations": null,
+        "content_signature": "4eb4841fd6fb"
+      },
+      {
+        "solution_id": 6,
+        "selected_options": [
+          "P01",
+          "P03",
+          "P04",
+          "P09",
+          "P15",
+          "P19"
+        ],
+        "objective_values": {
+          "NPV": 95.1,
+          "Cost": 120.6,
+          "Risk": 241.1,
+          "StrategicFit": 434.4
+        },
+        "allocations": null,
+        "content_signature": "24aca7c6fbd5"
+      },
+      {
+        "solution_id": 7,
+        "selected_options": [
+          "P01",
+          "P03",
+          "P11",
+          "P13",
+          "P14",
+          "P15",
+          "P19"
+        ],
+        "objective_values": {
+          "NPV": 89.3,
+          "Cost": 113.2,
+          "Risk": 402.8,
+          "StrategicFit": 483.0
+        },
+        "allocations": null,
+        "content_signature": "58d06bd97bc8"
+      },
+      {
+        "solution_id": 8,
+        "selected_options": [
+          "P03",
+          "P09",
+          "P11",
+          "P13",
+          "P14",
+          "P19"
+        ],
+        "objective_values": {
+          "NPV": 79.6,
+          "Cost": 97.5,
+          "Risk": 353.9,
+          "StrategicFit": 417.3
+        },
+        "allocations": null,
+        "content_signature": "5277727ae9a8"
+      },
+      {
+        "solution_id": 9,
+        "selected_options": [
+          "P01",
+          "P09",
+          "P12",
+          "P13",
+          "P14",
+          "P15",
+          "P19",
+          "P21"
+        ],
+        "objective_values": {
+          "NPV": 58.3,
+          "Cost": 127.0,
+          "Risk": 369.9,
+          "StrategicFit": 554.4
+        },
+        "allocations": null,
+        "content_signature": "9836f47c97af"
+      },
+      {
+        "solution_id": 10,
+        "selected_options": [
+          "P01",
+          "P07",
+          "P08",
+          "P09",
+          "P19",
+          "P21",
+          "P22"
+        ],
+        "objective_values": {
+          "NPV": 52.0,
+          "Cost": 127.6,
+          "Risk": 246.6,
+          "StrategicFit": 489.8
+        },
+        "allocations": null,
+        "content_signature": "8db3004eb4ff"
+      },
+      {
+        "solution_id": 11,
+        "selected_options": [
+          "P01",
+          "P06",
+          "P09",
+          "P13",
+          "P14",
+          "P15",
+          "P19",
+          "P21"
+        ],
+        "objective_values": {
+          "NPV": 46.9,
+          "Cost": 127.2,
+          "Risk": 350.2,
+          "StrategicFit": 560.0
+        },
+        "allocations": null,
+        "content_signature": "fecd502dc989"
+      },
+      {
+        "solution_id": 12,
+        "selected_options": [
+          "P01",
+          "P08",
+          "P09",
+          "P13",
+          "P15",
+          "P19",
+          "P22"
+        ],
+        "objective_values": {
+          "NPV": 41.1,
+          "Cost": 99.0,
+          "Risk": 287.5,
+          "StrategicFit": 453.3
+        },
+        "allocations": null,
+        "content_signature": "fe923562397f"
+      },
+      {
+        "solution_id": 13,
+        "selected_options": [
+          "P08",
+          "P09",
+          "P13",
+          "P14",
+          "P19",
+          "P22"
+        ],
+        "objective_values": {
+          "NPV": 32.3,
+          "Cost": 84.4,
+          "Risk": 292.9,
+          "StrategicFit": 377.6
+        },
+        "allocations": null,
+        "content_signature": "7f4d18bd0f34"
+      },
+      {
+        "solution_id": 14,
+        "selected_options": [
+          "P01",
+          "P09",
+          "P13",
+          "P14",
+          "P15",
+          "P19"
+        ],
+        "objective_values": {
+          "NPV": 26.9,
+          "Cost": 76.7,
+          "Risk": 296.2,
+          "StrategicFit": 407.6
+        },
+        "allocations": null,
+        "content_signature": "451bff0a96d1"
+      }
+    ],
+    "total_pareto_found": 14,
+    "quality": {
+      "hypervolume_normalized": 0.1583,
+      "spacing_cv": 0.7431
+    },
+    "constraints_snapshot": [
+      {
+        "type": "objective_bound",
+        "objective": "Cost",
+        "operator": "max",
+        "value": 140.0
+      },
+      {
+        "type": "cardinality",
+        "min": 6,
+        "max": 14
+      },
+      {
+        "type": "force_include",
+        "option": "P19"
+      },
+      {
+        "type": "dependency",
+        "if_option": "P07",
+        "then_option": "P22"
+      },
+      {
+        "type": "dependency",
+        "if_option": "P08",
+        "then_option": "P22"
+      },
+      {
+        "type": "exclusion_pair",
+        "option_a": "P01",
+        "option_b": "P02"
+      },
+      {
+        "type": "exclusion_pair",
+        "option_a": "P11",
+        "option_b": "P12"
+      }
+    ],
+    "seed_used": 42,
+    "solver": "highs",
+    "exact": false
+  },
   "scenario_run": {
     "scenario_runs": {
       "budget_cut": {
-        "run_id": "7593d9e1-8e0e-41bc-9aa4-5b475028948e",
-        "created_at": "2026-06-04T04:30:23.173357Z",
+        "run_id": "b1bdcebd-50a0-4b74-963f-7c43186a2143",
+        "created_at": "2026-06-04T19:17:20.755814Z",
         "mode": "fast",
         "solutions": [
           {
             "solution_id": 1,
             "selected_options": [
-              "P04",
+              "P03",
               "P08",
-              "P09",
+              "P11",
               "P13",
               "P19"
             ],
             "objective_values": {
-              "NPV": 82.3,
-              "Cost": 95.5,
-              "Risk": 229.5,
-              "StrategicFit": 366.7
+              "NPV": 89.1,
+              "Cost": 95.7,
+              "Risk": 282.9,
+              "StrategicFit": 362.5
             },
             "allocations": null,
-            "content_signature": "4810c42a02b3"
+            "content_signature": "cf79398b946e"
           },
           {
             "solution_id": 2,
+            "selected_options": [
+              "P03",
+              "P08",
+              "P09",
+              "P11",
+              "P19"
+            ],
+            "objective_values": {
+              "NPV": 84.7,
+              "Cost": 96.1,
+              "Risk": 234.7,
+              "StrategicFit": 360.4
+            },
+            "allocations": null,
+            "content_signature": "9e88a8daf0b6"
+          },
+          {
+            "solution_id": 3,
             "selected_options": [
               "P01",
               "P08",
@@ -777,7 +1164,7 @@
             "content_signature": "878f5d18aedd"
           },
           {
-            "solution_id": 3,
+            "solution_id": 4,
             "selected_options": [
               "P01",
               "P08",
@@ -796,7 +1183,7 @@
             "content_signature": "2f0bd31951b2"
           },
           {
-            "solution_id": 4,
+            "solution_id": 5,
             "selected_options": [
               "P01",
               "P08",
@@ -815,7 +1202,7 @@
             "content_signature": "b5741122d6e0"
           },
           {
-            "solution_id": 5,
+            "solution_id": 6,
             "selected_options": [
               "P01",
               "P08",
@@ -834,7 +1221,7 @@
             "content_signature": "1aa12f495985"
           },
           {
-            "solution_id": 6,
+            "solution_id": 7,
             "selected_options": [
               "P08",
               "P09",
@@ -853,7 +1240,7 @@
             "content_signature": "d27f6d9f295b"
           },
           {
-            "solution_id": 7,
+            "solution_id": 8,
             "selected_options": [
               "P08",
               "P09",
@@ -869,25 +1256,6 @@
             },
             "allocations": null,
             "content_signature": "54176eaf322c"
-          },
-          {
-            "solution_id": 8,
-            "selected_options": [
-              "P01",
-              "P08",
-              "P09",
-              "P12",
-              "P13",
-              "P19"
-            ],
-            "objective_values": {
-              "NPV": 67.8,
-              "Cost": 96.6,
-              "Risk": 282.0,
-              "StrategicFit": 417.8
-            },
-            "allocations": null,
-            "content_signature": "ad2e86d78d72"
           },
           {
             "solution_id": 9,
@@ -1005,42 +1373,6 @@
           {
             "solution_id": 15,
             "selected_options": [
-              "P06",
-              "P08",
-              "P09",
-              "P15",
-              "P19"
-            ],
-            "objective_values": {
-              "NPV": 47.1,
-              "Cost": 94.3,
-              "Risk": 165.2,
-              "StrategicFit": 355.4
-            },
-            "allocations": null,
-            "content_signature": "25729277bf03"
-          },
-          {
-            "solution_id": 16,
-            "selected_options": [
-              "P03",
-              "P08",
-              "P13",
-              "P19",
-              "P21"
-            ],
-            "objective_values": {
-              "NPV": 43.8,
-              "Cost": 95.1,
-              "Risk": 217.0,
-              "StrategicFit": 371.0
-            },
-            "allocations": null,
-            "content_signature": "a361204976fa"
-          },
-          {
-            "solution_id": 17,
-            "selected_options": [
               "P01",
               "P08",
               "P09",
@@ -1059,7 +1391,7 @@
             "content_signature": "fe923562397f"
           },
           {
-            "solution_id": 18,
+            "solution_id": 16,
             "selected_options": [
               "P03",
               "P09",
@@ -1078,7 +1410,7 @@
             "content_signature": "1ffeec6afd28"
           },
           {
-            "solution_id": 19,
+            "solution_id": 17,
             "selected_options": [
               "P01",
               "P08",
@@ -1098,7 +1430,7 @@
             "content_signature": "e7a7f44594f8"
           },
           {
-            "solution_id": 20,
+            "solution_id": 18,
             "selected_options": [
               "P01",
               "P08",
@@ -1114,6 +1446,42 @@
             },
             "allocations": null,
             "content_signature": "3094c44a09a8"
+          },
+          {
+            "solution_id": 19,
+            "selected_options": [
+              "P08",
+              "P09",
+              "P13",
+              "P15",
+              "P19"
+            ],
+            "objective_values": {
+              "NPV": 30.7,
+              "Cost": 71.0,
+              "Risk": 205.9,
+              "StrategicFit": 349.7
+            },
+            "allocations": null,
+            "content_signature": "ce9f07810b37"
+          },
+          {
+            "solution_id": 20,
+            "selected_options": [
+              "P09",
+              "P15",
+              "P16",
+              "P19",
+              "P23"
+            ],
+            "objective_values": {
+              "NPV": 30.0,
+              "Cost": 98.7,
+              "Risk": 149.0,
+              "StrategicFit": 319.5
+            },
+            "allocations": null,
+            "content_signature": "6bd22eae5e60"
           },
           {
             "solution_id": 21,
@@ -1267,8 +1635,8 @@
         ],
         "total_pareto_found": 28,
         "quality": {
-          "hypervolume_normalized": 0.2126,
-          "spacing_cv": 0.3641
+          "hypervolume_normalized": 0.2201,
+          "spacing_cv": 0.3732
         },
         "constraints_snapshot": [],
         "seed_used": 1340906435,
@@ -1276,8 +1644,8 @@
         "exact": false
       },
       "compliance_wave": {
-        "run_id": "6d014b12-c446-4117-a443-f11c581bceba",
-        "created_at": "2026-06-04T04:30:23.191029Z",
+        "run_id": "b6b5f6dd-ed8e-4bf3-90ee-8be24bd4e047",
+        "created_at": "2026-06-04T19:17:20.943163Z",
         "mode": "fast",
         "solutions": [
           {
@@ -1342,21 +1710,21 @@
           {
             "solution_id": 4,
             "selected_options": [
+              "P09",
               "P11",
               "P13",
-              "P14",
               "P19",
               "P20",
               "P21"
             ],
             "objective_values": {
-              "NPV": 64.7,
-              "Cost": 131.2,
-              "Risk": 305.6,
-              "StrategicFit": 453.9
+              "NPV": 63.8,
+              "Cost": 130.1,
+              "Risk": 251.3,
+              "StrategicFit": 463.9
             },
             "allocations": null,
-            "content_signature": "16c8837d013d"
+            "content_signature": "a031d0c18e2b"
           },
           {
             "solution_id": 5,
@@ -1399,6 +1767,46 @@
           {
             "solution_id": 7,
             "selected_options": [
+              "P03",
+              "P08",
+              "P09",
+              "P13",
+              "P19",
+              "P20",
+              "P21"
+            ],
+            "objective_values": {
+              "NPV": 55.6,
+              "Cost": 136.5,
+              "Risk": 264.4,
+              "StrategicFit": 515.8
+            },
+            "allocations": null,
+            "content_signature": "0d8c9c32f433"
+          },
+          {
+            "solution_id": 8,
+            "selected_options": [
+              "P01",
+              "P03",
+              "P09",
+              "P13",
+              "P19",
+              "P20",
+              "P21"
+            ],
+            "objective_values": {
+              "NPV": 49.3,
+              "Cost": 135.7,
+              "Risk": 270.8,
+              "StrategicFit": 521.0
+            },
+            "allocations": null,
+            "content_signature": "01e48e5727bb"
+          },
+          {
+            "solution_id": 9,
+            "selected_options": [
               "P07",
               "P13",
               "P15",
@@ -1416,27 +1824,26 @@
             "content_signature": "f8e3497fe45e"
           },
           {
-            "solution_id": 8,
+            "solution_id": 10,
             "selected_options": [
-              "P03",
+              "P08",
               "P09",
-              "P13",
-              "P15",
+              "P16",
               "P19",
               "P20",
               "P21"
             ],
             "objective_values": {
-              "NPV": 46.0,
-              "Cost": 138.2,
-              "Risk": 251.5,
-              "StrategicFit": 517.8
+              "NPV": 44.9,
+              "Cost": 136.6,
+              "Risk": 160.8,
+              "StrategicFit": 430.0
             },
             "allocations": null,
-            "content_signature": "d6643ae9def1"
+            "content_signature": "300de421cf81"
           },
           {
-            "solution_id": 9,
+            "solution_id": 11,
             "selected_options": [
               "P01",
               "P08",
@@ -1456,7 +1863,7 @@
             "content_signature": "01dafd9c6c6c"
           },
           {
-            "solution_id": 10,
+            "solution_id": 12,
             "selected_options": [
               "P08",
               "P09",
@@ -1477,7 +1884,7 @@
             "content_signature": "95699ed7f7a3"
           },
           {
-            "solution_id": 11,
+            "solution_id": 13,
             "selected_options": [
               "P01",
               "P08",
@@ -1496,7 +1903,7 @@
             "content_signature": "b128baa196b1"
           },
           {
-            "solution_id": 12,
+            "solution_id": 14,
             "selected_options": [
               "P01",
               "P08",
@@ -1516,7 +1923,7 @@
             "content_signature": "569ea9603a27"
           },
           {
-            "solution_id": 13,
+            "solution_id": 15,
             "selected_options": [
               "P08",
               "P09",
@@ -1536,26 +1943,7 @@
             "content_signature": "754c1158a769"
           },
           {
-            "solution_id": 14,
-            "selected_options": [
-              "P09",
-              "P15",
-              "P16",
-              "P19",
-              "P20",
-              "P21"
-            ],
-            "objective_values": {
-              "NPV": 35.3,
-              "Cost": 138.3,
-              "Risk": 147.9,
-              "StrategicFit": 432.0
-            },
-            "allocations": null,
-            "content_signature": "7656c7058902"
-          },
-          {
-            "solution_id": 15,
+            "solution_id": 16,
             "selected_options": [
               "P01",
               "P09",
@@ -1575,7 +1963,7 @@
             "content_signature": "84b7a1711902"
           },
           {
-            "solution_id": 16,
+            "solution_id": 17,
             "selected_options": [
               "P01",
               "P09",
@@ -1595,7 +1983,7 @@
             "content_signature": "a540107537ff"
           },
           {
-            "solution_id": 17,
+            "solution_id": 18,
             "selected_options": [
               "P09",
               "P13",
@@ -1615,7 +2003,7 @@
             "content_signature": "ede52c74c556"
           },
           {
-            "solution_id": 18,
+            "solution_id": 19,
             "selected_options": [
               "P01",
               "P09",
@@ -1634,7 +2022,7 @@
             "content_signature": "daef9d0d02e2"
           },
           {
-            "solution_id": 19,
+            "solution_id": 20,
             "selected_options": [
               "P09",
               "P13",
@@ -1653,7 +2041,7 @@
             "content_signature": "a77446182077"
           },
           {
-            "solution_id": 20,
+            "solution_id": 21,
             "selected_options": [
               "P09",
               "P15",
@@ -1672,10 +2060,10 @@
             "content_signature": "5898ef2e5c90"
           }
         ],
-        "total_pareto_found": 20,
+        "total_pareto_found": 21,
         "quality": {
-          "hypervolume_normalized": 0.159,
-          "spacing_cv": 0.5026
+          "hypervolume_normalized": 0.1787,
+          "spacing_cv": 0.4928
         },
         "constraints_snapshot": [],
         "seed_used": 1057582272,
@@ -1683,6 +2071,6 @@
         "exact": false
       }
     },
-    "created_at": "2026-06-04T04:30:23.192034Z"
+    "created_at": "2026-06-04T19:17:20.945124Z"
   }
 }

@@ -735,12 +735,14 @@ def _model_get_section(p: Problem, section: str) -> dict:
             return {**header, "run": p.run.model_dump(mode="json") if p.run else None}
         case "runs":
             return {**header, "runs": [r.model_dump(mode="json") for r in p.runs]}
+        case "exact_run":
+            return {**header, "exact_run": p.exact_run.model_dump(mode="json") if p.exact_run else None}
         case "curated":
             return {**header, "curated": [c.model_dump(mode="json") for c in p.curated_solutions]}
         case "references":
             return {**header, "reference_points": [r.model_dump(mode="json") for r in p.reference_points]}
         case _:
-            return {"error": f"Unknown section: {section}. Valid: summary, objectives, options, scores, constraints, matrices, scenarios, run, runs, curated, references."}
+            return {"error": f"Unknown section: {section}. Valid: summary, objectives, options, scores, constraints, matrices, scenarios, run, runs, exact_run, curated, references."}
 
 
 def _model_list() -> dict:
@@ -900,14 +902,13 @@ def solve(
             NSGA-III for 4+ objectives.
       max_solutions: Cap the number of Pareto solutions returned (default 100).
             Useful for proportional mode which can produce large frontiers.
-      seed: Deterministic RNG seed for reproducibility. When omitted a fresh seed
-            is drawn; either way the actual seed is echoed as `seed_used` in the
-            response so any run can be reproduced. Vary seeds to check frontier
-            stability; fix the seed to share reproducible results. For
-            `run_scenarios`, the parent seed is propagated deterministically to
-            each scenario (per-scenario `seed_used` derived via SHA-256 of
-            scenario name + parent seed), so pinning the parent makes the whole
-            multi-scenario run reproducible across processes.
+      seed: Optional RNG seed for reproducibility, echoed as `seed_used` on every
+            run. Same problem state + same seed → the same frontier (in- and
+            cross-process); omit it and a fresh seed is drawn and recorded. Vary
+            seeds to check frontier stability; fix the seed to reproduce or share a
+            result. For `run_scenarios`, the parent seed is propagated to each
+            scenario (per-scenario `seed_used` derived via SHA-256 of scenario name
+            + parent seed), so pinning the parent reproduces the whole run.
       solver: Which engine to run. Omit (or "nsga") for the default NSGA-II/III
             evolutionary search — it fits any problem shape and is the right choice for
             exploration and most runs. "highs" (CPU) or "cuopt" (GPU) select an OPTIONAL
@@ -1036,11 +1037,18 @@ def _solve_run(p: Problem, mode: OptimizeMode | None = None, max_solutions: int 
     # Snapshot constraints on the run
     run.constraints_snapshot = [c.model_dump() for c in p.constraints]
 
-    # Archive previous run before replacing
-    if p.run is not None:
-        p.runs.append(p.run)
+    # An exact solver is a certified *overlay* — store it in exact_run and leave the
+    # exploratory `run` (NSGA) intact, so a problem can hold both frontiers at once
+    # (explore-with-EA, then certify). A default/NSGA run replaces `run` and archives
+    # the prior one for comparison.
+    from solvers import EXACT_SOLVERS
 
-    p.run = run
+    if run.solver in EXACT_SOLVERS:
+        p.exact_run = run
+    else:
+        if p.run is not None:
+            p.runs.append(p.run)
+        p.run = run
     p.results_stale = False
     store.save(p)
 

@@ -228,3 +228,16 @@ class TestSolveToolSelection:
         pid = _make_solvable_problem_via_tool()
         res = srv.solve(action="run", problem_id=pid, solver="highs")
         assert res["solver_used"] == "highs"
+
+    @pytest.mark.skipif(not _HAS_HIGHS, reason="highspy not installed")
+    def test_exact_run_is_overlay_not_replacement(self):
+        # The exact solver populates exact_run and leaves the exploratory `run` (NSGA) intact,
+        # so the problem holds both frontiers at once.
+        pid = _make_solvable_problem_via_tool()
+        srv.solve(action="run", problem_id=pid, seed=42)                 # NSGA → run
+        srv.solve(action="run", problem_id=pid, seed=42, solver="highs") # highs → exact_run
+        p = srv.store.load(pid)
+        assert p.run is not None and p.run.solver.startswith("nsga")
+        assert p.exact_run is not None and p.exact_run.solver == "highs"
+        # both are reachable via model get sections
+        assert srv.model(action="get", problem_id=pid, section="exact_run")["exact_run"]["solver"] == "highs"

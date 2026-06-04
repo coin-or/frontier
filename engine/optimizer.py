@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import math
+import threading
 
 import numpy as np
 from pymoo.algorithms.moo.nsga2 import NSGA2
@@ -21,6 +23,49 @@ from pymoo.util.nds.non_dominated_sorting import NonDominatedSorting
 from pymoo.util.ref_dirs import get_reference_directions
 
 
+# --- Deterministic RNG for pymoo's unseeded fallbacks ---
+#
+# pymoo 0.6.1.6 seeds the algorithm's own ``random_state`` and threads it into
+# sampling/crossover/mutation, but NOT into the survival and selection operators —
+# those fall back to ``@default_random_state``'s ``np.random.default_rng(None)``
+# (OS entropy). Any run that hits a random branch there (notably NSGA-III niche
+# tie-breaking, which fires every generation once the last front overflows
+# ``pop_size``) is then non-reproducible even at a fixed seed.
+#
+# We can't change pymoo from here, so we install one process-wide shim over
+# ``np.random.default_rng``: a call with an explicit seed is untouched (pymoo's
+# own ``default_rng(self.seed)`` still works), but a ``None``/no-arg call inside a
+# seeded solve draws a deterministic child seed from a thread-local
+# ``SeedSequence``. The state is thread-local and only set inside
+# ``_seeded_rng_fallback``, so it is transparent outside our solve and safe under
+# the scenario ThreadPoolExecutor (each worker carries its own SeedSequence).
+_ORIG_DEFAULT_RNG = np.random.default_rng
+_rng_tls = threading.local()
+
+
+def _patched_default_rng(seed=None, *args, **kwargs):
+    if seed is None:
+        ss = getattr(_rng_tls, "seed_sequence", None)
+        if ss is not None:
+            return _ORIG_DEFAULT_RNG(ss.spawn(1)[0])
+    return _ORIG_DEFAULT_RNG(seed, *args, **kwargs)
+
+
+np.random.default_rng = _patched_default_rng
+
+
+@contextlib.contextmanager
+def _seeded_rng_fallback(seed: int):
+    """Within this block, pymoo's unseeded ``default_rng(None)`` fallbacks become
+    deterministic (seeded off ``seed``), so a fixed seed reproduces the whole run."""
+    prev = getattr(_rng_tls, "seed_sequence", None)
+    _rng_tls.seed_sequence = np.random.SeedSequence(seed)
+    try:
+        yield
+    finally:
+        _rng_tls.seed_sequence = prev
+
+
 class _SimplexSampling(Sampling):
     """Sample initial populations on the simplex (allocations sum to 100).
 
@@ -34,6 +79,9 @@ class _SimplexSampling(Sampling):
         self.seed_population = seed_population
 
     def _do(self, problem, n_samples, **kwargs):
+        # pymoo (0.6.1.6+) passes its seeded Generator as ``random_state`` — draw from it,
+        # not global ``np.random``, so a fixed seed reproduces the initial population.
+        rs = kwargs.get("random_state") or np.random.default_rng()
         n_var = problem.n_var
         seeds = self.seed_population
         n_seed = 0
@@ -46,7 +94,7 @@ class _SimplexSampling(Sampling):
                 seeds = seeds[:n_samples]
                 n_seed = len(seeds)
         n_random = n_samples - n_seed
-        raw = np.random.dirichlet(np.ones(n_var), size=n_random) * 100.0
+        raw = rs.dirichlet(np.ones(n_var), size=n_random) * 100.0
         X = np.floor(raw).astype(float)
         remainders = raw - X
         for i in range(n_random):
@@ -70,6 +118,9 @@ class _SeededBinarySampling(Sampling):
         self.seed_population = seed_population
 
     def _do(self, problem, n_samples, **kwargs):
+        # Use pymoo's seeded ``random_state`` Generator (not global ``np.random``) so a fixed
+        # seed reproduces the initial population.
+        rs = kwargs.get("random_state") or np.random.default_rng()
         n_var = problem.n_var
         seeds = self.seed_population
         n_seed = 0
@@ -82,7 +133,7 @@ class _SeededBinarySampling(Sampling):
                 seeds = seeds[:n_samples]
                 n_seed = len(seeds)
         n_random = n_samples - n_seed
-        X = np.random.rand(n_random, n_var) < 0.5  # bool
+        X = rs.random((n_random, n_var)) < 0.5  # bool
         if n_seed > 0:
             X = np.concatenate([seeds, X], axis=0)
         return X
@@ -738,9 +789,10 @@ def optimize(
 ) -> Run:
     """Validate and run multi-objective optimization. Returns a Run with solutions.
 
-    seed: deterministic RNG seed for reproducibility. When None, a fresh 32-bit
-    seed is drawn and recorded on Run.seed_used so the run stays reproducible
-    even when not requested up front.
+    seed: deterministic RNG seed for reproducibility, recorded on Run.seed_used.
+    Same problem + same seed reproduce the exact frontier (in- and cross-process).
+    When None, a fresh 32-bit seed is drawn and recorded so the run can be
+    reproduced later even when a seed wasn't requested up front.
 
     solver: which engine to run. None/"nsga" (default) is the pymoo NSGA-II/III
     evolutionary search that fits any problem shape. "highs" / "cuopt" select an
@@ -1079,9 +1131,10 @@ def _optimize_binary(
     seeds = _compute_extreme_seeds(problem, score_matrix, cp)
     algorithm, n_gen = _tune_parameters(problem, mode, seed_population=seeds if len(seeds) > 0 else None)
 
-    result = pymoo_minimize(
-        pymoo_problem, algorithm, ("n_gen", n_gen), seed=seed, verbose=False,
-    )
+    with _seeded_rng_fallback(seed):  # make pymoo's unseeded survival/selection RNG deterministic
+        result = pymoo_minimize(
+            pymoo_problem, algorithm, ("n_gen", n_gen), seed=seed, verbose=False,
+        )
 
     # Elite preservation: union extreme-point seeds with result, keep Pareto front.
     union_X, union_F = _union_with_elites(result, pymoo_problem, seeds if len(seeds) > 0 else None)
@@ -1132,9 +1185,10 @@ def _optimize_proportional(
     seeds = _compute_extreme_seeds(problem, score_matrix, cp)
     algorithm, n_gen = _tune_parameters(problem, mode, seed_population=seeds if len(seeds) > 0 else None)
 
-    result = pymoo_minimize(
-        pymoo_problem, algorithm, ("n_gen", n_gen), seed=seed, verbose=False,
-    )
+    with _seeded_rng_fallback(seed):  # make pymoo's unseeded survival/selection RNG deterministic
+        result = pymoo_minimize(
+            pymoo_problem, algorithm, ("n_gen", n_gen), seed=seed, verbose=False,
+        )
 
     # Elite preservation: union extreme-point seeds with result, keep Pareto front.
     union_X, union_F = _union_with_elites(result, pymoo_problem, seeds if len(seeds) > 0 else None)
