@@ -10,7 +10,7 @@ version: 1.0.0
 
 ## Expect Iteration
 
-By default Frontier uses evolutionary (approximate) methods. Unlike exact solvers that prove optimality, evolutionary methods explore the solution space heuristically. (Optional exact backends certify each point on supported shapes — see *Exact Solvers* — but evolutionary search is the default and the workflow's center of gravity.) This means:
+By default Frontier uses evolutionary (approximate) methods. Unlike exact solvers that solve each scalarization to optimality, evolutionary methods explore the solution space heuristically. (Optional exact backends make each point optimal to a 0.1% gap on supported shapes — zero-gap with `exact=true` — see *Exact Solvers* — but evolutionary search is the default and the workflow's center of gravity.) This means:
 
 - **The first run is exploration, not the answer.** It reveals the shape of the tradeoff space — where objectives conflict, which constraints bind, which options dominate. Use that insight to refine the formulation.
 - **Effort shifts downstream.** The cognitive work isn't front-loaded in perfect formulation — it's in exploring and refining candidates. Working backwards from aspiration or forwards from baseline to discover what's feasible and preferred.
@@ -74,7 +74,7 @@ Parameters adapt automatically to problem complexity (option count, objective co
 
 ### Exact Solvers (Optional)
 
-`mode` tunes how hard the *evolutionary* search works; `solver` picks *which engine* runs. The default (`solver` omitted, or `"nsga"`) is NSGA-II/III — evolutionary, fits **any** shape, the right call for exploration and almost every run. Two optional **exact** backends wrap that same NSGA search around an exact inner solve, so each frontier point is provably optimal for its scalarization instead of heuristic. They *complement* the EA — exact confirms what the EA explored; it doesn't replace it.
+`mode` tunes how hard the *evolutionary* search works; `solver` picks *which engine* runs. The default (`solver` omitted, or `"nsga"`) is NSGA-II/III — evolutionary, fits **any** shape, the right call for exploration and almost every run. Layered over it is an optional **audit / certification** pass: two first-class **exact** backends — HiGHS (CPU) and NVIDIA cuOpt (GPU), co-equal, sharing one scalarization engine and differing only in the inner solve — that wrap the same scalarization around an exact inner solve, so each point is optimal (to a 0.1% gap) for its scalarization instead of heuristic. Because an exact inner solve is optimal for its scalarization, overlaying exact points on the heuristic frontier can only *confirm or improve* it, never worsen it — exact acts as an **auditor** over the EA, not a replacement for it.
 
 | `solver` | Engine | Needs | Solves |
 |---|---|---|---|
@@ -88,9 +88,14 @@ Exact is possible **only** for two formulations: binary selection (every combina
 
 1. **Explore with the EA.** NSGA reveals the frontier shape, tradeoffs, binding constraints, and how scenarios shift the achievable set. This is where the user does the real work — navigating, narrowing. Stay here through exploration and refinement.
 2. **Curate candidates.** The decision narrows to a handful of picks (`explore curate`).
-3. **Confirm optionality** (when the shape qualifies). Now an exact re-run earns its cost: re-solve the finalized problem with `solver="highs"` (or `"cuopt"`), then check which curated picks survive and whether the exact frontier dominates any of them (`explore curated`) — confirming the choice isn't leaving value the heuristic missed. Add `exact=true` for a certified zero-gap guarantee (slower; the bounded solve is already the true optimum on integer scores).
+3. **Certify against exact** (when the shape qualifies). Now an exact re-run earns its cost. Re-solve the finalized problem with `solver="highs"` (or `"cuopt"`), then run `explore certify` with `run_ids` = the NSGA run **and** the exact run (exactly two, order-free — the exact one is auto-detected). It overlays the exact run on the heuristic frontier and returns a certificate: the **dominance audit** (which NSGA points an exact solve dominates, and the fraction), the **invariant** (NSGA dominates no exact point — your sanity check that the overlay is sound), and **corner sharpening** per objective (exact vs heuristic best, with the headline risk corner flagged). Narrate it: exact *sharpens the risk corner the decision hinges on* — the convex min-risk / min-volatility corner where heuristics wobble and a QP is exact — and *audits any heuristic slack*, naming NSGA picks an exact solve dominates. The certificate is identical on HiGHS or cuOpt. Add `exact=true` for a certified zero-gap guarantee on the MILP (slower; the bounded solve is already the true optimum on integer scores).
 
-Offer it plainly when you get there — *"You've narrowed to three; this shape lets me re-run it exactly, confirming each is provably optimal, not just the best the search found. Worth it before you commit?"* If the shape doesn't qualify, don't raise it — the EA frontier is the answer. Always say which engine produced a result, and claim optimality **only** on an exact run.
+**Where exact wins, and where it doesn't:**
+- **Lead with the risk corner for mean-variance.** Exact's clean, repeatable win is the convex variance/risk corner — the minimum-risk portfolio (most-diversified sourcing, firmest grid). That flat bowl is where heuristics wobble and a QP nails it; make it the headline.
+- **A "short" exact point at a linear extreme is a sampling budget, not a limit.** Where exact looks short of NSGA at a linear extreme, that's the EA's epsilon-target sampling budget, not exact being weaker — a denser sweep or a targeted solve closes it. Don't frame it as a capability gap.
+- **The gate declines non-convex shapes.** A maximize-direction quadratic objective isn't convex; `solvers.exact_solver_fits` declines it rather than overclaim, so don't reach for exact there — that stays NSGA. (Duals / shadow prices likewise exist for the continuous QP only, never for the MILP.)
+
+Offer it plainly when you get there — *"You've narrowed to three; this shape lets me re-run it exactly and certify against the heuristic frontier — confirming each pick is optimal to a fraction of a percent, sharpening the risk corner, and flagging any heuristic slack. Worth it before you commit?"* If the shape doesn't qualify, don't raise it — the EA frontier is the answer. Always say which engine produced a result, and claim optimality **only** on an exact run.
 
 ### Constraint Strategy
 

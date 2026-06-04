@@ -911,8 +911,9 @@ def solve(
       solver: Which engine to run. Omit (or "nsga") for the default NSGA-II/III
             evolutionary search — it fits any problem shape and is the right choice for
             exploration and most runs. "highs" (CPU) or "cuopt" (GPU) select an OPTIONAL
-            exact backend that solves each frontier point to optimality (provable, not
-            heuristic) — reach for it on a final/decision run over a supported shape
+            exact backend that solves each frontier point to optimality for its scalarization
+            (optimal to a 0.1% gap, not heuristic; add `exact=true` to certify a zero MILP
+            gap) — reach for it on a final/decision run over a supported shape
             (binary selection, or a quadratic mean-variance portfolio), or to certify an
             EA frontier. If the requested solver isn't installed or the shape doesn't fit,
             this returns a clear error listing the available solvers — check `solve

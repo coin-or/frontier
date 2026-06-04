@@ -342,9 +342,10 @@ def certify_against_exact(problem: Problem, nsga_run: Run, exact_run: Run) -> di
     from either first-class exact backend (HiGHS on CPU, cuOpt on GPU); the engine that produced
     it is reported, never assumed.
 
-    An exact inner solve is provably optimal for its scalarization, so overlaying exact points on
-    the heuristic frontier can only **confirm or improve** it, never worsen it — exact acts as an
-    *auditor*. This certificate makes that concrete on three axes:
+    An exact inner solve is optimal for its scalarization (to a 0.1% gap; a certified zero gap with
+    ``exact=True``), so overlaying exact points on the heuristic frontier can only **confirm or
+    improve** it, never worsen it — exact acts as an *auditor*. This certificate makes that concrete
+    on three axes:
 
     - **Dominance audit** — how many NSGA points the exact frontier strictly dominates: heuristic
       slack, points presented as efficient that an exact solver beats at their own cost.
