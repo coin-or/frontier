@@ -126,19 +126,19 @@ When you detect a binding constraint, quantify the impact: *"Relaxing effort fro
 
 For a richer view after solve, `explore tradeoffs` returns a `binding_analysis` block with shadow-price rates per binding constraint — how much each objective shifts per unit of slack relaxation, derived from the frontier's own slope. Use it to move the conversation from "this constraint is tight" to "it's costing you roughly $X per unit — worth negotiating?". See `frontier://skills/solution_interpreter` for presentation patterns.
 
-### Reproducibility and Stability Checks
+### Stability Checks and Run Provenance
 
-The `solve` tool accepts an optional `seed` for the optimizer's RNG. Either way, the response echoes `seed_used` so a run can be reproduced later even when the seed wasn't specified up front.
+Evolutionary search is **stochastic**: one run isn't *the* frontier, it's a sample of it. The `solve` tool accepts an optional `seed` and echoes `seed_used` on every run — recorded as **provenance** (which run produced a result), not a reproduction guarantee. Re-running the same problem — even at the same seed — can return a different exact solution set; what's stable is the frontier's *shape*.
 
 | Use | What to do |
 |---|---|
-| Share or revisit a specific frontier | Note the `seed_used` returned by the first run; pass it as `seed` on any re-run where you want the same result (same problem state + same seed → same frontier). |
-| Check frontier stability | Re-run with different seeds on the same problem. Solutions shifting slightly is normal; the *shape* of the frontier (ranges, key tradeoffs) should be stable. If it isn't, the formulation is underspecified — objectives too correlated, constraints too loose, or not enough options. |
-| Debug a "weird" result | Re-run with a different seed before assuming a modeling bug. Evolutionary search is stochastic; one run isn't the frontier, it's a sample of it. |
+| Check frontier stability | Re-run on the same problem. The exact solutions shift run-to-run — expected; the *shape* (objective ranges, key tradeoffs) should be stable. If the shape isn't stable, the formulation is underspecified — objectives too correlated, constraints too loose, or not enough options. |
+| Revisit or hand off a specific frontier | The frontier isn't reproducible from the seed, so **persist it**: `model save` (or read `full_result_path`) captures the actual solution set. Cite `seed_used` for provenance. |
+| Debug a "weird" result | Re-run before assuming a modeling bug — one stochastic sample can mislead. |
 
-For `run_scenarios`, the parent `seed` is propagated deterministically to each scenario (per-scenario `seed_used` is derived from the parent + scenario name). So pinning the parent seed makes the whole multi-scenario run reproducible across processes — useful when sharing a scenario sweep or regression-testing.
+For `run_scenarios`, the parent `seed` is propagated to each scenario (per-scenario `seed_used` derived from the parent + scenario name) so each scenario starts from a distinct initialization — recorded for provenance, not exact reproduction.
 
-Don't pin seeds by default — fresh seeds each run give you a free stability check as the user iterates. Pin only when reproducibility matters (handoff, regression, a specific frontier the user wants preserved).
+> **Known limitation:** the NSGA path is not currently bit-reproducible at a fixed seed — the evolutionary operators draw from RNG state the recorded seed doesn't fully pin. Treat seeds as run labels, and persist any frontier you need to keep rather than expecting to regenerate it.
 
 ### Stale Results
 

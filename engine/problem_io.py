@@ -11,8 +11,10 @@ examples use — split across up to three files:
   problem.json    definition  — name, domain, context, approach, objectives,
                                 constraints, scenarios, reference_points
   scores.json     data        — options, scores, interaction_matrices
-  solutions.json  results      — run, runs, scenario_run, curated_solutions,
-                                feedback, results_stale (written when solved)
+  solutions.json  results      — run (exploratory NSGA), exact_run (certified
+                                overlay, when an exact solver was used), runs,
+                                scenario_run, curated_solutions, feedback,
+                                results_stale (written when solved)
 
 This module is the single (de)serializer between a ``Problem`` and that format.
 It is also where the examples' top-level ``scenarios`` list is bridged to the
@@ -42,7 +44,7 @@ _SOLUTIONS_FILE = "solutions.json"
 # Field partition across the three files. (scores.json — options, scores,
 # interaction_matrices — is built inline so empty sections can be omitted.)
 _PROBLEM_KEYS = ("name", "domain", "context", "approach", "objectives", "constraints")
-_SOLUTION_KEYS = ("run", "runs", "scenario_run", "curated_solutions", "feedback", "results_stale")
+_SOLUTION_KEYS = ("run", "runs", "exact_run", "scenario_run", "curated_solutions", "feedback", "results_stale")
 
 
 def examples_dir() -> Path:
@@ -106,7 +108,8 @@ def to_portable(p: Problem) -> tuple[dict, dict, dict | None]:
     solutions = {k: full[k] for k in _SOLUTION_KEYS if full.get(k)}
     # Only a meaningful bundle if there are actual results — a bare
     # results_stale flag with no run is not worth a file.
-    if not (solutions.get("run") or solutions.get("scenario_run") or solutions.get("curated_solutions")):
+    if not (solutions.get("run") or solutions.get("exact_run")
+            or solutions.get("scenario_run") or solutions.get("curated_solutions")):
         solutions = None
     return problem, scores, solutions
 

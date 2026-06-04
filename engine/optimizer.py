@@ -738,9 +738,10 @@ def optimize(
 ) -> Run:
     """Validate and run multi-objective optimization. Returns a Run with solutions.
 
-    seed: deterministic RNG seed for reproducibility. When None, a fresh 32-bit
-    seed is drawn and recorded on Run.seed_used so the run stays reproducible
-    even when not requested up front.
+    seed: RNG seed recorded on Run.seed_used as provenance. When None, a fresh
+    32-bit seed is drawn and recorded. NOTE: the NSGA path is a stochastic sample
+    and is not currently bit-reproducible at a fixed seed — seed_used labels a run,
+    it does not regenerate its exact solution set.
 
     solver: which engine to run. None/"nsga" (default) is the pymoo NSGA-II/III
     evolutionary search that fits any problem shape. "highs" / "cuopt" select an
