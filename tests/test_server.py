@@ -1757,18 +1757,37 @@ class TestCertify:
                   constraints=[{"type": "cardinality", "min": 2, "max": 4}])
         return pid
 
-    def test_certify_full_path(self):
+    def test_certify_default_overlay(self):
+        """The primary flow: solve NSGA → solve exact (stored as the exact_run overlay) → certify
+        with NO run_ids, auditing `run` against `exact_run`."""
         pytest.importorskip("highspy")
         pid = self._binary_pid()
-        nsga = srv.solve(action="run", problem_id=pid, seed=42)["run_id"]
-        exact = srv.solve(action="run", problem_id=pid, seed=42, solver="highs")["run_id"]
-        cert = srv.explore(action="certify", problem_id=pid, run_ids=[nsga, exact])
+        srv.solve(action="run", problem_id=pid, seed=42)                       # → p.run (NSGA)
+        srv.solve(action="run", problem_id=pid, seed=42, solver="highs")       # → p.exact_run (overlay)
+        cert = srv.explore(action="certify", problem_id=pid)                   # no run_ids
         assert "error" not in cert
         assert cert["exact_solver"] == "highs"
         assert cert["invariant"]["holds"] is True            # MILP: integer, never rounding-dominated
         assert "nsga_dominated_by_exact" in cert["dominance_audit"]
         assert set(cert["corner_sharpening"]) == {"NPV", "Cost", "Fit"}
         assert isinstance(cert["recommendation"], str) and cert["recommendation"]
+
+    def test_certify_needs_an_exact_overlay(self):
+        """No exact_run yet (only an NSGA run) → certify (no run_ids) asks for the exact solve."""
+        pid = self._binary_pid()
+        srv.solve(action="run", problem_id=pid, seed=1)
+        r = srv.explore(action="certify", problem_id=pid)
+        assert "error" in r and "exact overlay" in r["error"]
+
+    def test_certify_explicit_run_ids(self):
+        """run_ids overrides the default, pulling the NSGA run and the exact overlay by id."""
+        pytest.importorskip("highspy")
+        pid = self._binary_pid()
+        nsga = srv.solve(action="run", problem_id=pid, seed=42)["run_id"]
+        exact = srv.solve(action="run", problem_id=pid, seed=42, solver="highs")["run_id"]
+        cert = srv.explore(action="certify", problem_id=pid, run_ids=[nsga, exact])
+        assert "error" not in cert and cert["exact_solver"] == "highs"
+        assert set(cert["corner_sharpening"]) == {"NPV", "Cost", "Fit"}
 
     def test_certify_order_free(self):
         """The exact run is detected by its solver, so run_ids order does not matter."""

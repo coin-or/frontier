@@ -228,3 +228,67 @@ class TestSolveToolSelection:
         pid = _make_solvable_problem_via_tool()
         res = srv.solve(action="run", problem_id=pid, solver="highs")
         assert res["solver_used"] == "highs"
+
+    @pytest.mark.skipif(not _HAS_HIGHS, reason="highspy not installed")
+    def test_exact_run_is_overlay_not_replacement(self):
+        # The exact solver populates exact_run and leaves the exploratory `run` (NSGA) intact,
+        # so the problem holds both frontiers at once.
+        pid = _make_solvable_problem_via_tool()
+        srv.solve(action="run", problem_id=pid, seed=42)                 # NSGA → run
+        srv.solve(action="run", problem_id=pid, seed=42, solver="highs") # highs → exact_run
+        p = srv.store.load(pid)
+        assert p.run is not None and p.run.solver.startswith("nsga")
+        assert p.exact_run is not None and p.exact_run.solver == "highs"
+        # both are reachable via model get sections
+        assert srv.model(action="get", problem_id=pid, section="exact_run")["exact_run"]["solver"] == "highs"
+
+    @pytest.mark.skipif(not _HAS_HIGHS, reason="highspy not installed")
+    def test_exact_only_solve_is_explorable(self):
+        # Solving ONLY with an exact solver (no NSGA run) stores the frontier in
+        # exact_run with p.run=None; explore must fall back to it rather than report
+        # "no run", and status must register the problem as solved.
+        pid = _make_solvable_problem_via_tool()
+        res = srv.solve(action="run", problem_id=pid, seed=42, solver="highs")
+        assert res["solutions_found"] > 0
+        p = srv.store.load(pid)
+        assert p.run is None and p.exact_run is not None
+
+        assert "error" not in srv.explore(action="tradeoffs", problem_id=pid)
+        assert "error" not in srv.explore(action="solutions", problem_id=pid)
+        assert srv.model(action="get", problem_id=pid, section="summary")["has_exact_run"] is True
+
+    @pytest.mark.skipif(not _HAS_HIGHS, reason="highspy not installed")
+    def test_source_exact_targets_overlay_when_both_present(self):
+        # With both an exploratory run and an exact overlay, explore defaults to the
+        # NSGA run but source="exact" retargets the analytics at the certified frontier.
+        pid = _make_solvable_problem_via_tool()
+        srv.solve(action="run", problem_id=pid, seed=42)                  # NSGA → run
+        srv.solve(action="run", problem_id=pid, seed=42, solver="highs")  # highs → exact_run
+        p = srv.store.load(pid)
+        assert p.run is not None and p.exact_run is not None
+
+        default = srv.explore(action="solutions", problem_id=pid)
+        exact = srv.explore(action="solutions", problem_id=pid, source="exact")
+        assert "error" not in default and "error" not in exact
+        assert exact["run_id"] == p.exact_run.run_id
+        assert default["run_id"] == p.run.run_id
+        # analytics run against the exact frontier
+        assert "error" not in srv.explore(action="tradeoffs", problem_id=pid, source="exact")
+        # invalid source is rejected
+        assert "Unknown source" in srv.explore(action="solutions", problem_id=pid, source="bogus")["error"]
+
+    @pytest.mark.skipif(not _HAS_HIGHS, reason="highspy not installed")
+    def test_exact_solve_drops_stale_exploratory_run(self):
+        # NSGA run, then edit the problem (results go stale), then exact solve. The
+        # stale exploratory run predates the edit, so it must be dropped rather than
+        # silently marked fresh when results_stale is cleared.
+        pid = _make_solvable_problem_via_tool()
+        srv.solve(action="run", problem_id=pid, seed=42)  # NSGA → run
+        srv.model(action="update", problem_id=pid,
+                  constraints=[{"type": "cardinality", "min": 1, "max": 3}])  # edit → results_stale
+        assert srv.store.load(pid).results_stale is True
+        srv.solve(action="run", problem_id=pid, seed=42, solver="highs")  # exact overlay
+        p = srv.store.load(pid)
+        assert p.results_stale is False
+        assert p.exact_run is not None and p.exact_run.solver == "highs"
+        assert p.run is None  # stale NSGA run dropped, not falsely vouched for
