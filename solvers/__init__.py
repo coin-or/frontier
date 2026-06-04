@@ -3,7 +3,7 @@
 Each backend mirrors the engine's existing solve contract (same inputs, returns a
 ``Run`` of ``Solution``s in the identical shape) so it can be swapped in behind a
 gate without any downstream changes. See ``cuopt_backend`` for the cuOpt QP spike
-and ``highs_backend`` for the CPU companion.
+and ``highs_backend`` for the co-equal CPU exact backend.
 
 This module is the **selection surface** the agent reaches through (via the ``solve``
 tool's ``solver`` argument) and that ``engine.optimizer.optimize`` reaches through to

@@ -260,7 +260,7 @@ class TestSolveToolSelection:
     @pytest.mark.skipif(not _HAS_HIGHS, reason="highspy not installed")
     def test_source_exact_targets_overlay_when_both_present(self):
         # With both an exploratory run and an exact overlay, explore defaults to the
-        # NSGA run but source="exact" retargets the analytics at the certified frontier.
+        # NSGA run but source="exact" retargets the analytics at the exact-solver frontier.
         pid = _make_solvable_problem_via_tool()
         srv.solve(action="run", problem_id=pid, seed=42)                  # NSGA → run
         srv.solve(action="run", problem_id=pid, seed=42, solver="highs")  # highs → exact_run

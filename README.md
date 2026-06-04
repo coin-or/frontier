@@ -37,7 +37,7 @@ LLMs can reason about tradeoffs conversationally but can't *solve* them — they
 
 **What Frontier adds beyond an LLM alone:**
 - **The full non-dominated frontier** — every Pareto-optimal tradeoff, not a single recommendation or a weighted ranking
-- **Provably optimal where the shape supports it** — for subset selection and mean-variance allocation, the agent can certify the frontier with an exact solver: each point proven optimal, not just a strong heuristic — for when a stakeholder needs *this is optimal*, not *our best find*
+- **An optional exact auditor over the frontier** — for subset selection and mean-variance allocation, the agent can overlay an exact inner solve (HiGHS on CPU or NVIDIA cuOpt on GPU, two first-class backends). Each exact point is optimal to a 0.1% gap for its scalarization, so it can only confirm or sharpen the heuristic frontier, never worsen it: it strictly sharpens the convex risk corner a risk-averse decision rests on, audits any NSGA point an exact solve dominates, and returns the optimal subset on a binary MILP (certified zero-gap with `exact=true`)
 - **Hard constraints, enforced** — 8 constraint types (cardinality, forced include/exclude, objective bounds, exclusion pairs, dependencies, group limits, allocation caps), never violated during search
 - **Auditable by construction** — every reported tradeoff traces to returned data (scores, shadow prices, dominance), not a fluent guess; runs are reproducible (same inputs + seed → same frontier; `seed_used` is recorded), so a stakeholder can re-examine the decision line by line
 - **Scenario & risk modeling** — independent frontiers per scenario, plus CVaR / worst-case / expected risk per objective
@@ -51,7 +51,7 @@ You drive Frontier by talking to an AI agent — in a coding-agent MCP client or
 
 1. **Frame it.** Name the objectives (what to maximize / minimize), the options to choose among, and any hard constraints — plus scenarios if the future is uncertain. *e.g. "We're choosing a CRM for a 10-person startup: maximize features and support, minimize cost; budget under $50k/yr; pick one."*
 2. **Score the options.** Hand over the numbers, or let the agent estimate and flag what's shaky. *e.g. "Score these five CRMs on cost and support from their pricing pages."*
-3. **Solve.** The agent validates the setup, then runs the optimizer for the Pareto frontier — optionally once per scenario, and on a final run it can confirm the frontier is provably optimal where the problem shape supports it. *e.g. "Solve it."*
+3. **Solve.** The agent validates the setup, then runs the optimizer for the Pareto frontier — optionally once per scenario, and on a final run it can audit the frontier against an exact solver where the problem shape supports it (`explore certify`), sharpening the risk corner and flagging any dominated points. *e.g. "Solve it."*
 4. **Explore the tradeoffs.** Frontier shape, the extremes, the balanced/knee, the marginal cost of pushing an objective, robustness across scenarios — and curate the picks you like. *e.g. "Show the tradeoffs, recommend a balanced pick, and curate it as 'Lean choice'."*
 5. **Iterate.** Tighten a constraint, add a scenario, re-solve, and compare against the previous run. *e.g. "Cap cost at $40k and re-run — what dropped off the frontier?"*
 
@@ -123,7 +123,7 @@ FRONTIER_MCP_TOKEN=your-secret MCP_TRANSPORT=sse python -m mcp_server.server
 
 Point your MCP client at the local server — for SSE that's `http://localhost:8000/sse`. The optional web UI lives in [`ui/`](ui/) — see its [README](ui/README.md).
 
-**Optional exact-solver backends.** Beyond the default NSGA-II/III, Frontier can wrap the NSGA search around an *exact inner solve* — each scalarization is solved to optimality, so the frontier points are certifiable rather than heuristic. Two backends cover binary selection (MILP) and mean-variance portfolios (QP): `highs` (`pip install highspy`, CPU and cross-platform) or `cuopt` (NVIDIA GPU). The agent opts in **per run** — `solve(solver="highs", exact=true)` — for a provably-optimal frontier on a final/decision run, while exploration stays on the fast evolutionary default. Opt-in and gated, so the default path is unchanged — see [`architecture.md`](architecture.md#solver-backends-pluggable) for scope and details.
+**Optional exact-solver audit layer.** Beyond the default NSGA-II/III, Frontier can wrap the NSGA search around an *exact inner solve* — each scalarization solved to a 0.1% gap (a zero-gap MILP when `exact=true`). Two first-class backends share one scalarization engine and differ only in the inner solve: `highs` (`pip install highspy`, CPU, cross-platform) and `cuopt` (NVIDIA GPU) — pick by hardware, identical certificate either way. Because an exact point is optimal for its scalarization, overlaying it on the heuristic frontier can only confirm or sharpen it, never worsen it (the invariant: NSGA never dominates an exact point). The agent does this in one call — **`explore certify`** (`engine.explorer.certify_against_exact`), with no params: it audits the NSGA `run` against the `exact_run` overlay (two run ids optionally override) and returns a dominance audit of NSGA points an exact solve dominates, per-objective corner sharpening (the convex risk/variance corner, where a QP is exact and heuristics wobble), and a recommendation. Scope is binary selection (MILP) and proportional mean-variance with a minimize-direction quadratic risk objective (QP, backed by a covariance/interaction matrix); the gate declines non-convex shapes rather than overclaim, and `solve(solver=…)` raises rather than silently falling back. Opt-in **per run** (`solve(solver="highs", exact=true)`) and gated, so the default exploration path is unchanged — see [`architecture.md`](architecture.md#solver-backends-pluggable) for scope and details.
 
 ### Deploy your own
 
@@ -138,7 +138,7 @@ Both pieces are plain web services — host them anywhere (Render, Fly, Railway,
 
 ## Architecture
 
-Frontier is a Python MCP server (FastMCP) wrapping pymoo's NSGA-II/III evolutionary solvers, with optional exact-solver backends (HiGHS/cuOpt) the agent can elect per run. State persists per-problem as JSON; the optimizer produces a Pareto frontier with quality indicators, scenario-aware results, and shadow-price rates per binding constraint. Domain expertise lives in skill markdown files that the server auto-injects at workflow transitions, so the same rigor reaches every MCP client.
+Frontier is a Python MCP server (FastMCP) wrapping pymoo's NSGA-II/III evolutionary solvers, with two first-class exact-solver backends (HiGHS on CPU, cuOpt on GPU) the agent can elect per run as an audit layer over the heuristic frontier. State persists per-problem as JSON; the optimizer produces a Pareto frontier with quality indicators, scenario-aware results, and shadow-price rates per binding constraint. Domain expertise lives in skill markdown files that the server auto-injects at workflow transitions, so the same rigor reaches every MCP client.
 
 For full schemas, action parameters, data model, persistence layout, and the skill auto-injection mechanism, see [`architecture.md`](architecture.md). For skill, prompt, and MCP design principles, see [`best-practices.md`](best-practices.md).
 
@@ -147,7 +147,7 @@ For full schemas, action parameters, data model, persistence layout, and the ski
 Four MCP tools — full action lists and parameters in [`architecture.md`](architecture.md):
 
 - **`model`** — define and edit the problem: objectives (2–7; sum/avg/min/max/quadratic aggregation), options, scores, 8 constraint types, interaction matrices, reference points, and scenarios; plus save/load of named problems.
-- **`solve`** — validate and optimize via NSGA-II/III: fast/thorough modes, seeded reproducibility (`seed_used`), per-scenario runs, frontier-quality gates, and infeasibility analysis; plus optional exact-solver backends for a provably-optimal frontier on supported shapes.
+- **`solve`** — validate and optimize via NSGA-II/III: fast/thorough modes, seeded reproducibility (`seed_used`), per-scenario runs, frontier-quality gates, and infeasibility analysis; plus optional exact backends (HiGHS/cuOpt) to audit the frontier on supported shapes, paired with `explore certify`.
 - **`explore`** — navigate results: tradeoffs and frontier shape, extremes / balanced / inflection points, shadow prices, marginal rates, scenario robustness (incl. CVaR), run comparison, curation, and feedback.
 - **`get_skill`** — fetch the workflow guidance below.
 

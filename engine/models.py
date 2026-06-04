@@ -302,7 +302,7 @@ class Problem(BaseModel):
     scenario_run: ScenarioRun | None = None
     run: Run | None = None
     runs: list[Run] = []
-    exact_run: Run | None = None  # certified overlay from an exact solver, alongside the exploratory `run`
+    exact_run: Run | None = None  # exact-solver overlay, alongside the exploratory `run`
     results_stale: bool = False
     curated_solutions: list[CuratedSolution] = []
     feedback: list[Feedback] = []

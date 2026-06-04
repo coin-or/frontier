@@ -1,5 +1,5 @@
-"""HiGHS inner-solve backend for Frontier's exact NSGA-scalarization engine — the CPU
-companion to cuOpt.
+"""HiGHS inner-solve backend for Frontier's exact NSGA-scalarization engine — the co-equal
+CPU exact backend alongside the cuOpt GPU backend.
 
 The NSGA outer loop, genome decoding, seeding, and result marshaling live in
 ``solvers._scalarization`` and are shared with the cuOpt backend; this module supplies only

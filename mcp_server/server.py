@@ -916,16 +916,17 @@ def solve(
       solver: Which engine to run. Omit (or "nsga") for the default NSGA-II/III
             evolutionary search — it fits any problem shape and is the right choice for
             exploration and most runs. "highs" (CPU) or "cuopt" (GPU) select an OPTIONAL
-            exact backend that solves each frontier point to optimality (provable, not
-            heuristic) — reach for it on a final/decision run over a supported shape
+            exact backend that solves each frontier point to optimality for its scalarization
+            (optimal to a 0.1% gap, not heuristic; add `exact=true` to certify a zero MILP
+            gap) — reach for it on a final/decision run over a supported shape
             (binary selection, or a quadratic mean-variance portfolio), or to certify an
             EA frontier. If the requested solver isn't installed or the shape doesn't fit,
             this returns a clear error listing the available solvers — check `solve
             validate`'s `solvers` block first. The engine that ran is echoed as
             `solver_used`. See the optimization_strategy skill ("Exact Solvers").
-      exact: Exact backends only — certify each inner solve to a zero optimality gap instead
-            of the default speed-oriented bounded solve. Slower; use when stakeholders need
-            certified optimality. No-op on the default NSGA path.
+      exact: Exact backends only — certify each MILP inner solve to a zero optimality gap
+            instead of the default speed-oriented bounded solve. Slower; use when stakeholders
+            need certified optimality. No-op on the always-exact QP and on the default NSGA path.
 
     Key guidance:
     - Expect iteration: first run is exploration, not the answer.
@@ -1041,7 +1042,7 @@ def _solve_run(p: Problem, mode: OptimizeMode | None = None, max_solutions: int 
     # Snapshot constraints on the run
     run.constraints_snapshot = [c.model_dump() for c in p.constraints]
 
-    # An exact solver is a certified *overlay* — store it in exact_run and leave the
+    # An exact solve is an *overlay* — store it in exact_run and leave the
     # exploratory `run` (NSGA) intact, so a problem can hold both frontiers at once
     # (explore-with-EA, then certify). A default/NSGA run replaces `run` and archives
     # the prior one for comparison.
@@ -1332,6 +1333,14 @@ def explore(
                    Optional: rating (1-5), notes, stage.
       compare_runs — Compare run history.
                    Requires: run_ids (list of 2+ run ID strings).
+      certify    — Audit the exploratory NSGA frontier against the exact overlay: how many
+                   NSGA points the exact frontier dominates (heuristic slack), the invariant that
+                   NSGA dominates no exact point, and per-objective corner sharpening (strongest at
+                   the convex risk/variance corner). The explore→certify workflow made measurable.
+                   No params needed — audits `run` (NSGA) against `exact_run` (the exact
+                   overlay), so the flow is: solve(), then solve(solver="highs"|"cuopt"), then
+                   certify. Optional run_ids (exactly 2 — one NSGA, one exact, order-free) overrides
+                   with explicit historical runs.
       scenario_results — Per-scenario robustness analysis with frequency-weighted option importance.
                    Returns option_robustness (sorted by importance = avg_frequency × avg_weight),
                    with tiers: core (>50% freq in all scenarios), common (>25%), marginal (<25%).
@@ -1368,9 +1377,10 @@ def explore(
 
     Source param (optional):
       Selects which base-case frontier to analyze: "run" (default) is the exploratory
-      NSGA frontier; "exact" is the certified exact-solver overlay (exact_run). Use
-      source="exact" to run tradeoffs/marginal_analysis/etc. over the provably-optimal
-      set when a problem holds both frontiers (explore-with-NSGA, then certify). Works
+      NSGA frontier; "exact" is the exact-solver overlay (exact_run). Use
+      source="exact" to run tradeoffs/marginal_analysis/etc. over the exact-solver
+      frontier (each point optimal to a 0.1% gap) when a problem holds both frontiers
+      (explore-with-NSGA, then certify). Works
       with: tradeoffs, compare, solutions, solution, curate, marginal_analysis. When the
       problem has only an exact_run (no NSGA run), the default already falls back to it.
       Ignored when scenario is set (scenario runs are NSGA-only).
@@ -1431,6 +1441,39 @@ def explore(
                 return {"error": "run_ids must contain at least 2 run IDs for compare_runs."}
             try:
                 return explorer.compare_runs(p, run_ids)
+            except ValueError as e:
+                return {"error": str(e)}
+        case "certify":
+            from solvers import EXACT_SOLVERS
+            # Default: audit the exploratory NSGA run (`p.run`) against the exact overlay
+            # (`p.exact_run`) — the "explore with the EA, then certify" flow the exact_run
+            # overlay is built for. `run_ids` (exactly 2) overrides with explicit historical runs.
+            if run_ids:
+                if len(run_ids) != 2:
+                    return {"error": "certify run_ids must be exactly 2 (one NSGA, one exact); "
+                                     "omit run_ids to certify the current run against the exact overlay."}
+                pool = {r.run_id: r for r in p.runs}
+                if p.run:
+                    pool[p.run.run_id] = p.run
+                if p.exact_run:
+                    pool[p.exact_run.run_id] = p.exact_run
+                missing = [rid for rid in run_ids if rid not in pool]
+                if missing:
+                    return {"error": f"Run(s) not found: {missing}. Available: {list(pool)}"}
+                chosen = [pool[rid] for rid in run_ids]
+                exact = [r for r in chosen if (r.solver or "") in EXACT_SOLVERS]
+                nsga = [r for r in chosen if (r.solver or "") not in EXACT_SOLVERS]
+                if len(exact) != 1 or len(nsga) != 1:
+                    return {"error": "certify needs one NSGA run and one exact-solver run; got "
+                                     f"solvers {[r.solver for r in chosen]}."}
+                nsga_run, exact_run = nsga[0], exact[0]
+            else:
+                nsga_run, exact_run = p.run, p.exact_run
+                if nsga_run is None or exact_run is None:
+                    return {"error": "certify needs both an exploratory NSGA run and an exact overlay. "
+                                     "Run solve(), then solve(solver='highs'|'cuopt'), then explore certify."}
+            try:
+                return explorer.certify_against_exact(p, nsga_run, exact_run)
             except ValueError as e:
                 return {"error": str(e)}
         case "scenario_results":
