@@ -258,6 +258,26 @@ class TestSolveToolSelection:
         assert srv.model(action="get", problem_id=pid, section="summary")["has_exact_run"] is True
 
     @pytest.mark.skipif(not _HAS_HIGHS, reason="highspy not installed")
+    def test_source_exact_targets_overlay_when_both_present(self):
+        # With both an exploratory run and an exact overlay, explore defaults to the
+        # NSGA run but source="exact" retargets the analytics at the certified frontier.
+        pid = _make_solvable_problem_via_tool()
+        srv.solve(action="run", problem_id=pid, seed=42)                  # NSGA → run
+        srv.solve(action="run", problem_id=pid, seed=42, solver="highs")  # highs → exact_run
+        p = srv.store.load(pid)
+        assert p.run is not None and p.exact_run is not None
+
+        default = srv.explore(action="solutions", problem_id=pid)
+        exact = srv.explore(action="solutions", problem_id=pid, source="exact")
+        assert "error" not in default and "error" not in exact
+        assert exact["run_id"] == p.exact_run.run_id
+        assert default["run_id"] == p.run.run_id
+        # analytics run against the exact frontier
+        assert "error" not in srv.explore(action="tradeoffs", problem_id=pid, source="exact")
+        # invalid source is rejected
+        assert "Unknown source" in srv.explore(action="solutions", problem_id=pid, source="bogus")["error"]
+
+    @pytest.mark.skipif(not _HAS_HIGHS, reason="highspy not installed")
     def test_exact_solve_drops_stale_exploratory_run(self):
         # NSGA run, then edit the problem (results go stale), then exact solve. The
         # stale exploratory run predates the edit, so it must be dropped rather than

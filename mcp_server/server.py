@@ -1292,6 +1292,7 @@ def explore(
     content_signature: str | None = None,
     signatures: list[str] | None = None,
     scenario: str | None = None,
+    source: str | None = None,
     detail: bool = False,
     cvar_alpha: float | None = None,
     format: str | None = None,
@@ -1365,6 +1366,15 @@ def explore(
       Works with: tradeoffs, compare, solutions, solution, curate, marginal_analysis.
       Use scenario_results (no scenario param) for cross-scenario robustness analysis.
 
+    Source param (optional):
+      Selects which base-case frontier to analyze: "run" (default) is the exploratory
+      NSGA frontier; "exact" is the certified exact-solver overlay (exact_run). Use
+      source="exact" to run tradeoffs/marginal_analysis/etc. over the provably-optimal
+      set when a problem holds both frontiers (explore-with-NSGA, then certify). Works
+      with: tradeoffs, compare, solutions, solution, curate, marginal_analysis. When the
+      problem has only an exact_run (no NSGA run), the default already falls back to it.
+      Ignored when scenario is set (scenario runs are NSGA-only).
+
     Key guidance:
     - Never say "best" — every Pareto solution is optimal at its tradeoff.
     - Present extremes first, then balanced + inflection points, then ask what resonates.
@@ -1382,19 +1392,19 @@ def explore(
     match action:
         case "tradeoffs":
             try:
-                return _format_explore(explorer.get_tradeoffs(p, scenario=scenario))
+                return _format_explore(explorer.get_tradeoffs(p, scenario=scenario, source=source))
             except ValueError as e:
                 return {"error": str(e)}
         case "compare":
             if not solution_ids or len(solution_ids) < 2:
                 return {"error": "solution_ids must contain at least 2 IDs for compare."}
             try:
-                return _format_explore(explorer.compare_solutions(p, solution_ids, scenario=scenario))
+                return _format_explore(explorer.compare_solutions(p, solution_ids, scenario=scenario, source=source))
             except ValueError as e:
                 return {"error": str(e)}
         case "solutions":
             try:
-                result = explorer.get_solutions(p, scenario=scenario, detail=detail)
+                result = explorer.get_solutions(p, scenario=scenario, detail=detail, source=source)
             except ValueError as e:
                 return {"error": str(e)}
             # Soft-cap detail=true payloads — point at full_result_path on disk.
@@ -1411,7 +1421,7 @@ def explore(
             if solution_id is None:
                 return {"error": "solution_id required for solution action."}
             try:
-                return explorer.get_solution(p, solution_id, scenario=scenario)
+                return explorer.get_solution(p, solution_id, scenario=scenario, source=source)
             except ValueError as e:
                 return {"error": str(e)}
         case "feedback":
@@ -1437,7 +1447,7 @@ def explore(
             if solution_id is None:
                 return {"error": "solution_id required for curate action."}
             try:
-                result = explorer.curate_solution(p, solution_id, custom_name or "", notes or "", scenario=scenario)
+                result = explorer.curate_solution(p, solution_id, custom_name or "", notes or "", scenario=scenario, source=source)
                 store.save(p)
                 return result
             except ValueError as e:
@@ -1476,7 +1486,7 @@ def explore(
                 return {"error": str(e)}
         case "marginal_analysis":
             try:
-                return explorer.marginal_analysis(p, scenario=scenario, detail=detail)
+                return explorer.marginal_analysis(p, scenario=scenario, detail=detail, source=source)
             except ValueError as e:
                 return {"error": str(e)}
         case _:

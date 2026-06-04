@@ -7,9 +7,9 @@ import numpy as np
 from .models import CuratedSolution, Problem, Run, _content_signature
 
 
-def get_tradeoffs(problem: Problem, scenario: str | None = None) -> dict:
+def get_tradeoffs(problem: Problem, scenario: str | None = None, source: str | None = None) -> dict:
     """Frontier overview: ranges, correlations, extremes, balanced solution."""
-    run = _require_run(problem, scenario)
+    run = _require_run(problem, scenario, source)
     solutions = run.solutions
     obj_names = [o.name for o in problem.objectives]
 
@@ -121,9 +121,9 @@ def get_tradeoffs(problem: Problem, scenario: str | None = None) -> dict:
     return result
 
 
-def compare_solutions(problem: Problem, solution_ids: list[int], scenario: str | None = None) -> dict:
+def compare_solutions(problem: Problem, solution_ids: list[int], scenario: str | None = None, source: str | None = None) -> dict:
     """Side-by-side comparison of specific solutions."""
-    run = _require_run(problem, scenario)
+    run = _require_run(problem, scenario, source)
     sol_map = {s.solution_id: s for s in run.solutions}
 
     selected = []
@@ -179,7 +179,7 @@ def compare_solutions(problem: Problem, solution_ids: list[int], scenario: str |
     return result
 
 
-def get_solutions(problem: Problem, scenario: str | None = None, detail: bool = False) -> dict:
+def get_solutions(problem: Problem, scenario: str | None = None, detail: bool = False, source: str | None = None) -> dict:
     """Pareto frontier, sorted by first objective.
 
     Default (detail=False): compact — `{solution_id, objective_values, content_signature}` per solution.
@@ -187,7 +187,7 @@ def get_solutions(problem: Problem, scenario: str | None = None, detail: bool = 
 
     For full single-solution detail prefer `get_solution(problem, solution_id)`.
     """
-    run = _require_run(problem, scenario)
+    run = _require_run(problem, scenario, source)
     if detail:
         sols = [s.model_dump() for s in run.solutions]
     else:
@@ -217,9 +217,9 @@ def get_solutions(problem: Problem, scenario: str | None = None, detail: bool = 
     return result
 
 
-def get_solution(problem: Problem, solution_id: int, scenario: str | None = None) -> dict:
+def get_solution(problem: Problem, solution_id: int, scenario: str | None = None, source: str | None = None) -> dict:
     """Single solution detail by ID."""
-    run = _require_run(problem, scenario)
+    run = _require_run(problem, scenario, source)
     for s in run.solutions:
         if s.solution_id == solution_id:
             result = s.model_dump()
@@ -350,9 +350,9 @@ def _constraint_key(c: dict) -> str:
     return str(c)
 
 
-def curate_solution(problem: Problem, solution_id: int, custom_name: str = "", notes: str = "", scenario: str | None = None) -> dict:
+def curate_solution(problem: Problem, solution_id: int, custom_name: str = "", notes: str = "", scenario: str | None = None, source: str | None = None) -> dict:
     """Add a solution from the current frontier to the curated set."""
-    run = _require_run(problem, scenario)
+    run = _require_run(problem, scenario, source)
     sol = None
     for s in run.solutions:
         if s.solution_id == solution_id:
@@ -802,7 +802,7 @@ def _render_scenario_frontiers(scenario_runs: dict, objectives: list) -> str:
     return "\n".join(lines)
 
 
-def marginal_analysis(problem: Problem, scenario: str | None = None, detail: bool = False) -> dict:
+def marginal_analysis(problem: Problem, scenario: str | None = None, detail: bool = False, source: str | None = None) -> dict:
     """Marginal rate analysis: cost-per-unit improvement between adjacent Pareto solutions.
 
     For each negatively-correlated objective pair, sorts solutions by one objective
@@ -812,7 +812,7 @@ def marginal_analysis(problem: Problem, scenario: str | None = None, detail: boo
     Default (detail=False): summary per pair — inflection, stats, top-5 steepest rates.
     detail=True: includes full rates array and untruncated visualization.
     """
-    run = _require_run(problem, scenario)
+    run = _require_run(problem, scenario, source)
     solutions = run.solutions
     objectives = problem.objectives
     obj_names = [o.name for o in objectives]
@@ -1299,8 +1299,9 @@ def _render_scenario_viz(result: dict) -> str:
     return "\n".join(lines)
 
 
-def _require_run(problem: Problem, scenario: str | None = None) -> Run:
+def _require_run(problem: Problem, scenario: str | None = None, source: str | None = None) -> Run:
     if scenario:
+        # Scenario runs are NSGA-only, so `source` doesn't apply to them.
         if not problem.scenario_run or not problem.scenario_run.scenario_runs:
             raise ValueError("No scenario runs found. Use solve run_scenarios first.")
         if scenario not in problem.scenario_run.scenario_runs:
@@ -1310,6 +1311,15 @@ def _require_run(problem: Problem, scenario: str | None = None) -> Run:
         if not run.solutions:
             raise ValueError(f"Scenario '{scenario}' has no solutions.")
         return run
+    if source == "exact":
+        # Explicitly target the certified exact frontier (e.g. when both an
+        # exploratory `run` and an `exact_run` overlay exist).
+        if problem.exact_run is not None and problem.exact_run.solutions:
+            return problem.exact_run
+        raise ValueError("No exact_run found. Solve with an exact solver "
+                         "(solver=\"highs\" or \"cuopt\") first.")
+    if source not in (None, "run"):
+        raise ValueError(f"Unknown source '{source}'. Use 'run' (default) or 'exact'.")
     if problem.run is None:
         # A problem solved only with an exact solver carries its frontier in
         # exact_run (the certified overlay) with no exploratory run — fall back to
