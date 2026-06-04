@@ -270,6 +270,8 @@ def compare_runs(problem: Problem, run_ids: list[str]) -> dict:
     all_runs = {r.run_id: r for r in problem.runs}
     if problem.run:
         all_runs[problem.run.run_id] = problem.run
+    if problem.exact_run:
+        all_runs[problem.exact_run.run_id] = problem.exact_run
 
     selected_runs = []
     for rid in run_ids:
@@ -479,8 +481,9 @@ def export_curated(problem: Problem, format: str = "markdown") -> dict:
 def list_curated(problem: Problem) -> dict:
     """List all curated solutions with survival status against current run."""
     current_sigs = set()
-    if problem.run:
-        for s in problem.run.solutions:
+    frontier = problem.run or problem.exact_run  # exact-only solves carry the frontier in exact_run
+    if frontier:
+        for s in frontier.solutions:
             sig = s.content_signature or _content_signature(s.selected_options, s.allocations)
             current_sigs.add(sig)
 
@@ -1308,6 +1311,11 @@ def _require_run(problem: Problem, scenario: str | None = None) -> Run:
             raise ValueError(f"Scenario '{scenario}' has no solutions.")
         return run
     if problem.run is None:
+        # A problem solved only with an exact solver carries its frontier in
+        # exact_run (the certified overlay) with no exploratory run — fall back to
+        # it so those results are explorable rather than reported as "no run".
+        if problem.exact_run is not None and problem.exact_run.solutions:
+            return problem.exact_run
         raise ValueError("No run found. Use solve first.")
     if not problem.run.solutions:
         raise ValueError("Run has no solutions.")

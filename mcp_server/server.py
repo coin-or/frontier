@@ -515,6 +515,7 @@ def _model_update(params: dict) -> dict:
             "options": len(p.options),
             "scores_complete": round(len(p.scores) / total_possible, 2) if total_possible > 0 else 0.0,
             "has_run": p.run is not None,
+            "has_exact_run": p.exact_run is not None,
             "results_stale": p.results_stale,
             "total_runs": len(p.runs) + (1 if p.run else 0),
         },
@@ -710,6 +711,7 @@ def _model_get_section(p: Problem, section: str) -> dict:
                 "interaction_matrices_count": len(p.interaction_matrices),
                 "scenarios_count": len(p.scenario_config.scenarios) if p.scenario_config else 0,
                 "has_run": p.run is not None,
+                "has_exact_run": p.exact_run is not None,
                 "has_scenario_run": p.scenario_run is not None,
                 "results_stale": p.results_stale,
                 "curated_count": len(p.curated_solutions),
@@ -821,6 +823,7 @@ def _model_load(params: dict) -> dict:
             "scenarios": len(p.scenario_config.scenarios) if p.scenario_config else 0,
             "interaction_matrices": len(p.interaction_matrices),
             "has_run": p.run is not None,
+            "has_exact_run": p.exact_run is not None,
             "has_scenario_run": p.scenario_run is not None,
             "results_stale": p.results_stale,
             "curated": len(p.curated_solutions),
@@ -828,7 +831,8 @@ def _model_load(params: dict) -> dict:
     }
 
     # Next-phase guidance: restored, fresh results mean explore; otherwise solve.
-    has_results = (p.run is not None or p.scenario_run is not None) and not p.results_stale
+    has_results = (p.run is not None or p.exact_run is not None
+                   or p.scenario_run is not None) and not p.results_stale
     if has_results:
         _inject_skill(result, "solution_interpreter",
             "Loaded a solved problem with results. Use this guide to present the "
@@ -1041,14 +1045,24 @@ def _solve_run(p: Problem, mode: OptimizeMode | None = None, max_solutions: int 
     # exploratory `run` (NSGA) intact, so a problem can hold both frontiers at once
     # (explore-with-EA, then certify). A default/NSGA run replaces `run` and archives
     # the prior one for comparison.
+    #
+    # A solve only refreshes the frontier it produces. If results were stale (the
+    # problem was edited since the last solve), the *other* stored frontier predates
+    # that edit and is no longer valid — drop it, so clearing results_stale below
+    # doesn't vouch for a frontier that no longer matches the problem.
     from solvers import EXACT_SOLVERS
 
+    was_stale = p.results_stale
     if run.solver in EXACT_SOLVERS:
         p.exact_run = run
+        if was_stale:
+            p.run = None
     else:
         if p.run is not None:
             p.runs.append(p.run)
         p.run = run
+        if was_stale:
+            p.exact_run = None
     p.results_stale = False
     store.save(p)
 
@@ -1488,8 +1502,9 @@ def _explore_feedback(
 
     # Resolve content_signature from solution_id if not provided directly
     sig = content_signature
-    if sig is None and solution_id is not None and p.run:
-        for s in p.run.solutions:
+    frontier = p.run or p.exact_run  # exact-only solves carry the frontier in exact_run
+    if sig is None and solution_id is not None and frontier:
+        for s in frontier.solutions:
             if s.solution_id == solution_id:
                 sig = s.content_signature or _content_signature(
                     s.selected_options, s.allocations

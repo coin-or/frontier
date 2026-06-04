@@ -37,6 +37,23 @@ def _binary_problem(n_obj: int) -> Problem:
     )
 
 
+def _proportional_problem(n_obj: int = 3) -> Problem:
+    names = [f"A{i:02d}" for i in range(15)]
+    objs = [f"O{j}" for j in range(n_obj)]
+    scores = [
+        Score(option=n, objective=o, value=float((i * 7 + j * 13) % 11 + 1))
+        for j, o in enumerate(objs)
+        for i, n in enumerate(names)
+    ]
+    return Problem(
+        approach="proportional",
+        objectives=[Objective(name=o, direction="maximize" if k % 2 else "minimize")
+                    for k, o in enumerate(objs)],
+        options=[Option(name=n) for n in names],
+        scores=scores,
+    )
+
+
 class TestReproducibility:
     def test_nsga3_same_seed_same_frontier(self):
         # 4 objectives → NSGA-III, which exercises niche tie-breaking each generation.
@@ -51,8 +68,16 @@ class TestReproducibility:
         b = optimize(p, mode=OptimizeMode.fast, seed=7)
         assert _frontier_hash(a) == _frontier_hash(b)
 
+    def test_proportional_same_seed_same_frontier(self):
+        p = _proportional_problem(3)
+        a = optimize(p, mode=OptimizeMode.fast, seed=42)
+        b = optimize(p, mode=OptimizeMode.fast, seed=42)
+        assert _frontier_hash(a) == _frontier_hash(b)
+
     def test_different_seed_can_differ(self):
-        # The seed must actually matter — otherwise "reproducible" is vacuous.
-        p = _binary_problem(4)
+        # The seed must actually matter — otherwise "reproducible" is vacuous. A
+        # proportional problem has a continuous frontier sampled stochastically, so
+        # distinct seeds reliably yield distinct allocations (no flaky convergence).
+        p = _proportional_problem(3)
         hashes = {_frontier_hash(optimize(p, mode=OptimizeMode.fast, seed=s)) for s in range(6)}
         assert len(hashes) > 1
