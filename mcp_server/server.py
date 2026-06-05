@@ -1401,6 +1401,11 @@ def explore(
       with: tradeoffs, compare, solutions, solution, curate, marginal_analysis. When the
       problem has only an exact_run (no NSGA run), the default already falls back to it.
       Ignored when scenario is set (scenario runs are NSGA-only).
+      Every frontier-bearing result echoes `frontier_source` ({run_id, solver,
+      kind="heuristic"|"exact"}) so the provenance is never ambiguous: if you requested
+      source="exact" but see kind="heuristic" (e.g. source was dropped by a stale transport),
+      trust the label, not the request. When the heuristic frontier is served while an exact
+      overlay exists, the label adds exact_overlay_available + a hint to reach it.
 
     Key guidance:
     - Never say "best" — every Pareto solution is optimal at its tradeoff.
