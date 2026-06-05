@@ -17,7 +17,7 @@ import numpy as np
 import pytest
 from scipy.sparse import csr_matrix
 
-from solvers.cuopt_backend import _parallel_solve, _qp_to_csr
+from solvers.cuopt_backend import _extract_cuopt_qp_sensitivity, _parallel_solve, _qp_to_csr
 
 
 def _dense(data, indices, offsets, shape):
@@ -157,3 +157,59 @@ def test_parallel_solve_matches_sequential_on_highs_qp():
         if ok_s:
             assert np.allclose(w_s, w_p)
             assert abs(w_s.sum() - 1.0) < 1e-3       # fully invested, a real frontier point
+
+
+# ─── sensitivity (duals) marshaling — CPU, stand-in cuOpt objects ───
+# The cuOpt solve is GPU-only, but _extract_cuopt_qp_sensitivity is pure (attribute reads +
+# indexing), so the role/index/eligibility mapping is verified here with stand-ins — the same
+# discipline as the matrix marshaling above. The dual *numbers* are validated on a GPU run.
+
+class _FakeCon:
+    def __init__(self, dual):
+        self.DualValue = dual
+
+
+class _FakeVar:
+    def __init__(self, rc):
+        self.ReducedCost = rc
+
+
+class _FakeProb:
+    def __init__(self, duals):
+        self._cons = [_FakeCon(d) for d in duals]
+
+    def getConstraints(self):
+        return self._cons
+
+
+def test_cuopt_sensitivity_roles_indices_and_values():
+    # rows in add order: budget, return floor, one extra linear floor; 3 assets
+    prob = _FakeProb([-0.05, 0.012, 0.4])
+    w = [_FakeVar(0.0), _FakeVar(0.0), _FakeVar(0.3)]
+    raw = _extract_cuopt_qp_sensitivity(prob, w, has_return=True, n_extra=1, support=None)
+    assert [(s["role"], s["linear_index"]) for s in raw["shadow_prices"]] == [
+        ("budget", None), ("return_floor", 0), ("linear_floor", 1)]
+    assert [s["value"] for s in raw["shadow_prices"]] == [-0.05, 0.012, 0.4]
+    assert raw["reduced_costs"] == [0.0, 0.0, 0.3]
+    assert raw["eligible"] == [True, True, True]
+    assert raw["ranging"] is None
+
+
+def test_cuopt_sensitivity_eligibility_from_support():
+    # support={0, 2} → asset 1 is off-support (pinned out, ineligible — not a near-miss)
+    prob = _FakeProb([-0.05, 0.01])               # budget + return only
+    w = [_FakeVar(0.0), _FakeVar(0.1), _FakeVar(0.0)]
+    raw = _extract_cuopt_qp_sensitivity(prob, w, has_return=True, n_extra=0, support=[0, 2])
+    assert raw["eligible"] == [True, False, True]
+    assert [s["role"] for s in raw["shadow_prices"]] == ["budget", "return_floor"]
+
+
+def test_cuopt_sensitivity_matches_highs_raw_shape():
+    # Parity guard: the cuOpt raw payload has the same keys/shape the shared engine's
+    # _build_solution_sensitivity consumes from the HiGHS path.
+    prob = _FakeProb([-0.05, 0.01])
+    w = [_FakeVar(0.0), _FakeVar(0.2)]
+    raw = _extract_cuopt_qp_sensitivity(prob, w, has_return=True, n_extra=0, support=None)
+    assert set(raw) == {"shadow_prices", "reduced_costs", "eligible", "ranging"}
+    assert all(set(sp) == {"role", "linear_index", "value"} for sp in raw["shadow_prices"])
+    assert len(raw["reduced_costs"]) == len(raw["eligible"]) == 2

@@ -160,6 +160,104 @@ def _solve_qp_cuopt(
     return weights, ok
 
 
+def _extract_cuopt_qp_sensitivity(prob, w, has_return, n_extra, support):
+    """Read cuOpt modeling-API duals into the role-tagged raw payload the shared engine maps to
+    option names — the cuOpt twin of the HiGHS ``_extract_qp_sensitivity`` (identical dict shape).
+
+    Constraints come back from ``prob.getConstraints()`` in add order — the same order
+    ``_solve_qp_cuopt`` builds them: budget Σw=1, the return floor, then extra floors — so a
+    ``DualValue`` maps to the lever it prices; ``w[i].ReducedCost`` gives the per-asset reduced
+    costs. ``eligible`` flags in-support assets (an off-support asset is pinned to ub=0 by the
+    cardinality/group search, so its reduced cost prices the cap, not a near-miss — the engine
+    filters it out). ``ranging`` is None: cuOpt has no ranging API (an LP-path feature; see plan).
+
+    Pure given ``prob``/``w`` (attribute reads + indexing), so it is unit-tested on CPU with
+    stand-in objects — the cuOpt solve itself is GPU-only and validated on a GPU run.
+    """
+    cons = list(prob.getConstraints())
+    row_dual = [float(getattr(c, "DualValue", 0.0)) for c in cons]
+    col_dual = [float(getattr(w[i], "ReducedCost", 0.0)) for i in range(len(w))]
+    n = len(w)
+    if support is None:
+        eligible = [True] * n
+    else:
+        ss = {int(i) for i in support}
+        eligible = [i in ss for i in range(n)]
+
+    def _row(i):  # defensive: one dual per constraint, in add order
+        return row_dual[i] if 0 <= i < len(row_dual) else 0.0
+
+    shadow_prices = [{"role": "budget", "linear_index": None, "value": _row(0)}]
+    idx = 1
+    if has_return:
+        shadow_prices.append({"role": "return_floor", "linear_index": 0, "value": _row(idx)})
+        idx += 1
+    for t in range(n_extra):
+        shadow_prices.append({"role": "linear_floor", "linear_index": t + 1, "value": _row(idx)})
+        idx += 1
+
+    return {"shadow_prices": shadow_prices, "reduced_costs": col_dual,
+            "eligible": eligible, "ranging": None}
+
+
+def _solve_qp_cuopt_sensitivity(cov, mu, target_return, return_maximize, max_weight,
+                                support=None, extra_linears=None):
+    """Dual-returning twin of ``_solve_qp_cuopt``: ``(weights, ok, raw_sensitivity)``. Builds and
+    solves the *same* mean-variance QP, then reads cuOpt's modeling-API duals off it —
+    ``constraint.DualValue`` → role-tagged shadow prices, ``variable.ReducedCost`` → reduced costs
+    (the cuOpt counterpart of HiGHS ``_solve_qp_highs_sensitivity``). Called only on the
+    final-frontier re-solve, never in the EA hot loop, so it adds at most one dual read per
+    surviving point.
+
+    **GPU-only / GPU-pending:** the dual *numbers* are validated on a GPU run by cross-checking
+    against the HiGHS oracle (same problem → matching duals); the marshaling
+    (``_extract_cuopt_qp_sensitivity``) is pure and CPU-tested. The build mirrors
+    ``_solve_qp_cuopt`` line-for-line and is kept separate on purpose — the GPU-verified plain
+    path stays untouched.
+    """
+    from cuopt.linear_programming.problem import MINIMIZE, Problem as CuProblem
+
+    n = len(mu)
+    prob = CuProblem("frontier_portfolio_qp")
+    ub = float(max_weight) if max_weight is not None else 1.0
+    if support is None:
+        ubs = [ub] * n
+    else:
+        supp = {int(i) for i in support}
+        ubs = [ub if i in supp else 0.0 for i in range(n)]
+    w = [prob.addVariable(lb=0.0, ub=ubs[i], name=f"w_{i}") for i in range(n)]
+
+    quad = None
+    for i in range(n):
+        for j in range(n):
+            c = float(cov[i, j])
+            if abs(c) > 1e-12:
+                term = c * w[i] * w[j]
+                quad = term if quad is None else quad + term
+    prob.setObjective(quad, sense=MINIMIZE)
+
+    prob.addConstraint(sum(w) == 1, name="fully_invested")               # row 0: budget
+    has_return = target_return is not None
+    if has_return:                                                       # row 1: return floor
+        ret_expr = sum(float(mu[i]) * w[i] for i in range(n))
+        prob.addConstraint(ret_expr >= float(target_return) if return_maximize
+                           else ret_expr <= float(target_return), name="return_target")
+    n_extra = len(extra_linears or [])
+    for k, (coef, tgt, maximize) in enumerate(extra_linears or []):      # rows 2..: extra floors
+        expr = sum(float(coef[i]) * w[i] for i in range(n))
+        prob.addConstraint(expr >= float(tgt) if maximize else expr <= float(tgt), name=f"linear_{k}")
+
+    prob.solve()
+    ok = getattr(prob.Status, "name", "") in ("Optimal", "PrimalFeasible")
+    weights = np.array([w[i].Value for i in range(n)], dtype=float) if ok else np.zeros(n)
+    if ok and not _qp_weights_ok(weights, ub):
+        weights, ok = np.zeros(n), False
+    raw = _extract_cuopt_qp_sensitivity(prob, w, has_return, n_extra, support) if ok else None
+    del prob
+    gc.collect()
+    return weights, ok, raw
+
+
 def _qp_to_csr(cov, mu, target_return, return_maximize, max_weight,
                support=None, extra_linears=None):
     """Marshal one epsilon-constraint mean-variance QP into the CSR arrays cuOpt's low-level
@@ -355,7 +453,12 @@ def _optimize_cuopt(
     else:
         # Scalable matrix build when enabled, else the GPU-verified term-by-term path.
         inner_qp = _solve_qp_cuopt_matrix if _USE_MATRIX_QP else _solve_qp_cuopt
+        # Solver-exact duals (shadow prices + reduced costs) on the term-by-term path — the live
+        # default. Matrix-path sensitivity (low-level get_dual_solution / get_reduced_costs) is a
+        # follow-up; None there falls back to the frontier-inferred estimate.
+        inner_qp_sensitivity = None if _USE_MATRIX_QP else _solve_qp_cuopt_sensitivity
         run = optimize_qp(problem, mode, inner_qp=inner_qp,
+                          inner_qp_sensitivity=inner_qp_sensitivity,
                           pop=_SPIKE_POP, gen=_SPIKE_GEN,
                           max_solutions=max_solutions, seed=seed)
     # Provenance lives with the producer: stamp here so a direct call is labelled correctly,
