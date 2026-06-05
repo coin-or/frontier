@@ -39,6 +39,49 @@ Budget binding on 18 of 20 solutions, with slope 0.014 for NPV and −0.002 for 
 
 > Budget is the tightest constraint — 90% of frontier solutions are pressed against it. On this frontier, each additional $1 of budget relaxation trades for about $0.014 of NPV and a 0.002 increase in Risk. Worth asking whether the $500k cap is a true limit or a planning target.
 
+## `certify` (from `explore certify`)
+
+The exact-overlay audit (`explorer.certify_against_exact`). Top-level fields:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `nsga_run_id` / `exact_run_id` | str | The two runs compared (exploratory NSGA, exact overlay) |
+| `exact_solver` | str | `"highs"` \| `"cuopt"` — the engine behind the overlay |
+| `exact_certified` | bool | True only when a MILP overlay ran at a zero gap (`exact=true`) |
+| `nsga_count` / `exact_count` | int | Frontier sizes |
+| `dominance_audit` | obj | The heuristic slack exact catches (below) |
+| `invariant` | obj | The NSGA-never-dominates check (below) |
+| `corner_sharpening` | dict | Per-objective exact-vs-NSGA best (below) |
+| `headline_corner` | str\|null | The objective whose corner exact sharpened most (usually the risk corner) |
+| `recommendation` | str | One-line synthesis — translate, don't echo |
+| `next_steps` | str | Shape-branched onward guidance (sensitivity for QP, binding_analysis for MILP) |
+
+### `dominance_audit`
+
+```json
+{"nsga_dominated_by_exact": 7, "nsga_dominated_fraction": 0.15, "examples": [...]}
+```
+
+Count + fraction of NSGA "Pareto" points the exact frontier strictly dominates — points that looked efficient but a provably better mix exists. The fraction is the headline trust number; `examples` are concrete dominated→dominating pairs.
+
+### `invariant`
+
+```json
+{"holds": true, "exact_dominated_by_nsga": 0, "note": "..."}
+```
+
+`holds` is the soundness check: NSGA should dominate **no** exact point. A nonzero `exact_dominated_by_nsga` is **not** a heuristic win — on a QP it's integer rounding of the continuous optimum to whole-percent allocations (read the `note`); MILP corners (integer by construction) never show it. Present a violation as a rounding footnote.
+
+### `corner_sharpening`
+
+Dict keyed by objective name:
+
+```json
+{"Volatility": {"nsga_best": 4.29, "exact_best": 4.07, "improvement": 0.22, "status": "sharpened", "is_risk_corner": true}}
+```
+
+`status` ∈ `sharpened` (exact beat the EA's best), `matched` (EA already optimal), `under-sampled` (negative improvement = EA-budget artifact, **not** an exact-solver limit — raise the budget to close it). `is_risk_corner` flags the convex variance corner the decision usually hinges on.
+
 ## `scenario_risk` (from `scenario_results`)
 
 Dict keyed by objective name.

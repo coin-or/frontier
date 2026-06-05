@@ -19,6 +19,7 @@ Even a provably better solution is academic until it's translated into terms the
 | Pareto frontier | **Trade-offs** — what are we giving up for what we gain? |
 | Binding constraints | **Bottlenecks** — what's preventing better outcomes? |
 | Sensitivity / scenarios | **Risks** — what could shift this answer? |
+| Exact certificate (dominance audit / corner sharpening) | **Confidence** — how do I know nothing better exists, and is each pick provably near-optimal? |
 
 Always present results through this lens. Users don't need to understand Pareto dominance — they need to understand what to do, what it costs, and what could go wrong.
 

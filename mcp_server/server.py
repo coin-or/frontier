@@ -55,7 +55,11 @@ mcp = FastMCP(
     "Frontier",
     instructions=(
         "Multi-objective portfolio optimization engine.\n\n"
-        "WORKFLOW: model/create → model/update (objectives, options, scores, constraints) → solve/run → explore\n\n"
+        "WORKFLOW: model/create → model/update (objectives, options, scores, constraints) → solve/run → explore. "
+        "For a FINAL/decision run on a supported shape (binary selection, or mean-variance QP), opt into an exact "
+        "solver — solve(solver=\"highs\"|\"cuopt\") — then `explore certify` to audit NSGA vs exact (dominance, the "
+        "NSGA-never-dominates invariant, corner sharpening), then — on continuous/QP — `explore sensitivity` for "
+        "solver-exact duals, then decide.\n\n"
         "Domain skills — problem_framing, data_collection, optimization_strategy, solution_interpreter — "
         "are the canonical guides. data_collection / optimization_strategy / solution_interpreter "
         "auto-inject into tool responses at phase transitions. "
@@ -1420,10 +1424,18 @@ def explore(
                 return {"error": str(e)}
         case "sensitivity":
             try:
-                return explorer.sensitivity_analysis(
+                result = explorer.sensitivity_analysis(
                     p, solution_id=solution_id, scenario=scenario, source=source)
             except ValueError as e:
                 return {"error": str(e)}
+            # Close the loop back to the decision (duals are local to the reference solution).
+            if isinstance(result, dict) and "error" not in result:
+                result.setdefault(
+                    "next_steps",
+                    "Duals are local to the reference solution. Route a large shadow price back to "
+                    "framing (is that floor/cap negotiable?), relax a binding constraint to pull a "
+                    "near-miss in, and `explore curate` the chosen allocation to pin it.")
+            return result
         case "compare":
             if not solution_ids or len(solution_ids) < 2:
                 return {"error": "solution_ids must contain at least 2 IDs for compare."}
