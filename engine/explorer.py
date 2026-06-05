@@ -118,6 +118,7 @@ def get_tradeoffs(problem: Problem, scenario: str | None = None, source: str | N
 
     result["visualization"] = _render_tradeoffs_viz(result, problem.objectives, solutions)
     result["viz_data"] = _viz_data_tradeoffs(solutions, problem.objectives, result, problem.curated_solutions)
+    result["frontier_source"] = _frontier_provenance(problem, run, scenario)
     return result
 
 
@@ -175,6 +176,7 @@ def compare_solutions(problem: Problem, solution_ids: list[int], scenario: str |
     labels = {s.solution_id: f"[{s.solution_id}]" for s in selected}
     result["visualization"] = _render_parallel_coords(sol_dicts, problem.objectives, labels)
     result["viz_data"] = _viz_data_parallel_coords(sol_dicts, problem.objectives, labels)
+    result["frontier_source"] = _frontier_provenance(problem, run, scenario)
 
     return result
 
@@ -214,6 +216,7 @@ def get_solutions(problem: Problem, scenario: str | None = None, detail: bool = 
     labels = {s.solution_id: f"[{s.solution_id}]" for s in run.solutions}
     result["visualization"] = _render_parallel_coords(sol_dicts, problem.objectives, labels)
     result["viz_data"] = _viz_data_parallel_coords(sol_dicts, problem.objectives, labels)
+    result["frontier_source"] = _frontier_provenance(problem, run, scenario)
     return result
 
 
@@ -227,6 +230,7 @@ def get_solution(problem: Problem, solution_id: int, scenario: str | None = None
                 result["vs_references"] = _compute_reference_analysis(
                     s.objective_values, problem.reference_points, problem.objectives,
                 )
+            result["frontier_source"] = _frontier_provenance(problem, run, scenario)
             return result
     raise ValueError(f"Solution {solution_id} not found in current run.")
 
@@ -969,7 +973,8 @@ def marginal_analysis(problem: Problem, scenario: str | None = None, detail: boo
     obj_names = [o.name for o in objectives]
 
     if len(solutions) < 3:
-        return {"pairs": [], "note": "Need at least 3 solutions for marginal analysis."}
+        return {"pairs": [], "note": "Need at least 3 solutions for marginal analysis.",
+                "frontier_source": _frontier_provenance(problem, run, scenario)}
 
     pairs = []
     for i, j, r in _conflicting_pair_indices(solutions, objectives):
@@ -1043,7 +1048,7 @@ def marginal_analysis(problem: Problem, scenario: str | None = None, detail: boo
 
         pairs.append(pair_result)
 
-    return {"pairs": pairs}
+    return {"pairs": pairs, "frontier_source": _frontier_provenance(problem, run, scenario)}
 
 
 def _marginal_window(n: int, inflection: dict | None, max_rows: int | None) -> tuple[int, int]:
@@ -1481,6 +1486,34 @@ def _require_run(problem: Problem, scenario: str | None = None, source: str | No
     if not problem.run.solutions:
         raise ValueError("Run has no solutions.")
     return problem.run
+
+
+def _frontier_provenance(problem: Problem, run: Run, scenario: str | None = None) -> dict:
+    """Provenance label for the frontier an explore result was computed over.
+
+    Makes heuristic-vs-exact unambiguous so a heuristic frontier is never silently passed
+    off as the exact overlay — e.g. when an explore call's ``source`` is omitted, or stripped
+    before it reaches the engine (a stale MCP server/schema can do this). ``kind`` is the
+    category (``heuristic`` vs ``exact``); ``solver`` is the precise engine
+    (nsga-ii/nsga-iii/highs/cuopt). When the heuristic frontier is served while a base-case
+    exact overlay also exists, the label advertises it, so ``source="exact"`` is discoverable
+    rather than assumed.
+    """
+    from solvers import is_exact_solver
+
+    is_exact = is_exact_solver(run.solver)
+    prov = {
+        "run_id": run.run_id,
+        "solver": run.solver,
+        "kind": "exact" if is_exact else "heuristic",
+    }
+    exact_run = problem.exact_run
+    if (scenario is None and not is_exact and exact_run is not None
+            and exact_run.solutions and exact_run.run_id != run.run_id):
+        prov["exact_overlay_available"] = True
+        prov["hint"] = ('Heuristic NSGA frontier. An exact-solver overlay exists for this '
+                        'problem — pass source="exact" to analyze it.')
+    return prov
 
 
 def _classify_frontier_shapes(solutions, objectives) -> list[dict]:
