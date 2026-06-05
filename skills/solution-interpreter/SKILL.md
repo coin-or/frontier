@@ -280,6 +280,16 @@ Every response is tagged `source`:
 - **`solver_exact`** — duals read straight from the optimizer at each solution. The shadow price is the *instantaneous* marginal rate at that point — exact, not a slope fitted across nearby solutions. Prefer it whenever present.
 - **`frontier_inferred`** — the fallback for heuristic (NSGA) or integer (MILP) runs, which have no exact duals; it returns the `binding_analysis` regression instead. Integer/MILP solutions never carry exact duals — say so rather than implying otherwise.
 
+**Support by problem type** — solver-exact duals are a **QP-path feature**; the other shapes fall back:
+
+| Problem type | Exact path? | `explore sensitivity` |
+|---|---|---|
+| **QP** — proportional mean-variance (continuous, quadratic risk) | yes (HiGHS / cuOpt) | **`solver_exact`** — shadow prices + reduced costs |
+| **MILP** — binary selection | yes, but integer | **`frontier_inferred`** — integer solutions have no duals |
+| **LP** — linear-continuous allocation | none (routes to NSGA) | **`frontier_inferred`** |
+
+On MILP and LP, present the frontier-inferred estimate and name it as an estimate — don't imply a solver dual. (cuOpt-the-solver *does* expose LP duals, but Frontier has no linear-continuous exact path, so LP duals aren't reachable here.)
+
 **The two reads:**
 
 *Where to invest* — `where_to_invest` ranks constraint shadow prices by magnitude. A shadow price is the marginal change in the optimized objective per unit a binding constraint is relaxed; the largest is the highest-leverage lever. Translate into the constraint's own units:

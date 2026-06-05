@@ -268,3 +268,23 @@ class TestSensitivity:
             ineligible = {rc.option for rc in ref.sensitivity.reduced_costs if not rc.eligible}
             near_options = {nm["option"] for nm in res["near_misses"]}
             assert near_options.isdisjoint(ineligible)
+
+    def test_lp_shape_has_no_exact_path_and_falls_back(self):
+        # Per-type matrix: solver-exact duals are QP-only. A linear-continuous (LP-shaped)
+        # proportional problem has no exact path (the gate declines it → NSGA), so
+        # explore sensitivity falls back to frontier_inferred — no solver duals.
+        names = ["A", "B", "C", "D"]
+        ret, yld = {"A": 10, "B": 12, "C": 8, "D": 15}, {"A": 3, "B": 2, "C": 5, "D": 1}
+        sc = []
+        for n in names:
+            sc += [Score(option=n, objective="Return", value=ret[n]),
+                   Score(option=n, objective="Yield", value=yld[n])]
+        p = Problem(approach="proportional",
+                    objectives=[Objective(name="Return", direction="maximize", aggregation="avg"),
+                                Objective(name="Yield", direction="maximize", aggregation="avg")],
+                    options=[Option(name=n) for n in names], scores=sc,
+                    constraints=[MaxAllocationConstraint(max=50)])
+        assert exact_solver_fits(p)[0] is False        # no exact path for a linear-continuous shape
+        p.run = optimize(p, mode=OptimizeMode.fast)     # heuristic NSGA run
+        res = explorer.sensitivity_analysis(p)
+        assert res["source"] == "frontier_inferred"
