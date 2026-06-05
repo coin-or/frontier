@@ -289,6 +289,7 @@ def _solve_milp_cuopt(min_coef, eps_list, mc, n, exact=False):
     from cuopt.linear_programming.problem import INTEGER, MINIMIZE, Problem as CuProblem
     from cuopt.linear_programming.solver.solver_parameters import (
         CUOPT_MIP_ABSOLUTE_GAP,
+        CUOPT_MIP_DETERMINISM_MODE,
         CUOPT_MIP_RELATIVE_GAP,
         CUOPT_TIME_LIMIT,
     )
@@ -325,6 +326,17 @@ def _solve_milp_cuopt(min_coef, eps_list, mc, n, exact=False):
     settings.set_parameter(CUOPT_MIP_RELATIVE_GAP, 0.0 if exact else _MILP_REL_GAP)
     if not exact and _MILP_ABS_GAP > 0:
         settings.set_parameter(CUOPT_MIP_ABSOLUTE_GAP, _MILP_ABS_GAP)
+    # Deterministic mode (CUOPT_MODE_DETERMINISTIC = 1; cuOpt's default is opportunistic = 0).
+    # Two reasons, one config: (1) reproducibility — an opportunistic (non-deterministic) solver
+    # can return a different optimum run-to-run, so the cuOpt frontier wouldn't reproduce the way
+    # the NSGA/seed paths do; (2) it makes cuOpt run the LP root relaxation *sequentially* instead
+    # of concurrently. The EA's epsilon sweep routinely proposes infeasible corners (expected —
+    # the engine scores them dominated); cuOpt's opportunistic *concurrent* root solve aborts the
+    # process (std::terminate, an uncatchable kernel crash) on an infeasible relaxation, while the
+    # deterministic sequential path returns Infeasible as a status the engine reads as ok=False,
+    # exactly like HiGHS. So this is a configuration fix, not a workaround. (MIP-only knob; the
+    # continuous QP/PDLP path returns an infeasibility status rather than aborting.)
+    settings.set_parameter(CUOPT_MIP_DETERMINISM_MODE, 1)
     prob.solve(settings)
     # MILP uses ``MILPTerminationStatus`` (NoTermination / Optimal / FeasibleFound) — a
     # DIFFERENT enum from the QP's ``LPTerminationStatus``. Bounded accepts Optimal AND
