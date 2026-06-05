@@ -1107,7 +1107,11 @@ def _solve_run(p: Problem, mode: OptimizeMode | None = None, max_solutions: int 
         },
         "full_result_path": str(full_result_path),
         "next_steps": (
-            "Use `explore tradeoffs` for the frontier overview, `explore solution <id>` for a "
+            ("This is an exact overlay, stored alongside the exploratory NSGA frontier — run "
+             "`explore certify` (no params) to audit it: dominance audit, the NSGA-never-dominates "
+             "invariant, and per-objective corner sharpening. Then use "
+             if run.solver in EXACT_SOLVERS else "Use ")
+            + "`explore tradeoffs` for the frontier overview, `explore solution <id>` for a "
             "single solution's detail, and `explore curate` to pin strategies. For bulk export "
             "or assembling artifacts that need every solution with allocations, read the file at "
             "`full_result_path` directly — it contains all solutions without token overhead. "
@@ -1488,9 +1492,14 @@ def explore(
                     return {"error": "certify needs both an exploratory NSGA run and an exact overlay. "
                                      "Run solve(), then solve(solver='highs'|'cuopt'), then explore certify."}
             try:
-                return explorer.certify_against_exact(p, nsga_run, exact_run)
+                result = explorer.certify_against_exact(p, nsga_run, exact_run)
             except ValueError as e:
                 return {"error": str(e)}
+            # Surface the read-side guidance ('Reading the Certificate') at the moment the
+            # certificate lands, mirroring the solve-response injection.
+            if not _was_injected(p.problem_id, "solution_interpreter"):
+                _inject_skill(result, "solution_interpreter", _SOLUTION_INTERPRETER_PROMPT)
+            return result
         case "scenario_results":
             try:
                 return _format_explore(explorer.get_scenario_results(p, cvar_alpha=cvar_alpha))

@@ -310,6 +310,27 @@ On MILP and LP, present the frontier-inferred estimate and name it as an estimat
 - **Route action back to framing.** A large shadow price says where relaxing *would* pay — not that the limit must move. *"Return is the expensive axis here. Is your return floor a hard requirement or a target we could negotiate?"*
 - **Continuous only.** No exact duals for integer/MILP selection — on a binary problem `source` is `frontier_inferred`; present its estimate and name it as an estimate.
 
+### Reading the Certificate (explore certify)
+
+`explore certify` audits the exploratory NSGA frontier against an exact overlay (`solve(solver="highs"|"cuopt")`). It answers the **trust** question — *"how do I know nothing better exists, and are my picks provably near-optimal?"* — the auditor counterpart to the produce-side narration in `optimization_strategy`. Translate the pre-built `recommendation` / `next_steps`; don't echo them. Three blocks:
+
+*Dominance audit* — `dominance_audit.nsga_dominated_by_exact` / `nsga_dominated_fraction` / `examples`: the NSGA "Pareto" points the exact frontier strictly beats — heuristic slack the EA presented as efficient. The fraction is the headline trust number:
+- *"Exact audited the explored frontier: [N] of [M] points ([fraction]) are actually dominated — plans that looked efficient, but a provably better mix exists. Here's one: [examples]."*
+- Zero dominated is itself a result: *"Exact confirms every explored point is on the true frontier — the EA's picks hold up."*
+
+*Invariant* — `invariant.holds`: NSGA should dominate **no** exact point. When it holds, say so plainly — it's the strongest trust statement available:
+- *"NSGA dominates no exact point — exact can only confirm or improve, so the frontier you explored is sound."*
+
+*Corner sharpening* — `corner_sharpening` is per-objective (`nsga_best`→`exact_best`, `improvement`, `status` ∈ `sharpened` | `matched` | `under-sampled`); `headline_corner` names the one that matters most (usually the convex risk/variance corner the decision turns on):
+- *"Exact sharpens the [headline_corner] corner the decision hinges on: [nsga_best] → [exact_best]. The EA got close; exact nails it."*
+- `matched` corners: the EA already found the optimum — confirm or stay silent.
+
+**Don't misread (two traps):**
+- **`invariant.holds = false` is NOT a heuristic beating the exact solver.** `exact_dominated_by_nsga > 0` on a QP is the integer rounding of the continuous optimum to whole-percent allocations (read the `note`), never the EA "winning." Present it as a rounding footnote, not a defeat. (MILP corners, integer by construction, never show this.)
+- **`status: "under-sampled"` (negative improvement) is an EA-budget artifact, not an exact-solver limit** — the EA didn't sample that corner densely enough; raising the budget closes it. Never present it as "exact is worse here."
+
+**Next move** — after a clean certificate, present the certified frontier with confidence (every point optimal, not heuristic). On a **continuous/QP** problem, offer `explore sensitivity` for the duals/explainability layer; navigate the overlay itself with `explore … source="exact"`.
+
 ### Marginal Analysis Interpretation
 
 The `explore marginal_analysis` action returns structured data for each conflicting pair: `rates` (per-step cost ratios) and optionally `inflection` (with `solution_id`, `position`, `jump_factor`). Interpret these:
