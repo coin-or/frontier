@@ -113,7 +113,10 @@ async def _drive_repro() -> dict:
 
 @pytest.mark.skipif(not _HAS_MCP_CLIENT, reason="mcp stdio client not available")
 def test_source_survives_stdio_transport():
-    out = asyncio.run(_drive_repro())
+    # Hard timeout so a wedged stdio handshake fails loudly instead of hanging CI (a healthy
+    # run is ~1-2s; the ceiling only guards a stuck subprocess). asyncio.wait_for cancels the
+    # coroutine, and stdio_client's __aexit__ then terminates the server subprocess.
+    out = asyncio.run(asyncio.wait_for(_drive_repro(), timeout=120))
 
     # Dependency-free proof that ``source`` crossed the transport: an unknown value can only be
     # rejected by the engine if the kwarg was actually delivered. If ``source`` were dropped on
