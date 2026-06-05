@@ -222,12 +222,48 @@ def _content_signature(selected_options: list[str], allocations: dict[str, int] 
     return hashlib.md5(content.encode()).hexdigest()[:12]
 
 
+# --- Solution sensitivity (exact-solver duals) ---
+
+
+class ShadowPrice(BaseModel):
+    """Dual of a binding constraint — the marginal change in the optimized objective
+    per unit the constraint is relaxed. Decision read: *where to invest* — the lever
+    with the largest shadow price buys the most improvement. Exact for the continuous
+    LP/QP path only; integer/MILP solutions carry no exact duals."""
+    name: str            # "budget", or the swept objective's name (e.g. "Return")
+    role: str            # "budget" | "return_floor" | "linear_floor"
+    shadow_price: float
+
+
+class ReducedCost(BaseModel):
+    """Reduced cost of a decision variable — for an option left at zero, how far its
+    objective coefficient must improve before it would enter the optimal solution.
+    Decision read: a *near-miss* — the smallest-magnitude unheld option is closest to
+    making the cut. Non-zero only for options the optimizer left at a bound."""
+    option: str
+    allocation: int      # this solution's allocation % (0 = unheld)
+    reduced_cost: float
+    eligible: bool = True  # False = pinned out by a cardinality/group cap (structurally excluded, not a near-miss)
+
+
+class SolutionSensitivity(BaseModel):
+    """Post-optimal sensitivity for one solution, from the exact solver's duals.
+
+    ``source`` separates solver-exact duals (continuous LP/QP) from frontier-inferred
+    regression estimates; only solver-exact duals are attached here."""
+    source: str = "solver_exact"        # vs "frontier_inferred"
+    shadow_prices: list[ShadowPrice] = []
+    reduced_costs: list[ReducedCost] = []
+    ranging: dict | None = None         # best-effort RHS/objective ranging (LP); None if unavailable
+
+
 class Solution(BaseModel):
     solution_id: int
     selected_options: list[str]
     objective_values: dict[str, float]
     allocations: dict[str, int] | None = None  # proportional mode: option → percentage (0-100)
     content_signature: str = ""  # stable hash, computed post-init
+    sensitivity: SolutionSensitivity | None = None  # exact-solver duals (LP/QP path); None for MILP/heuristic
 
 
 class QualityIndicators(BaseModel):

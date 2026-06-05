@@ -131,6 +131,12 @@ When you detect a binding constraint, quantify the impact: *"Relaxing effort fro
 
 For a richer view after solve, `explore tradeoffs` returns a `binding_analysis` block with shadow-price rates per binding constraint — how much each objective shifts per unit of slack relaxation, derived from the frontier's own slope. Use it to move the conversation from "this constraint is tight" to "it's costing you roughly $X per unit — worth negotiating?". See `frontier://skills/solution_interpreter` for presentation patterns.
 
+On an **exact** continuous (QP) run, `explore sensitivity` upgrades these to **solver-exact** duals — and they drive *formulation*, not just presentation. Use them to choose the next model change:
+- **Where to invest → which constraint to renegotiate.** The largest `where_to_invest` shadow price names the limit whose relaxation buys the most. Take it back to the user as the highest-leverage knob: *"the volatility cap is the binding lever — each point of it is worth ~X return here; is 20% firm, or a target?"* — then relax it and re-run.
+- **Near-miss → a re-scoring or cap-relaxation prompt.** A small `near_misses` reduced cost means an option is one assumption away from entering. Re-check its scores, or relax the cardinality / group cap (or the `capped_options` max-allocation limit) holding a wanted option out. A near-miss that persists across the frontier is a sign the formulation may be excluding something the user actually wants — route it back to problem_framing.
+
+This closes the loop: exact sensitivity → a concrete formulation change → re-run. Continuous/QP only; on MILP, `explore sensitivity` falls back to the frontier-inferred estimate (tagged `frontier_inferred`), so lean on `binding_analysis` there.
+
 ### Reproducibility and Stability Checks
 
 Evolutionary search is **stochastic**, but seeded: the `solve` tool accepts an optional `seed` and echoes `seed_used` on every run, so a run reproduces exactly. Same problem state + same seed → same frontier (in- and cross-process). Omit the seed and a fresh one is drawn and recorded.

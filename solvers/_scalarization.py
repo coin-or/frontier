@@ -38,8 +38,11 @@ from engine.models import (
     Aggregation,
     OptimizeMode,
     Problem,
+    ReducedCost,
     Run,
+    ShadowPrice,
     Solution,
+    SolutionSensitivity,
     _content_signature,
 )
 
@@ -254,6 +257,37 @@ def _solve_individual(cov, linear_coefs, linear_maximize, max_weight, eps, suppo
                     max_weight, support, extra)
 
 
+def _solve_individual_sensitivity(cov, linear_coefs, linear_maximize, max_weight, eps,
+                                  support, inner_qp_sensitivity):
+    """Dual-returning sibling of ``_solve_individual`` — same scalarization, but the inner
+    solve also returns the exact duals. Returns ``(weights_frac, ok, raw_sensitivity)``."""
+    extra = [(linear_coefs[t], float(eps[t]), linear_maximize[t])
+             for t in range(1, len(linear_coefs))]
+    return inner_qp_sensitivity(cov, linear_coefs[0], float(eps[0]), linear_maximize[0],
+                                max_weight, support, extra)
+
+
+def _build_solution_sensitivity(raw, opt_names, alloc_row, linear_idxs, obj_list):
+    """Map a backend's raw dual payload onto option/objective names → a
+    ``SolutionSensitivity``. Backend-agnostic: ``raw['shadow_prices']`` is a list of
+    ``{role, linear_index, value}`` (``linear_index`` indexes ``linear_idxs``; None =
+    budget), and ``raw['reduced_costs']`` is one value per option index."""
+    shadow = []
+    for sp in raw["shadow_prices"]:
+        li = sp.get("linear_index")
+        name = "budget" if li is None else obj_list[linear_idxs[li]].name
+        shadow.append(ShadowPrice(name=name, role=sp["role"],
+                                  shadow_price=round(float(sp["value"]), 6)))
+    rcs = raw.get("reduced_costs") or []
+    elig = raw.get("eligible") or [True] * len(opt_names)
+    reduced = [ReducedCost(option=opt_names[i], allocation=int(alloc_row[i]),
+                           reduced_cost=round(float(rcs[i]), 6),
+                           eligible=bool(elig[i]) if i < len(elig) else True)
+               for i in range(len(opt_names)) if i < len(rcs)]
+    return SolutionSensitivity(source="solver_exact", shadow_prices=shadow,
+                               reduced_costs=reduced, ranging=raw.get("ranging"))
+
+
 class _QpFrontierProblem(PymooProblem):
     """Epsilon-constraint genome for proportional mean-variance problems.
 
@@ -335,7 +369,8 @@ class _QpFrontierProblem(PymooProblem):
         out["G"] = np.where(feasible, -1.0, 1.0).reshape(-1, 1)
 
 
-def optimize_qp(problem, mode, *, inner_qp, pop, gen, max_solutions=None, seed=42) -> Run:
+def optimize_qp(problem, mode, *, inner_qp, inner_qp_sensitivity=None, pop, gen,
+                max_solutions=None, seed=42) -> Run:
     """Proportional mean-variance solve: the EA walks an epsilon-constraint target per linear
     objective (and, under a cardinality/group cap, the asset-selection priorities) while
     ``inner_qp`` solves each inner min-variance QP exactly. Returns a ``Run`` in the engine's
@@ -389,10 +424,18 @@ def optimize_qp(problem, mode, *, inner_qp, pop, gen, max_solutions=None, seed=4
     seen: set[str] = set()
     if result.X is not None and len(np.atleast_2d(result.X)) > 0:
         for row in np.atleast_2d(result.X):
-            w_frac, ok = _solve_individual(
-                cov, linear_coefs, linear_maximize, max_weight,
-                row[:n_lin], pymoo_problem._support_from_row(row), inner_qp,
-            )
+            support = pymoo_problem._support_from_row(row)
+            if inner_qp_sensitivity is not None:
+                w_frac, ok, raw_sens = _solve_individual_sensitivity(
+                    cov, linear_coefs, linear_maximize, max_weight,
+                    row[:n_lin], support, inner_qp_sensitivity,
+                )
+            else:
+                w_frac, ok = _solve_individual(
+                    cov, linear_coefs, linear_maximize, max_weight,
+                    row[:n_lin], support, inner_qp,
+                )
+                raw_sens = None
             if not ok:
                 continue
             raw = _round_weights_to_pct(w_frac, n_options, cp.get("max_allocation"))
@@ -408,9 +451,12 @@ def optimize_qp(problem, mode, *, inner_qp, pop, gen, max_solutions=None, seed=4
                 obj.name: round(float(prop._aggregate_objective(W_pct, j)[0]), 4)
                 for j, obj in enumerate(obj_list)
             }
+            sensitivity = (_build_solution_sensitivity(raw_sens, opt_names, raw, linear_idxs, obj_list)
+                           if raw_sens else None)
             solutions.append(Solution(
                 solution_id=len(solutions), selected_options=selected,
                 objective_values=obj_values, allocations=alloc_map,
+                sensitivity=sensitivity,
             ))
 
     solutions = _nondominated(solutions, obj_list)

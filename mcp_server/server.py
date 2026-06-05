@@ -1369,6 +1369,15 @@ def explore(
                    Default: summary per pair (inflection, stats, top-5 steepest, truncated viz).
                    Pass detail=true for full rates array + untruncated visualization.
                    Optional: detail, scenario.
+      sensitivity — Exact-solver explainability: shadow prices + reduced costs.
+                   where_to_invest (constraint shadow prices, ranked — marginal objective change
+                   per unit relaxed) and near_misses (unheld options by reduced cost — closest to
+                   entering), for a reference solution (default balanced; solution_id overrides),
+                   plus frontier_shadow_price_trend (diminishing-returns curve). Needs an exact run
+                   (solve(solver="highs"|"cuopt")); falls back to the frontier-inferred binding
+                   analysis otherwise. Tagged source=solver_exact|frontier_inferred. Continuous/QP
+                   only — integer/MILP solutions have no exact duals.
+                   Optional: solution_id, scenario, source.
 
     Scenario param (optional):
       Pass scenario="<name>" to inspect a specific scenario's results instead of the base case.
@@ -1403,6 +1412,12 @@ def explore(
         case "tradeoffs":
             try:
                 return _format_explore(explorer.get_tradeoffs(p, scenario=scenario, source=source))
+            except ValueError as e:
+                return {"error": str(e)}
+        case "sensitivity":
+            try:
+                return explorer.sensitivity_analysis(
+                    p, solution_id=solution_id, scenario=scenario, source=source)
             except ValueError as e:
                 return {"error": str(e)}
         case "compare":

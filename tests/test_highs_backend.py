@@ -10,6 +10,7 @@ import pytest
 
 pytest.importorskip("highspy")
 
+from engine import explorer
 from engine.models import (
     CardinalityConstraint,
     ForceIncludeConstraint,
@@ -196,3 +197,94 @@ class TestProportionalQP:
         a = _optimize_highs(p, mode=OptimizeMode.fast)
         b = _optimize_highs(p, mode=OptimizeMode.fast)
         assert [s.objective_values for s in a.solutions] == [s.objective_values for s in b.solutions]
+
+
+# ─── Sensitivity (exact-solver duals) ───
+
+class TestSensitivity:
+    def test_qp_solutions_carry_solver_exact_duals(self):
+        p = _qp_problem()
+        run = _optimize_highs(p, mode=OptimizeMode.fast)
+        assert run.solutions
+        for s in run.solutions:
+            assert s.sensitivity is not None, "QP solution missing sensitivity"
+            assert s.sensitivity.source == "solver_exact"
+            assert len(s.sensitivity.reduced_costs) == len(p.options)  # one per option
+            roles = {sp.role for sp in s.sensitivity.shadow_prices}
+            assert "budget" in roles and "return_floor" in roles
+
+    def test_return_shadow_price_sign_and_variation(self):
+        # The return-floor shadow price = marginal risk per unit of required return: ≥ 0
+        # everywhere (more return costs more variance), and varies along the frontier (convex →
+        # not all equal). This is the exactness the frontier regression only approximates.
+        run = _optimize_highs(_qp_problem(), mode=OptimizeMode.fast)
+        sp = [next(x.shadow_price for x in s.sensitivity.shadow_prices if x.role == "return_floor")
+              for s in run.solutions]
+        assert min(sp) >= -1e-6                  # economically non-negative
+        assert max(sp) - min(sp) > 1e-4          # genuinely varies (diminishing returns)
+
+    def test_near_miss_reduced_cost_for_excluded_option(self):
+        # An option the optimizer leaves at 0 carries a non-zero reduced cost (a near-miss);
+        # held interior options are ~0. So at least one solution shows a near-miss.
+        run = _optimize_highs(_qp_problem(), mode=OptimizeMode.fast)
+        found = any(rc.allocation == 0 and abs(rc.reduced_cost) > 1e-6
+                    for s in run.solutions for rc in s.sensitivity.reduced_costs)
+        assert found, "expected at least one excluded-option near-miss on the frontier"
+
+    def test_milp_solutions_have_no_exact_duals(self):
+        # Duals/reduced costs are LP/QP-only — integer solutions must not carry them.
+        run = _optimize_highs(_binary_problem(), mode=OptimizeMode.fast)
+        assert run.solutions
+        assert all(s.sensitivity is None for s in run.solutions)
+
+    def test_explore_sensitivity_exact_path(self):
+        p = _qp_problem()
+        p.exact_run = _optimize_highs(p, mode=OptimizeMode.fast)
+        res = explorer.sensitivity_analysis(p)
+        assert res["source"] == "solver_exact"
+        assert res["where_to_invest"]                       # budget + return levers
+        assert "near_misses" in res and "frontier_shadow_price_trend" in res
+        assert all("shadow_price" in t for t in res["frontier_shadow_price_trend"])
+
+    def test_explore_sensitivity_falls_back_for_milp(self):
+        p = _binary_problem()
+        p.exact_run = _optimize_highs(p, mode=OptimizeMode.fast)
+        res = explorer.sensitivity_analysis(p)
+        assert res["source"] == "frontier_inferred"
+        assert "binding_analysis" in res
+
+    def test_cardinality_qp_keeps_offsupport_out_of_near_misses(self):
+        # With a cardinality cap the EA pins off-support assets to ub=0 — their reduced cost is
+        # about the cap, not a near-miss. They must be flagged ineligible and never surface in
+        # the explore near_misses list.
+        p = _qp_problem(constraints=[CardinalityConstraint(min=1, max=2)])
+        run = _optimize_highs(p, mode=OptimizeMode.fast)
+        assert any(not rc.eligible for s in run.solutions for rc in s.sensitivity.reduced_costs), \
+            "expected some off-support (ineligible) assets under a cardinality cap"
+        p.exact_run = run
+        res = explorer.sensitivity_analysis(p)
+        if res["source"] == "solver_exact":
+            ref = next(s for s in run.solutions if s.solution_id == res["reference_solution"]["solution_id"])
+            ineligible = {rc.option for rc in ref.sensitivity.reduced_costs if not rc.eligible}
+            near_options = {nm["option"] for nm in res["near_misses"]}
+            assert near_options.isdisjoint(ineligible)
+
+    def test_lp_shape_has_no_exact_path_and_falls_back(self):
+        # Per-type matrix: solver-exact duals are QP-only. A linear-continuous (LP-shaped)
+        # proportional problem has no exact path (the gate declines it → NSGA), so
+        # explore sensitivity falls back to frontier_inferred — no solver duals.
+        names = ["A", "B", "C", "D"]
+        ret, yld = {"A": 10, "B": 12, "C": 8, "D": 15}, {"A": 3, "B": 2, "C": 5, "D": 1}
+        sc = []
+        for n in names:
+            sc += [Score(option=n, objective="Return", value=ret[n]),
+                   Score(option=n, objective="Yield", value=yld[n])]
+        p = Problem(approach="proportional",
+                    objectives=[Objective(name="Return", direction="maximize", aggregation="avg"),
+                                Objective(name="Yield", direction="maximize", aggregation="avg")],
+                    options=[Option(name=n) for n in names], scores=sc,
+                    constraints=[MaxAllocationConstraint(max=50)])
+        assert exact_solver_fits(p)[0] is False        # no exact path for a linear-continuous shape
+        p.run = optimize(p, mode=OptimizeMode.fast)     # heuristic NSGA run
+        res = explorer.sensitivity_analysis(p)
+        assert res["source"] == "frontier_inferred"

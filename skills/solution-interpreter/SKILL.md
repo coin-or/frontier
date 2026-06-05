@@ -253,6 +253,8 @@ The `tradeoffs` output includes a `binding_analysis` block: one entry per bindin
 
 Users often care more about *which constraint is limiting them and how much it's costing* than about which solution to pick. Shadow prices are how you tell them.
 
+> When the frontier came from an exact continuous solve, `explore sensitivity` returns **solver-exact** shadow prices and reduced costs that supersede these frontier-derived estimates (see **Exact Sensitivity** below). `binding_analysis` is the fallback for heuristic (NSGA) and integer (MILP) runs.
+
 **Translating the shape to language:**
 
 | Constraint type | Shadow-price field | Template |
@@ -269,6 +271,44 @@ Guidance:
 - **Route action back to problem framing** — binding analysis suggests which constraint to revisit, not that it must move. *"This is the limiting constraint. Is the limit truly fixed, or is it a target we could negotiate?"*
 
 See `references/explore-diagnostics.md` for the full schema of `binding_analysis` entries and worked examples.
+
+### Exact Sensitivity — Shadow Prices & Reduced Costs (solver duals)
+
+`explore sensitivity` reports **solver-exact** duals when the frontier came from an exact continuous solve (`solve(solver="highs"|"cuopt")` on a proportional / mean-variance QP). It is the *exact* counterpart to the frontier-inferred `binding_analysis` above, and answers two decision questions directly.
+
+Every response is tagged `source`:
+- **`solver_exact`** — duals read straight from the optimizer at each solution. The shadow price is the *instantaneous* marginal rate at that point — exact, not a slope fitted across nearby solutions. Prefer it whenever present.
+- **`frontier_inferred`** — the fallback for heuristic (NSGA) or integer (MILP) runs, which have no exact duals; it returns the `binding_analysis` regression instead. Integer/MILP solutions never carry exact duals — say so rather than implying otherwise.
+
+**Support by problem type** — solver-exact duals are a **QP-path feature**; the other shapes fall back:
+
+| Problem type | Exact path? | `explore sensitivity` |
+|---|---|---|
+| **QP** — proportional mean-variance (continuous, quadratic risk) | yes (HiGHS / cuOpt) | **`solver_exact`** — shadow prices + reduced costs |
+| **MILP** — binary selection | yes, but integer | **`frontier_inferred`** — integer solutions have no duals |
+| **LP** — linear-continuous allocation | none (routes to NSGA) | **`frontier_inferred`** |
+
+On MILP and LP, present the frontier-inferred estimate and name it as an estimate — don't imply a solver dual. (cuOpt-the-solver *does* expose LP duals, but Frontier has no linear-continuous exact path, so LP duals aren't reachable here.)
+
+**The two reads:**
+
+*Where to invest* — `where_to_invest` ranks constraint shadow prices by magnitude. A shadow price is the marginal change in the optimized objective per unit a binding constraint is relaxed; the largest is the highest-leverage lever. Translate into the constraint's own units:
+- *"At this point each extra unit of required return costs about [shadow] more risk — the marginal price of return here."*
+- `frontier_shadow_price_trend` shows that price along the frontier. Rising = diminishing returns: *"Return gets steadily more expensive — the first units are cheap, the last cost several times the risk."* Name where it steepens.
+
+*Near-misses* — `near_misses` lists options the optimizer left out (allocation 0), ranked by reduced cost (smallest first = closest to entering). The reduced cost is how far that option's contribution must improve before it earns a place:
+- *"[Option] just missed the cut — it would enter the mix if its return improved by about [reduced_cost] (or its risk/correlation dropped equivalently)."*
+- The smallest-magnitude near-miss is the one to watch: a small reduced cost means a small change in assumptions pulls it in.
+
+**Sign convention (carries meaning — don't drop it):**
+- An **excluded** option (held at 0) has reduced cost **> 0**: "would need to improve by X to enter." This is the near-miss read.
+- A **capped** option (pinned at its max-allocation limit) has reduced cost **< 0**, reported under `capped_options`: "the cap is binding — it would take more if allowed." That points at the allocation cap as a *where-to-invest* lever, not a near-miss.
+
+**Guidance:**
+- **Prefer `solver_exact` over `binding_analysis` when both exist** — the dual is the exact local rate; the regression averages across nearby points and overstates the rate on a curved frontier. If you've quoted a frontier-inferred slope and an exact run is available, refresh with the exact number.
+- **Anchor in the reference solution.** Duals are local — they describe the rates *at* the reference point (default: balanced; pass `solution_id` to move). Say which point you're quoting; a shadow price without its solution is phantom precision.
+- **Route action back to framing.** A large shadow price says where relaxing *would* pay — not that the limit must move. *"Return is the expensive axis here. Is your return floor a hard requirement or a target we could negotiate?"*
+- **Continuous only.** No exact duals for integer/MILP selection — on a binary problem `source` is `frontier_inferred`; present its estimate and name it as an estimate.
 
 ### Marginal Analysis Interpretation
 

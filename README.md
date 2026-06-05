@@ -123,7 +123,7 @@ FRONTIER_MCP_TOKEN=your-secret MCP_TRANSPORT=sse python -m mcp_server.server
 
 Point your MCP client at the local server — for SSE that's `http://localhost:8000/sse`. The optional web UI lives in [`ui/`](ui/) — see its [README](ui/README.md).
 
-**Optional exact-solver audit layer.** Beyond the default NSGA-II/III, Frontier can wrap the NSGA search around an *exact inner solve* Two first-class backends share one scalarization engine and differ only in the inner solve: `highs` (`pip install highspy`, CPU, cross-platform) and `cuopt` (NVIDIA GPU) — pick by hardware, identical certificate either way. Because an exact point is optimal for its scalarization, overlaying it on the heuristic frontier can only confirm or sharpen it, never worsen it (the invariant: NSGA never dominates an exact point). The agent does this in one call — **`explore certify`** to audit the NSGA `run` against the `exact_run` overlay and returns a dominance audit of NSGA points an exact solve dominates and a recommendation. See [`architecture.md`](architecture.md#solver-backends-pluggable) for scope and details.
+**Optional exact-solver audit layer.** Beyond the default NSGA-II/III, Frontier can wrap the NSGA search around an *exact inner solve* Two first-class backends share one scalarization engine and differ only in the inner solve: `highs` (`pip install highspy`, CPU, cross-platform) and `cuopt` (NVIDIA GPU) — pick by hardware, identical certificate either way. Because an exact point is optimal for its scalarization, overlaying it on the heuristic frontier can only confirm or sharpen it, never worsen it (the invariant: NSGA never dominates an exact point). The agent does this in one call — **`explore certify`** to audit the NSGA `run` against the `exact_run` overlay and returns a dominance audit of NSGA points an exact solve dominates and a recommendation. See [`architecture.md`](architecture.md#solver-backends-pluggable) for scope and details. The same exact run also exposes **solver-exact shadow prices + reduced costs** via **`explore sensitivity`** (`where_to_invest` / `near_misses`) — a QP-path feature; MILP and LP runs fall back to the frontier-inferred estimate.
 
 ### Deploy your own
 
@@ -148,7 +148,7 @@ Four MCP tools — full action lists and parameters in [`architecture.md`](archi
 
 - **`model`** — define and edit the problem: objectives (2–7; sum/avg/min/max/quadratic aggregation), options, scores, 8 constraint types, interaction matrices, reference points, and scenarios; plus save/load of named problems.
 - **`solve`** — validate and optimize via NSGA-II/III: fast/thorough modes, seeded reproducibility (`seed_used`), per-scenario runs, frontier-quality gates, and infeasibility analysis; plus optional exact backends (HiGHS/cuOpt) to audit the frontier on supported shapes, paired with `explore certify`.
-- **`explore`** — navigate results: tradeoffs and frontier shape, extremes / balanced / inflection points, shadow prices, marginal rates, scenario robustness (incl. CVaR), run comparison, curation, and feedback.
+- **`explore`** — navigate results: tradeoffs and frontier shape, extremes / balanced / inflection points, shadow prices, exact sensitivity (`explore sensitivity` — where-to-invest shadow prices + near-miss reduced costs on exact continuous runs), marginal rates, scenario robustness (incl. CVaR), run comparison, curation, and feedback.
 - **`get_skill`** — fetch the workflow guidance below.
 
 ### Skills
