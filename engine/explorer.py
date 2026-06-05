@@ -495,7 +495,7 @@ def certify_against_exact(problem: Problem, nsga_run: Run, exact_run: Run) -> di
             "certificate with the `solution_interpreter` skill ('Reading the Certificate')."
         )
 
-    coverage = _coverage_gain(N, E)
+    coverage = _coverage_gain(N, Eref)  # the cleaned exact front (as the dominance audit uses), so integer-rounding artifacts can't rescale the shared box
 
     return {
         "nsga_run_id": nsga_run.run_id,
