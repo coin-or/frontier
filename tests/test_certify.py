@@ -138,3 +138,30 @@ def test_certify_milp_example_invariant_strict():
     assert 0.0 <= c["dominance_audit"]["nsga_dominated_fraction"] <= 1.0
     assert set(c["corner_sharpening"]) == {o.name for o in prob.objectives}
     assert isinstance(c["recommendation"], str) and c["recommendation"]
+    assert "binding_analysis" in c["next_steps"]                # MILP overlay → no exact duals
+
+
+# ─── journey wiring: the certificate hands off (Pillar 1) ───
+
+def test_certify_next_steps_qp_points_to_sensitivity():
+    """A continuous/QP overlay's certificate points onward to `explore sensitivity` (duals) and
+    the exact-overlay navigation — turning certify from a dead-end into a guided step."""
+    prob = _problem(_OBJS)                                      # approach="proportional" (QP)
+    c = certify_against_exact(prob, _run([(8.0, 3.0)], _OBJS),
+                              _run([(10.0, 2.0)], _OBJS, solver="highs"))
+    assert "next_steps" in c
+    assert "sensitivity" in c["next_steps"] and 'source="exact"' in c["next_steps"]
+
+
+def test_certify_next_steps_milp_points_to_binding_analysis():
+    """A binary/MILP overlay's certificate points to binding_analysis — integer solutions carry
+    no exact duals, so it must NOT send the agent to `explore sensitivity`."""
+    objs = [Objective(name="Value", direction="maximize", aggregation="sum"),
+            Objective(name="Cost", direction="minimize", aggregation="sum")]
+    names = ["A", "B", "C", "D"]
+    prob = Problem(name="t", approach="binary", objectives=objs,
+                   options=[Option(name=n) for n in names],
+                   scores=[Score(option=n, objective=o.name, value=1.0) for n in names for o in objs])
+    c = certify_against_exact(prob, _run([(8.0, 3.0)], objs),
+                              _run([(10.0, 2.0)], objs, solver="highs", exact=True))
+    assert "binding_analysis" in c["next_steps"] and "sensitivity" not in c["next_steps"]

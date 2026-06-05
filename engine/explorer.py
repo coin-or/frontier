@@ -437,6 +437,25 @@ def certify_against_exact(problem: Problem, nsga_run: Run, exact_run: Run) -> di
         parts.append(f"under-samples {', '.join(under)} (EA budget, not a limit — raise the budget to close it)")
     recommendation = "; ".join(parts) + "."
 
+    # Hand the agent onward (the certificate is a step, not a terminus). Shape-branched: a
+    # continuous/QP overlay also carries solver duals (`explore sensitivity`); a MILP overlay
+    # is integer, so duals don't exist — point at the frontier-derived binding_analysis instead.
+    anchor = f"the sharpened {headline} corner" if headline else "the certified frontier"
+    if problem.approach.value == "binary":
+        next_steps = (
+            f"Present {anchor} to the user as the decision anchor — every point is now optimal, "
+            "not heuristic. Integer/MILP solutions carry no exact duals; use `binding_analysis` "
+            "from `explore tradeoffs` for shadow-price intuition. Read this certificate with the "
+            "`solution_interpreter` skill ('Reading the Certificate')."
+        )
+    else:
+        next_steps = (
+            f"Present {anchor} to the user as the decision anchor, and navigate the exact overlay "
+            "with `explore … source=\"exact\"`. On this continuous/QP problem, `explore sensitivity` "
+            "adds solver-exact shadow prices + reduced costs (the explainability layer). Read this "
+            "certificate with the `solution_interpreter` skill ('Reading the Certificate')."
+        )
+
     return {
         "nsga_run_id": nsga_run.run_id,
         "exact_run_id": exact_run.run_id,
@@ -460,6 +479,7 @@ def certify_against_exact(problem: Problem, nsga_run: Run, exact_run: Run) -> di
         "corner_sharpening": corners,
         "headline_corner": headline,
         "recommendation": recommendation,
+        "next_steps": next_steps,
     }
 
 

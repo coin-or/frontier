@@ -55,7 +55,11 @@ mcp = FastMCP(
     "Frontier",
     instructions=(
         "Multi-objective portfolio optimization engine.\n\n"
-        "WORKFLOW: model/create → model/update (objectives, options, scores, constraints) → solve/run → explore\n\n"
+        "WORKFLOW: model/create → model/update (objectives, options, scores, constraints) → solve/run → explore. "
+        "For a FINAL/decision run on a supported shape (binary selection, or mean-variance QP), opt into an exact "
+        "solver — solve(solver=\"highs\"|\"cuopt\") — then `explore certify` to audit NSGA vs exact (dominance, the "
+        "NSGA-never-dominates invariant, corner sharpening), then — on continuous/QP — `explore sensitivity` for "
+        "solver-exact duals, then decide.\n\n"
         "Domain skills — problem_framing, data_collection, optimization_strategy, solution_interpreter — "
         "are the canonical guides. data_collection / optimization_strategy / solution_interpreter "
         "auto-inject into tool responses at phase transitions. "
@@ -1107,7 +1111,11 @@ def _solve_run(p: Problem, mode: OptimizeMode | None = None, max_solutions: int 
         },
         "full_result_path": str(full_result_path),
         "next_steps": (
-            "Use `explore tradeoffs` for the frontier overview, `explore solution <id>` for a "
+            ("This is an exact overlay, stored alongside the exploratory NSGA frontier — run "
+             "`explore certify` (no params) to audit it: dominance audit, the NSGA-never-dominates "
+             "invariant, and per-objective corner sharpening. Then use "
+             if run.solver in EXACT_SOLVERS else "Use ")
+            + "`explore tradeoffs` for the frontier overview, `explore solution <id>` for a "
             "single solution's detail, and `explore curate` to pin strategies. For bulk export "
             "or assembling artifacts that need every solution with allocations, read the file at "
             "`full_result_path` directly — it contains all solutions without token overhead. "
@@ -1416,10 +1424,18 @@ def explore(
                 return {"error": str(e)}
         case "sensitivity":
             try:
-                return explorer.sensitivity_analysis(
+                result = explorer.sensitivity_analysis(
                     p, solution_id=solution_id, scenario=scenario, source=source)
             except ValueError as e:
                 return {"error": str(e)}
+            # Close the loop back to the decision (duals are local to the reference solution).
+            if isinstance(result, dict) and "error" not in result:
+                result.setdefault(
+                    "next_steps",
+                    "Duals are local to this reference solution — route a large shadow price back to "
+                    "framing (is that floor/cap negotiable?), or `explore curate` the chosen "
+                    "allocation to pin it.")
+            return result
         case "compare":
             if not solution_ids or len(solution_ids) < 2:
                 return {"error": "solution_ids must contain at least 2 IDs for compare."}
@@ -1488,9 +1504,14 @@ def explore(
                     return {"error": "certify needs both an exploratory NSGA run and an exact overlay. "
                                      "Run solve(), then solve(solver='highs'|'cuopt'), then explore certify."}
             try:
-                return explorer.certify_against_exact(p, nsga_run, exact_run)
+                result = explorer.certify_against_exact(p, nsga_run, exact_run)
             except ValueError as e:
                 return {"error": str(e)}
+            # Surface the read-side guidance ('Reading the Certificate') at the moment the
+            # certificate lands, mirroring the solve-response injection.
+            if not _was_injected(p.problem_id, "solution_interpreter"):
+                _inject_skill(result, "solution_interpreter", _SOLUTION_INTERPRETER_PROMPT)
+            return result
         case "scenario_results":
             try:
                 return _format_explore(explorer.get_scenario_results(p, cvar_alpha=cvar_alpha))
