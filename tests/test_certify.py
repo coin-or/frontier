@@ -169,6 +169,18 @@ def test_coverage_partial_reclaim_on_multi_point_fronts():
     assert cov["combined_hypervolume"] > cov["nsga_hypervolume"]
 
 
+def test_coverage_zero_reclaim_on_multi_point_fronts_when_nsga_dominates():
+    """Multi-point counterpart to the zero case: when the NSGA front dominates the whole exact
+    set, the union reclaims no volume — a genuine-geometry 0, not the single-point box-origin
+    degeneracy."""
+    prob = _problem(_OBJS)
+    nsga = _run([(12.0, 3.0), (11.0, 2.5), (9.0, 1.8)], _OBJS)   # dominates every exact point below
+    exact = _run([(10.0, 5.0), (8.0, 4.0), (6.0, 2.0)], _OBJS, solver="highs")
+    cov = certify_against_exact(prob, nsga, exact)["coverage"]
+    assert cov is not None
+    assert cov["exact_reclaims"] == 0.0 and cov["reclaimed_fraction"] == 0.0
+
+
 def test_coverage_handles_three_objectives():
     """Coverage normalization is per-axis, so it must be dimension-agnostic — a 3-objective front
     yields a valid in-[0,1] reclaim, not an indexing error."""
@@ -179,7 +191,8 @@ def test_coverage_handles_three_objectives():
     nsga = _run([(10.0, 5.0, 9.0), (8.0, 4.0, 7.0)], objs)
     exact = _run([(12.0, 3.0, 6.0), (11.0, 2.5, 8.0)], objs, solver="highs")
     cov = certify_against_exact(prob, nsga, exact)["coverage"]
-    assert cov is not None and 0.0 <= cov["reclaimed_fraction"] <= 1.0
+    assert cov is not None
+    assert 0.0 <= cov["reclaimed_fraction"] <= 1.0
     assert cov["combined_hypervolume"] >= cov["nsga_hypervolume"]
 
 

@@ -365,7 +365,7 @@ def _coverage_gain(N: np.ndarray, E: np.ndarray, seed: int = 42) -> dict | None:
     hv_box = float(np.prod(ref))
     hv_nsga = _approx_hypervolume((N - f_min) / spread, ref, seed=seed) / hv_box
     hv_comb = _approx_hypervolume((P - f_min) / spread, ref, seed=seed) / hv_box
-    reclaimed = max(0.0, hv_comb - hv_nsga)
+    reclaimed = max(0.0, hv_comb - hv_nsga)  # combined ≥ nsga by construction (shared seed/samples); the clamp only absorbs FP noise
     return {
         "nsga_hypervolume": round(hv_nsga, 4),
         "combined_hypervolume": round(hv_comb, 4),

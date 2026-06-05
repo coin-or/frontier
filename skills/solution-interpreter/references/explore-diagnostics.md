@@ -71,7 +71,7 @@ Count + fraction of NSGA "Pareto" points the exact frontier strictly dominates �
 {"nsga_hypervolume": 0.62, "combined_hypervolume": 0.74, "exact_reclaims": 0.12, "reclaimed_fraction": 0.16}
 ```
 
-The hypervolume the exact overlay adds over the NSGA frontier alone — the *magnitude* behind the dominance count. All four values are normalized to [0,1] (the box, the same convention as a run's `hypervolume_normalized`), computed against a shared reference over the combined front so it is fair to both. `reclaimed_fraction` is the headline: it grows with problem size, and is near-zero on a small instance the heuristic already covers (exact confirms, doesn't expand). The whole block is `null` when the combined front is degenerate (a flat axis).
+The hypervolume the exact overlay reclaims over the NSGA frontier alone — the *magnitude* behind the dominance count. All four values are normalized to [0,1] (the box, the same convention as a run's `hypervolume_normalized`), computed against a shared reference over the combined front so it is fair to both. `reclaimed_fraction` is the headline: it grows with problem size, and is near-zero on a small instance the heuristic already covers (exact confirms, doesn't expand). The whole block is `null` when the combined front is degenerate (a flat axis).
 
 ### `invariant`
 
