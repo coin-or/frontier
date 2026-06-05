@@ -452,9 +452,8 @@ def certify_against_exact(problem: Problem, nsga_run: Run, exact_run: Run) -> di
         next_steps = (
             f"Present {anchor} to the user as the decision anchor, and navigate the exact overlay "
             "with `explore … source=\"exact\"`. On this continuous/QP problem, `explore sensitivity` "
-            "adds solver-exact shadow prices + reduced costs (where_to_invest / near_misses) — the "
-            "explainability layer. Read this certificate with the `solution_interpreter` skill "
-            "('Reading the Certificate')."
+            "adds solver-exact shadow prices + reduced costs (the explainability layer). Read this "
+            "certificate with the `solution_interpreter` skill ('Reading the Certificate')."
         )
 
     return {

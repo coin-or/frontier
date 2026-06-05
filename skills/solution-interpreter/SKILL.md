@@ -326,9 +326,9 @@ On MILP and LP, present the frontier-inferred estimate and name it as an estimat
 - *"Exact sharpens the [headline_corner] corner the decision hinges on: [nsga_best] → [exact_best]. The EA got close; exact nails it."*
 - `matched` corners: the EA already found the optimum — confirm or stay silent.
 
-**Don't misread (two traps):**
-- **`invariant.holds = false` is NOT a heuristic beating the exact solver.** `exact_dominated_by_nsga > 0` on a QP is the integer rounding of the continuous optimum to whole-percent allocations (read the `note`), never the EA "winning." Present it as a rounding footnote, not a defeat. (MILP corners, integer by construction, never show this.)
-- **`status: "under-sampled"` (negative improvement) is an EA-budget artifact, not an exact-solver limit** — the EA didn't sample that corner densely enough; raising the budget closes it. Never present it as "exact is worse here."
+**Two easy misreads — read them this way:**
+- **A false invariant (`invariant.holds = false`) is the QP's integer rounding.** `exact_dominated_by_nsga > 0` on a QP means whole-percent allocation rounding edged out the continuous optimum (the `note` says so) — present it as a rounding footnote, not the EA beating the exact solve. (MILP corners, integer by construction, never show this.)
+- **An `under-sampled` corner (negative `improvement`) is an EA-budget signal.** The EA didn't sample that corner densely enough, and raising the budget closes it — present it as "more search would tighten this," not "exact is worse here."
 
 **Next move** — after a clean certificate, present the certified frontier with confidence (every point optimal, not heuristic). On a **continuous/QP** problem, offer `explore sensitivity` for the duals/explainability layer; navigate the overlay itself with `explore … source="exact"`.
 

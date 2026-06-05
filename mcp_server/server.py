@@ -1432,9 +1432,9 @@ def explore(
             if isinstance(result, dict) and "error" not in result:
                 result.setdefault(
                     "next_steps",
-                    "Duals are local to the reference solution. Route a large shadow price back to "
-                    "framing (is that floor/cap negotiable?), relax a binding constraint to pull a "
-                    "near-miss in, and `explore curate` the chosen allocation to pin it.")
+                    "Duals are local to this reference solution — route a large shadow price back to "
+                    "framing (is that floor/cap negotiable?), or `explore curate` the chosen "
+                    "allocation to pin it.")
             return result
         case "compare":
             if not solution_ids or len(solution_ids) < 2:
