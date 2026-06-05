@@ -17,7 +17,7 @@ import numpy as np
 import pytest
 from scipy.sparse import csr_matrix
 
-from solvers._scalarization import _lp_relaxation_feasible
+from solvers._scalarization import _lp_relaxation_feasible, _qp_constraints_feasible
 from solvers.cuopt_backend import _parallel_solve, _qp_to_csr
 
 
@@ -233,3 +233,71 @@ def test_solve_milp_cuopt_skips_infeasible_without_gpu():
     sel, ok = _solve_milp_cuopt(coef, [(coef, "ge", 99.0)], _mc(), n=3)
     assert ok is False
     assert sel.shape == (3,) and not sel.any()
+
+
+# ─── QP feasibility pre-screen (the same cuOpt guard on the proportional path) ───
+#
+# Under a cardinality/group cap the EA restricts the QP support, so a return/yield floor the
+# full universe can meet is routinely unmeetable on the subset — an infeasible QP corner on the
+# same concurrent barrier+dual-simplex machinery that crashed on the MILP. The QP inner solves
+# screen feasibility on the CPU first; these assert the verdicts and the without-GPU shortcut.
+
+def test_qp_constraints_feasible_return_within_range():
+    """Fully invested with a return floor below the best asset's return → feasible."""
+    mu = np.array([0.10, 0.20, 0.15])
+    assert _qp_constraints_feasible(mu, 0.12, True, None, None, None, 3) is True
+
+
+def test_qp_constraints_infeasible_return_floor_above_max():
+    """A 'maximize' return floor above the best single asset (μ·w ≤ max μ when fully invested,
+    long-only) is unreachable → infeasible."""
+    mu = np.array([0.10, 0.20, 0.15])
+    assert _qp_constraints_feasible(mu, 0.25, True, None, None, None, 3) is False
+
+
+def test_qp_constraints_infeasible_support_cannot_meet_floor():
+    """The real cardinality trigger: restrict the support to low-return assets (the high-return
+    asset 1 is off-support, ub=0), then demand a return floor only asset 1 could meet →
+    infeasible. cuOpt would be handed this during a proportional+cardinality sweep."""
+    mu = np.array([0.10, 0.50, 0.15, 0.05])
+    assert _qp_constraints_feasible(mu, 0.30, True, None, support=[0, 2, 3],
+                                    extra_linears=None, n=4) is False
+
+
+def test_qp_constraints_infeasible_maxweight_breaks_budget():
+    """max_weight × |support| < 1 makes Σw=1 unsatisfiable (two assets capped at 0.3 sum to
+    ≤ 0.6) → infeasible, independent of any return target."""
+    mu = np.array([0.1, 0.2, 0.15, 0.05, 0.08])
+    assert _qp_constraints_feasible(mu, None, True, 0.3, support=[0, 1],
+                                    extra_linears=None, n=5) is False
+
+
+def test_qp_constraints_infeasible_conflicting_linear_floors():
+    """Two linear floors that can't hold together on the budget → infeasible (covers the
+    extra_linears branch the return target alone doesn't)."""
+    mu = np.array([0.1, 0.2, 0.15])
+    yld = np.array([1.0, 1.0, 1.0])
+    # yield ≥ 1 needs Σw ≥ 1 (ok), but a second floor on a vector maxing at 0.2·1 demanding ≥ 5
+    extra = [(yld, 1.0, True), (np.array([0.2, 0.2, 0.2]), 5.0, True)]
+    assert _qp_constraints_feasible(mu, None, True, None, None, extra, 3) is False
+
+
+def test_solve_qp_cuopt_skips_infeasible_without_gpu():
+    """`_solve_qp_cuopt` returns (zeros, ok=False) on an infeasible QP *without importing
+    cuOpt* — the term-by-term twin of the MILP shortcut proof."""
+    from solvers.cuopt_backend import _solve_qp_cuopt
+
+    mu = np.array([0.10, 0.20, 0.15])
+    w, ok = _solve_qp_cuopt(np.eye(3), mu, 0.25, True, None)   # floor above max → infeasible
+    assert ok is False
+    assert w.shape == (3,) and not w.any()
+
+
+def test_solve_qp_cuopt_matrix_skips_infeasible_without_gpu():
+    """The matrix-API QP twin also short-circuits infeasible input before the cuOpt import."""
+    from solvers.cuopt_backend import _solve_qp_cuopt_matrix
+
+    mu = np.array([0.10, 0.20, 0.15])
+    w, ok = _solve_qp_cuopt_matrix(np.eye(3), mu, 0.25, True, None)
+    assert ok is False
+    assert w.shape == (3,) and not w.any()

@@ -32,6 +32,7 @@ import numpy as np
 from engine.models import Approach, OptimizeMode, Problem, Run
 from solvers._scalarization import (
     _lp_relaxation_feasible,
+    _qp_constraints_feasible,
     _qp_weights_ok,
     optimize_milp,
     optimize_qp,
@@ -103,6 +104,15 @@ def _solve_qp_cuopt(
     objectives (e.g. a yield floor). cuOpt is imported here so the module loads without a GPU.
     Returns ``(weights as fractions summing to 1, optimal_flag)``.
     """
+    # CPU feasibility pre-screen before the GPU solve — same crash guard as the MILP path. The
+    # EA hands infeasible QP corners under a cardinality/group cap (a floor unmeetable on the
+    # restricted support), and cuOpt's concurrent solve can abort the process on an infeasible
+    # model; report ok=False without constructing the cuOpt problem. (Before the cuOpt import,
+    # so the infeasible branch needs no GPU and is unit-testable anywhere.)
+    if not _qp_constraints_feasible(mu, target_return, return_maximize, max_weight, support,
+                                    extra_linears, len(mu)):
+        return np.zeros(len(mu)), False
+
     from cuopt.linear_programming.problem import Problem as CuProblem, MINIMIZE
 
     n = len(mu)
@@ -235,6 +245,11 @@ def _solve_qp_cuopt_matrix(cov, mu, target_return, return_maximize, max_weight,
     Marshaling (``_qp_to_csr``) is pure and CPU-tested; only the DataModel/Solve calls below
     need a GPU, so this loads without one (like every solve in this module).
     """
+    # CPU feasibility pre-screen (same crash guard as the term-by-term path and the MILP path).
+    if not _qp_constraints_feasible(mu, target_return, return_maximize, max_weight, support,
+                                    extra_linears, len(mu)):
+        return np.zeros(len(mu)), False
+
     from cuopt.linear_programming import DataModel, Solve
 
     n = len(mu)

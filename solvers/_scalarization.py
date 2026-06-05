@@ -204,6 +204,55 @@ def _lp_relaxation_feasible(eps_list, mc, n) -> bool:
     return res.status != 2   # 2 == infeasible; proceed on optimal/ambiguous, skip only proven-infeasible
 
 
+def _qp_constraints_feasible(mu, target_return, return_maximize, max_weight,
+                             support, extra_linears, n) -> bool:
+    """Is the *linear* constraint system of the mean-variance QP feasible? ``Σw = 1``,
+    ``0 ≤ w ≤ ub`` (0 for assets off ``support``), the return epsilon (``μ·w ≥/≤ target``), and
+    each ``(coef, target, maximize)`` linear floor. The quadratic objective can't affect
+    feasibility, so a continuous LP feasibility check settles it.
+
+    Same crash-guard rationale as [`_lp_relaxation_feasible`] for the QP inner solve: under a
+    cardinality/group cap the EA restricts the support — and a return/yield floor that the full
+    universe can meet is routinely *unmeetable* on a small subset (and ``ub·|support| < 1``
+    breaks ``Σw=1``) — so the EA hands cuOpt infeasible QP corners exactly as it does infeasible
+    MILP corners. cuOpt's concurrent barrier+dual-simplex solve can abort the *process* on an
+    infeasible model (the MILP path is the confirmed case; the QP path shares the machinery), so
+    the cuOpt QP inner solves screen here first. Returns True unless *provably* infeasible.
+    """
+    from scipy.optimize import linprog
+
+    ub = float(max_weight) if max_weight is not None else 1.0
+    var_ub = np.full(n, ub, dtype=float)
+    if support is not None:
+        supp = {int(i) for i in support}
+        var_ub[[i for i in range(n) if i not in supp]] = 0.0
+
+    A_ub: list[np.ndarray] = []
+    b_ub: list[float] = []
+    if target_return is not None:
+        row = np.asarray(mu, dtype=float)
+        if return_maximize:
+            A_ub.append(-row); b_ub.append(-float(target_return))   # μ·w ≥ target
+        else:
+            A_ub.append(row); b_ub.append(float(target_return))     # μ·w ≤ target
+    for coef, tgt, maximize in (extra_linears or []):
+        row = np.asarray(coef, dtype=float)
+        if maximize:
+            A_ub.append(-row); b_ub.append(-float(tgt))
+        else:
+            A_ub.append(row); b_ub.append(float(tgt))
+
+    res = linprog(
+        c=np.zeros(n),
+        A_ub=np.vstack(A_ub) if A_ub else None,
+        b_ub=np.asarray(b_ub) if b_ub else None,
+        A_eq=np.ones((1, n)), b_eq=np.array([1.0]),    # fully invested
+        bounds=list(zip(np.zeros(n), var_ub)),
+        method="highs",
+    )
+    return res.status != 2   # 2 == infeasible; skip only proven-infeasible
+
+
 # --------------------------------------------------------------------------- #
 # Numeric helpers (pure)
 # --------------------------------------------------------------------------- #
