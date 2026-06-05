@@ -243,6 +243,7 @@ class ReducedCost(BaseModel):
     option: str
     allocation: int      # this solution's allocation % (0 = unheld)
     reduced_cost: float
+    eligible: bool = True  # False = pinned out by a cardinality/group cap (structurally excluded, not a near-miss)
 
 
 class SolutionSensitivity(BaseModel):

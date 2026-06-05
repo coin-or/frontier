@@ -1932,7 +1932,7 @@ def _format_solution_sensitivity(s):
         "interpretation": ("unheld — would enter the optimal mix if its marginal contribution "
                            f"improved by ~{abs(rc.reduced_cost):.4g}"),
     } for rc in sorted((r for r in sens.reduced_costs
-                        if r.allocation == 0 and abs(r.reduced_cost) > 1e-9),
+                        if r.eligible and r.allocation == 0 and abs(r.reduced_cost) > 1e-9),
                        key=lambda x: abs(x.reduced_cost))]
 
     capped = [{

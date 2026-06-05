@@ -132,17 +132,25 @@ def _solve_qp_highs(cov, mu, target_return, return_maximize, max_weight,
     return _qp_primal(h, w, max_weight)
 
 
-def _extract_qp_sensitivity(h, w, has_return, n_extra):
+def _extract_qp_sensitivity(h, w, has_return, n_extra, support):
     """Read HiGHS duals into a role-tagged raw payload the engine maps to option names.
 
     Row order matches ``_build_qp_model`` (budget, return floor, extra floors), so
     ``row_dual`` becomes role-tagged shadow prices and ``col_dual`` the per-variable reduced
-    costs. ``ranging`` is left None: HiGHS ``getRanging()`` is classically LP-only and its QP
-    output is unverified (see plan L4), so the MVP ships duals + reduced costs only.
+    costs. ``eligible`` flags which variables the EA left *in the support*: an off-support
+    asset is pinned to ub=0 by the cardinality/group search, so its reduced cost is about that
+    cap — not a near-miss — and the engine filters it out of the near-miss list. ``ranging`` is
+    left None: HiGHS ``getRanging()`` is classically LP-only and its QP output is unverified (L4).
     """
     sol = h.getSolution()
     row_dual = [float(x) for x in sol.row_dual]
     col_dual = [float(x) for x in sol.col_dual]
+    n = len(w)
+    if support is None:
+        eligible = [True] * n
+    else:
+        ss = {int(i) for i in support}
+        eligible = [i in ss for i in range(n)]
 
     def _row(i):  # defensive: HiGHS returns one dual per constraint, in add order
         return row_dual[i] if 0 <= i < len(row_dual) else 0.0
@@ -156,7 +164,8 @@ def _extract_qp_sensitivity(h, w, has_return, n_extra):
         shadow_prices.append({"role": "linear_floor", "linear_index": t + 1, "value": _row(idx)})
         idx += 1
 
-    return {"shadow_prices": shadow_prices, "reduced_costs": col_dual, "ranging": None}
+    return {"shadow_prices": shadow_prices, "reduced_costs": col_dual,
+            "eligible": eligible, "ranging": None}
 
 
 def _solve_qp_highs_sensitivity(cov, mu, target_return, return_maximize, max_weight,
@@ -173,7 +182,7 @@ def _solve_qp_highs_sensitivity(cov, mu, target_return, return_maximize, max_wei
     weights, ok = _qp_primal(h, w, max_weight)
     if not ok:
         return weights, ok, None
-    return weights, ok, _extract_qp_sensitivity(h, w, has_return, n_extra)
+    return weights, ok, _extract_qp_sensitivity(h, w, has_return, n_extra, support)
 
 
 def _solve_milp_highs(min_coef, eps_list, mc, n, exact=False):

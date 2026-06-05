@@ -252,3 +252,19 @@ class TestSensitivity:
         res = explorer.sensitivity_analysis(p)
         assert res["source"] == "frontier_inferred"
         assert "binding_analysis" in res
+
+    def test_cardinality_qp_keeps_offsupport_out_of_near_misses(self):
+        # With a cardinality cap the EA pins off-support assets to ub=0 — their reduced cost is
+        # about the cap, not a near-miss. They must be flagged ineligible and never surface in
+        # the explore near_misses list.
+        p = _qp_problem(constraints=[CardinalityConstraint(min=1, max=2)])
+        run = _optimize_highs(p, mode=OptimizeMode.fast)
+        assert any(not rc.eligible for s in run.solutions for rc in s.sensitivity.reduced_costs), \
+            "expected some off-support (ineligible) assets under a cardinality cap"
+        p.exact_run = run
+        res = explorer.sensitivity_analysis(p)
+        if res["source"] == "solver_exact":
+            ref = next(s for s in run.solutions if s.solution_id == res["reference_solution"]["solution_id"])
+            ineligible = {rc.option for rc in ref.sensitivity.reduced_costs if not rc.eligible}
+            near_options = {nm["option"] for nm in res["near_misses"]}
+            assert near_options.isdisjoint(ineligible)

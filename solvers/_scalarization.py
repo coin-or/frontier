@@ -279,8 +279,10 @@ def _build_solution_sensitivity(raw, opt_names, alloc_row, linear_idxs, obj_list
         shadow.append(ShadowPrice(name=name, role=sp["role"],
                                   shadow_price=round(float(sp["value"]), 6)))
     rcs = raw.get("reduced_costs") or []
+    elig = raw.get("eligible") or [True] * len(opt_names)
     reduced = [ReducedCost(option=opt_names[i], allocation=int(alloc_row[i]),
-                           reduced_cost=round(float(rcs[i]), 6))
+                           reduced_cost=round(float(rcs[i]), 6),
+                           eligible=bool(elig[i]) if i < len(elig) else True)
                for i in range(len(opt_names)) if i < len(rcs)]
     return SolutionSensitivity(source="solver_exact", shadow_prices=shadow,
                                reduced_costs=reduced, ranging=raw.get("ranging"))
