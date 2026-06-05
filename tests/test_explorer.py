@@ -8,6 +8,7 @@ from engine.explorer import (
     get_solution,
     get_solutions,
     get_tradeoffs,
+    marginal_analysis,
 )
 from engine.models import (
     CardinalityConstraint,
@@ -384,10 +385,21 @@ class TestFrontierProvenance:
         assert prov["kind"] == "heuristic"
         assert "exact_overlay_available" not in prov
 
-    def test_label_is_attached_to_results(self, solved_problem):
-        # End-to-end through real analytics calls: the label rides on every frontier-bearing
-        # result dict (get_solutions returns directly; get_tradeoffs flows through the server's
-        # _format_explore passthrough).
-        for result in (get_solutions(solved_problem), get_tradeoffs(solved_problem)):
-            assert result["frontier_source"]["kind"] == "heuristic"
-            assert result["frontier_source"]["run_id"] == solved_problem.run.run_id
+    def test_every_labeled_action_carries_provenance(self, solved_problem):
+        # The label is a per-site convention, so enumerate every analytics action that resolves
+        # a frontier — a future call site shipping without frontier_source fails CI here, not in
+        # production. (solutions/solution return the dict directly; tradeoffs/compare/
+        # marginal_analysis flow through the server's _format_explore passthrough.)
+        p = solved_problem
+        ids = [s["solution_id"] for s in get_solutions(p)["solutions"]]
+        results = {
+            "tradeoffs": get_tradeoffs(p),
+            "solutions": get_solutions(p),
+            "solution": get_solution(p, ids[0]),
+            "compare": compare_solutions(p, ids[:2]),
+            "marginal_analysis": marginal_analysis(p),
+        }
+        for action, result in results.items():
+            assert "frontier_source" in result, f"{action} dropped frontier_source"
+            assert result["frontier_source"]["kind"] == "heuristic", action
+            assert result["frontier_source"]["run_id"] == p.run.run_id, action

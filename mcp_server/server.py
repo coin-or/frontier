@@ -1055,10 +1055,10 @@ def _solve_run(p: Problem, mode: OptimizeMode | None = None, max_solutions: int 
     # problem was edited since the last solve), the *other* stored frontier predates
     # that edit and is no longer valid — drop it, so clearing results_stale below
     # doesn't vouch for a frontier that no longer matches the problem.
-    from solvers import EXACT_SOLVERS
+    from solvers import is_exact_solver
 
     was_stale = p.results_stale
-    if run.solver in EXACT_SOLVERS:
+    if is_exact_solver(run.solver):
         p.exact_run = run
         if was_stale:
             p.run = None
@@ -1114,7 +1114,7 @@ def _solve_run(p: Problem, mode: OptimizeMode | None = None, max_solutions: int 
             ("This is an exact overlay, stored alongside the exploratory NSGA frontier — run "
              "`explore certify` (no params) to audit it: dominance audit, the NSGA-never-dominates "
              "invariant, and per-objective corner sharpening. Then use "
-             if run.solver in EXACT_SOLVERS else "Use ")
+             if is_exact_solver(run.solver) else "Use ")
             + "`explore tradeoffs` for the frontier overview, `explore solution <id>` for a "
             "single solution's detail, and `explore curate` to pin strategies. For bulk export "
             "or assembling artifacts that need every solution with allocations, read the file at "
@@ -1481,7 +1481,7 @@ def explore(
             except ValueError as e:
                 return {"error": str(e)}
         case "certify":
-            from solvers import EXACT_SOLVERS
+            from solvers import is_exact_solver
             # Default: audit the exploratory NSGA run (`p.run`) against the exact overlay
             # (`p.exact_run`) — the "explore with the EA, then certify" flow the exact_run
             # overlay is built for. `run_ids` (exactly 2) overrides with explicit historical runs.
@@ -1498,8 +1498,8 @@ def explore(
                 if missing:
                     return {"error": f"Run(s) not found: {missing}. Available: {list(pool)}"}
                 chosen = [pool[rid] for rid in run_ids]
-                exact = [r for r in chosen if (r.solver or "") in EXACT_SOLVERS]
-                nsga = [r for r in chosen if (r.solver or "") not in EXACT_SOLVERS]
+                exact = [r for r in chosen if is_exact_solver(r.solver)]
+                nsga = [r for r in chosen if not is_exact_solver(r.solver)]
                 if len(exact) != 1 or len(nsga) != 1:
                     return {"error": "certify needs one NSGA run and one exact-solver run; got "
                                      f"solvers {[r.solver for r in chosen]}."}

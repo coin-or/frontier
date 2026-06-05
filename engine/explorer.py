@@ -1499,9 +1499,9 @@ def _frontier_provenance(problem: Problem, run: Run, scenario: str | None = None
     exact overlay also exists, the label advertises it, so ``source="exact"`` is discoverable
     rather than assumed.
     """
-    from solvers import EXACT_SOLVERS
+    from solvers import is_exact_solver
 
-    is_exact = (run.solver or "") in EXACT_SOLVERS
+    is_exact = is_exact_solver(run.solver)
     prov = {
         "run_id": run.run_id,
         "solver": run.solver,

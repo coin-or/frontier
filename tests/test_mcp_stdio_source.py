@@ -18,6 +18,7 @@ points the agent at.
 import asyncio
 import importlib.util
 import json
+import os
 import sys
 import tempfile
 from pathlib import Path
@@ -42,16 +43,18 @@ _BOOTSTRAP = (
 
 
 def _payload(result):
-    """Extract a Frontier tool's dict return from a CallToolResult."""
-    structured = getattr(result, "structuredContent", None)
-    if isinstance(structured, dict):
-        # FastMCP nests non-dict returns under {"result": ...}; dict returns pass through.
-        return structured.get("result", structured)
+    """Extract a Frontier tool's dict return from a CallToolResult.
+
+    These tools return a dict, which FastMCP serializes to a TextContent JSON block — always
+    present and unambiguous, so parse that. (structuredContent is only attached when a tool
+    declares an output schema, which these bare ``-> dict`` tools do not.)
+    """
     for block in result.content:
         text = getattr(block, "text", None)
         if text:
             return json.loads(text)
-    return None
+    structured = getattr(result, "structuredContent", None)
+    return structured if isinstance(structured, dict) else None
 
 
 async def _drive_repro() -> dict:
@@ -64,7 +67,9 @@ async def _drive_repro() -> dict:
             command=sys.executable,
             args=["-c", _BOOTSTRAP, data_dir],
             cwd=str(REPO_ROOT),
-            env=None,
+            # Inherit the full parent env — env=None strips the child to a ~6-var allowlist,
+            # dropping VIRTUAL_ENV / PYTHONPATH / CONDA_PREFIX, so it could fail to import deps.
+            env=os.environ.copy(),
         )
         async with stdio_client(params) as (read, write):
             async with ClientSession(read, write) as session:
@@ -87,11 +92,13 @@ async def _drive_repro() -> dict:
                 )
 
                 nsga = await call("solve", action="run", problem_id=pid, seed=42)
+                assert "run_id" in nsga, f"NSGA solve did not return a run: {nsga}"
                 highs = None
                 if _HAS_HIGHS:
                     # Exact overlay alongside the NSGA run, so the problem holds both frontiers
                     # before we probe — mirrors the solve()->solve(solver=...)->explore repro.
                     highs = await call("solve", action="run", problem_id=pid, seed=42, solver="highs")
+                    assert "run_id" in highs, f"HiGHS solve did not return a run: {highs}"
 
                 default = await call("explore", action="solutions", problem_id=pid)
                 bogus = await call("explore", action="solutions", problem_id=pid, source="bogus")
