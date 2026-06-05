@@ -119,6 +119,42 @@ def test_empty_run_raises():
         certify_against_exact(prob, _run([], _OBJS), _run([(1.0, 1.0)], _OBJS))
 
 
+# ─── coverage (hypervolume the exact overlay reclaims) ───
+
+def test_coverage_reclaims_volume_when_exact_extends_the_front():
+    """When the exact overlay reaches a point that dominates/extends the NSGA front, it reclaims
+    hypervolume — the magnitude companion to the dominance count."""
+    prob = _problem(_OBJS)
+    nsga = _run([(10.0, 5.0)], _OBJS)                           # Return 10, Risk 5
+    exact = _run([(12.0, 3.0)], _OBJS, solver="highs")         # better on both → extends the front
+    c = certify_against_exact(prob, nsga, exact)
+    cov = c["coverage"]
+    assert cov is not None
+    assert 0.0 <= cov["reclaimed_fraction"] <= 1.0
+    assert cov["exact_reclaims"] > 0.0                          # exact expands the covered region
+    assert cov["combined_hypervolume"] >= cov["nsga_hypervolume"]
+
+
+def test_coverage_is_zero_when_exact_adds_nothing():
+    """When every exact point is already dominated by NSGA, the overlay reclaims no volume — the
+    honest small-instance result (exact confirms, doesn't expand). Same seed → exact 0, not noise."""
+    prob = _problem(_OBJS)
+    nsga = _run([(12.0, 3.0)], _OBJS)                           # dominates the exact point below
+    exact = _run([(10.0, 5.0)], _OBJS, solver="highs")
+    c = certify_against_exact(prob, nsga, exact)
+    assert c["coverage"]["exact_reclaims"] == 0.0
+    assert c["coverage"]["reclaimed_fraction"] == 0.0
+
+
+def test_coverage_none_on_degenerate_front():
+    """A combined front with a flat axis (no spread) has undefined coverage — reported as None,
+    not a divide-by-zero."""
+    prob = _problem(_OBJS)
+    c = certify_against_exact(prob, _run([(10.0, 5.0)], _OBJS),
+                              _run([(10.0, 5.0)], _OBJS, solver="highs"))
+    assert c["coverage"] is None
+
+
 # ─── integration: real solver, MILP invariant is strict ───
 
 def test_certify_milp_example_invariant_strict():

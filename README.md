@@ -37,7 +37,7 @@ LLMs can reason about tradeoffs conversationally but can't *solve* them — they
 
 **What Frontier adds beyond an LLM alone:**
 - **The full non-dominated frontier** — every Pareto-optimal tradeoff, not a single recommendation or a weighted ranking
-- **An optional exact auditor over the frontier** — for subset selection and mean-variance allocation, the agent can overlay an exact inner solve (HiGHS on CPU or NVIDIA cuOpt on GPU, two first-class backends). 
+- **An optional exact auditor over the frontier** — for subset selection and mean-variance allocation, the agent can overlay an exact inner solve (HiGHS on CPU or NVIDIA cuOpt on GPU, two first-class backends): explore the whole frontier fast, then certify the finalists. Its payoff is *trust and coverage at scale* — confirming each pick is optimal for its tradeoff and catching dominated points the heuristic presented as efficient — not a better answer on small problems, where the heuristic already lands on the frontier.
 - **Hard constraints, enforced** — 8 constraint types (cardinality, forced include/exclude, objective bounds, exclusion pairs, dependencies, group limits, allocation caps), never violated during search
 - **Auditable by construction** — every reported tradeoff traces to returned data (scores, shadow prices, dominance), not a fluent guess; runs are reproducible (same inputs + seed → same frontier; `seed_used` is recorded), so a stakeholder can re-examine the decision line by line
 - **Scenario & risk modeling** — independent frontiers per scenario, plus CVaR / worst-case / expected risk per objective
