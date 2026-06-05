@@ -8,7 +8,7 @@
 
 ## Summary
 
-Frontier gives AI agents a grounded optimization engine for hard decisions. The agent describes a problem in business terms; Frontier enumerates the full Pareto frontier — every non-dominated solution that balances conflicting objectives under hard constraints — and the agent narrates the tradeoffs back. NSGA-II/III under the hood (via pymoo), exposed as 4 MCP tools (`model`, `solve`, `explore`, `get_skill`). Frontier is the engine; the agent is the interface.
+Frontier gives AI agents a grounded optimization engine for hard decisions. The agent describes a problem in business terms; Frontier enumerates the full Pareto frontier — every non-dominated solution that balances conflicting objectives under hard constraints — and the agent narrates the tradeoffs back. Evolutionary/approximate (NSGA-II/III via pymoo) and exact (cuOpt and HiGHS) under the hood, exposed as 4 MCP tools (`model`, `solve`, `explore`, `get_skill`). Frontier is the engine; the agent is the interface.
 
 The design is **explainable, governable optimization**: the engine owns the *deterministic guardrails* — hard constraints it never violates, reproducible runs (same inputs + seed → same frontier), dominance filtering, pre-solve validation, and quality gates — while the *human judgment* stays at the two calls that matter: which objectives and constraints define the problem, and which non-dominated solution to commit to. The agent explains every tradeoff (shadow prices, frontier shape, marginal rates, dominance) and never names a "best"; every claim it makes traces back to returned data, so the result is explainable and the decision is auditable line by line. The wedge is combinatorial, constrained, portfolio-like decisions with conflicting objectives.
 
@@ -37,7 +37,7 @@ LLMs can reason about tradeoffs conversationally but can't *solve* them — they
 
 **What Frontier adds beyond an LLM alone:**
 - **The full non-dominated frontier** — every Pareto-optimal tradeoff, not a single recommendation or a weighted ranking
-- **An optional exact auditor over the frontier** — for subset selection and mean-variance allocation, the agent can overlay an exact inner solve (HiGHS on CPU or NVIDIA cuOpt on GPU, two first-class backends). Each exact point is optimal to a 0.1% gap for its scalarization, so it can only confirm or sharpen the heuristic frontier, never worsen it: it strictly sharpens the convex risk corner a risk-averse decision rests on, audits any NSGA point an exact solve dominates, and returns the optimal subset on a binary MILP (certified zero-gap with `exact=true`)
+- **An optional exact auditor over the frontier** — for subset selection and mean-variance allocation, the agent can overlay an exact inner solve (HiGHS on CPU or NVIDIA cuOpt on GPU, two first-class backends). 
 - **Hard constraints, enforced** — 8 constraint types (cardinality, forced include/exclude, objective bounds, exclusion pairs, dependencies, group limits, allocation caps), never violated during search
 - **Auditable by construction** — every reported tradeoff traces to returned data (scores, shadow prices, dominance), not a fluent guess; runs are reproducible (same inputs + seed → same frontier; `seed_used` is recorded), so a stakeholder can re-examine the decision line by line
 - **Scenario & risk modeling** — independent frontiers per scenario, plus CVaR / worst-case / expected risk per objective
@@ -123,7 +123,7 @@ FRONTIER_MCP_TOKEN=your-secret MCP_TRANSPORT=sse python -m mcp_server.server
 
 Point your MCP client at the local server — for SSE that's `http://localhost:8000/sse`. The optional web UI lives in [`ui/`](ui/) — see its [README](ui/README.md).
 
-**Optional exact-solver audit layer.** Beyond the default NSGA-II/III, Frontier can wrap the NSGA search around an *exact inner solve* — each scalarization solved to a 0.1% gap (a zero-gap MILP when `exact=true`). Two first-class backends share one scalarization engine and differ only in the inner solve: `highs` (`pip install highspy`, CPU, cross-platform) and `cuopt` (NVIDIA GPU) — pick by hardware, identical certificate either way. Because an exact point is optimal for its scalarization, overlaying it on the heuristic frontier can only confirm or sharpen it, never worsen it (the invariant: NSGA never dominates an exact point). The agent does this in one call — **`explore certify`** (`engine.explorer.certify_against_exact`), with no params: it audits the NSGA `run` against the `exact_run` overlay (two run ids optionally override) and returns a dominance audit of NSGA points an exact solve dominates, per-objective corner sharpening (the convex risk/variance corner, where a QP is exact and heuristics wobble), and a recommendation. Scope is binary selection (MILP) and proportional mean-variance with a minimize-direction quadratic risk objective (QP, backed by a covariance/interaction matrix); the gate declines non-convex shapes rather than overclaim, and `solve(solver=…)` raises rather than silently falling back. Opt-in **per run** (`solve(solver="highs", exact=true)`) and gated, so the default exploration path is unchanged — see [`architecture.md`](architecture.md#solver-backends-pluggable) for scope and details. The same exact run also exposes **solver-exact shadow prices and reduced costs** via **`explore sensitivity`** — `where_to_invest` (which binding limit buys the most improvement) and `near_misses` (which unpicked option came closest to entering) — the exact counterpart to the frontier-inferred `binding_analysis`. Solver-exact duals are a **QP-path feature** (proportional mean-variance): binary-selection (MILP) and linear-continuous (LP) runs have no solver duals and fall back to the inferred estimate.
+**Optional exact-solver audit layer.** Beyond the default NSGA-II/III, Frontier can wrap the NSGA search around an *exact inner solve* Two first-class backends share one scalarization engine and differ only in the inner solve: `highs` (`pip install highspy`, CPU, cross-platform) and `cuopt` (NVIDIA GPU) — pick by hardware, identical certificate either way. Because an exact point is optimal for its scalarization, overlaying it on the heuristic frontier can only confirm or sharpen it, never worsen it (the invariant: NSGA never dominates an exact point). The agent does this in one call — **`explore certify`** to audit the NSGA `run` against the `exact_run` overlay and returns a dominance audit of NSGA points an exact solve dominates and a recommendation. See [`architecture.md`](architecture.md#solver-backends-pluggable) for scope and details. The same exact run also exposes **solver-exact shadow prices + reduced costs** via **`explore sensitivity`** (`where_to_invest` / `near_misses`) — a QP-path feature; MILP and LP runs fall back to the frontier-inferred estimate.
 
 ### Deploy your own
 
@@ -175,6 +175,14 @@ Contributions welcome — start with the developer docs:
 
 - [`architecture.md`](architecture.md) — system architecture & data flow
 - [`best-practices.md`](best-practices.md) — skill & prompt design guidelines
+
+## Acknowledgements
+
+Frontier builds on excellent open-source optimization work, with thanks to:
+
+- **[pymoo](https://github.com/anyoptimization/pymoo)** (Apache-2.0) — the NSGA-II / NSGA-III evolutionary solvers at Frontier's core. Blank, J. & Deb, K. (2020). *pymoo: Multi-Objective Optimization in Python.* IEEE Access, 8, 89497–89509. The underlying algorithms are Deb et al., NSGA-II (2002) and Deb & Jain, NSGA-III (2014).
+- **[HiGHS](https://github.com/ERGO-Code/HiGHS)** (MIT) — CPU exact-solver backend (`solver="highs"`). Huangfu, Q. & Hall, J.A.J. (2018). *Parallelizing the dual revised simplex method.* Mathematical Programming Computation, 10(1), 119–142.
+- **[NVIDIA cuOpt](https://github.com/NVIDIA/cuopt)** (Apache-2.0) — GPU exact-solver backend (`solver="cuopt"`).
 
 ## License
 
