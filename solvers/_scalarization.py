@@ -140,6 +140,70 @@ def _build_milp_data(problem: Problem):
     return n, names, S, dirs, mc
 
 
+def _lp_relaxation_feasible(eps_list, mc, n) -> bool:
+    """Is the LP relaxation of the epsilon-constrained 0/1 MILP feasible? Binary vars relaxed
+    to ``0 ≤ x ≤ 1``, same epsilon (``(coef, 'ge'/'le', rhs)``) and combinatorial constraints
+    (the ``mc`` dict from ``_build_milp_data``) as the inner MILP. A *definitively infeasible*
+    relaxation means the MILP is infeasible too, so the scalarization is dominated — the EA
+    already treats that as ``ok=False``.
+
+    This is a **pre-screen** for a backend that aborts the *process* on an infeasible model
+    instead of returning a status: cuOpt 26.4.0's dual simplex calls ``std::terminate`` on a
+    primal-infeasible MILP root relaxation, which kills the kernel and is uncatchable in
+    Python (HiGHS reports ``Infeasible`` cleanly and needs no guard). scipy's bundled HiGHS LP
+    reports infeasibility cleanly and never aborts, needs no GPU and no exact-solver install,
+    and a continuous LP is far cheaper than the MILP — so the cuOpt backend screens here first
+    and only hands cuOpt models that are at least LP-feasible. Returns True unless the
+    relaxation is *provably* infeasible, so it only ever skips known-bad solves and never
+    silently drops a feasible scalarization on a numerical wobble.
+    """
+    from scipy.optimize import linprog
+
+    A_ub: list[np.ndarray] = []
+    b_ub: list[float] = []
+    lb, ub = np.zeros(n), np.ones(n)
+
+    for coef, op, rhs in eps_list:
+        row = np.asarray(coef, dtype=float)
+        if op == "ge":
+            A_ub.append(-row); b_ub.append(-float(rhs))    # coef·x ≥ rhs  →  −coef·x ≤ −rhs
+        else:
+            A_ub.append(row); b_ub.append(float(rhs))      # coef·x ≤ rhs
+    if mc["card"] is not None:
+        lo, hi = mc["card"]
+        ones = np.ones(n)
+        A_ub.append(-ones); b_ub.append(-float(lo))        # Σx ≥ lo
+        A_ub.append(ones);  b_ub.append(float(hi))         # Σx ≤ hi
+    for coef, op, val in mc["bounds"]:
+        row = np.asarray(coef, dtype=float)
+        if op == "max":
+            A_ub.append(row); b_ub.append(float(val))      # coef·x ≤ val
+        else:
+            A_ub.append(-row); b_ub.append(-float(val))    # coef·x ≥ val
+    for i in mc["force_in"]:
+        lb[i] = 1.0
+    for i in mc["force_out"]:
+        ub[i] = 0.0
+    for a, b in mc["deps"]:
+        row = np.zeros(n); row[a] = 1.0; row[b] = -1.0      # x_a − x_b ≤ 0 (if a then b)
+        A_ub.append(row); b_ub.append(0.0)
+    for a, b in mc["excl"]:
+        row = np.zeros(n); row[a] = 1.0; row[b] = 1.0       # x_a + x_b ≤ 1
+        A_ub.append(row); b_ub.append(1.0)
+    for grp, gmax in mc["groups"]:
+        row = np.zeros(n); row[list(grp)] = 1.0             # Σ_grp x ≤ gmax
+        A_ub.append(row); b_ub.append(float(gmax))
+
+    res = linprog(
+        c=np.zeros(n),
+        A_ub=np.vstack(A_ub) if A_ub else None,
+        b_ub=np.asarray(b_ub) if b_ub else None,
+        bounds=list(zip(lb, ub)),
+        method="highs",
+    )
+    return res.status != 2   # 2 == infeasible; proceed on optimal/ambiguous, skip only proven-infeasible
+
+
 # --------------------------------------------------------------------------- #
 # Numeric helpers (pure)
 # --------------------------------------------------------------------------- #

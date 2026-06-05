@@ -17,11 +17,21 @@ import numpy as np
 import pytest
 from scipy.sparse import csr_matrix
 
+from solvers._scalarization import _lp_relaxation_feasible
 from solvers.cuopt_backend import _parallel_solve, _qp_to_csr
 
 
 def _dense(data, indices, offsets, shape):
     return csr_matrix((data, indices, offsets), shape=shape).toarray()
+
+
+def _mc(**kw):
+    """A combinatorial-constraint dict (``_build_milp_data`` shape) with everything empty
+    unless overridden — keeps the feasibility tests to the one constraint they exercise."""
+    base = {"card": None, "bounds": [], "force_in": [], "force_out": [],
+            "deps": [], "excl": [], "groups": []}
+    base.update(kw)
+    return base
 
 
 # ─── _qp_to_csr marshaling ───
@@ -157,3 +167,69 @@ def test_parallel_solve_matches_sequential_on_highs_qp():
         if ok_s:
             assert np.allclose(w_s, w_p)
             assert abs(w_s.sum() - 1.0) < 1e-3       # fully invested, a real frontier point
+
+
+# ─── LP-relaxation feasibility pre-screen (the cuOpt-crash guard) ───
+#
+# cuOpt 26.4.0 calls std::terminate on an infeasible MILP root relaxation, which kills the
+# kernel (observed on an L4 Colab run mid-frontier-sweep). The shared engine *expects*
+# infeasible epsilon corners and handles them as ok=False — so the cuOpt backend screens
+# feasibility on the CPU first and never hands cuOpt the model that would crash it. These
+# assert the screen's verdicts and, crucially, that the cuOpt MILP entry point short-circuits
+# infeasible input before importing cuOpt at all.
+
+def test_lp_relaxation_feasible_base_problem():
+    """No epsilon constraints + a satisfiable cardinality band → feasible. This is the
+    range-finding solve (eps_list=[]) the engine runs first; it must pass through to cuOpt."""
+    assert _lp_relaxation_feasible([], _mc(card=(1, 3)), n=5) is True
+
+
+def test_lp_relaxation_infeasible_eps_floor_above_max():
+    """The crash scenario in miniature: a 'ge' epsilon floor above the achievable maximum
+    (Σcoef with every x=1) makes the polytope empty — cuOpt would std::terminate here, so the
+    screen must return False and skip the GPU solve."""
+    coef = np.array([1.0, 2.0, 3.0])                 # max achievable = 6
+    assert _lp_relaxation_feasible([(coef, "ge", 10.0)], _mc(), n=3) is False
+
+
+def test_lp_relaxation_feasible_eps_within_range():
+    """A 'ge' floor inside [0, Σcoef] is satisfiable → feasible (proceed to cuOpt)."""
+    coef = np.array([1.0, 2.0, 3.0])
+    assert _lp_relaxation_feasible([(coef, "ge", 4.0)], _mc(), n=3) is True
+
+
+def test_lp_relaxation_infeasible_conflicting_eps():
+    """coef·x ≥ 5 and coef·x ≤ 2 on the same row is an empty polytope → infeasible."""
+    coef = np.array([1.0, 1.0, 1.0, 1.0])
+    eps = [(coef, "ge", 5.0), (coef, "le", 2.0)]
+    assert _lp_relaxation_feasible(eps, _mc(), n=4) is False
+
+
+def test_lp_relaxation_force_in_out_conflict():
+    """force_include and force_exclude on the same asset pin it to lb=1, ub=0 → infeasible."""
+    assert _lp_relaxation_feasible([], _mc(force_in=[2], force_out=[2]), n=4) is False
+
+
+def test_lp_relaxation_cardinality_below_forced_count():
+    """Three forced-in assets under a cardinality cap of 2 → Σx ≥ 3 vs Σx ≤ 2 → infeasible."""
+    assert _lp_relaxation_feasible([], _mc(card=(0, 2), force_in=[0, 1, 2]), n=5) is False
+
+
+def test_lp_relaxation_objective_bound_infeasible():
+    """An objective_bound the support can't meet (min ≥ 99 with coef summing to ≤ 6) →
+    infeasible. Covers the mc['bounds'] branch the epsilon path doesn't."""
+    coef = np.array([1.0, 2.0, 3.0])
+    assert _lp_relaxation_feasible([], _mc(bounds=[(coef, "min", 99.0)]), n=3) is False
+
+
+def test_solve_milp_cuopt_skips_infeasible_without_gpu():
+    """Load-bearing crash-prevention check: `_solve_milp_cuopt` on an LP-infeasible model
+    returns (zeros, ok=False) — the same signal HiGHS gives — *without importing cuOpt*. cuOpt
+    is not installed in CI, so a clean return proves the screen short-circuits before the GPU
+    import, hence before the cuOpt solve that would std::terminate the kernel."""
+    from solvers.cuopt_backend import _solve_milp_cuopt
+
+    coef = np.array([1.0, 2.0, 3.0])                 # max achievable = 6
+    sel, ok = _solve_milp_cuopt(coef, [(coef, "ge", 99.0)], _mc(), n=3)
+    assert ok is False
+    assert sel.shape == (3,) and not sel.any()

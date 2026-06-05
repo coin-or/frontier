@@ -30,7 +30,12 @@ import gc
 import numpy as np
 
 from engine.models import Approach, OptimizeMode, Problem, Run
-from solvers._scalarization import _qp_weights_ok, optimize_milp, optimize_qp
+from solvers._scalarization import (
+    _lp_relaxation_feasible,
+    _qp_weights_ok,
+    optimize_milp,
+    optimize_qp,
+)
 
 # Re-exported from the shared engine so notebooks/panels that reach into this module by its
 # historical name (e.g. ``cuopt_backend._nearest_psd``) keep resolving after the extraction.
@@ -285,6 +290,16 @@ def _solve_milp_cuopt(min_coef, eps_list, mc, n, exact=False):
     ``mc``. Returns ``(0/1 selection array, ok)``. ``exact=True`` certifies (gap→0, accept
     only ``Optimal``); default bounds for speed.
     """
+    # Pre-screen feasibility on the CPU before touching the GPU. cuOpt 26.4.0 aborts the
+    # *process* (``std::terminate``) on an infeasible MILP rather than returning an Infeasible
+    # status — a kernel crash, uncatchable in Python — and the EA's epsilon sweep routinely
+    # proposes infeasible corners (expected, handled here as ok=False, exactly like HiGHS). An
+    # LP-infeasible relaxation means the MILP is infeasible, so report it and never construct
+    # the cuOpt model that would crash. (Runs before the cuOpt import, so this branch needs no
+    # GPU and is unit-testable anywhere.)
+    if not _lp_relaxation_feasible(eps_list, mc, n):
+        return np.zeros(n), False
+
     from cuopt.linear_programming import SolverSettings
     from cuopt.linear_programming.problem import INTEGER, MINIMIZE, Problem as CuProblem
     from cuopt.linear_programming.solver.solver_parameters import (
