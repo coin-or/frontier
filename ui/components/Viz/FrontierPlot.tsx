@@ -26,8 +26,8 @@ const CERTIFIED_RING = "#047857";
 // only carries meaning when both layers coexist (a heuristic frontier with an exact overlay);
 // a frontier with no overlay renders solid so it isn't needlessly washed out.
 const ALPHA_CERTIFIED = 1;
-const ALPHA_HEURISTIC = 0.5; // not-yet-certified
-const ALPHA_DOMINATED = 0.2; // exact strictly beats it — the faintest tier
+const ALPHA_HEURISTIC = 0.7; // not-yet-certified — faded but clearly legible
+const ALPHA_DOMINATED = 0.45; // exact strictly beats it — the faintest tier, still visible
 
 // Bake alpha into the fill color so per-point opacity works identically across scattergl,
 // scatter3d, and parcoords (marker.opacity-as-an-array isn't reliable on scattergl).
