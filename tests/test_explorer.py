@@ -17,6 +17,7 @@ from engine.models import (
     Option,
     Problem,
     Run,
+    ScenarioRun,
     Score,
     Solution,
 )
@@ -403,3 +404,84 @@ class TestFrontierProvenance:
             assert "frontier_source" in result, f"{action} dropped frontier_source"
             assert result["frontier_source"]["kind"] == "heuristic", action
             assert result["frontier_source"]["run_id"] == p.run.run_id, action
+
+
+class TestScatterCertification:
+    """The frontier scatter `viz_data` carries certification: `provenance` (heuristic vs
+    exact-certified) on every frontier, and an `exact_overlay` (the certified points + the
+    heuristic ids they dominate) when a heuristic base-case frontier has an exact overlay — so the
+    chart can denote what's certified. Reuses the certify dominance logic and mirrors the
+    `_frontier_provenance` scenario guard, so the overlay never leaks onto a scenario frontier.
+    """
+
+    @staticmethod
+    def _run(points, names, solver="nsga-ii", exact=False):
+        """A Run whose solutions carry the given per-objective value tuples (id = list index)."""
+        sols = [Solution(solution_id=i, selected_options=["A"],
+                         objective_values=dict(zip(names, p))) for i, p in enumerate(points)]
+        return Run(solutions=sols, solver=solver, exact=exact)
+
+    @staticmethod
+    def _mean_variance_problem():
+        # get_tradeoffs reads objectives + run + exact_run; scores aren't needed for the scatter.
+        objs = [Objective(name="Return", direction="maximize", aggregation="avg"),
+                Objective(name="Risk", direction="minimize", aggregation="quadratic")]
+        return Problem(name="t", approach="proportional", objectives=objs,
+                       options=[Option(name=n) for n in ["A", "B"]])
+
+    def test_heuristic_frontier_provenance_no_overlay(self, solved_problem):
+        # A plain NSGA frontier with no exact run: labeled heuristic, nothing to certify.
+        viz = get_tradeoffs(solved_problem)["viz_data"]
+        assert viz["provenance"]["kind"] == "heuristic"
+        assert viz["provenance"]["solver"] == solved_problem.run.solver
+        assert viz["provenance"]["exact_certified"] is False
+        assert "exact_overlay" not in viz
+
+    def test_exact_view_all_certified_no_overlay(self, solved_problem):
+        # source="exact" renders the exact frontier itself — every point certified, no overlay.
+        p = solved_problem
+        p.exact_run = self._run([(9.0, 2.0), (7.0, 1.0)], ["Revenue", "Effort"],
+                                solver="highs", exact=True)
+        viz = get_tradeoffs(p, source="exact")["viz_data"]
+        assert viz["provenance"]["kind"] == "exact"
+        assert viz["provenance"]["solver"] == "highs"
+        assert viz["provenance"]["exact_certified"] is True
+        assert "exact_overlay" not in viz
+
+    def test_heuristic_with_exact_overlay(self):
+        # Heuristic frontier + an exact overlay that dominates two heuristic points and sharpens
+        # the Risk corner past the heuristic range. Geometry mirrors test_certify.
+        p = self._mean_variance_problem()
+        names = ["Return", "Risk"]
+        # Mutually non-dominated heuristic frontier (Return↑, Risk↓).
+        p.run = self._run([(8.0, 3.0), (12.0, 5.0), (10.0, 4.0)], names, solver="nsga-ii")
+        p.exact_run = self._run([(10.0, 2.0)], names, solver="highs", exact=True)
+        viz = get_tradeoffs(p)["viz_data"]
+
+        assert viz["provenance"]["kind"] == "heuristic"
+        ov = viz["exact_overlay"]
+        assert ov["solver"] == "highs"
+        assert ov["exact_certified"] is True
+        assert [pt["solution_id"] for pt in ov["points"]] == [0]
+        assert ov["points"][0]["values"] == {"Return": 10.0, "Risk": 2.0}
+        # (10,2) dominates the heuristic (8,3) [id 0] and (10,4) [id 2, equal Return, lower Risk]
+        # but not the (12,5) trade-off [id 1].
+        assert set(ov["dominated_ids"]) == {0, 2}
+        # The exact Risk (2.0) sits below the heuristic Risk min (3.0) → the axis widens to it,
+        # so the sharpened corner renders in-frame rather than clipped at the plot edge.
+        risk = next(o for o in viz["objectives"] if o["name"] == "Risk")
+        assert risk["min"] == 2.0
+        ret = next(o for o in viz["objectives"] if o["name"] == "Return")
+        assert ret["max"] == 12.0  # exact Return (10) within the heuristic range → unchanged
+
+    def test_scenario_frontier_does_not_leak_overlay(self, solved_problem):
+        # A scenario frontier is NSGA-only; the base-case exact overlay must not attach to it
+        # (mirrors `_frontier_provenance`'s scenario guard).
+        p = solved_problem
+        p.exact_run = self._run([(10.0, 2.0)], ["Revenue", "Effort"], solver="highs", exact=True)
+        p.scenario_run = ScenarioRun(scenario_runs={
+            "s1": self._run([(8.0, 5.0), (6.0, 3.0), (9.0, 7.0)], ["Revenue", "Effort"])
+        })
+        viz = get_tradeoffs(p, scenario="s1")["viz_data"]
+        assert viz["provenance"]["kind"] == "heuristic"
+        assert "exact_overlay" not in viz

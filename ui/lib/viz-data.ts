@@ -20,6 +20,25 @@ export type ScatterPoint = {
   name?: string | null; // the solution's curated custom_name, if curated
 };
 
+// Which frontier the scatter was computed over. `kind` distinguishes the heuristic NSGA
+// frontier from an exact-certified one; `exact_certified` is a zero-gap MILP certification.
+// Mirrors the engine's `frontier_source`, but lives inside viz_data so the chart can denote it.
+export type ScatterProvenance = {
+  kind: "heuristic" | "exact";
+  solver: string;
+  exact_certified: boolean;
+};
+
+// Attached only on a heuristic base-case frontier that has an exact-solver overlay. `points`
+// are the exact-certified solutions to draw on top; `dominated_ids` are the heuristic points
+// the exact front strictly dominates ("looked efficient, but exact beats them at their cost").
+export type ScatterExactOverlay = {
+  solver: string;
+  exact_certified: boolean;
+  points: ScatterPoint[];
+  dominated_ids: number[];
+};
+
 export type ScatterVizData = {
   type: "scatter";
   objectives: ObjectiveMeta[];
@@ -27,6 +46,8 @@ export type ScatterVizData = {
   extremes: Record<string, { best_id: number; worst_id: number }>;
   balanced_id: number;
   inflection_ids: number[];
+  provenance?: ScatterProvenance; // present on the real explore path; absent in isolated builds
+  exact_overlay?: ScatterExactOverlay | null;
 };
 
 export type ParallelCoordsSeries = {

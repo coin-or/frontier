@@ -117,7 +117,10 @@ def get_tradeoffs(problem: Problem, scenario: str | None = None, source: str | N
         }
 
     result["visualization"] = _render_tradeoffs_viz(result, problem.objectives, solutions)
-    result["viz_data"] = _viz_data_tradeoffs(solutions, problem.objectives, result, problem.curated_solutions)
+    result["viz_data"] = _viz_data_tradeoffs(
+        solutions, problem.objectives, result, problem.curated_solutions,
+        problem=problem, run=run, scenario=scenario,
+    )
     result["frontier_source"] = _frontier_provenance(problem, run, scenario)
     return result
 
@@ -2207,22 +2210,92 @@ def _find_balanced(solutions, objectives) -> object:
 # Hosts that don't render D3 simply ignore the field.
 
 
-def _viz_data_tradeoffs(solutions: list, objectives: list, result: dict, curated: list | None = None) -> dict:
+def _scatter_exact_layer(problem: Problem, run: Run, objectives: list,
+                         heuristic_solutions: list, scenario: str | None):
+    """Provenance + optional exact-overlay for the frontier scatter.
+
+    `provenance` labels the rendered frontier — `kind` heuristic vs exact, the precise `solver`,
+    and `exact_certified` (a zero-gap MILP certification). `exact_overlay` is attached only when a
+    *heuristic* base-case frontier is shown while an exact-solver overlay exists for the same
+    problem: it carries the exact-certified points to draw on top, plus the heuristic points the
+    exact front strictly dominates (`dominated_ids`) — so the chart can show "these looked
+    efficient; an exact solve beats them at their own cost." Mirrors the scenario / run_id guards
+    in `_frontier_provenance`, so the overlay never leaks onto a scenario frontier (scenario runs
+    are NSGA-only; the base-case exact overlay doesn't apply to them).
+    """
+    from solvers import is_exact_solver
+
+    is_exact = is_exact_solver(run.solver)
+    provenance = {
+        "kind": "exact" if is_exact else "heuristic",
+        "solver": run.solver,
+        "exact_certified": bool(run.exact),
+    }
+    exact_run = problem.exact_run
+    if (scenario is not None or is_exact or exact_run is None
+            or not exact_run.solutions or exact_run.run_id == run.run_id):
+        return provenance, None
+
+    names = [o.name for o in objectives]
+    # Minimize-space sign per objective (+1 minimize, -1 maximize) so plain ≤ is "no worse" —
+    # the same convention `certify_against_exact` uses for its dominance audit.
+    sign = np.array([-1.0 if o.direction == Direction.maximize else 1.0 for o in objectives])
+
+    def _matrix(sols):
+        return np.array([[s.objective_values.get(n, 0.0) for n in names] for s in sols], dtype=float)
+
+    N = _matrix(heuristic_solutions) * sign       # heuristic frontier, minimize-space
+    E = _matrix(exact_run.solutions) * sign       # exact overlay, minimize-space
+    # Non-dominated subset of the exact points (integer rounding can leave a few dominated ones).
+    exact_front = [k for k in range(len(E))
+                   if not any(_dominates_min(E[j], E[k]) for j in range(len(E)) if j != k)]
+    dominated_ids = [heuristic_solutions[i].solution_id
+                     for i in range(len(N))
+                     if any(_dominates_min(E[k], N[i]) for k in exact_front)]
+    overlay = {
+        "solver": exact_run.solver,
+        "exact_certified": bool(exact_run.exact),
+        "points": [{"solution_id": s.solution_id, "values": dict(s.objective_values)}
+                   for s in exact_run.solutions],
+        "dominated_ids": dominated_ids,
+    }
+    return provenance, overlay
+
+
+def _viz_data_tradeoffs(solutions: list, objectives: list, result: dict,
+                        curated: list | None = None, problem: Problem | None = None,
+                        run: Run | None = None, scenario: str | None = None) -> dict:
     """Scatter-matrix payload: every solution as a point across all objectives.
 
     Each point carries `name` = the curated custom_name when the solution has been
     curated (matched by content_signature), else None — so the UI can show
     id + name on selection.
+
+    When `problem`/`run` are supplied (the real `explore tradeoffs` path), the payload also
+    carries `provenance` (heuristic vs exact-certified) and, on a heuristic base-case frontier
+    that has an exact overlay, an `exact_overlay` block (the certified points + the heuristic
+    `dominated_ids` they beat), so the chart can denote certification. See `_scatter_exact_layer`.
     """
-    obj_meta = [
-        {
+    provenance, overlay = (None, None)
+    if problem is not None and run is not None:
+        provenance, overlay = _scatter_exact_layer(problem, run, objectives, solutions, scenario)
+
+    obj_meta = []
+    for o in objectives:
+        lo = result["objective_ranges"][o.name]["min"]
+        hi = result["objective_ranges"][o.name]["max"]
+        if overlay:
+            # Widen the axis so a sharpened exact corner (which can sit past the heuristic
+            # range) renders in-frame rather than clipped at the plot edge.
+            ovals = [p["values"][o.name] for p in overlay["points"] if o.name in p["values"]]
+            if ovals:
+                lo, hi = min(lo, min(ovals)), max(hi, max(ovals))
+        obj_meta.append({
             "name": o.name,
             "direction": o.direction.value,
-            "min": result["objective_ranges"][o.name]["min"],
-            "max": result["objective_ranges"][o.name]["max"],
-        }
-        for o in objectives
-    ]
+            "min": lo,
+            "max": hi,
+        })
     name_by_sig = {
         cs.content_signature: cs.custom_name
         for cs in (curated or [])
@@ -2245,7 +2318,7 @@ def _viz_data_tradeoffs(solutions: list, objectives: list, result: dict, curated
         worst = (min if reverse else max)(solutions, key=lambda s: s.objective_values[o.name])
         extremes[o.name] = {"best_id": best.solution_id, "worst_id": worst.solution_id}
     inflection_ids = [c["solution_id"] for c in result.get("inflection_point_candidates", [])]
-    return {
+    out = {
         "type": "scatter",
         "objectives": obj_meta,
         "points": points,
@@ -2253,6 +2326,11 @@ def _viz_data_tradeoffs(solutions: list, objectives: list, result: dict, curated
         "balanced_id": result["balanced_solution"]["solution_id"],
         "inflection_ids": inflection_ids,
     }
+    if provenance is not None:
+        out["provenance"] = provenance
+    if overlay is not None:
+        out["exact_overlay"] = overlay
+    return out
 
 
 def _viz_data_parallel_coords(
