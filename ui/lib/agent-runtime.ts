@@ -19,6 +19,7 @@ import { Client as MCPClient } from "@modelcontextprotocol/sdk/client/index.js";
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { SYSTEM_PROMPT } from "./system-prompt";
 import { compactHistory } from "./compaction";
+import { cachedSystem, cachedTools, withCacheBreakpoint, contextManagement } from "./anthropic-request";
 
 export type ChatMessage = {
   role: "user" | "assistant";
@@ -143,12 +144,15 @@ const messagesApiAdapter: AgentRuntime = {
     const system = serverInstructions
       ? `${SYSTEM_PROMPT}\n\n${serverInstructions}`
       : SYSTEM_PROMPT;
-    // Trim older middle turns if the transcript is approaching the context window.
+    // Trim older middle turns if the transcript is approaching the context window
+    // (client-side floor), and let the engine's native context management clear old tool
+    // results / compact server-side (the coding-agent-grade path).
     const history = applyCompaction(messages, system, maxTokens);
+    const cm = contextManagement();
     const params: any = {
       model: MODEL,
       max_tokens: maxTokens,
-      system,
+      system: cachedSystem(system),
       thinking: { type: "adaptive" },
       output_config: { effort },
       mcp_servers: [
@@ -159,11 +163,12 @@ const messagesApiAdapter: AgentRuntime = {
           ...(FRONTIER_MCP_TOKEN ? { authorization_token: FRONTIER_MCP_TOKEN } : {}),
         },
       ],
-      tools: [
+      tools: cachedTools([
         { type: "mcp_toolset", mcp_server_name: "frontier" },
-      ],
-      messages: history as Anthropic.MessageParam[],
-      betas: ["mcp-client-2025-11-20"],
+      ]),
+      messages: withCacheBreakpoint(history) as Anthropic.MessageParam[],
+      ...(cm ? { context_management: cm.context_management } : {}),
+      betas: ["mcp-client-2025-11-20", ...(cm ? [cm.beta] : [])],
     };
     const upstream = await client.beta.messages.stream(params);
 
@@ -171,6 +176,14 @@ const messagesApiAdapter: AgentRuntime = {
       async start(controller) {
         try {
           for await (const event of upstream) {
+            // Surface cache effectiveness in server logs (read ≈ 0.1x input price; write ≈ 1.25x).
+            const u = (event as any)?.message?.usage ?? (event as any)?.usage;
+            if (u && (u.cache_read_input_tokens != null || u.cache_creation_input_tokens != null)) {
+              console.log(
+                `[frontier] prompt cache — read:${u.cache_read_input_tokens ?? 0} ` +
+                  `write:${u.cache_creation_input_tokens ?? 0} uncached:${u.input_tokens ?? 0}`,
+              );
+            }
             const chunk = `data: ${JSON.stringify(event)}\n\n`;
             controller.enqueue(encoder.encode(chunk));
           }
@@ -697,6 +710,7 @@ const anthropicLocalAdapter: AgentRuntime = {
 
           // Trim older middle turns if the transcript is approaching the context window.
           const history = applyCompaction(messages, systemPrompt, maxTokens);
+          const cm = contextManagement();
 
           // 3. Seed conversation. Translate UI's Anthropic-shaped history into
           //    the API's shape (mcp_tool_use → tool_use, mcp_tool_result → tool_result).
@@ -735,12 +749,13 @@ const anthropicLocalAdapter: AgentRuntime = {
             const stream = await client.beta.messages.stream({
               model: MODEL,
               max_tokens: maxTokens,
-              system: systemPrompt,
+              system: cachedSystem(systemPrompt),
               thinking: { type: "adaptive" },
               output_config: { effort },
-              tools: anthropicTools as any,
-              messages: convo as any,
-              betas: ["interleaved-thinking-2025-05-14"],
+              tools: cachedTools(anthropicTools) as any,
+              messages: withCacheBreakpoint(convo) as any,
+              ...(cm ? { context_management: cm.context_management } : {}),
+              betas: ["interleaved-thinking-2025-05-14", ...(cm ? [cm.beta] : [])],
             } as any);
 
             type Pending =
