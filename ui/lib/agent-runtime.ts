@@ -19,6 +19,7 @@ import { Client as MCPClient } from "@modelcontextprotocol/sdk/client/index.js";
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { SYSTEM_PROMPT } from "./system-prompt";
 import { compactHistory } from "./compaction";
+import { cachedSystem, cachedTools, withCacheBreakpoint, contextManagement } from "./anthropic-request";
 
 export type ChatMessage = {
   role: "user" | "assistant";
@@ -56,86 +57,6 @@ function applyCompaction(
   if (compacted) {
     console.warn(`[frontier] history compaction: elided ${dropped} middle turn(s) to fit context`);
   }
-  return out;
-}
-
-// ─── server-side context management (Anthropic adapters) ────────────────────
-// Anthropic's *native* context management keeps a long session under the window the way a
-// coding-agent harness does — server-side, and far better than the client-side trim above.
-// `clear_tool_uses` (the recommended strategy for tool-heavy agentic loops) drops the oldest
-// tool results — Frontier's large explore/solve JSON — replacing each with a placeholder once
-// context crosses a threshold; `compact` summarizes instead. The client-side `applyCompaction`
-// stays as the provider-agnostic floor (it also covers the openai-compatible adapter, which has
-// no equivalent) and the last-resort net below the model's hard limit.
-//
-// Env-gated: AGENT_CONTEXT_MANAGEMENT = clear_tool_uses (default) | compact | off. Documented-
-// safe with client-side tool definitions (anthropic-local). On the messages-api MCP-connector
-// path the beta-combination isn't doc-confirmed — smoke-test on staging, and set =off to disable
-// instantly if the connector rejects it. Returns the beta to add + the context_management param.
-const CONTEXT_MGMT = process.env.AGENT_CONTEXT_MANAGEMENT ?? "clear_tool_uses";
-
-function contextManagement(): { beta: string; context_management: unknown } | null {
-  if (CONTEXT_MGMT === "clear_tool_uses") {
-    return {
-      beta: "context-management-2025-06-27",
-      // exclude_tools: never clear get_skill results — keep the explicit skill-fetch path
-      // intact so re-fetched guidance is never dropped (the durable index also re-fetches).
-      context_management: {
-        edits: [{ type: "clear_tool_uses_20250919", exclude_tools: ["get_skill"] }],
-      },
-    };
-  }
-  if (CONTEXT_MGMT === "compact") {
-    return {
-      beta: "compact-2026-01-12",
-      context_management: { edits: [{ type: "compact_20260112" }] },
-    };
-  }
-  return null; // "off" or unrecognized → client-side applyCompaction only
-}
-
-// ─── prompt caching (Anthropic adapters) ────────────────────────────────────
-// The single biggest cost lever. Without `cache_control`, every turn — and every server-side
-// tool-call iteration in the connector loop — re-processes the full input at FULL price: the
-// stable prefix (system prompt, the four tool definitions, and the injected skill bodies that
-// ride in history — ~13.5k tokens for solution_interpreter alone) is paid for again and again.
-// Caching marks that prefix so it's re-read at ~10% of input price. It KEEPS all content in
-// context — skill bodies stay available to the model, just cheap to re-read — it removes nothing.
-// Caching covers tools → system → messages up to each breakpoint; for an mcp_toolset the
-// breakpoint lands on the toolset entry. Toggle off with AGENT_PROMPT_CACHE=off.
-const PROMPT_CACHE = (process.env.AGENT_PROMPT_CACHE ?? "on").toLowerCase() !== "off";
-const CACHE_CONTROL = { type: "ephemeral" as const };
-
-// System as a cacheable text block (the API accepts a string OR a block array).
-function cachedSystem(text: string): unknown {
-  return PROMPT_CACHE ? [{ type: "text", text, cache_control: CACHE_CONTROL }] : text;
-}
-
-// Put a cache breakpoint on the last tool (for an mcp_toolset, the entry itself) so the whole
-// tool-definition block is cached.
-function cachedTools<T>(tools: T[]): T[] {
-  if (!PROMPT_CACHE || tools.length === 0) return tools;
-  const out = tools.slice();
-  out[out.length - 1] = { ...out[out.length - 1], cache_control: CACHE_CONTROL } as T;
-  return out;
-}
-
-// Put a cache breakpoint on the last message's final content block, so the conversation prefix
-// (prior turns, incl. injected skill bodies and old tool results) is cached and re-read cheaply
-// on later turns / tool-call iterations. Pure: shallow copy, drops nothing.
-function withCacheBreakpoint<T extends { role: string; content: unknown }>(messages: T[]): T[] {
-  if (!PROMPT_CACHE || messages.length === 0) return messages;
-  const out = messages.slice();
-  const last = out[out.length - 1];
-  const blocks =
-    typeof last.content === "string"
-      ? [{ type: "text", text: last.content }]
-      : Array.isArray(last.content)
-        ? (last.content as Record<string, unknown>[]).slice()
-        : null;
-  if (!blocks || blocks.length === 0) return messages;
-  blocks[blocks.length - 1] = { ...blocks[blocks.length - 1], cache_control: CACHE_CONTROL };
-  out[out.length - 1] = { ...last, content: blocks } as T;
   return out;
 }
 
