@@ -132,6 +132,37 @@ class TestGate:
         with pytest.raises(ValueError, match="does not fit"):
             optimize(p, mode=OptimizeMode.fast, solver="highs")
 
+    def test_binary_nonsum_aggregation_does_not_fit(self):
+        # The binary MILP is linear (Σ coef·x) → only additive (sum) objectives. avg is fractional
+        # over a variable-size selection, min/max are nonlinear; declining keeps the certificate
+        # from comparing the NSGA-evaluated aggregation against an exact run that silently summed.
+        for agg in ("avg", "min", "max"):
+            p = _binary_problem(objectives=[
+                Objective(name="NPV", direction="maximize"),
+                Objective(name="Cost", direction="minimize"),
+                Objective(name="Fit", direction="maximize", aggregation=agg)])
+            fits, reason = exact_solver_fits(p)
+            assert fits is False, agg
+            assert "sum" in reason and "Fit" in reason
+        # optimize() refuses rather than silently optimizing the sum (the bug this guards).
+        p = _binary_problem(objectives=[
+            Objective(name="NPV", direction="maximize"),
+            Objective(name="Cost", direction="minimize"),
+            Objective(name="Fit", direction="maximize", aggregation="avg")])
+        with pytest.raises(ValueError, match="does not fit"):
+            optimize(p, mode=OptimizeMode.fast, solver="highs")
+
+    def test_proportional_minmax_aggregation_does_not_fit(self):
+        # The mean-variance QP handles linear (sum/avg) + the quadratic risk term; min/max are
+        # nonlinear and out of scope.
+        for agg in ("min", "max"):
+            p = _qp_problem(objectives=[
+                Objective(name="Return", direction="maximize", aggregation=agg),
+                Objective(name="Risk", direction="minimize", aggregation="quadratic")])
+            fits, reason = exact_solver_fits(p)
+            assert fits is False, agg
+            assert agg in reason and "Return" in reason
+
 
 # ─── Binary MILP path ───
 

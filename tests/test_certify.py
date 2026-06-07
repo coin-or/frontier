@@ -14,7 +14,7 @@ import pytest
 
 import mcp_server.server as srv
 from engine.explorer import _dominates_min, certify_against_exact
-from engine.models import Objective, Option, Problem, Run, Score, Solution
+from engine.models import CardinalityConstraint, Objective, Option, Problem, Run, Score, Solution
 from engine.store import Store
 
 
@@ -37,6 +37,23 @@ def _run(points, objectives, solver="nsga-ii", exact=False):
 # Return ↑, Risk ↓ (quadratic) — a mean-variance shape.
 _OBJS = [Objective(name="Return", direction="maximize", aggregation="avg"),
          Objective(name="Risk", direction="minimize", aggregation="quadratic")]
+
+
+def _binary_milp():
+    """Small binary selection with additive (sum) objectives — the end-to-end MILP certify
+    fixture. Tiny so the real exact solve stays fast (decoupled from showcase examples). Binary
+    `sum` is the only exact-MILP-representable aggregation (see solvers.exact_solver_fits)."""
+    names = ["A", "B", "C", "D", "E", "F"]
+    table = {"Value": [9, 7, 8, 4, 6, 5], "Cost": [5, 3, 6, 2, 4, 3]}
+    scores = [Score(option=n, objective=o, value=table[o][i])
+              for i, n in enumerate(names) for o in table]
+    return Problem(
+        name="milp", approach="binary",
+        objectives=[Objective(name="Value", direction="maximize"),
+                    Objective(name="Cost", direction="minimize")],
+        options=[Option(name=n) for n in names], scores=scores,
+        constraints=[CardinalityConstraint(min=2, max=4)],
+    )
 
 
 # ─── dominance primitive ───
@@ -198,17 +215,13 @@ def test_coverage_handles_three_objectives():
 
 # ─── integration: real solver, MILP invariant is strict ───
 
-def test_certify_milp_example_invariant_strict():
+def test_certify_milp_invariant_strict():
     """On a binary MILP the exact points are integer by construction, so the invariant holds
     strictly (no rounding artifact) and the audit runs end-to-end through a real exact solver."""
     pytest.importorskip("highspy")
-    from pathlib import Path
-
     from engine.optimizer import optimize
-    from engine.problem_io import read_bundle
 
-    ex = Path(__file__).resolve().parent.parent / "examples" / "capital_project_selection"
-    prob = read_bundle(ex)
+    prob = _binary_milp()
     nsga = optimize(prob, seed=42)
     exact = optimize(prob, seed=42, solver="highs")
     c = certify_against_exact(prob, nsga, exact)
