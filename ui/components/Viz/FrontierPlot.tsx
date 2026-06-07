@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
-import type { ScatterVizData, ScatterPoint, ScatterProvenance } from "@/lib/viz-data";
+import type { ScatterVizData, ScatterPoint, ScatterProvenance, ObjectiveMeta } from "@/lib/viz-data";
 import { useChatAction } from "@/lib/chat-action";
 
 // Plotly needs window/WebGL — load client-side only.
@@ -46,6 +46,9 @@ type Selected = {
   certified?: boolean; // point is exact-certified (overlay diamond, or any point in an exact view)
 } | null;
 type Effective = "scatter2d" | "scatter3d" | "parcoords";
+// Selectable chart view. "color2d" (3-objective only) is a 2D scatter with the chosen objective
+// encoded as marker color and the other two as axes — a first-class alternative to 3D / parcoords.
+type ViewMode = "scatter" | "color2d" | "parcoords";
 
 /**
  * Frontier solutions, rendered by dimensionality:
@@ -92,9 +95,29 @@ export function FrontierPlot({ data }: { data: ScatterVizData }) {
         : ALPHA_HEURISTIC;
 
   const canScatter = nObj <= 3;
-  const [mode, setMode] = useState<"scatter" | "parcoords">("scatter");
-  const effective: Effective =
-    !canScatter || mode === "parcoords"
+  const canColor2d = nObj === 3; // need exactly one objective to encode as color + two as axes
+  // Color-by view: encode one objective as marker color on a 2D scatter, the other two as axes —
+  // a first-class view alongside 3D / parcoords for any 3-objective frontier, switchable in the UI
+  // via the toggle + a color-objective dropdown. viz_data.color_objective (e.g. from the render
+  // route) just seeds the initial selection; absent it, a 3-obj frontier opens in 3D as before.
+  const colorHint = data.color_objective ?? null;
+  const [mode, setMode] = useState<ViewMode>(colorHint && canColor2d ? "color2d" : "scatter");
+  const [colorSel, setColorSel] = useState<string>(
+    colorHint && objs.some((o) => o.name === colorHint)
+      ? colorHint
+      : canColor2d
+        ? objs[nObj - 1].name
+        : "",
+  );
+  const colorActive = canColor2d && mode === "color2d" && objs.some((o) => o.name === colorSel);
+  const colorObj = colorActive ? colorSel : null;
+  const axisObjs = useMemo(
+    () => (colorObj ? objs.filter((o) => o.name !== colorObj) : objs),
+    [objs, colorObj],
+  );
+  const effective: Effective = colorActive
+    ? "scatter2d"
+    : !canScatter || mode === "parcoords"
       ? "parcoords"
       : nObj <= 2
         ? "scatter2d"
@@ -146,6 +169,44 @@ export function FrontierPlot({ data }: { data: ScatterVizData }) {
       p.solution_id === selected?.id ? "#000000" : isCurated(p) ? SELECTED_COLOR : "#ffffff"
     );
     const customdata = data.points.map((p) => [p.solution_id, nameOf(p) ?? "—", "base"]);
+
+    // Color-by view: one 2D scattergl trace, the chosen objective encoded as a continuous
+    // marker color (with a colorbar); the two remaining objectives are the axes. Short-circuits
+    // the dimensional branches below so a 3-objective frontier reads as a clean colored 2D.
+    if (colorActive) {
+      const xName = axisObjs[0].name;
+      const yName = axisObjs[1].name;
+      const cvals = data.points.map((p) => p.values[colorObj!]);
+      return {
+        plotData: [
+          {
+            type: "scattergl",
+            mode: "markers",
+            x: data.points.map((p) => p.values[xName]),
+            y: data.points.map((p) => p.values[yName]),
+            customdata,
+            marker: {
+              color: cvals,
+              colorscale: "Viridis",
+              showscale: true,
+              colorbar: { title: { text: colorObj, side: "right" }, thickness: 12, len: 0.9, outlinewidth: 0 },
+              size: sizes,
+              line: { width: lineWidths, color: lineColors },
+            },
+            hovertemplate:
+              `#%{customdata[0]} %{customdata[1]}<br>` +
+              `${xName}: %{x:.2f}<br>${yName}: %{y:.2f}<br>${colorObj}: %{marker.color:.2f}<extra></extra>`,
+          },
+        ],
+        layout: {
+          xaxis: { title: { text: `${xName} (${axisObjs[0].direction})` } },
+          yaxis: { title: { text: `${yName} (${axisObjs[1].direction})` } },
+          margin: { l: 60, r: 20, t: 10, b: 50 },
+          dragmode: "zoom",
+          hovermode: "closest",
+        },
+      };
+    }
 
     // The exact-certified overlay drawn over a faded heuristic field — a separate solid
     // emerald-diamond trace (built for scatter only; parcoords can't overlay a second trace).
@@ -283,7 +344,7 @@ export function FrontierPlot({ data }: { data: ScatterVizData }) {
       ],
       layout: { margin: { l: 80, r: 60, t: 56, b: 20 } },
     };
-  }, [data, objs, effective, roleOf, selected, hasOverlay, isExactView, overlay, dominated]);
+  }, [data, objs, effective, roleOf, selected, hasOverlay, isExactView, overlay, dominated, colorActive, axisObjs, colorObj]);
 
   function onClick(e: { points?: Array<{ customdata?: [number, string, string] }> }) {
     const pt = e?.points?.[0];
@@ -323,8 +384,9 @@ export function FrontierPlot({ data }: { data: ScatterVizData }) {
     if (!same) setBrushIds(next);
   }
 
-  const kind =
-    effective === "scatter2d"
+  const kind = colorActive
+    ? `2D scatter · color ${colorObj}`
+    : effective === "scatter2d"
       ? "2D scatter"
       : effective === "scatter3d"
         ? "3D scatter"
@@ -345,11 +407,15 @@ export function FrontierPlot({ data }: { data: ScatterVizData }) {
         </div>
         <div className="flex items-center gap-3">
           {canScatter && <Toggle mode={mode} setMode={setMode} nObj={nObj} />}
-          <Legend
-            hasCurated={data.points.some((p) => !!p.name)}
-            showCertified={hasOverlay}
-            showDominated={hasOverlay && dominated.size > 0}
-          />
+          {colorActive ? (
+            <ColorPicker objs={objs} value={colorSel} onChange={setColorSel} />
+          ) : (
+            <Legend
+              hasCurated={data.points.some((p) => !!p.name)}
+              showCertified={hasOverlay}
+              showDominated={hasOverlay && dominated.size > 0}
+            />
+          )}
         </div>
       </div>
       <Plot
@@ -469,12 +535,11 @@ function Toggle({
   setMode,
   nObj,
 }: {
-  mode: "scatter" | "parcoords";
-  setMode: (m: "scatter" | "parcoords") => void;
+  mode: ViewMode;
+  setMode: (m: ViewMode) => void;
   nObj: number;
 }) {
-  const scatterLabel = nObj <= 2 ? "2D" : "3D";
-  const btn = (m: "scatter" | "parcoords", label: string) => (
+  const btn = (m: ViewMode, label: string) => (
     <button
       type="button"
       onClick={() => setMode(m)}
@@ -487,9 +552,39 @@ function Toggle({
   );
   return (
     <div className="flex items-center gap-1 text-[10px]">
-      {btn("scatter", scatterLabel)}
+      {btn("scatter", nObj <= 2 ? "2D" : "3D")}
+      {/* 3 objectives can also be a 2D scatter colored by the 3rd (axes = the other two). */}
+      {nObj === 3 && btn("color2d", "2D")}
       {btn("parcoords", "‖ PC")}
     </div>
+  );
+}
+
+// Pick which objective the color2d view encodes as marker color (the other two become the axes).
+function ColorPicker({
+  objs,
+  value,
+  onChange,
+}: {
+  objs: ObjectiveMeta[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <label className="flex items-center gap-1 text-[10px] text-stone-500">
+      color
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="rounded border border-stone-200 bg-white px-1 py-0.5 text-stone-700"
+      >
+        {objs.map((o) => (
+          <option key={o.name} value={o.name}>
+            {o.name}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 
