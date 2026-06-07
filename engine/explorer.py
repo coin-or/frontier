@@ -1969,6 +1969,8 @@ def sensitivity_analysis(problem: Problem, solution_id: int | None = None,
                      "problem for exact shadow prices + reduced costs. Integer/MILP solutions "
                      "have no exact duals. Showing the frontier-inferred binding analysis below."),
             "binding_analysis": _binding_analysis(problem, solutions),
+            "next_steps": ("Present this as a frontier-inferred estimate, not a solver dual — read it "
+                           "with the `solution_interpreter` skill ('Binding Analysis')."),
         }
 
     if solution_id is not None:
@@ -1997,6 +1999,11 @@ def sensitivity_analysis(problem: Problem, solution_id: int | None = None,
         "note": ("Shadow prices and reduced costs are reported at the reference solution; the "
                  "trend shows how the swept-constraint shadow price changes along the frontier "
                  "(rising = diminishing returns)."),
+        "next_steps": ("Read these duals with the `solution_interpreter` skill ('Exact Sensitivity'): "
+                       "the top `where_to_invest` shadow price is the highest-leverage constraint to "
+                       "renegotiate; the smallest `near_misses` reduced cost is the option closest to "
+                       "entering (a re-scoring / cap-relaxation prompt). Anchor every number in the "
+                       "reference solution; route a persistent near-miss back to problem_framing."),
     }
 
 

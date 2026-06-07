@@ -4,6 +4,7 @@ Loadable Frontier problems — combinatorial, multi-objective decisions that nee
 
 | Example | Decision & objectives | Files |
 |---|---|---|
+| **[Capital project selection](capital_project_selection_120/)** | select from 120 projects — NPV / cost / risk / strategic fit *(all totals)*, $610M budget + dependencies + exclusions + category caps — the binary explore→certify showcase | [problem.json](capital_project_selection_120/problem.json) · [scores.json](capital_project_selection_120/scores.json) |
 | **[Investment portfolio](investment_portfolio/)** | allocate across 30 ETFs — return / volatility *(quadratic covariance)* / yield, with scenarios | [problem.json](investment_portfolio/problem.json) · [scores.json](investment_portfolio/scores.json) |
 | **[Marketing channel budget](channel_budget/)** | allocate budget across 22 channels — conversions / reach *(quadratic overlap)* / ROAS / brand, per-platform caps | [problem.json](channel_budget/problem.json) · [scores.json](channel_budget/scores.json) |
 | **[Supplier selection](supplier_selection/)** | multi-source across 25 suppliers — cost / reliability / lead time / ESG / *quadratic concentration risk*, per-region caps | [problem.json](supplier_selection/problem.json) · [scores.json](supplier_selection/scores.json) |

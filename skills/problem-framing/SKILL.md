@@ -179,6 +179,8 @@ Each objective has an aggregation mode that determines how individual option sco
 
 **Most objectives use sum.** Only change aggregation when the semantics genuinely differ. Ask: *"Does picking more options increase this value (sum), or does the portfolio quality depend on its weakest member (min) or average (avg)?"*
 
+**Aggregation vs. exact certification.** All five modes run on the default NSGA engine — pick the one that matches the meaning. The optional *exact* audit is narrower: a binary selection certifies only with `sum` objectives (the MILP is linear), and a mean-variance portfolio with `sum`/`avg` linear objectives plus its one **minimize**-`quadratic` risk term; `min`/`max` (and a maximize-quadratic) stay heuristic. So if an exact certificate will matter and the semantics genuinely allow a total, `sum` keeps that option open — but don't force `sum` onto an `avg`/`min`/`max` meaning just to certify (that answers a different question). Details: `optimization_strategy` → *Exact Solvers*.
+
 **Quadratic** is for when the portfolio value depends on pairwise interactions (e.g., risk reduced by diversification). Requires an `interaction_matrices` entry with the pairwise matrix. Individual scores are still needed for display.
 
 ### Scope Calibration

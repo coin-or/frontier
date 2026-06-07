@@ -18,6 +18,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { Client as MCPClient } from "@modelcontextprotocol/sdk/client/index.js";
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { SYSTEM_PROMPT } from "./system-prompt";
+import { compactHistory } from "./compaction";
 
 export type ChatMessage = {
   role: "user" | "assistant";
@@ -27,6 +28,36 @@ export type ChatMessage = {
 export type AgentRuntime = {
   stream: (messages: ChatMessage[]) => Promise<ReadableStream<Uint8Array>>;
 };
+
+// ─── history compaction budget ──────────────────────────────────────────────
+// The UI resends the whole transcript every turn with no compaction of its own, so a long
+// session grows until it hits the model's context window and the request hard-fails. Before
+// each call we trim older middle turns (compaction.ts) when (system + history) approaches a
+// budget, pinning the durable index (system prompt), the first user turn, and the recent
+// exchange. All knobs are env-tunable; defaults target the prod Anthropic path (Opus, 200k).
+const CONTEXT_WINDOW = Number(process.env.AGENT_CONTEXT_WINDOW ?? "200000");
+const COMPACTION_OUTPUT_RESERVE = Number(process.env.AGENT_OUTPUT_RESERVE ?? "24000");
+const KEEP_RECENT_MESSAGES = Number(process.env.AGENT_KEEP_RECENT_MESSAGES ?? "8");
+
+// Trim history to fit the context window, reserving room for the system prompt (counted
+// inside) and `maxTokens` of response. No-op until the budget is approached.
+function applyCompaction(
+  messages: ChatMessage[],
+  systemText: string,
+  maxTokens: number,
+): ChatMessage[] {
+  const budget = Math.max(20000, CONTEXT_WINDOW - maxTokens - COMPACTION_OUTPUT_RESERVE);
+  const { messages: out, compacted, dropped } = compactHistory(
+    messages,
+    systemText,
+    budget,
+    KEEP_RECENT_MESSAGES,
+  );
+  if (compacted) {
+    console.warn(`[frontier] history compaction: elided ${dropped} middle turn(s) to fit context`);
+  }
+  return out;
+}
 
 const FRONTIER_MCP_URL =
   process.env.FRONTIER_MCP_URL ??
@@ -112,6 +143,8 @@ const messagesApiAdapter: AgentRuntime = {
     const system = serverInstructions
       ? `${SYSTEM_PROMPT}\n\n${serverInstructions}`
       : SYSTEM_PROMPT;
+    // Trim older middle turns if the transcript is approaching the context window.
+    const history = applyCompaction(messages, system, maxTokens);
     const params: any = {
       model: MODEL,
       max_tokens: maxTokens,
@@ -129,7 +162,7 @@ const messagesApiAdapter: AgentRuntime = {
       tools: [
         { type: "mcp_toolset", mcp_server_name: "frontier" },
       ],
-      messages: messages as Anthropic.MessageParam[],
+      messages: history as Anthropic.MessageParam[],
       betas: ["mcp-client-2025-11-20"],
     };
     const upstream = await client.beta.messages.stream(params);
@@ -331,9 +364,16 @@ const openAICompatibleAdapter: AgentRuntime = {
           const systemContent = serverInstructions
             ? `${SYSTEM_PROMPT}\n\n${serverInstructions}`
             : SYSTEM_PROMPT;
+          // Trim older middle turns if the transcript is approaching the context window.
+          // Provider context windows vary — set AGENT_CONTEXT_WINDOW to match the target.
+          const history = applyCompaction(
+            messages,
+            systemContent,
+            Number(process.env.OPENAI_MAX_TOKENS ?? "16000"),
+          );
           const convo: OpenAIMessage[] = [
             { role: "system", content: systemContent },
-            ...translateMessagesToOpenAI(messages),
+            ...translateMessagesToOpenAI(history),
           ];
 
           // 4. Tool-call loop. Block index is monotonically increasing across
@@ -655,10 +695,13 @@ const anthropicLocalAdapter: AgentRuntime = {
             ? `${SYSTEM_PROMPT}\n\n${serverInstructions}`
             : SYSTEM_PROMPT;
 
+          // Trim older middle turns if the transcript is approaching the context window.
+          const history = applyCompaction(messages, systemPrompt, maxTokens);
+
           // 3. Seed conversation. Translate UI's Anthropic-shaped history into
           //    the API's shape (mcp_tool_use → tool_use, mcp_tool_result → tool_result).
           const convo: AnthropicMessage[] = [];
-          for (const m of messages) {
+          for (const m of history) {
             if (typeof m.content === "string") {
               if (m.role === "user") {
                 convo.push({ role: "user", content: m.content });

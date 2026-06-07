@@ -66,11 +66,38 @@ def exact_solver_fits(problem: "Problem") -> tuple[bool, str]:
     from engine.models import Aggregation, Approach, Direction
 
     if problem.approach == Approach.binary:
+        # The binary inner solve is a linear MILP (minimize Σ coef·x), so it represents only
+        # additive (sum) objectives. `avg` is fractional over a variable-size selection;
+        # `min`/`max`/`quadratic` are nonlinear — none linearize into the MILP, and silently
+        # optimizing their sum would mis-certify (NSGA evaluates the true aggregation, the
+        # exact run the sum, so the certificate compares different objective spaces). Decline
+        # with a redefine hint instead.
+        nonsum = [o for o in problem.objectives if o.aggregation != Aggregation.sum]
+        if nonsum:
+            aggs = ", ".join(sorted({o.aggregation.value for o in nonsum}))
+            names = ", ".join(o.name for o in nonsum)
+            return False, (
+                f"the exact MILP optimizes additive (sum) objectives; on a binary selection "
+                f"{names} use {aggs} aggregation (avg is fractional, min/max/quadratic nonlinear), "
+                "out of exact scope. Redefine these as sum to certify, or keep the aggregation and "
+                "explore with the NSGA heuristic."
+            )
         return True, ""
     if problem.approach != Approach.proportional:
         return False, (
             "exact backends support binary selection or proportional mean-variance "
             f"portfolios; approach is '{getattr(problem.approach, 'value', problem.approach)}'"
+        )
+    # The proportional inner solve is a convex QP: linear (sum/avg) objectives plus one
+    # quadratic variance term. `min`/`max` are nonlinear and out of scope.
+    nonlinear = [o for o in problem.objectives if o.aggregation in (Aggregation.min, Aggregation.max)]
+    if nonlinear:
+        aggs = ", ".join(sorted({o.aggregation.value for o in nonlinear}))
+        names = ", ".join(o.name for o in nonlinear)
+        return False, (
+            f"the exact QP optimizes linear (sum/avg) and quadratic objectives; {names} use "
+            f"{aggs} aggregation (nonlinear), out of exact scope. Redefine as sum/avg, or explore "
+            "with the NSGA heuristic."
         )
     quad = [o for o in problem.objectives if o.aggregation == Aggregation.quadratic]
     if not quad:
