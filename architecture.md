@@ -227,7 +227,7 @@ Tool responses include the relevant skill content for the *next* workflow phase,
 | `model/update` (objectives/options) | `data_collection` (if not already injected) |
 | `model/update` (scores hit 100%) | `optimization_strategy` |
 | `solve/validate` (ready=true) | `optimization_strategy` (if not already injected) |
-| `solve/run` response | `solution_interpreter` (always, on every solve) |
+| `solve/run` response | `solution_interpreter` (first solve per problem; re-armed by a structural edit) |
 
 Re-injection of `optimization_strategy` only fires on problem *shape* changes (objectives or options). Refinements (constraints, interaction_matrices, scenarios, reference_points, approach flip, score updates) don't re-trigger — the methodology guidance hasn't changed.
 

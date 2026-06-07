@@ -9,7 +9,7 @@ Injection map:
   model/create response             → data_collection skill
   model/update (objectives/options)  → data_collection skill (if not already injected)
   model/update (scores hit 100%)     → optimization_strategy skill
-  solve/run response                → solution_interpreter skill (always, on every solve)
+  solve/run response                → solution_interpreter skill (first solve per problem; re-armed by a structural edit)
   solve/validate (ready=true)       → optimization_strategy skill (if not already injected)
 """
 
@@ -445,8 +445,8 @@ def model(
                 interaction_matrices (list of {objective, entries} for quadratic aggregation).
                 Scores use merge semantics; everything else is full replacement.
                 Side effects: structural edits (objectives/options/constraints/approach/matrices/scenarios)
-                mark the latest run stale and reset the optimization_strategy and solution_interpreter
-                injection flags so the next solve re-injects them.
+                mark the latest run stale and re-arm solution_interpreter — and, on an objectives/options
+                shape change, optimization_strategy — so the next solve re-injects fresh guidance.
       get     — Problem state. Params: problem_id, section? (optional).
                 Without section: full dump (can exceed token cap for large models).
                 With section: targeted slice. Valid sections:
