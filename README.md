@@ -130,7 +130,7 @@ Point your MCP client at the local server — for SSE that's `http://localhost:8
 Both pieces are plain web services — host them anywhere (Render, Fly, Railway, a VPS, Docker):
 
 - **Engine** (Python) — `pip install -r requirements.txt`, then `MCP_TRANSPORT=sse python -m mcp_server.server`. Set `MCP_HOST=0.0.0.0` and `FRONTIER_MCP_TOKEN`; the host supplies `$PORT`. Must be publicly reachable — Anthropic's MCP connector calls it.
-- **Web UI** (Node, in `ui/`) — `npm install && npm run build`, then `npm start`. Set `FRONTIER_MCP_URL` (the engine's `/sse`), `FRONTIER_MCP_TOKEN`, `ANTHROPIC_API_KEY`, `AGENT_BACKEND=messages-api`, and `UI_ACCESS_PASSWORD`.
+- **Web UI** (Node, in `ui/`) — `npm install && npm run build`, then `npm start`. Set `FRONTIER_MCP_URL` (the engine's `/sse`), `FRONTIER_MCP_TOKEN`, `ANTHROPIC_API_KEY`, `AGENT_BACKEND=messages-api`, and `UI_ACCESS_PASSWORD`. Long sessions are kept under the model's context window automatically (older turns are compacted with a breadcrumb); tune with the optional `AGENT_CONTEXT_WINDOW` / `AGENT_OUTPUT_RESERVE` / `AGENT_KEEP_RECENT_MESSAGES` if your model differs from the Opus default.
 
 `FRONTIER_MCP_TOKEN` must match on both — that's what authenticates the UI to the engine.
 
