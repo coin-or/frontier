@@ -59,6 +59,37 @@ function applyCompaction(
   return out;
 }
 
+// ─── server-side context management (Anthropic adapters) ────────────────────
+// Anthropic's *native* context management keeps a long session under the window the way a
+// coding-agent harness does — server-side, and far better than the client-side trim above.
+// `clear_tool_uses` (the recommended strategy for tool-heavy agentic loops) drops the oldest
+// tool results — Frontier's large explore/solve JSON — replacing each with a placeholder once
+// context crosses a threshold; `compact` summarizes instead. The client-side `applyCompaction`
+// stays as the provider-agnostic floor (it also covers the openai-compatible adapter, which has
+// no equivalent) and the last-resort net below the model's hard limit.
+//
+// Env-gated: AGENT_CONTEXT_MANAGEMENT = clear_tool_uses (default) | compact | off. Documented-
+// safe with client-side tool definitions (anthropic-local). On the messages-api MCP-connector
+// path the beta-combination isn't doc-confirmed — smoke-test on staging, and set =off to disable
+// instantly if the connector rejects it. Returns the beta to add + the context_management param.
+const CONTEXT_MGMT = process.env.AGENT_CONTEXT_MANAGEMENT ?? "clear_tool_uses";
+
+function contextManagement(): { beta: string; context_management: unknown } | null {
+  if (CONTEXT_MGMT === "clear_tool_uses") {
+    return {
+      beta: "context-management-2025-06-27",
+      context_management: { edits: [{ type: "clear_tool_uses_20250919" }] },
+    };
+  }
+  if (CONTEXT_MGMT === "compact") {
+    return {
+      beta: "compact-2026-01-12",
+      context_management: { edits: [{ type: "compact_20260112" }] },
+    };
+  }
+  return null; // "off" or unrecognized → client-side applyCompaction only
+}
+
 const FRONTIER_MCP_URL =
   process.env.FRONTIER_MCP_URL ??
   (process.env.FRONTIER_MCP_HOST
@@ -143,8 +174,11 @@ const messagesApiAdapter: AgentRuntime = {
     const system = serverInstructions
       ? `${SYSTEM_PROMPT}\n\n${serverInstructions}`
       : SYSTEM_PROMPT;
-    // Trim older middle turns if the transcript is approaching the context window.
+    // Trim older middle turns if the transcript is approaching the context window
+    // (client-side floor), and let the engine's native context management clear old tool
+    // results / compact server-side (the coding-agent-grade path).
     const history = applyCompaction(messages, system, maxTokens);
+    const cm = contextManagement();
     const params: any = {
       model: MODEL,
       max_tokens: maxTokens,
@@ -163,7 +197,8 @@ const messagesApiAdapter: AgentRuntime = {
         { type: "mcp_toolset", mcp_server_name: "frontier" },
       ],
       messages: history as Anthropic.MessageParam[],
-      betas: ["mcp-client-2025-11-20"],
+      ...(cm ? { context_management: cm.context_management } : {}),
+      betas: ["mcp-client-2025-11-20", ...(cm ? [cm.beta] : [])],
     };
     const upstream = await client.beta.messages.stream(params);
 
@@ -697,6 +732,7 @@ const anthropicLocalAdapter: AgentRuntime = {
 
           // Trim older middle turns if the transcript is approaching the context window.
           const history = applyCompaction(messages, systemPrompt, maxTokens);
+          const cm = contextManagement();
 
           // 3. Seed conversation. Translate UI's Anthropic-shaped history into
           //    the API's shape (mcp_tool_use → tool_use, mcp_tool_result → tool_result).
@@ -740,7 +776,8 @@ const anthropicLocalAdapter: AgentRuntime = {
               output_config: { effort },
               tools: anthropicTools as any,
               messages: convo as any,
-              betas: ["interleaved-thinking-2025-05-14"],
+              ...(cm ? { context_management: cm.context_management } : {}),
+              betas: ["interleaved-thinking-2025-05-14", ...(cm ? [cm.beta] : [])],
             } as any);
 
             type Pending =
