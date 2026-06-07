@@ -124,3 +124,27 @@ test("breadcrumb falls back to a generic re-fetch note when no skill is in the d
   assert.match(crumb, /get_skill\(<name>\)/);
   assert.doesNotMatch(crumb, /Active workflow guidance was/);
 });
+
+test("degrades safely on bad tunables — env-sourced keepRecent/budget must never crash or corrupt", () => {
+  const h = buildHistory();
+  // keepRecent <= 0 (AGENT_KEEP_RECENT_MESSAGES=0) must not crash, and must clamp to a valid
+  // structure rather than indexing past the end of the array.
+  assert.doesNotThrow(() => compactHistory(h, "system", 50, 0));
+  const zero = compactHistory(h, "system", 50, 0);
+  assert.equal(zero.messages[0].role, "user");
+  for (let i = 1; i < zero.messages.length; i++) {
+    assert.notEqual(zero.messages[i].role, zero.messages[i - 1].role);
+  }
+  // Non-numeric keepRecent → default; must not duplicate the head or grow the transcript.
+  const nan = compactHistory(h, "system", 50, NaN);
+  assert.ok(Number.isFinite(nan.dropped));
+  assert.ok(nan.messages.length <= h.length);
+  // Non-finite budget (bad AGENT_CONTEXT_WINDOW) → no-op, not a NaN-driven mis-trim.
+  const badBudget = compactHistory(h, "system", NaN, 4);
+  assert.equal(badBudget.compacted, false);
+  assert.equal(badBudget.messages, h);
+  // First message not a user turn → bail rather than emit an assistant-led history.
+  const assistantLed = [mkAsst("preamble"), ...h];
+  const r = compactHistory(assistantLed, "system", 50, 4);
+  assert.equal(r.compacted, false);
+});

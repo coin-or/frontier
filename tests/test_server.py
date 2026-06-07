@@ -1862,6 +1862,44 @@ class TestDecisionGuidancePointers:
         assert result["source"] == "frontier_inferred"
         self._assert_pointer(result, "Binding Analysis")
 
+    def test_scenario_results_points_to_its_section(self):
+        pid = _build_solvable_problem()
+        srv.model(action="update", problem_id=pid, scenario_config={
+            "enabled": True,
+            "scenarios": [
+                {"name": "Base", "probability": 0.5, "score_overrides": []},
+                {"name": "Alt", "probability": 0.5, "score_overrides": [
+                    {"option": "A", "objective": "Rev", "value": 1}]},
+            ],
+        })
+        srv.solve(action="run_scenarios", problem_id=pid)
+        result = srv.explore(action="scenario_results", problem_id=pid)
+        self._assert_pointer(result, "Scenario Results Presentation")
+
+    def test_compare_curated_points_to_differentiating_options(self):
+        pid = self._solved_pid()
+        sols = srv.explore(action="solutions", problem_id=pid)["solutions"]
+        for s, nm in zip(sols[:2], ("A", "B")):
+            srv.explore(action="curate", problem_id=pid, solution_id=s["solution_id"], custom_name=nm)
+        sigs = [c["content_signature"]
+                for c in srv.explore(action="curated", problem_id=pid)["curated_solutions"]]
+        result = srv.explore(action="compare_curated", problem_id=pid, signatures=sigs[:2])
+        self._assert_pointer(result, "Differentiating Options")
+
+    def test_certify_points_to_reading_the_certificate(self):
+        """certify is the only branch that ALSO injects the full skill — assert the section
+        pointer still attaches alongside that injection."""
+        from solvers import available_solvers
+        if not available_solvers().get("highs"):
+            import pytest
+            pytest.skip("highs backend not installed")
+        pid = _build_solvable_problem()
+        srv.solve(action="run", problem_id=pid, seed=1)
+        srv.solve(action="run", problem_id=pid, solver="highs", seed=1)
+        result = srv.explore(action="certify", problem_id=pid)
+        assert "error" not in result, result
+        self._assert_pointer(result, "Reading the Certificate (explore certify)")
+
     def test_non_decision_action_gets_no_pointer(self):
         """`solutions` is navigation, not a decision step — no pointer."""
         pid = self._solved_pid()

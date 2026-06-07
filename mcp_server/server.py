@@ -1591,6 +1591,7 @@ def _format_explore(result: dict) -> dict:
 _DECISION_GUIDANCE: dict[str, tuple[str, str]] = {
     "tradeoffs": ("solution_interpreter", "Presentation Order: Extremes → Balanced → Inflection → Risk → Preference"),
     "compare": ("solution_interpreter", "Differentiating Options"),
+    "compare_curated": ("solution_interpreter", "Differentiating Options"),
     "scenario_results": ("solution_interpreter", "Scenario Results Presentation"),
     "marginal_analysis": ("solution_interpreter", "Marginal Analysis Interpretation"),
     "curate": ("solution_interpreter", "Solution Curation"),
@@ -1913,9 +1914,10 @@ def explore(
             if not signatures or len(signatures) < 2:
                 return {"error": "signatures must contain at least 2 content_signature strings."}
             try:
-                return _format_explore(explorer.compare_curated(p, signatures, detail=detail))
+                result = _format_explore(explorer.compare_curated(p, signatures, detail=detail))
             except ValueError as e:
                 return {"error": str(e)}
+            return _attach_guidance_pointer(result, action)
         case "marginal_analysis":
             try:
                 result = explorer.marginal_analysis(p, scenario=scenario, detail=detail, source=source)

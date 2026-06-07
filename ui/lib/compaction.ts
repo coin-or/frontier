@@ -44,7 +44,7 @@ function messageText(m: ChatMessage): string {
 // `guidance_pointer` (decision-step section pointer), each an object whose first key is
 // the skill name. Match against the raw tool-result text (not the JSON-escaped envelope),
 // so we can name the active skill in the breadcrumb for re-fetch.
-const SKILL_RE = /"(?:_skill_guidance|guidance_pointer)"\s*:\s*\{[^{}]*?"skill"\s*:\s*"([a-z_]+)"/;
+const SKILL_RE = /"(?:_skill_guidance|guidance_pointer)"\s*:\s*\{[^{}]*?"skill"\s*:\s*"([a-z0-9_]+)"/;
 
 function toolResultTexts(m: ChatMessage): string[] {
   if (typeof m.content === "string") return [];
@@ -90,20 +90,34 @@ export function compactHistory(
   budgetTokens: number,
   keepRecent: number,
 ): CompactionResult {
+  // Sanitize the tunables — they originate from env vars, and the function whose job is to
+  // PREVENT a hard-fail must not itself crash or corrupt on a typo: a non-positive/non-numeric
+  // keepRecent clamps to a sane default, and a non-finite budget (can't size the window) falls
+  // through to the no-op below rather than mis-trimming.
+  const keep = Number.isFinite(keepRecent) ? Math.max(1, Math.floor(keepRecent)) : 8;
   const used =
     estimateTokens(systemText) +
     messages.reduce((sum, m) => sum + estimateTokens(messageText(m)), 0);
 
-  // Under budget, or too short for trimming to buy anything → leave it exactly as-is.
-  if (used <= budgetTokens || messages.length <= keepRecent + 2) {
+  // Leave it exactly as-is when: budget is unknown, we're under budget, it's too short for
+  // trimming to buy anything, or the transcript doesn't start on a user turn (compaction
+  // relies on the UI's user-first alternation — bailing beats emitting an assistant-led
+  // history the APIs reject).
+  if (
+    !Number.isFinite(budgetTokens) ||
+    used <= budgetTokens ||
+    messages.length <= keep + 2 ||
+    messages[0]?.role !== "user"
+  ) {
     return { messages, compacted: false, dropped: 0 };
   }
 
   const head = 0; // the first user turn — the decision anchor
-  // Retain the last `keepRecent` messages, but back the cut up to a user message so the
+  // Retain the last `keep` messages, but back the cut up to a user message so the
   // breadcrumb→tail boundary lands on a user turn (keeps alternation; never orphans a
-  // tool_result, though in the UI shape results are already turn-internal).
-  let tailStart = Math.max(messages.length - keepRecent, head + 1);
+  // tool_result, though in the UI shape results are already turn-internal). keep>=1 keeps
+  // tailStart strictly below messages.length, so the index below is always in range.
+  let tailStart = Math.max(messages.length - keep, head + 1);
   while (tailStart > head + 1 && messages[tailStart].role !== "user") tailStart--;
 
   const dropped = tailStart - (head + 1);
