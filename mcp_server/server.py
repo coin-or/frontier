@@ -69,11 +69,16 @@ mcp = FastMCP(
         "{status:\"running\", job_id} instead of blocking — poll solve(action=\"status\", job_id=...) until "
         "status=\"complete\". This is normal; narrate progress to the user between polls and never claim "
         "results while a solve is still running.\n\n"
-        "Domain skills — problem_framing, data_collection, optimization_strategy, solution_interpreter — "
-        "are the canonical guides. data_collection / optimization_strategy / solution_interpreter "
-        "auto-inject into tool responses at phase transitions. "
-        "problem_framing is NOT auto-injected — read it via get_skill('problem_framing') "
-        "BEFORE the first model/create whenever the framing isn't obvious. Re-read via get_skill() to refresh.\n\n"
+        "GUIDANCE MAP — your durable index. Four canonical skills, one per phase:\n"
+        "  - problem_framing — FRAMING: objectives vs constraints, approach (binary/proportional), aggregation, scenarios.\n"
+        "  - data_collection — SCORING: eliciting/estimating scores without anchoring bias, quality signals.\n"
+        "  - optimization_strategy — SOLVING: mode + solver choice (incl. the exact-certify flow), constraint strategy, infeasibility, iteration.\n"
+        "  - solution_interpreter — INTERPRETING: presenting tradeoffs (never 'best'), reading the certificate + exact sensitivity, curation, deciding.\n"
+        "data_collection / optimization_strategy / solution_interpreter AUTO-INJECT (full text) into tool responses at their phase transition. "
+        "problem_framing does NOT — call get_skill('problem_framing') before the first model/create when framing isn't obvious.\n"
+        "PERSISTENCE: in a long session a skill's full text can scroll out of context, but this map stays here. If you're deciding in a "
+        "phase whose guide you no longer have in view, RE-FETCH it with get_skill(<name>) before acting — don't proceed from memory. "
+        "Tool responses also name the specific section to re-read.\n\n"
         "## Pre-create framing checklist (read before model/create)\n"
         "Picking the right approach + aggregation upfront avoids a re-solve. Ask:\n"
         "1. Approach — does the user want to *select* options or *allocate* across them?\n"
@@ -1572,6 +1577,55 @@ def _format_explore(result: dict) -> dict:
     return result
 
 
+# ─── Decision-step guidance pointers ───
+#
+# At each explore/decision action, name the specific skill section that governs reading
+# THAT output, plus the get_skill() re-fetch path. This is the lightweight cousin of the
+# full skill auto-injection and the runtime half of the durable index's promise ("Tool
+# responses also name the specific section to re-read"): the index in the server
+# `instructions` survives compaction, but a skill's full text may scroll out of a long
+# session — so every decision action points at the section to re-read and how to get it
+# back, leaving the agent either holding the guidance or one call away from it. Centralized
+# as one map + one helper so the convention stays uniform, never re-stated per action.
+
+_DECISION_GUIDANCE: dict[str, tuple[str, str]] = {
+    "tradeoffs": ("solution_interpreter", "Presentation Order: Extremes → Balanced → Inflection → Risk → Preference"),
+    "compare": ("solution_interpreter", "Differentiating Options"),
+    "scenario_results": ("solution_interpreter", "Scenario Results Presentation"),
+    "marginal_analysis": ("solution_interpreter", "Marginal Analysis Interpretation"),
+    "curate": ("solution_interpreter", "Solution Curation"),
+    "certify": ("solution_interpreter", "Reading the Certificate (explore certify)"),
+    "sensitivity": ("solution_interpreter", "Exact Sensitivity — Shadow Prices & Reduced Costs (solver duals)"),
+}
+
+
+def _attach_guidance_pointer(result: dict, action: str) -> dict:
+    """Point a decision action's response at the skill section that governs reading it.
+
+    No-op for non-decision actions and for error results (nothing to present). The note's
+    conditional phrasing holds whether or not the full skill is also in context: if it is,
+    the agent reads on; if it scrolled out, the agent re-fetches — so this composes cleanly
+    with the once-per-problem full-skill injection rather than contradicting it."""
+    if not isinstance(result, dict) or "error" in result:
+        return result
+    entry = _DECISION_GUIDANCE.get(action)
+    if not entry:
+        return result
+    skill, section = entry
+    # Sensitivity falls back to the frontier-inferred binding analysis when a problem has no
+    # exact duals — point at that section instead so the cited guidance matches the output.
+    if action == "sensitivity" and result.get("source") == "frontier_inferred":
+        section = "Binding Analysis"
+    result["guidance_pointer"] = {
+        "skill": skill,
+        "section": section,
+        "note": (f"Present this with the {skill} skill → '{section}'. If that guidance isn't in "
+                 f"recent context (long session / compaction), re-fetch it with get_skill('{skill}') "
+                 "before presenting — don't go from memory."),
+    }
+    return result
+
+
 # ─── Tool 3: explore ───
 
 
@@ -1714,9 +1768,10 @@ def explore(
     match action:
         case "tradeoffs":
             try:
-                return _format_explore(explorer.get_tradeoffs(p, scenario=scenario, source=source))
+                result = _format_explore(explorer.get_tradeoffs(p, scenario=scenario, source=source))
             except ValueError as e:
                 return {"error": str(e)}
+            return _attach_guidance_pointer(result, action)
         case "sensitivity":
             try:
                 result = explorer.sensitivity_analysis(
@@ -1730,14 +1785,15 @@ def explore(
                     "Duals are local to this reference solution — route a large shadow price back to "
                     "framing (is that floor/cap negotiable?), or `explore curate` the chosen "
                     "allocation to pin it.")
-            return result
+            return _attach_guidance_pointer(result, action)
         case "compare":
             if not solution_ids or len(solution_ids) < 2:
                 return {"error": "solution_ids must contain at least 2 IDs for compare."}
             try:
-                return _format_explore(explorer.compare_solutions(p, solution_ids, scenario=scenario, source=source))
+                result = _format_explore(explorer.compare_solutions(p, solution_ids, scenario=scenario, source=source))
             except ValueError as e:
                 return {"error": str(e)}
+            return _attach_guidance_pointer(result, action)
         case "solutions":
             try:
                 result = explorer.get_solutions(p, scenario=scenario, detail=detail, source=source)
@@ -1807,12 +1863,13 @@ def explore(
             if not _was_injected(p.problem_id, "solution_interpreter"):
                 _inject_skill(result, "solution_interpreter", _SOLUTION_INTERPRETER_PROMPT)
                 _mark_injected(p.problem_id, "solution_interpreter")
-            return result
+            return _attach_guidance_pointer(result, action)
         case "scenario_results":
             try:
-                return _format_explore(explorer.get_scenario_results(p, cvar_alpha=cvar_alpha))
+                result = _format_explore(explorer.get_scenario_results(p, cvar_alpha=cvar_alpha))
             except ValueError as e:
                 return {"error": str(e)}
+            return _attach_guidance_pointer(result, action)
         case "scenario_frontiers":
             try:
                 return explorer.get_scenario_frontiers(p)
@@ -1824,7 +1881,7 @@ def explore(
             try:
                 result = explorer.curate_solution(p, solution_id, custom_name or "", notes or "", scenario=scenario, source=source)
                 store.save(p)
-                return result
+                return _attach_guidance_pointer(result, action)
             except ValueError as e:
                 return {"error": str(e)}
         case "uncurate":
@@ -1861,9 +1918,10 @@ def explore(
                 return {"error": str(e)}
         case "marginal_analysis":
             try:
-                return explorer.marginal_analysis(p, scenario=scenario, detail=detail, source=source)
+                result = explorer.marginal_analysis(p, scenario=scenario, detail=detail, source=source)
             except ValueError as e:
                 return {"error": str(e)}
+            return _attach_guidance_pointer(result, action)
         case _:
             return {"error": f"Unknown action: {action}."}
 

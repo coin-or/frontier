@@ -1812,3 +1812,79 @@ class TestCertify:
         r2 = srv.solve(action="run", problem_id=pid, seed=2)["run_id"]
         r = srv.explore(action="certify", problem_id=pid, run_ids=[r1, r2])
         assert "error" in r and "one NSGA run and one exact" in r["error"]
+
+
+class TestDecisionGuidancePointers:
+    """A2 — every explore/decision action names the skill section that governs reading it
+    plus the get_skill() re-fetch path, so guidance survives a compacted long session."""
+
+    def _solved_pid(self):
+        pid = _build_solvable_problem()
+        srv.solve(action="run", problem_id=pid)
+        return pid
+
+    def _assert_pointer(self, result, section):
+        gp = result.get("guidance_pointer")
+        assert gp is not None, f"expected a guidance_pointer, got keys {list(result)}"
+        assert gp["skill"] == "solution_interpreter"
+        assert gp["section"] == section
+        # The note must carry the re-fetch path — that's the compaction-survivor trigger.
+        assert "get_skill('solution_interpreter')" in gp["note"]
+
+    def test_tradeoffs_points_to_presentation_order(self):
+        pid = self._solved_pid()
+        result = srv.explore(action="tradeoffs", problem_id=pid)
+        self._assert_pointer(
+            result, "Presentation Order: Extremes → Balanced → Inflection → Risk → Preference")
+
+    def test_compare_points_to_differentiating_options(self):
+        pid = self._solved_pid()
+        ids = [s["solution_id"] for s in srv.explore(action="solutions", problem_id=pid)["solutions"]]
+        result = srv.explore(action="compare", problem_id=pid, solution_ids=ids[:2])
+        self._assert_pointer(result, "Differentiating Options")
+
+    def test_marginal_analysis_points_to_its_section(self):
+        pid = self._solved_pid()
+        result = srv.explore(action="marginal_analysis", problem_id=pid)
+        self._assert_pointer(result, "Marginal Analysis Interpretation")
+
+    def test_curate_points_to_solution_curation(self):
+        pid = self._solved_pid()
+        sid = srv.explore(action="solutions", problem_id=pid)["solutions"][0]["solution_id"]
+        result = srv.explore(action="curate", problem_id=pid, solution_id=sid, custom_name="Pick")
+        self._assert_pointer(result, "Solution Curation")
+
+    def test_sensitivity_fallback_points_to_binding_analysis(self):
+        """No exact duals on a binary NSGA run → frontier-inferred fallback, so the pointer
+        must cite Binding Analysis (not Exact Sensitivity) to match the output."""
+        pid = self._solved_pid()
+        result = srv.explore(action="sensitivity", problem_id=pid)
+        assert result["source"] == "frontier_inferred"
+        self._assert_pointer(result, "Binding Analysis")
+
+    def test_non_decision_action_gets_no_pointer(self):
+        """`solutions` is navigation, not a decision step — no pointer."""
+        pid = self._solved_pid()
+        result = srv.explore(action="solutions", problem_id=pid)
+        assert "guidance_pointer" not in result
+
+    def test_helper_is_noop_on_error_and_unknown_action(self):
+        assert "guidance_pointer" not in srv._attach_guidance_pointer({"error": "x"}, "tradeoffs")
+        assert "guidance_pointer" not in srv._attach_guidance_pointer({"ok": 1}, "list")
+
+    def test_mapped_sections_are_real_skill_headings(self):
+        """Drift guard: every section the map cites (plus the sensitivity fallback) must exist
+        as an actual heading in its skill, so a pointer never sends the agent to a dead anchor."""
+        sections_by_skill: dict[str, set[str]] = {}
+        for skill, section in srv._DECISION_GUIDANCE.values():
+            sections_by_skill.setdefault(skill, set()).add(section)
+        sections_by_skill["solution_interpreter"].add("Binding Analysis")  # sensitivity fallback
+        for skill, sections in sections_by_skill.items():
+            path = srv.SKILLS_DIR / srv._SKILL_MAP[skill] / "SKILL.md"
+            headings = {
+                line.lstrip("#").strip()
+                for line in path.read_text().splitlines()
+                if line.lstrip().startswith("#")
+            }
+            missing = sections - headings
+            assert not missing, f"{skill} SKILL.md is missing heading(s): {missing}"
