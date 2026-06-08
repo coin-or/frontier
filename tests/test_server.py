@@ -1926,3 +1926,60 @@ class TestDecisionGuidancePointers:
             }
             missing = sections - headings
             assert not missing, f"{skill} SKILL.md is missing heading(s): {missing}"
+
+
+class TestComposition:
+    def test_composition_returns_blocks_and_pointer(self):
+        pid = _build_solvable_problem()
+        srv.solve(action="run", problem_id=pid)
+        r = srv.explore(action="composition", problem_id=pid)
+        assert "option_selection" in r
+        assert "design_principles" in r
+        assert "clusters" in r
+        assert "feedback_rules" in r
+        assert r["feedback_rules"]["available"] is False
+        assert r["scope"]["set"] == "frontier"
+        assert r["guidance_pointer"]["skill"] == "solution_interpreter"
+        assert r["guidance_pointer"]["section"] == "Mining the Solution Set"
+
+    def test_composition_curated_subset(self):
+        pid = _build_solvable_problem()
+        srv.solve(action="run", problem_id=pid)
+        sols = srv.explore(action="solutions", problem_id=pid)["solutions"]
+        sid = sols[0]["solution_id"]
+        r = srv.explore(action="composition", problem_id=pid, solution_ids=[sid])
+        assert r["scope"]["set"] == "curated"
+        assert r["scope"]["n_solutions"] == 1
+
+
+class TestRegret:
+    def _add_scenarios(self, pid):
+        srv.model(action="update", problem_id=pid, scenario_config={
+            "enabled": True,
+            "scenarios": [
+                {"name": "Base", "probability": 0.6, "score_overrides": []},
+                {"name": "Down", "probability": 0.4, "score_overrides": [
+                    {"option": "A", "objective": "Rev", "value": 1},
+                ]},
+            ],
+        })
+
+    def test_scenario_results_includes_regret(self):
+        pid = _build_solvable_problem()
+        srv.solve(action="run", problem_id=pid)   # base frontier needed for regret
+        self._add_scenarios(pid)
+        srv.solve(action="run_scenarios", problem_id=pid)
+        regret = srv.explore(action="scenario_results", problem_id=pid)["regret"]
+        assert regret["available"] is True
+        assert regret["method"] == "scenario_minimax"
+        assert regret["minimax_choice"] is not None
+        for entry in regret["per_solution"]:
+            assert entry["max_regret"] >= 0.0
+            assert "feasible_in_all" in entry
+
+    def test_regret_absent_without_base_run(self):
+        pid = _build_solvable_problem()
+        self._add_scenarios(pid)
+        srv.solve(action="run_scenarios", problem_id=pid)
+        regret = srv.explore(action="scenario_results", problem_id=pid)["regret"]
+        assert regret["available"] is False

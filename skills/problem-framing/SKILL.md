@@ -55,6 +55,25 @@ Decision makers think in terms of **questions** ("How should we allocate resourc
 
 **Your job is to compress the upstream translation burden**: help users go from a decision question to a well-structured optimization problem in minutes, not days. Do this by asking the right clarifying questions, suggesting structure, and catching misalignment early.
 
+## Two Spaces: Objective and Decision
+
+Every decision lives in two spaces, and keeping them distinct keeps framing clean:
+
+- **Objective space** — the outcomes you want: objectives, objective bounds, and reference points all live here.
+- **Decision space** — what you actually do: the options, and (in proportional mode) their allocations.
+
+The map between them is many-to-one — different option mixes can land at nearly the same outcome. Users express preferences in objective space ("more impact, less cost") but must act in decision space ("fund these five"). Frame goals and limits in objective-space language here; at solve time, `solution_interpreter` carries both back together so a chosen outcome always names the actions that produce it.
+
+## Preference Timing
+
+When the decision-maker's preferences become available shapes how you run the problem. Three modes:
+
+- **A posteriori (Frontier's default).** Preferences form *after* seeing the tradeoffs — enumerate the whole Pareto frontier first, then help the user choose. This is deliberate: research on preference construction shows people calculate preferences at the moment of choice, so committing weights up front discards information. It's why Frontier returns the frontier rather than a single weighted answer.
+- **Interactive.** Preferences are refined in the loop — tighten a constraint, re-solve, compare. The iterate-and-narrow rhythm of explore.
+- **A priori.** Preferences known before solving enter as **constraints** (hard limits) and **reference points** (soft anchors) — never as upfront scalarization weights.
+
+So: capture hard limits and aspirations up front (constraints, reference points), enumerate, then elicit priorities against real tradeoffs — don't ask the user to rank or weight objectives before they've seen a frontier. (See *Reference Points* below; elicitation patterns live in `frontier://skills/solution_interpreter` → *Objective Ranking Elicitation*.)
+
 ## Decision Pitfalls
 
 Unaided, generative reasoning fails on constrained decisions in recognizable ways. These are patterns to watch for — in the user's framing, in your own output, and in solutions you're tempted to narrate without checking. The list isn't exhaustive; spot analogous shapes in new domains.

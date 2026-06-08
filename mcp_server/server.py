@@ -1593,6 +1593,7 @@ _DECISION_GUIDANCE: dict[str, tuple[str, str]] = {
     "compare": ("solution_interpreter", "Differentiating Options"),
     "compare_curated": ("solution_interpreter", "Differentiating Options"),
     "scenario_results": ("solution_interpreter", "Scenario Results Presentation"),
+    "composition": ("solution_interpreter", "Mining the Solution Set"),
     "marginal_analysis": ("solution_interpreter", "Marginal Analysis Interpretation"),
     "curate": ("solution_interpreter", "Solution Curation"),
     "certify": ("solution_interpreter", "Reading the Certificate (explore certify)"),
@@ -1697,7 +1698,9 @@ def explore(
                    Returns option_robustness (sorted by importance = avg_frequency × avg_weight),
                    with tiers: core (>50% freq in all scenarios), common (>25%), marginal (<25%).
                    Also: scenario-specific options, expected values (ideal-point, not achievable),
-                   scenario_risk per objective (expected / worst_case / best_case / cvar_<alpha>%).
+                   scenario_risk per objective (expected / worst_case / best_case / cvar_<alpha>%),
+                   and regret (scenario minimax-regret per solution + the minimax_choice — a
+                   distinct lens from CVaR: how much worse than the best achievable, in hindsight).
                    Optional: cvar_alpha (float in (0,1), default 0.2) to set the CVaR tail fraction.
       curate     — Add solution to curated set.
                    Requires: solution_id. Optional: custom_name, notes, scenario.
@@ -1730,6 +1733,12 @@ def explore(
                    analysis otherwise. Tagged source=solver_exact|frontier_inferred. Continuous/QP
                    only — integer/MILP solutions have no exact duals.
                    Optional: solution_id, scenario, source.
+      composition — Mine the solution set (knowledge discovery): per-option selection count/%
+                   (consensus vs distinctive), option co-occurrence (complements/substitutes),
+                   design principles (always / never / region-bound), decision-space strategy
+                   families (clusters), and — when feedback exists — rules separating liked from
+                   disliked solutions. Operates on the active frontier, or a curated subset.
+                   Optional: solution_ids, signatures, detail, source.
 
     Scenario param (optional):
       Pass scenario="<name>" to inspect a specific scenario's results instead of the base case.
@@ -1921,6 +1930,13 @@ def explore(
         case "marginal_analysis":
             try:
                 result = explorer.marginal_analysis(p, scenario=scenario, detail=detail, source=source)
+            except ValueError as e:
+                return {"error": str(e)}
+            return _attach_guidance_pointer(result, action)
+        case "composition":
+            try:
+                result = explorer.analyze_composition(
+                    p, solution_ids=solution_ids, signatures=signatures, source=source, detail=detail)
             except ValueError as e:
                 return {"error": str(e)}
             return _attach_guidance_pointer(result, action)

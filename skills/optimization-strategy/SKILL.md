@@ -119,6 +119,8 @@ Offer it plainly when you get there — *"You've narrowed to three; this shape l
 
 Classify user constraints by what they restrict: a bound on an objective value, inclusion/exclusion of a specific option, a relationship between options (mutual exclusion, dependency), or a limit on portfolio size or group composition. Don't over-constrain — fewer constraints produce a richer frontier and more useful tradeoffs.
 
+Constraints are also how *a-priori* preferences enter the model (hard limits set before solving); *interactive* preferences are the re-solve loop itself. See *Preference Timing* in `frontier://skills/problem_framing`.
+
 ### Infeasibility Response
 When the solver returns no solutions:
 - Check if cardinality is too tight given force_include/force_exclude.

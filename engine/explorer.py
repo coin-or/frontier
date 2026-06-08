@@ -108,6 +108,10 @@ def get_tradeoffs(problem: Problem, scenario: str | None = None, source: str | N
     # Objective redundancy: classify each pair using Pearson + MI, flag disagreement
     result["objective_redundancy"] = _objective_redundancy(key_tradeoffs, len(solutions))
 
+    # First-class option data: how often each option appears across the frontier
+    # (consensus vs distinctive). Deeper composition/patterns via `explore composition`.
+    result["option_selection"] = option_selection_stats(solutions, problem.approach.value)
+
     # Cue the agent to layer scenario_risk into narration when scenarios exist.
     # Without this, narration from tradeoffs alone forgets scenario data on disk.
     if scenario is None and problem.scenario_run and problem.scenario_run.scenario_runs:
@@ -219,6 +223,7 @@ def get_solutions(problem: Problem, scenario: str | None = None, detail: bool = 
     labels = {s.solution_id: f"[{s.solution_id}]" for s in run.solutions}
     result["visualization"] = _render_parallel_coords(sol_dicts, problem.objectives, labels)
     result["viz_data"] = _viz_data_parallel_coords(sol_dicts, problem.objectives, labels)
+    result["option_selection"] = option_selection_stats(run.solutions, problem.approach.value)
     result["frontier_source"] = _frontier_provenance(problem, run, scenario)
     return result
 
@@ -233,9 +238,456 @@ def get_solution(problem: Problem, solution_id: int, scenario: str | None = None
                 result["vs_references"] = _compute_reference_analysis(
                     s.objective_values, problem.reference_points, problem.objectives,
                 )
+            # First-class option data: how common each of this solution's options is
+            # across the frontier (consensus vs distinctive pick).
+            stats = {e["option"]: e["selection_pct"]
+                     for e in option_selection_stats(run.solutions, problem.approach.value)}
+            present = _present_options(s, problem.approach.value == "proportional" or bool(s.allocations))
+            result["option_context"] = {opt: stats.get(opt, 0.0) for opt in sorted(present)}
             result["frontier_source"] = _frontier_provenance(problem, run, scenario)
             return result
     raise ValueError(f"Solution {solution_id} not found in current run.")
+
+
+# ─── Solution composition & pattern analysis (knowledge-discovery pillar) ───
+
+
+def _present_options(s, proportional: bool) -> set:
+    """Options actually used by a solution — non-zero allocation (proportional) or selected (binary)."""
+    if proportional and s.allocations:
+        return {o for o, p in s.allocations.items() if p > 0}
+    return set(s.selected_options or [])
+
+
+def option_selection_stats(solutions: list, approach: str) -> list[dict]:
+    """Per-option selection frequency across a solution set — first-class option data.
+
+    Binary: selection_count / selection_pct (fraction of solutions including the option).
+    Proportional: inclusion count/pct (non-zero allocation) plus mean allocation weight.
+    Sorted by selection_pct descending. Mirrors the per-scenario Counter pattern in
+    get_scenario_results, but over a single frontier (or curated subset).
+    """
+    n = len(solutions)
+    if n == 0:
+        return []
+    proportional = approach == "proportional" or any(s.allocations for s in solutions)
+    counts: dict[str, int] = {}
+    weight_sum: dict[str, float] = {}
+    for s in solutions:
+        if proportional and s.allocations:
+            for opt, pct in s.allocations.items():
+                if pct > 0:
+                    counts[opt] = counts.get(opt, 0) + 1
+                    weight_sum[opt] = weight_sum.get(opt, 0.0) + pct
+        else:
+            for opt in (s.selected_options or []):
+                counts[opt] = counts.get(opt, 0) + 1
+    stats = []
+    for opt, c in counts.items():
+        entry = {"option": opt, "selection_count": c, "selection_pct": round(c / n, 3)}
+        if proportional:
+            entry["mean_weight"] = round(weight_sum.get(opt, 0.0) / n, 1)
+            entry["mean_weight_if_included"] = round(weight_sum.get(opt, 0.0) / c, 1) if c else 0.0
+        stats.append(entry)
+    stats.sort(key=lambda e: e["selection_pct"], reverse=True)
+    return stats
+
+
+def _co_occurrence(solutions: list, option_selection: list[dict], proportional: bool, top: int = 8) -> list[dict]:
+    """Option-pair lift: lift(A,B) = P(A∧B)/(P(A)·P(B)). >1 complements, <1 substitutes.
+
+    Ranked by departure from independence (|lift-1|), top-N — no value cutoff, the
+    consumer judges salience from the ranked list.
+    """
+    n = len(solutions)
+    if n == 0:
+        return []
+    presence = [_present_options(s, proportional) for s in solutions]
+    p_single = {e["option"]: e["selection_count"] / n for e in option_selection}
+    # Pairs only meaningful for options that sometimes-but-not-always appear.
+    opts = [o for o in p_single if 0 < p_single[o] < 1]
+    pairs = []
+    for i in range(len(opts)):
+        for j in range(i + 1, len(opts)):
+            a, b = opts[i], opts[j]
+            both = sum(1 for ps in presence if a in ps and b in ps) / n
+            denom = p_single[a] * p_single[b]
+            if denom == 0:
+                continue
+            lift = both / denom
+            pairs.append({
+                "options": [a, b],
+                "lift": round(lift, 2),
+                "relation": "complement" if lift > 1 else "substitute",
+            })
+    pairs.sort(key=lambda x: abs(x["lift"] - 1), reverse=True)
+    return pairs[:top]
+
+
+def _design_principles(solutions: list, option_selection: list[dict], co_occ: list[dict],
+                       problem: Problem, proportional: bool) -> list[dict]:
+    """Statements that hold across the set (innovization-lite): always/never present,
+    co-occurs/substitutes, and region-bound (presence tracks an objective)."""
+    n = len(solutions)
+    principles = []
+    for e in option_selection:
+        if e["selection_count"] == n:
+            principles.append({"type": "always", "options": [e["option"]], "support": 1.0,
+                               "detail": f"Every solution on this set includes {e['option']}."})
+    present_opts = {e["option"] for e in option_selection}
+    for o in problem.options:
+        if o.name not in present_opts:
+            principles.append({"type": "never", "options": [o.name], "support": 1.0,
+                               "detail": f"{o.name} appears in no solution on this set."})
+    # region_bound: option presence correlates with an objective value (point-biserial)
+    if n >= 5:
+        varying = [e["option"] for e in option_selection if 0 < e["selection_count"] < n]
+        for opt in varying:
+            pres = np.array([1.0 if opt in _present_options(s, proportional) else 0.0 for s in solutions])
+            if pres.std() == 0:
+                continue
+            best = None
+            for ob in problem.objectives:
+                vals = np.array([s.objective_values[ob.name] for s in solutions])
+                if vals.std() == 0:
+                    continue
+                r = float(np.corrcoef(pres, vals)[0, 1])
+                if best is None or abs(r) > abs(best[1]):
+                    best = (ob.name, r)
+            if best and abs(best[1]) >= 0.6:
+                where = "high" if best[1] > 0 else "low"
+                principles.append({"type": "region_bound", "options": [opt], "support": round(abs(best[1]), 2),
+                                   "detail": f"{opt} appears mainly in {where}-{best[0]} solutions (r={best[1]:+.2f})."})
+    for pair in co_occ[:3]:
+        if pair["relation"] == "complement" and pair["lift"] >= 1.5:
+            principles.append({"type": "co_occurs", "options": pair["options"], "support": round(min(pair["lift"], 9.99), 2),
+                               "detail": f"{pair['options'][0]} and {pair['options'][1]} tend to appear together (lift {pair['lift']})."})
+        elif pair["relation"] == "substitute" and pair["lift"] <= 0.5:
+            principles.append({"type": "substitutes", "options": pair["options"], "support": round(1 - pair["lift"], 2),
+                               "detail": f"{pair['options'][0]} and {pair['options'][1]} rarely appear together (lift {pair['lift']})."})
+    return principles
+
+
+def _cut_by_largest_gap(merge_d, n: int) -> int:
+    """Pick cluster count from the largest jump in merge distance — the natural break
+    where tightly-grouped solutions stop merging. Clamped to a legible handful."""
+    if len(merge_d) < 2:
+        return 1
+    diffs = np.diff(merge_d)
+    if diffs.size == 0:
+        return 1
+    gap_idx = int(np.argmax(diffs))
+    k = len(merge_d) - gap_idx  # merges after the gap aren't applied → that many clusters
+    return max(2, min(k, 6, n))
+
+
+def _decision_space_clusters(solutions: list, problem: Problem, proportional: bool) -> list[dict]:
+    """Cluster solutions in DECISION space (composition), not objective space. Reports
+    each family's defining options and its objective spread — surfacing the survey's
+    point that good decision-space clusters need not be good objective-space clusters."""
+    n = len(solutions)
+    if n < 4:
+        return []
+    opt_names = [o.name for o in problem.options]
+    if proportional:
+        X = np.array([[(s.allocations or {}).get(o, 0) for o in opt_names] for s in solutions], dtype=float)
+        metric = "euclidean"
+    else:
+        X = np.array([[1.0 if o in set(s.selected_options) else 0.0 for o in opt_names] for s in solutions], dtype=float)
+        metric = "jaccard"
+    try:
+        from scipy.cluster.hierarchy import fcluster, linkage
+        from scipy.spatial.distance import pdist
+    except Exception:
+        return []
+    d = pdist(X, metric=metric)
+    if d.size == 0 or not np.isfinite(d).any() or float(np.nanmax(d)) == 0.0:
+        return []
+    d = np.nan_to_num(d, nan=0.0)
+    Z = linkage(d, method="average")
+    k = _cut_by_largest_gap(Z[:, 2], n)
+    if k < 2:
+        return []
+    labels = fcluster(Z, t=k, criterion="maxclust")
+    member_ids_by_cluster: dict[int, list] = {}
+    for i, lab in enumerate(labels):
+        member_ids_by_cluster.setdefault(int(lab), []).append(solutions[i])
+    clusters = []
+    for cid, members in member_ids_by_cluster.items():
+        rep = _cluster_medoid(members, opt_names, proportional)
+        defining = _defining_options(members, solutions, proportional)
+        sig = {}
+        for ob in problem.objectives:
+            vals = [m.objective_values[ob.name] for m in members]
+            sig[ob.name] = {"min": round(min(vals), 2), "max": round(max(vals), 2),
+                            "mean": round(sum(vals) / len(vals), 2)}
+        clusters.append({
+            "cluster_id": cid,
+            "size": len(members),
+            "representative_solution_id": rep.solution_id,
+            "defining_options": defining,
+            "objective_signature": sig,
+        })
+    clusters.sort(key=lambda c: c["size"], reverse=True)
+    return clusters
+
+
+def _cluster_medoid(members: list, opt_names: list[str], proportional: bool):
+    if len(members) == 1:
+        return members[0]
+    if proportional:
+        M = np.array([[(m.allocations or {}).get(o, 0) for o in opt_names] for m in members], dtype=float)
+    else:
+        M = np.array([[1.0 if o in set(m.selected_options) else 0.0 for o in opt_names] for m in members], dtype=float)
+    centroid = M.mean(axis=0)
+    return members[int(np.argmin(np.linalg.norm(M - centroid, axis=1)))]
+
+
+def _defining_options(members: list, all_solutions: list, proportional: bool, top: int = 4) -> list[str]:
+    """Options notably more common inside the cluster than outside it."""
+    member_ids = {id(m) for m in members}
+    others = [s for s in all_solutions if id(s) not in member_ids]
+    ni, no = len(members), max(len(others), 1)
+
+    def freq(sols, opt):
+        return sum(1 for s in sols if opt in _present_options(s, proportional))
+
+    opt_universe = set()
+    for s in members:
+        opt_universe |= _present_options(s, proportional)
+    scored = []
+    for opt in opt_universe:
+        fi = freq(members, opt) / ni
+        fo = freq(others, opt) / no if others else 0.0
+        if fi >= 0.5 and (fi - fo) > 0.2:
+            scored.append((opt, fi - fo))
+    scored.sort(key=lambda x: x[1], reverse=True)
+    return [o for o, _ in scored[:top]]
+
+
+def _feedback_rules(problem: Problem, run_solutions: list, proportional: bool) -> dict:
+    """Induce rules separating liked (rating ≥4) from disliked (≤2) solutions.
+
+    No fixed count gate — a rule surfaces only when it MEASURABLY separates the two
+    classes (separation × coverage), so weak/no-signal cases return cleanly. A clean
+    separator is a candidate latent constraint → route to problem_framing.
+    """
+    if not problem.feedback:
+        return {"available": False,
+                "note": "No feedback yet — rate solutions (explore feedback) to learn liked/disliked patterns."}
+    sig_to_sol = {s.content_signature: s for s in run_solutions}
+    id_to_sol = {s.solution_id: s for s in run_solutions}
+    rated: dict[str, int] = {}
+    for fb in problem.feedback:
+        if fb.rating is None:
+            continue
+        sig = fb.content_signature
+        if sig is None and fb.solution_id is not None and fb.solution_id in id_to_sol:
+            sig = id_to_sol[fb.solution_id].content_signature
+        if sig:
+            rated[sig] = fb.rating  # appended in order → latest wins
+    liked = [sig for sig, r in rated.items() if r >= 4 and sig in sig_to_sol]
+    disliked = [sig for sig, r in rated.items() if r <= 2 and sig in sig_to_sol]
+    if not liked or not disliked:
+        return {"available": False,
+                "note": (f"Need rated solutions on both sides in the current frontier; "
+                         f"have {len(liked)} liked, {len(disliked)} disliked.")}
+    pos = [_present_options(sig_to_sol[s], proportional) for s in liked]
+    neg = [_present_options(sig_to_sol[s], proportional) for s in disliked]
+    rules = _greedy_separating_rules([o.name for o in problem.options], pos, neg)
+    if not rules:
+        return {"available": True, "rules": [],
+                "note": "Rated solutions don't separate cleanly on option composition — no reliable rule."}
+    return {"available": True, "rules": rules,
+            "note": "These are candidate latent constraints — confirm with the user, then route to problem_framing."}
+
+
+def _greedy_separating_rules(opt_names: list[str], pos: list[set], neg: list[set], max_rules: int = 3) -> list[dict]:
+    npos, nneg = len(pos), len(neg)
+    candidates = []
+    for opt in opt_names:
+        for present in (True, False):
+            cov_pos = sum(1 for f in pos if (opt in f) == present) / npos
+            cov_neg = sum(1 for f in neg if (opt in f) == present) / nneg
+            # "liked" rule: holds for liked, fails for disliked (and vice-versa)
+            candidates.append((opt, present, "liked", cov_pos, cov_pos - cov_neg))
+            candidates.append((opt, present, "disliked", cov_neg, cov_neg - cov_pos))
+    # Surface only measurably clean separators — strength and coverage both high.
+    candidates = [c for c in candidates if c[4] >= 0.6 and c[3] >= 0.6]
+    candidates.sort(key=lambda c: (c[4], c[3]), reverse=True)
+    rules, seen = [], set()
+    for opt, present, side, cov, sep in candidates:
+        if (opt, present) in seen:
+            continue
+        seen.add((opt, present))
+        verb = "includes" if present else "excludes"
+        rules.append({"condition": f"solution {verb} {opt}", "separates": side,
+                      "separation": round(sep, 2), "coverage": round(cov, 2)})
+        if len(rules) >= max_rules:
+            break
+    return rules
+
+
+def analyze_composition(problem: Problem, solution_ids: list[int] | None = None,
+                        signatures: list[str] | None = None, source: str | None = None,
+                        detail: bool = False) -> dict:
+    """Mine the solution set: per-option selection rates, co-occurrence, design
+    principles, decision-space strategy families, and feedback-driven rules.
+
+    Operates over the active Pareto frontier, or a curated subset when solution_ids /
+    signatures are given. The knowledge-discovery pillar, complementing visualization
+    (tradeoffs) and uncertainty exploration (scenario_results).
+    """
+    run = _require_run(problem, None, source)
+    solutions = run.solutions
+    set_kind = "frontier"
+    if solution_ids:
+        wanted = set(solution_ids)
+        solutions = [s for s in solutions if s.solution_id in wanted]
+        set_kind = "curated"
+    elif signatures:
+        wanted = set(signatures)
+        solutions = [s for s in solutions if s.content_signature in wanted]
+        set_kind = "curated"
+    if not solutions:
+        return {"error": "No solutions matched the requested subset."}
+
+    approach = problem.approach.value
+    proportional = approach == "proportional" or any(s.allocations for s in solutions)
+    option_selection = option_selection_stats(solutions, approach)
+    co_occ = _co_occurrence(solutions, option_selection, proportional)
+
+    result = {
+        "scope": {"set": set_kind, "n_solutions": len(solutions), "approach": approach},
+        "option_selection": option_selection,
+        "co_occurrence": co_occ,
+        "design_principles": _design_principles(solutions, option_selection, co_occ, problem, proportional),
+        "clusters": _decision_space_clusters(solutions, problem, proportional),
+        "feedback_rules": _feedback_rules(problem, run.solutions, proportional),
+    }
+    result["visualization"] = _render_composition_viz(result)
+    result["frontier_source"] = _frontier_provenance(problem, run, None)
+    return result
+
+
+def _render_composition_viz(result: dict) -> str:
+    lines = []
+    sel = result.get("option_selection", [])
+    if sel:
+        lines.append("─── Option selection across the set ───")
+        for e in sel[:12]:
+            pct = e["selection_pct"]
+            bar = "█" * int(round(pct * 20))
+            wt = f"  ~{e['mean_weight']}%" if "mean_weight" in e else ""
+            lines.append(f"  {e['option'][:20]:20s} {bar:<20} {int(round(pct * 100)):3d}%{wt}")
+    dp = result.get("design_principles", [])
+    if dp:
+        lines.append("")
+        lines.append("─── Design principles ───")
+        for p in dp[:8]:
+            lines.append(f"  • {p['detail']}")
+    cl = result.get("clusters", [])
+    if cl:
+        lines.append("")
+        lines.append(f"─── Strategy families ({len(cl)}) ───")
+        for c in cl:
+            opts = ", ".join(c["defining_options"]) or "(mixed)"
+            lines.append(f"  [{c['cluster_id']}] {c['size']} solutions — defining: {opts}")
+    fr = result.get("feedback_rules", {})
+    if fr.get("rules"):
+        lines.append("")
+        lines.append("─── Learned from your feedback ───")
+        for r in fr["rules"]:
+            lines.append(f"  • {r['condition']} → {r['separates']} (sep {r['separation']}, cov {r['coverage']})")
+    return "\n".join(lines) if lines else "No composition patterns to show on this set."
+
+
+def scenario_regret(problem: Problem) -> dict:
+    """Scenario minimax-regret over the base frontier.
+
+    Scenarios are solved as independent frontiers, so a base solution carries no
+    cross-scenario values — we recompute each base solution's value under each scenario
+    via optimizer.score_slate. regret = best-achievable-in-scenario minus this solution,
+    normalized per objective range. max over (scenario, objective) = the solution's
+    max_regret; the minimax pick minimizes it. Scenario-infeasible solutions are flagged
+    and assigned worst-case regret (surfaced, not hidden).
+    """
+    if not problem.scenario_run or not problem.scenario_run.scenario_runs:
+        return {"available": False}
+    if problem.run is None or not problem.run.solutions:
+        return {"available": False}
+    from .optimizer import score_slate
+
+    scenarios = {s.name: s for s in (problem.scenario_config.scenarios if problem.scenario_config else [])}
+    scen_runs = problem.scenario_run.scenario_runs
+    objs = problem.objectives
+    ideal: dict[tuple, float] = {}
+    span: dict[tuple, float] = {}
+    for name, run in scen_runs.items():
+        for ob in objs:
+            vals = [s.objective_values[ob.name] for s in run.solutions if ob.name in s.objective_values]
+            if not vals:
+                continue
+            mx, mn = max(vals), min(vals)
+            ideal[(name, ob.name)] = mx if ob.direction.value == "maximize" else mn
+            span[(name, ob.name)] = (mx - mn) or 1.0
+
+    base = problem.run.solutions
+    cache: dict[tuple, dict] = {}
+
+    def regret_for(s, name, ob):
+        ev = cache.get((s.content_signature, name))
+        if ev is None or not ev["feasible"]:
+            return 1.0  # infeasible → worst-case
+        v = ev["values"].get(ob.name)
+        key = (name, ob.name)
+        if v is None or key not in ideal:
+            return 0.0
+        gap = (ideal[key] - v) if ob.direction.value == "maximize" else (v - ideal[key])
+        return max(0.0, gap) / span[key]
+
+    per_solution = []
+    for s in base:
+        feasible_all = True
+        for name in scen_runs:
+            ck = (s.content_signature, name)
+            if ck not in cache:
+                cache[ck] = score_slate(problem, s.selected_options, s.allocations, scenarios.get(name))
+            if not cache[ck]["feasible"]:
+                feasible_all = False
+        by_scen = {name: round(max((regret_for(s, name, ob) for ob in objs), default=0.0), 3) for name in scen_runs}
+        max_reg = max(by_scen.values(), default=0.0)
+        mean_reg = round(sum(by_scen.values()) / len(by_scen), 3) if by_scen else None
+        per_solution.append({
+            "solution_id": s.solution_id, "content_signature": s.content_signature,
+            "max_regret": round(max_reg, 3), "mean_regret": mean_reg,
+            "by_scenario": by_scen, "feasible_in_all": feasible_all,
+        })
+    per_solution.sort(key=lambda x: x["max_regret"])
+
+    per_objective = {}
+    for ob in objs:
+        best_sid, best_val = None, None
+        for s in base:
+            worst = max((regret_for(s, name, ob) for name in scen_runs), default=0.0)
+            if best_val is None or worst < best_val:
+                best_val, best_sid = worst, s.solution_id
+        if best_sid is not None:
+            per_objective[ob.name] = {"min_max_regret": round(best_val, 3), "achieved_by_solution_id": best_sid}
+
+    minimax = per_solution[0] if per_solution else None
+    return {
+        "available": True,
+        "method": "scenario_minimax",
+        "normalization": "per_objective_range",
+        "per_objective": per_objective,
+        "per_solution": per_solution[:20],
+        "minimax_choice": ({"solution_id": minimax["solution_id"],
+                            "content_signature": minimax["content_signature"],
+                            "max_regret": minimax["max_regret"]} if minimax else None),
+        "note": ("regret = best-achievable-in-scenario minus this solution re-evaluated there, "
+                 "normalized per objective range; minimax_choice minimizes worst-case regret."),
+    }
 
 
 def _compute_reference_analysis(solution_obj_values: dict, reference_points: list, objectives: list) -> list[dict]:
@@ -949,6 +1401,9 @@ def get_scenario_results(problem: Problem, cvar_alpha: float | None = None) -> d
         "cvar_alpha": alpha,
         "weighting": "probability" if has_probabilities else "equal",
     }
+    # Minimax-regret robustness lens, beside CVaR/worst-case (a distinct question:
+    # "how much worse than the best I could have chosen, in hindsight?").
+    result["regret"] = scenario_regret(problem)
     result["visualization"] = _render_scenario_viz(result)
     result["viz_data"] = _viz_data_scenario_summary(result)
     return result
