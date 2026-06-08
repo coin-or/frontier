@@ -56,6 +56,8 @@ You drive Frontier by talking to an AI agent — in a coding-agent MCP client or
 4. **Explore the tradeoffs.** Frontier shape, the extremes, the balanced/knee, the marginal cost of pushing an objective, robustness across scenarios — and curate the picks you like. *e.g. "Show the tradeoffs, recommend a balanced pick, and curate it as 'Lean choice'."*
 5. **Iterate.** Tighten a constraint, add a scenario, re-solve, and compare against the previous run. *e.g. "Cap cost at $40k and re-run — what dropped off the frontier?"*
 
+**Sensitivity vs. scenarios — two stress tests, don't conflate them.** *Sensitivity* (`explore sensitivity`) is *local and marginal*: how the current pick responds to a small change in one input (one more unit of budget is worth ~$X here), valid only near that solution. *Scenario analysis* (`solve run_scenarios`) is *global and discrete*: bundle a whole set of changes into a named state of the world and **fully re-solve**, so the best pick itself can change — not just its rate of trade. Marginal lever → sensitivity; different world → scenario.
+
 Behind the conversation: four tools — `model` (define), `solve` (optimize), `explore` (navigate results), `get_skill` (workflow guidance) — with skills that auto-inject at each transition, so the agent classifies objectives vs constraints, elicits scores without anchoring bias, and presents tradeoffs without ever naming a single "best."
 
 ### Saving & loading

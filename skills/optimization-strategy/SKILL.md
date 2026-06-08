@@ -155,6 +155,15 @@ On an **exact** continuous (QP) run, `explore sensitivity` upgrades these to **s
 
 This closes the loop: exact sensitivity → a concrete formulation change → re-run. Continuous/QP only; on MILP, `explore sensitivity` falls back to the frontier-inferred estimate (tagged `frontier_inferred`), so lean on `binding_analysis` there.
 
+### Sensitivity vs Scenario Analysis
+
+These stress-test a decision in different ways — keep them distinct, and never narrate one as if it were the other.
+
+- **Sensitivity analysis** (`explore sensitivity`; or the frontier-inferred `binding_analysis`) is *local and marginal*: how the optimal solution responds to a small change in a **single** input — one objective coefficient or one constraint's right-hand side — holding everything else fixed. It's derivative-like and basis-bound: valid only within the range where the current optimal basis holds. Read it as "at this solution, one more unit of X is worth ~Y," not as a forecast of a different world.
+- **Scenario analysis** (`solve run_scenarios` → `explore scenario_results`) bundles a **whole set** of parameter changes into a named state of the world and **fully re-solves**. It's discrete and global, with no continuity assumption — each scenario is its own independent frontier, so the optimal mix itself can change, not just its rate of trade.
+
+Pick by the question: marginal "what's this lever worth right here?" → sensitivity (then use it to drive a formulation tweak and re-run). Structural "what if the world were different?" → a scenario (then test robustness across futures with regret and CVaR). See *Scenario Results Interpretation* below.
+
 ### Reproducibility and Stability Checks
 
 Evolutionary search is **stochastic**, but seeded: the `solve` tool accepts an optional `seed` and echoes `seed_used` on every run, so a run reproduces exactly. Same problem state + same seed → same frontier (in- and cross-process). Omit the seed and a fresh one is drawn and recorded.

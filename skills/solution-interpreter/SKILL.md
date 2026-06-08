@@ -284,6 +284,8 @@ See `references/explore-diagnostics.md` for the full schema of `binding_analysis
 
 `explore sensitivity` reports **solver-exact** duals when the frontier came from an exact continuous solve (`solve(solver="highs"|"cuopt")` on a proportional / mean-variance QP). It is the *exact* counterpart to the frontier-inferred `binding_analysis` above, and answers two decision questions directly.
 
+Keep its scope straight: this is the *local, marginal* lens — how the current optimum shifts under a small change in one input, valid only in the range where the basis holds. It is not scenario analysis, which bundles many changes into a named world and fully re-solves (so the optimal mix itself can change). Don't present a shadow price as a scenario outcome or vice versa. (See *Sensitivity vs Scenario Analysis* in `frontier://skills/optimization_strategy`.)
+
 Every response is tagged `source`:
 - **`solver_exact`** — duals read straight from the optimizer at each solution. The shadow price is the *instantaneous* marginal rate at that point — exact, not a slope fitted across nearby solutions. Prefer it whenever present.
 - **`frontier_inferred`** — the fallback for heuristic (NSGA) or integer (MILP) runs, which have no exact duals; it returns the `binding_analysis` regression instead. Integer/MILP solutions never carry exact duals — say so rather than implying otherwise.
