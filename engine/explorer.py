@@ -555,7 +555,7 @@ def analyze_composition(problem: Problem, solution_ids: list[int] | None = None,
     approach = problem.approach.value
     proportional = approach == "proportional" or any(s.allocations for s in solutions)
     option_selection = option_selection_stats(solutions, approach)
-    co_occ = _co_occurrence(solutions, option_selection, proportional)
+    co_occ = _co_occurrence(solutions, option_selection, proportional, top=(9999 if detail else 8))
 
     result = {
         "scope": {"set": set_kind, "n_solutions": len(solutions), "approach": approach},
@@ -644,7 +644,10 @@ def scenario_regret(problem: Problem) -> dict:
         if v is None or key not in ideal:
             return 0.0
         gap = (ideal[key] - v) if ob.direction.value == "maximize" else (v - ideal[key])
-        return max(0.0, gap) / span[key]
+        # Clamp to [0,1]: regret is the fraction of the scenario's achievable range given
+        # up; a solution worse than the scenario's own frontier caps at 1.0 (as bad as
+        # infeasible), keeping the scale interpretable.
+        return min(1.0, max(0.0, gap) / span[key])
 
     per_solution = []
     for s in base:

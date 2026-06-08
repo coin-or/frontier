@@ -1974,7 +1974,8 @@ class TestRegret:
         assert regret["method"] == "scenario_minimax"
         assert regret["minimax_choice"] is not None
         for entry in regret["per_solution"]:
-            assert entry["max_regret"] >= 0.0
+            assert 0.0 <= entry["max_regret"] <= 1.0  # normalized + clamped
+            assert all(0.0 <= v <= 1.0 for v in entry["by_scenario"].values())
             assert "feasible_in_all" in entry
 
     def test_regret_absent_without_base_run(self):
