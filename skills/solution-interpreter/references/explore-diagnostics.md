@@ -1,6 +1,6 @@
 # Explore Diagnostics — Field Reference
 
-Detailed schemas for the richer diagnostic blocks returned by `explore tradeoffs` and `explore scenario_results`. Read this when you need to pin down exact field semantics — the SKILL.md narration patterns cover the usual cases.
+Detailed schemas for the richer diagnostic blocks returned by `explore tradeoffs`, `explore scenario_results`, and `explore composition`. Read this when you need to pin down exact field semantics — the SKILL.md narration patterns cover the usual cases.
 
 ## `binding_analysis` (from `tradeoffs`)
 
@@ -111,6 +111,23 @@ The top-level `cvar_alpha` echoes the α the user requested (default 0.2). The C
 - Equal-weight scenarios make this straightforward — each scenario's probability is `1/n`.
 - `scenario_risk` uses *best-in-scenario* values. It's a ceiling analysis, not a specific-solution analysis. For solution-level risk, a user must specify which solution to track (future extension).
 
+## `regret` (from `scenario_results`)
+
+Scenario minimax-regret. For each base-frontier solution, its value under each scenario is recomputed via `optimizer.score_slate` (scenarios are independent frontiers, so a base solution carries no cross-scenario values), then regret = best-achievable-in-scenario − this solution, normalized per objective range and clamped to [0,1].
+
+| Field | Type | Meaning |
+|---|---|---|
+| `available` | bool | False when there are no scenarios, or no base `run` to evaluate |
+| `method` | str | `"scenario_minimax"` |
+| `normalization` | str | `"per_objective_range"` — regret as a fraction of each scenario objective's achievable spread |
+| `per_objective` | dict | Per objective: `{min_max_regret, achieved_by_solution_id}` — the lowest worst-case regret on that objective and which solution achieves it |
+| `per_solution` | list | Solutions by lowest `max_regret` (compact, ≤20): `{solution_id, content_signature, max_regret, mean_regret, by_scenario, feasible_in_all}` |
+| `minimax_choice` | obj\|null | The regret-robust pick: `{solution_id, content_signature, max_regret}` |
+
+- `max_regret` is the solution's worst regret across all (scenario, objective) pairs; `minimax_choice` minimizes it.
+- `feasible_in_all: false` means the solution breaks under at least one scenario's constraints — assigned worst-case regret (1.0) there; the flag is the headline, not a footnote.
+- Distinct from `scenario_risk`/CVaR: CVaR is "how bad when things go wrong"; regret is "how much worse than the best I could have chosen, in hindsight." See *Regret — the hindsight lens* in SKILL.md.
+
 ## `objective_redundancy` (from `tradeoffs`)
 
 List of entries, one per objective pair.
@@ -145,3 +162,56 @@ High Pearson, high MI (both agree):
 Low |r|, high MI (disagreement):
 
 > User Satisfaction and Retention look uncorrelated (r=0.12), but they're actually strongly dependent (MI=0.62). That usually means a threshold or plateau — e.g., satisfaction above some level drives retention but below that it doesn't move it. Worth looking at the scatter before deciding whether to keep both.
+
+## `composition` (from `explore composition`)
+
+Mining the solution set — operates on the active frontier, or a curated subset via `solution_ids` / `signatures`.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `scope` | obj | `{set: "frontier"\|"curated", n_solutions, approach}` |
+| `option_selection` | list | Per option, sorted by `selection_pct` desc (also on `tradeoffs`, and per-option on `solution` via `option_context`) |
+| `co_occurrence` | list | Option pairs ranked by departure from independence (top 8; all when `detail=true`) |
+| `design_principles` | list | Statements that hold across the set |
+| `clusters` | list | Decision-space strategy families (omitted when too few solutions) |
+| `feedback_rules` | obj | Liked/disliked separators, when feedback exists |
+
+### `option_selection` entry
+
+Binary: `{option, selection_count, selection_pct}`. Proportional adds `mean_weight` (over all solutions) and `mean_weight_if_included` (over solutions holding it). Read as consensus (≈1.0) vs distinctive (low).
+
+### `co_occurrence` entry
+
+```json
+{"options": ["A", "B"], "lift": 2.8, "relation": "complement"}
+```
+
+`lift = P(A∧B) / (P(A)·P(B))`: >1 complements (travel together), <1 substitutes. Ranked by `|lift − 1|` — no value cutoff, salience *is* the ranking.
+
+### `design_principles` entry
+
+```json
+{"type": "always", "options": ["A"], "support": 1.0, "detail": "Every solution on this set includes A."}
+```
+
+`type` ∈ `always` / `never` (selected in all / none), `co_occurs` / `substitutes` (strong lift), `region_bound` (presence tracks an objective — point-biserial |r| ≥ 0.6). `support` is the strength (a fraction for always/never; |r| for region_bound; lift-derived otherwise).
+
+### `clusters` entry
+
+```json
+{"cluster_id": 1, "size": 7, "representative_solution_id": 3,
+ "defining_options": ["Mobile", "API"],
+ "objective_signature": {"Impact": {"min": 6, "max": 9, "mean": 7.5}}}
+```
+
+Clustering is in **decision space** (option/allocation composition), not objective space — so two families can share an `objective_signature` yet differ in `defining_options` (different plans, same outcome → the choice between them is low-regret). `k` comes from the largest gap in merge distance, capped at a legible handful; `defining_options` are options far more common inside the family than outside (empty = a weakly-separated family).
+
+### `feedback_rules`
+
+```json
+{"available": true,
+ "rules": [{"condition": "solution includes A", "separates": "liked", "separation": 1.0, "coverage": 1.0}],
+ "note": "..."}
+```
+
+`available: false` (with a `note`) when there isn't rated-both-ways signal yet. A rule surfaces only when it *measurably* separates liked from disliked (`separation` × `coverage`), never on a rating count. Treat a clean rule as a candidate latent constraint → route to `problem_framing`.

@@ -4,14 +4,17 @@ import pytest
 
 from engine.explorer import (
     _frontier_provenance,
+    analyze_composition,
     compare_solutions,
     get_solution,
     get_solutions,
     get_tradeoffs,
     marginal_analysis,
+    option_selection_stats,
 )
 from engine.models import (
     CardinalityConstraint,
+    Feedback,
     Objective,
     ObjectiveBoundConstraint,
     Option,
@@ -20,6 +23,7 @@ from engine.models import (
     ScenarioRun,
     Score,
     Solution,
+    _content_signature,
 )
 from engine.optimizer import optimize
 
@@ -485,3 +489,124 @@ class TestScatterCertification:
         viz = get_tradeoffs(p, scenario="s1")["viz_data"]
         assert viz["provenance"]["kind"] == "heuristic"
         assert "exact_overlay" not in viz
+
+
+# ─── Composition / mining (knowledge-discovery pillar) ───
+
+
+def _csol(sid, opts, objs, alloc=None):
+    s = Solution(solution_id=sid, selected_options=opts, objective_values=objs, allocations=alloc)
+    s.content_signature = _content_signature(opts, alloc)
+    return s
+
+
+def _problem_with_run(sols, options, objectives, approach="binary"):
+    p = Problem(approach=approach, objectives=objectives, options=[Option(name=o) for o in options])
+    p.run = Run(solutions=sols)
+    return p
+
+
+class TestOptionSelectionStats:
+    def test_binary_counts_and_pct(self):
+        sols = [
+            _csol(0, ["A", "B"], {"X": 1}),
+            _csol(1, ["A", "C"], {"X": 2}),
+            _csol(2, ["A", "B"], {"X": 3}),
+        ]
+        stats = option_selection_stats(sols, "binary")
+        by = {e["option"]: e for e in stats}
+        assert by["A"]["selection_count"] == 3
+        assert by["A"]["selection_pct"] == 1.0
+        assert by["B"]["selection_count"] == 2
+        assert by["C"]["selection_count"] == 1
+        assert stats[0]["option"] == "A"  # sorted desc by pct
+        assert "mean_weight" not in by["A"]  # binary → no weight
+
+    def test_proportional_weights(self):
+        sols = [
+            _csol(0, ["A", "B"], {"X": 1}, alloc={"A": 60, "B": 40}),
+            _csol(1, ["A", "B"], {"X": 2}, alloc={"A": 20, "B": 80}),
+        ]
+        by = {e["option"]: e for e in option_selection_stats(sols, "proportional")}
+        assert by["A"]["selection_count"] == 2
+        assert by["A"]["mean_weight"] == 40.0
+        assert by["A"]["mean_weight_if_included"] == 40.0
+        assert by["B"]["mean_weight"] == 60.0
+
+
+class TestAnalyzeComposition:
+    def _objs(self):
+        return [Objective(name="X", direction="maximize"), Objective(name="Y", direction="maximize")]
+
+    def test_design_principles_always_never(self):
+        sols = [
+            _csol(0, ["A", "B", "C"], {"X": 3, "Y": 1}),
+            _csol(1, ["A", "B", "C"], {"X": 2, "Y": 2}),
+            _csol(2, ["A", "E"], {"X": 1, "Y": 3}),
+        ]
+        p = _problem_with_run(sols, ["A", "B", "C", "D", "E"], self._objs())
+        r = analyze_composition(p)
+        types = {(pp["type"], tuple(pp["options"])) for pp in r["design_principles"]}
+        assert ("always", ("A",)) in types
+        assert ("never", ("D",)) in types
+        assert r["scope"]["n_solutions"] == 3
+        assert r["feedback_rules"]["available"] is False
+        assert isinstance(r["co_occurrence"], list)
+
+    def test_decision_space_clusters(self):
+        sols = [
+            _csol(0, ["A", "B"], {"X": 1, "Y": 9}),
+            _csol(1, ["A", "B"], {"X": 2, "Y": 8}),
+            _csol(2, ["A", "B"], {"X": 1, "Y": 9}),
+            _csol(3, ["C", "D"], {"X": 9, "Y": 1}),
+            _csol(4, ["C", "D"], {"X": 8, "Y": 2}),
+            _csol(5, ["C", "D"], {"X": 9, "Y": 1}),
+        ]
+        p = _problem_with_run(sols, ["A", "B", "C", "D"], self._objs())
+        clusters = analyze_composition(p)["clusters"]
+        assert len(clusters) >= 2
+        defining = [set(c["defining_options"]) for c in clusters]
+        assert any({"A", "B"} & d for d in defining)
+        assert any({"C", "D"} & d for d in defining)
+
+    def test_curated_subset_via_ids(self):
+        sols = [
+            _csol(0, ["A", "B"], {"X": 1, "Y": 9}),
+            _csol(1, ["C", "D"], {"X": 9, "Y": 1}),
+        ]
+        p = _problem_with_run(sols, ["A", "B", "C", "D"], self._objs())
+        r = analyze_composition(p, solution_ids=[0])
+        assert r["scope"]["set"] == "curated"
+        assert r["scope"]["n_solutions"] == 1
+
+    def test_feedback_rules_separate_liked_disliked(self):
+        # Liked all include A (not B); disliked all include B (not A) — a clean separator.
+        sols = [
+            _csol(0, ["A", "C"], {"X": 5, "Y": 5}),
+            _csol(1, ["A", "D"], {"X": 6, "Y": 4}),
+            _csol(2, ["B", "C"], {"X": 4, "Y": 6}),
+            _csol(3, ["B", "D"], {"X": 3, "Y": 7}),
+        ]
+        p = _problem_with_run(sols, ["A", "B", "C", "D"], self._objs())
+        p.feedback = [
+            Feedback(content_signature=sols[0].content_signature, rating=5),
+            Feedback(content_signature=sols[1].content_signature, rating=4),
+            Feedback(content_signature=sols[2].content_signature, rating=1),
+            Feedback(content_signature=sols[3].content_signature, rating=2),
+        ]
+        fr = analyze_composition(p)["feedback_rules"]
+        assert fr["available"] is True
+        assert any("A" in rule["condition"] for rule in fr["rules"])
+
+
+def test_tradeoffs_has_option_selection(solved_problem):
+    r = get_tradeoffs(solved_problem)
+    assert "option_selection" in r
+    assert all("selection_pct" in e for e in r["option_selection"])
+
+
+def test_solution_has_option_context(solved_problem):
+    sols = get_solutions(solved_problem)["solutions"]
+    sol = get_solution(solved_problem, sols[0]["solution_id"])
+    assert "option_context" in sol
+    assert all(0.0 <= v <= 1.0 for v in sol["option_context"].values())
