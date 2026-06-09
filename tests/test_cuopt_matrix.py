@@ -17,12 +17,14 @@ import numpy as np
 import pytest
 from scipy.sparse import csr_matrix
 
+from solvers._scalarization import _build_raw_sensitivity
 from solvers.cuopt_backend import (
+    _extract_cuopt_lp_sensitivity_matrix,
     _extract_cuopt_qp_sensitivity,
     _extract_cuopt_qp_sensitivity_matrix,
+    _lp_to_csr,
     _parallel_solve,
     _qp_to_csr,
-    _raw_qp_sensitivity,
 )
 
 
@@ -254,7 +256,7 @@ def test_matrix_and_termwise_paths_agree():
 def test_cuopt_payload_parity_with_highs_shape():
     # The cuOpt raw payload must carry the exact keys/shape the HiGHS path emits, since the shared
     # engine (_build_solution_sensitivity) consumes both identically.
-    raw = _raw_qp_sensitivity([-0.05, 0.01], [0.0, 0.2], n=2, has_return=True, n_extra=0, support=None)
+    raw = _build_raw_sensitivity([-0.05, 0.01], [0.0, 0.2], n=2, has_return=True, n_extra=0, support=None)
     assert set(raw) == {"shadow_prices", "reduced_costs", "eligible", "ranging"}
     assert all(set(sp) == {"role", "linear_index", "value"} for sp in raw["shadow_prices"])
     assert len(raw["reduced_costs"]) == len(raw["eligible"]) == 2
@@ -269,10 +271,45 @@ def test_cuopt_payload_consumed_by_shared_engine():
         def __init__(self, name):
             self.name = name
 
-    raw = _raw_qp_sensitivity([-0.05, 0.012], [0.0, 0.3], n=2, has_return=True, n_extra=0, support=None)
+    raw = _build_raw_sensitivity([-0.05, 0.012], [0.0, 0.3], n=2, has_return=True, n_extra=0, support=None)
     sens = _build_solution_sensitivity(raw, opt_names=["A", "B"], alloc_row=[0, 30],
                                        linear_idxs=[0], obj_list=[_Obj("Return")])
     assert sens.source == "solver_exact"
     assert [(sp.role, sp.name) for sp in sens.shadow_prices] == [
         ("budget", "budget"), ("return_floor", "Return")]
     assert [(rc.option, rc.allocation) for rc in sens.reduced_costs] == [("A", 0), ("B", 30)]
+
+
+# ─── LP marshaling + dual extraction — CPU ───
+
+def test_lp_to_csr_objective_and_rows():
+    """Objective c = primary coef (negated to maximize, since cuOpt minimizes); rows = budget 'E'
+    then one floor per eps_list entry with a direction-correct sense."""
+    mu = np.array([0.10, 0.20, 0.15])
+    yld = np.array([3.0, 4.0, 2.0])
+    a = _lp_to_csr(mu, True, [(yld, 3.5, True)], max_weight=None, support=None)
+    assert np.allclose(a["c"], -mu)                 # maximize → negated objective
+    A = _dense(a["A_data"], a["A_indices"], a["A_offsets"], (2, 3))
+    assert np.allclose(A[0], np.ones(3))            # budget row
+    assert np.allclose(A[1], yld)                   # yield floor
+    assert a["b"].tolist() == [1.0, 3.5]
+    assert [t.decode() for t in a["row_types"]] == ["E", "G"]
+
+
+def test_lp_to_csr_minimize_primary_box_and_support():
+    a = _lp_to_csr(np.array([5.0, 6.0, 7.0]), False, [], max_weight=0.4, support=[0, 2])
+    assert np.allclose(a["c"], [5.0, 6.0, 7.0])     # minimize → coefficients as-is
+    assert a["var_ub"].tolist() == [0.4, 0.0, 0.4]  # off-support pinned to ub=0
+    assert a["A_offsets"].size == 2                 # budget-only → one row
+
+
+def test_lp_sensitivity_matrix_roles_and_eligibility():
+    # rows in _lp_to_csr order: budget, one objective floor; 3 assets, asset 1 off-support.
+    sol = _FakeSolution(dual=[-0.05, 0.3], reduced=[0.0, 0.1, 0.0])
+    raw = _extract_cuopt_lp_sensitivity_matrix(sol, n=3, n_extra=1, support=[0, 2])
+    # LP: the primary objective is optimized → no return_floor; budget + linear_floor only.
+    assert [(s["role"], s["linear_index"]) for s in raw["shadow_prices"]] == [
+        ("budget", None), ("linear_floor", 1)]
+    assert raw["eligible"] == [True, False, True]
+    assert raw["reduced_costs"] == [0.0, 0.1, 0.0]
+    assert raw["ranging"] is None
