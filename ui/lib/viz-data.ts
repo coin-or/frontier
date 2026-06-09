@@ -81,12 +81,37 @@ export type MarginalRatesVizData = {
   inflection: { solution_id: number; position: number; jump_factor: number } | null;
 };
 
+// Minimax-regret lens from scenario_results (engine: explorer.py `scenario_regret`).
+// Per-solution, so it's a distinct view from the per-objective scenario_risk table.
+// `available` is false when there's no base run to regret against.
+export type ScenarioRegret = {
+  available: boolean;
+  method?: string;
+  normalization?: string;
+  minimax_choice?: {
+    solution_id: number;
+    content_signature?: string;
+    max_regret: number;
+  } | null;
+  per_solution?: Array<{
+    solution_id: number;
+    content_signature?: string;
+    max_regret: number;
+    mean_regret: number | null;
+    by_scenario?: Record<string, number>;
+    feasible_in_all: boolean;
+  }>;
+  per_objective?: Record<string, { min_max_regret: number; achieved_by_solution_id: number }>;
+  note?: string;
+};
+
 export type ScenarioSummaryVizData = {
   type: "scenario_summary";
   scenarios: string[];
   option_robustness: Array<Record<string, unknown>>;
   expected_values: Record<string, unknown>;
   scenario_risk: Record<string, unknown>;
+  regret?: ScenarioRegret;
 };
 
 export type CuratedScenarioPick = {

@@ -8,11 +8,13 @@ from engine.models import (
     Option,
     Problem,
     Run,
+    Scenario,
+    ScenarioConfig,
     ScenarioRun,
     Score,
     Solution,
 )
-from engine.explorer import get_tradeoffs, get_solution, get_solutions
+from engine.explorer import get_scenario_results, get_tradeoffs, get_solution, get_solutions
 
 
 class TestFindBalanced:
@@ -170,3 +172,49 @@ class TestScenarioExplore:
         recession_sol = get_solution(p, 0, scenario="recession")
         assert base_sol["objective_values"]["X"] == 10
         assert recession_sol["objective_values"]["X"] == 3
+
+    def test_scenario_results_viz_data_populates_scenarios(self):
+        """Regression: scenario_summary viz_data must carry the scenario names.
+
+        The builder used to read a nonexistent result["scenarios"] key and so
+        always emitted scenarios=[]; the UI panel suppresses itself on an empty
+        list, hiding the CVaR / option-robustness view entirely. The names live
+        as the keys of per_scenario, which is what the builder now reads.
+        """
+        base = [
+            Solution(solution_id=0, selected_options=["A"], objective_values={"X": 10, "Y": 1}),
+            Solution(solution_id=1, selected_options=["B"], objective_values={"X": 5, "Y": 5}),
+            Solution(solution_id=2, selected_options=["C"], objective_values={"X": 1, "Y": 10}),
+        ]
+        recession = [
+            Solution(solution_id=0, selected_options=["A"], objective_values={"X": 3, "Y": 2}),
+            Solution(solution_id=1, selected_options=["B"], objective_values={"X": 2, "Y": 7}),
+            Solution(solution_id=2, selected_options=["C"], objective_values={"X": 1, "Y": 9}),
+        ]
+        p = Problem(
+            objectives=[
+                Objective(name="X", direction="maximize"),
+                Objective(name="Y", direction="maximize"),
+            ],
+            options=[Option(name=n) for n in ["A", "B", "C"]],
+            scenario_config=ScenarioConfig(
+                enabled=True,
+                scenarios=[Scenario(name="base"), Scenario(name="recession")],
+            ),
+        )
+        p.scenario_run = ScenarioRun(scenario_runs={
+            "base": Run(solutions=base),
+            "recession": Run(solutions=recession),
+        })
+
+        viz = get_scenario_results(p)["viz_data"]
+
+        assert viz["type"] == "scenario_summary"
+        # The regression guard: a populated name list, not [].
+        assert viz["scenarios"] == ["base", "recession"]
+        # …so the panel has content to render: option tiers + per-objective risk.
+        assert len(viz["option_robustness"]) == 3
+        assert set(viz["scenario_risk"]) == {"X", "Y"}
+        # The regret lens rides in viz_data too; unavailable here (no base run to
+        # regret against), so the panel's regret section stays hidden.
+        assert viz["regret"] == {"available": False}
