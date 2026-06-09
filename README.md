@@ -8,9 +8,9 @@
 
 ## Summary
 
-Frontier helps you make hard decisions that have many options and conflicting goals: which projects to fund, how to split a budget, who to source from. You describe the decision to an AI agent in plain language; it models the problem, optimizes it, and walks you through the **full set of best tradeoffs** rather than one black-box answer. You make the final call.
+Frontier helps you make hard decisions that have many options and conflicting goals: which projects to fund, how to split a budget, who to source from. You describe the decision to an AI agent in plain language; it models the problem, optimizes it, and walks you through the **full set of optimal tradeoffs** rather than one black-box answer. You make the final call.
 
-Under the hood it maps the **Pareto frontier** (every option where you can't improve one goal without sacrificing another) with evolutionary search (NSGA-II/III) plus optional exact solvers (HiGHS, cuOpt), all exposed as four MCP tools. Every number it reports is computed, not guessed, so the decision stays explainable and auditable, and the engine never overrides the two calls that are yours: how to frame the problem and which tradeoff to pick.
+Under the hood it maps the **Pareto frontier** (every option where you can't improve one goal without sacrificing another) with evolutionary search (NSGA-II/III) plus optional exact solvers (HiGHS, cuOpt), all exposed as MCP tools. Every number it reports is computed, not guessed, so the decision stays explainable and auditable, and the engine never overrides the two calls that are yours: how to frame the problem and which tradeoff to pick.
 
 **Try it:** the [hosted demo](https://frontier-ui.onrender.com/) (ask @cafzal for access), or [set up your own](#setup) in any MCP client.
 
@@ -33,24 +33,22 @@ Under the hood it maps the **Pareto frontier** (every option where you can't imp
 
 ## Purpose
 
-LLMs reason about tradeoffs but can't *solve* them: they can't reliably enumerate a huge option space, enforce hard constraints, and produce the frontier. Spreadsheets hit the same wall once the options and constraints multiply. Frontier fills the gap: the LLM translates and narrates, an optimizer does the math, and you get the tradeoffs instead of a guess.
+Spreadsheets hit a wall once options and constraints in a decision multiply. Generative AI models reason about tradeoffs but can't *solve* them: they can't reliably enumerate a huge option space, enforce hard constraints, and produce the frontier. Frontier fills the gap: the LLM translates and narrates, an optimizer does the math, and you get the tradeoffs instead of a guess.
 
 **When it fits (by shape, not domain):** any decision that picks a subset from many options (which K of N) or splits a budget across them (how much of each), under conflicting objectives and hard constraints, with data to score the options. Pairwise interactions (covariance, audience overlap, correlated risk) make it genuinely nonlinear.
 
 **What it adds beyond an LLM alone:**
 - **Full tradeoff frontier**: every Pareto-optimal option, not one recommendation or a weighted ranking.
 - **Optional exact audit**: certify the finalists against an exact solver (HiGHS on CPU, cuOpt on GPU) on supported shapes; it catches dominated points the heuristic showed as efficient.
-- **Hard constraints, enforced**: 8 types (cardinality, force include/exclude, objective bounds, exclusion pairs, dependencies, group limits, allocation caps), never violated during search.
+- **Hard constraints, enforced**: eight types: cardinality, force include/exclude, objective bounds, exclusion pairs, dependencies, group limits, and allocation caps
 - **Grounded & reproducible**: every number traces to computed data, and the same inputs + seed reproduce the exact frontier.
 - **Scenarios & risk**: independent frontiers per scenario, plus CVaR / worst-case / expected / minimax-regret per objective.
 - **Knowledge discovery**: mine the frontier for selection rates, design principles, and strategy families (`explore composition`).
 - **Persistent state**: problems persist across sessions; curated picks track survival across re-runs.
 
-*Why not have the agent just write a solver?* For a one-off, sure. Frontier is the turnkey, reusable version: grounded, auditable, and consistent across problems and re-runs.
-
 ## Workflow
 
-You drive Frontier by talking to an AI agent, in a coding-agent MCP client or the hosted web chat, in plain language. The agent translates your decision into Frontier's model, runs the solver, and reads the results back. A typical sequence (you describe what you want; the agent picks the tools):
+Drive Frontier by interacting with an AI agent, in a coding-agent MCP client or the hosted web chat, in plain language. The agent translates your decision into Frontier's model, runs the solver, and reads the results back. A typical sequence (you describe what you want; the agent picks the tools):
 
 1. **Frame it.** Name the objectives (what to maximize or minimize), the options to choose among, and any hard constraints, plus scenarios if the future is uncertain. *e.g. "We're choosing a CRM for a 10-person startup: maximize features and support, minimize cost; budget under $50k/yr; pick one."*
 2. **Score the options.** Hand over the numbers, or let the agent estimate and flag what's shaky. *e.g. "Score these five CRMs on cost and support from their pricing pages."*
