@@ -23,6 +23,9 @@ const TIER_STYLES: Record<string, string> = {
   marginal: "bg-stone-100 text-stone-600 border-stone-300",
 };
 
+// Cap the per-solution regret table; the full ranking lives in `explore scenario_results`.
+const MAX_REGRET_ROWS = 8;
+
 export function ScenarioSummary({ data }: { data: ScenarioSummaryVizData }) {
   // No scenarios → nothing meaningful to show; suppress the empty panel.
   if (!data.scenarios?.length) return null;
@@ -30,6 +33,14 @@ export function ScenarioSummary({ data }: { data: ScenarioSummaryVizData }) {
   const risks = (data.scenario_risk ?? {}) as Record<string, ScenarioRiskEntry>;
   const expected = (data.expected_values ?? {}) as Record<string, number>;
   const scenarios = data.scenarios ?? [];
+
+  // Minimax-regret: per-solution, ranked ascending by max_regret upstream, so the
+  // first rows are the most robust. Show the lowest-regret few and flag the rest.
+  const regret = data.regret;
+  const minimaxId = regret?.minimax_choice?.solution_id ?? null;
+  const allRegretRows = regret?.per_solution ?? [];
+  const regretRows = allRegretRows.slice(0, MAX_REGRET_ROWS);
+  const hiddenRegretCount = allRegretRows.length - regretRows.length;
 
   // Group options by tier for visual hierarchy
   const byTier: Record<string, OptionRobustness[]> = {
@@ -163,6 +174,106 @@ export function ScenarioSummary({ data }: { data: ScenarioSummaryVizData }) {
           </div>
         </div>
       )}
+
+      {/* Minimax-regret robustness — a distinct lens from CVaR (per-solution, not
+          per-objective): how much worse than the best achievable in hindsight. */}
+      {regret?.available && (allRegretRows.length > 0 || regret.minimax_choice) && (
+        <div className="mt-3 border-t border-stone-100 pt-3">
+          <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-stone-600">
+            Minimax-regret robustness
+          </div>
+
+          {regret.minimax_choice && (
+            <div className="mb-2 rounded border border-indigo-200 bg-indigo-50 px-2 py-1.5 text-xs text-indigo-900">
+              <span className="font-semibold">Minimax choice:</span> solution #
+              {regret.minimax_choice.solution_id} · worst-case regret{" "}
+              <span className="font-mono">{pct(regret.minimax_choice.max_regret)}</span>
+              <span className="ml-1 text-[10px] text-indigo-500">(lowest achievable)</span>
+            </div>
+          )}
+
+          {regretRows.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-xs">
+                <thead className="text-stone-500">
+                  <tr>
+                    <th className="border-b border-stone-200 px-2 py-1 text-left font-normal">
+                      solution
+                    </th>
+                    <th className="border-b border-stone-200 px-2 py-1 text-right font-normal">
+                      max regret
+                    </th>
+                    <th className="border-b border-stone-200 px-2 py-1 text-right font-normal">
+                      mean regret
+                    </th>
+                    <th className="border-b border-stone-200 px-2 py-1 text-center font-normal">
+                      feasible
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {regretRows.map((s) => {
+                    const isPick = minimaxId !== null && s.solution_id === minimaxId;
+                    return (
+                      <tr
+                        key={s.solution_id}
+                        className={isPick ? "bg-indigo-50/60" : "hover:bg-stone-50"}
+                      >
+                        <td className="border-b border-stone-100 px-2 py-1 font-mono text-stone-700">
+                          #{s.solution_id}
+                          {isPick && (
+                            <span className="ml-1 text-[9px] uppercase text-indigo-500">minimax</span>
+                          )}
+                        </td>
+                        <td
+                          className="border-b border-stone-100 px-2 py-1 text-right font-mono text-amber-700"
+                          title={byScenarioTitle(s.by_scenario)}
+                        >
+                          {pct(s.max_regret)}
+                        </td>
+                        <td className="border-b border-stone-100 px-2 py-1 text-right font-mono text-stone-700">
+                          {pct(s.mean_regret)}
+                        </td>
+                        <td className="border-b border-stone-100 px-2 py-1 text-center">
+                          {s.feasible_in_all ? (
+                            <span className="text-emerald-600">✓</span>
+                          ) : (
+                            <span className="text-red-600" title="infeasible in ≥1 scenario">
+                              ✗
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {hiddenRegretCount > 0 && (
+                <div className="mt-1 text-[10px] text-stone-400">
+                  +{hiddenRegretCount} more · showing the {MAX_REGRET_ROWS} lowest-regret solutions
+                </div>
+              )}
+            </div>
+          )}
+
+          {regret.per_objective && Object.keys(regret.per_objective).length > 0 && (
+            <div className="mt-2 text-[11px] leading-relaxed text-stone-500">
+              <span className="text-stone-400">lowest worst-case regret per objective:</span>{" "}
+              {Object.entries(regret.per_objective).map(([obj, r], i) => (
+                <span key={obj}>
+                  {i > 0 && " · "}
+                  <span className="text-stone-600">{obj}</span> → #{r.achieved_by_solution_id}{" "}
+                  <span className="font-mono text-amber-700">{pct(r.min_max_regret)}</span>
+                </span>
+              ))}
+            </div>
+          )}
+
+          {regret.note && (
+            <div className="mt-1.5 text-[10px] leading-snug text-stone-400">{regret.note}</div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -174,4 +285,18 @@ function fmt(v: unknown): string {
     return v.toFixed(2);
   }
   return String(v);
+}
+
+// Regret is a [0,1] fraction of each scenario's achievable objective range given up.
+function pct(v: number | null | undefined): string {
+  if (v === null || v === undefined) return "—";
+  return `${(v * 100).toFixed(1)}%`;
+}
+
+// Per-scenario regret breakdown, surfaced as a hover title on the max-regret cell.
+function byScenarioTitle(byScenario?: Record<string, number>): string | undefined {
+  if (!byScenario || Object.keys(byScenario).length === 0) return undefined;
+  return Object.entries(byScenario)
+    .map(([name, v]) => `${name}: ${pct(v)}`)
+    .join(" · ");
 }

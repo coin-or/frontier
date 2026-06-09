@@ -2934,11 +2934,18 @@ def _viz_data_scenario_parcoords(
 
 
 def _viz_data_scenario_summary(result: dict) -> dict:
-    """Scenario summary payload — option robustness tiers + per-objective risk."""
+    """Scenario summary payload — option robustness tiers, per-objective risk, regret."""
     return {
         "type": "scenario_summary",
-        "scenarios": result.get("scenarios", []),
+        # Scenario names are the keys of per_scenario (there is no top-level
+        # "scenarios" key); the panel keys its visibility off this list, so an
+        # empty list hides the whole panel — derive it from per_scenario.
+        "scenarios": list(result.get("per_scenario", {})),
         "option_robustness": result.get("option_robustness", []),
         "expected_values": result.get("expected_values", {}),
         "scenario_risk": result.get("scenario_risk", {}),
+        # Minimax-regret lens (per-solution, distinct from the per-objective risk
+        # table) — already computed onto result above; carry it so the panel can
+        # render it. {"available": False} when there's no base run to regret against.
+        "regret": result.get("regret", {}),
     }

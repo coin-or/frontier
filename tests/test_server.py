@@ -708,6 +708,37 @@ class TestScenarios:
         assert "per_scenario" in result
         assert "visualization" in result
 
+    def test_scenario_results_viz_data_carries_scenarios_and_regret(self):
+        """viz_data must carry the scenario names (panel visibility gate) and the
+        minimax-regret block (the regret section). Regret needs a base run, so
+        this solves the base case before run_scenarios."""
+        pid = _build_solvable_problem()
+        srv.model(action="update", problem_id=pid, scenario_config={
+            "enabled": True,
+            "scenarios": [
+                {"name": "Base", "probability": 0.6, "score_overrides": []},
+                {"name": "Growth", "probability": 0.4, "score_overrides": [
+                    {"option": "A", "objective": "Rev", "value": 50},
+                ]},
+            ],
+        })
+        srv.solve(action="run", problem_id=pid)            # base run → regret available
+        srv.solve(action="run_scenarios", problem_id=pid)
+        viz = srv.explore(action="scenario_results", problem_id=pid)["viz_data"]
+
+        assert viz["type"] == "scenario_summary"
+        # Panel visibility gate — the original bug emitted [].
+        assert viz["scenarios"] == ["Base", "Growth"]
+        # Minimax-regret block surfaced for the panel's regret section.
+        regret = viz["regret"]
+        assert regret["available"] is True
+        assert regret["minimax_choice"]["solution_id"] is not None
+        assert len(regret["per_solution"]) > 0
+        first = regret["per_solution"][0]
+        assert {"solution_id", "max_regret", "mean_regret", "feasible_in_all", "by_scenario"} <= set(first)
+        # by_scenario drives the panel's per-solution tooltip — keyed by scenario name.
+        assert set(first["by_scenario"]) == {"Base", "Growth"}
+
     def test_scenario_results_without_run(self):
         pid = _build_solvable_problem()
         result = srv.explore(action="scenario_results", problem_id=pid)
