@@ -1,29 +1,20 @@
 # Investment portfolio
 
-Loadable Frontier example — a 30-ETF portfolio balancing return, volatility (via covariance), and yield.
+A 30-ETF portfolio balancing return, volatility (via covariance), and yield, across three macro scenarios. The quadratic mean-variance objective makes the exact path a QP: the full Frontier workflow on a continuous problem with stress testing.
 
-- **`problem.json`** — the definition: 3 objectives (Return / Volatility / Yield), proportional approach, constraints (single-fund ≤30%, ≤3 per sector, volatility ≤20%), and three macro scenarios (`recession`, `inflation`, `rate_cuts`).
-- **`scores.json`** — the 30 funds, their per-objective scores, and the covariance matrix (the `Volatility` interaction matrix).
+- **`problem.json`**: 3 objectives (Return / Volatility / Yield), proportional approach, constraints (single-fund ≤30%, ≤3 per sector, volatility ≤20%), and three macro scenarios (`recession`, `inflation`, `rate_cuts`).
+- **`scores.json`**: the 30 funds, their per-objective scores, and the covariance matrix (the `Volatility` interaction matrix).
+- **`solutions.json`**: the exploratory NSGA `run` plus the per-scenario `scenario_run`.
 
-Load both into Frontier (`model create` → `model update` with the objectives/options/scores/constraints/interaction_matrices/scenarios → `solve run` → `explore`), or paste this to an agent connected to Frontier:
+Load with `model load source="investment_portfolio"`, or paste this to an agent connected to Frontier:
 
-> Build a diversified ETF portfolio from the funds in scores.json — maximize return, minimize volatility (use the covariance matrix, not weighted-average vol), maximize yield. Constraints: no fund over 30%, ≤3 per sector, volatility under 20%. Show the tradeoffs across base and the macro scenarios — recession (US-equity correlations rise 50%), inflation, and rate cuts — the range of non-dominated portfolios and where the knees are, not one "best."
+> Build a diversified ETF portfolio from the funds in scores.json: maximize return, minimize volatility from the covariance matrix, maximize yield. Constraints: no fund over 30%, ≤3 per sector, volatility under 20%. Explore the tradeoffs across the base case and the macro scenarios, solve it exactly (solver=highs), certify it, and read the duals.
 
-## Explainability — shadow prices & near-misses
+## The workflow
 
-Solve this problem with an **exact** continuous backend and Frontier surfaces solver-exact duals — the *why* behind a portfolio, not just the *what*:
+1. **Solve** (`solve run`, plus `solve run_scenarios` for the macro regimes): the optimizer produces the return/volatility/yield frontier (covariance-based risk, sector caps binding) and a per-scenario frontier for `recession` (US-equity correlations up ~50%), `inflation`, and `rate_cuts`.
+2. **Explore the tradeoffs** (`explore tradeoffs`): the extremes, a balanced portfolio, the knees, and how the frontier shifts across the scenarios.
+3. **Certify and examine** (`solve solver="highs"` → `explore certify` → `explore sensitivity`): the exact mean-variance QP overlay audits the heuristic frontier and sharpens the volatility risk corner; the duals at the balanced portfolio show Yield as the costlier axis to push (~+57 versus Return ~+17), the Return shadow price falling ~51→0 along the frontier, GLD as the closest near-miss, and HYG pinned at its 30% cap. The read travels with the scenario.
+4. **Decide** (`explore curate`): pin a few portfolios and commit on the tradeoffs.
 
-```
-solve  solver="highs" exact=true     # exact mean-variance QP per frontier point (CPU; solver="cuopt" on GPU)
-explore sensitivity                   # shadow prices + reduced costs, tagged source=solver_exact
-```
-
-For the balanced portfolio on this 30-ETF frontier, that returns (abridged, real output):
-
-- **Where to invest** — constraint shadow prices, the marginal objective change per unit a binding limit is relaxed:
-  - `Yield` floor → **+55**, `Return` floor → **+14** (risk units). Yield is the more expensive axis to push *here*.
-  - `frontier_shadow_price_trend` for `Return`: **18.5 at the high-return end → 2.2 at the low-return end** — return gets steadily more expensive the more you demand of it. Diminishing returns, made exact (not a slope fitted across nearby points).
-- **Near-misses** — `reduced_cost` of unheld funds, how far each must improve to enter: `VEA` (60.5) is the closest miss, then `VTV` (66.6), `VNQI` (71.1)… A small improvement in VEA's return or correlation would pull it into the optimal mix.
-- **Capped** — `HYG` sits at its 30% single-fund cap with reduced cost **−75**: the cap is binding; it would take more if the cap allowed.
-
-**Scope.** Exact for the **continuous** mean-variance (QP) shape. The ≤3-per-sector caps pin 15 of the 30 funds out of the support — those are *structurally excluded* (held out by a cap, not by their own score), so they're filtered from the near-miss list rather than mislabeled as near-misses. Integer/MILP selection problems carry no exact duals; there `explore sensitivity` falls back to the frontier-inferred `binding_analysis`, tagged `source=frontier_inferred`.
+**Scope.** Exact duals cover the continuous mean-variance (QP) shape; integer/MILP selection problems carry none, falling back to the frontier-inferred estimate (`source=frontier_inferred`). For the linear LP counterparts, see [`budget_allocation`](../budget_allocation/) and [`production_mix`](../production_mix/).
