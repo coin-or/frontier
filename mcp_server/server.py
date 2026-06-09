@@ -1127,8 +1127,8 @@ def solve(
             exact backend that solves each frontier point to optimality for its scalarization
             (optimal to a 0.1% gap, not heuristic; add `exact=true` to certify a zero MILP
             gap) — reach for it on a final/decision run over a supported shape
-            (binary selection, or a quadratic mean-variance portfolio), or to certify an
-            EA frontier. If the requested solver isn't installed or the shape doesn't fit,
+            (binary selection, a quadratic mean-variance portfolio, or a purely linear
+            allocation), or to certify an EA frontier. If the requested solver isn't installed or the shape doesn't fit,
             this returns a clear error listing the available solvers — check `solve
             validate`'s `solvers` block first. The engine that ran is echoed as
             `solver_used`. See the optimization_strategy skill ("Exact Solvers").
@@ -1214,7 +1214,7 @@ def _solver_availability(p: Problem) -> dict:
         "available": [k for k, ok in avail.items() if ok],
         "exact_available": [k for k in EXACT_SOLVERS if avail.get(k)],
         "exact_fits_shape": fits,
-        "exact_shape_note": reason or "shape supported (binary selection / mean-variance portfolio)",
+        "exact_shape_note": reason or "shape supported (binary selection / mean-variance QP / linear allocation LP)",
     }
 
 

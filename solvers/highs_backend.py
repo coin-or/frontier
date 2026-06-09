@@ -29,8 +29,14 @@ from __future__ import annotations
 
 import numpy as np
 
-from engine.models import Approach, OptimizeMode, Problem, Run
-from solvers._scalarization import _qp_weights_ok, optimize_milp, optimize_qp
+from engine.models import Aggregation, Approach, OptimizeMode, Problem, Run
+from solvers._scalarization import (
+    _build_raw_sensitivity,
+    _qp_weights_ok,
+    optimize_lp,
+    optimize_milp,
+    optimize_qp,
+)
 
 # Per-scalarization MILP controls. The default ``mip_rel_gap`` is far below unit score
 # granularity, so the incumbent is the true optimum while skipping the (irrelevant) proof;
@@ -133,39 +139,14 @@ def _solve_qp_highs(cov, mu, target_return, return_maximize, max_weight,
 
 
 def _extract_qp_sensitivity(h, w, has_return, n_extra, support):
-    """Read HiGHS duals into a role-tagged raw payload the engine maps to option names.
-
-    Row order matches ``_build_qp_model`` (budget, return floor, extra floors), so
-    ``row_dual`` becomes role-tagged shadow prices and ``col_dual`` the per-variable reduced
-    costs. ``eligible`` flags which variables the EA left *in the support*: an off-support
-    asset is pinned to ub=0 by the cardinality/group search, so its reduced cost is about that
-    cap — not a near-miss — and the engine filters it out of the near-miss list. ``ranging`` is
-    left None: HiGHS ``getRanging()`` is classically LP-only and its QP output is unverified (L4).
-    """
+    """Read HiGHS QP duals into the shared role-tagged payload: ``row_dual`` → budget / return-floor /
+    linear-floor shadow prices (row order matches ``_build_qp_model``), ``col_dual`` → per-variable
+    reduced costs, with ``eligible`` flagging in-support assets. ``ranging`` stays None — HiGHS
+    ``getRanging()`` is classically LP-only and its QP output is unverified (L4)."""
     sol = h.getSolution()
-    row_dual = [float(x) for x in sol.row_dual]
-    col_dual = [float(x) for x in sol.col_dual]
-    n = len(w)
-    if support is None:
-        eligible = [True] * n
-    else:
-        ss = {int(i) for i in support}
-        eligible = [i in ss for i in range(n)]
-
-    def _row(i):  # defensive: HiGHS returns one dual per constraint, in add order
-        return row_dual[i] if 0 <= i < len(row_dual) else 0.0
-
-    shadow_prices = [{"role": "budget", "linear_index": None, "value": _row(0)}]
-    idx = 1
-    if has_return:
-        shadow_prices.append({"role": "return_floor", "linear_index": 0, "value": _row(idx)})
-        idx += 1
-    for t in range(n_extra):
-        shadow_prices.append({"role": "linear_floor", "linear_index": t + 1, "value": _row(idx)})
-        idx += 1
-
-    return {"shadow_prices": shadow_prices, "reduced_costs": col_dual,
-            "eligible": eligible, "ranging": None}
+    return _build_raw_sensitivity([float(x) for x in sol.row_dual],
+                                  [float(x) for x in sol.col_dual],
+                                  len(w), has_return, n_extra, support)
 
 
 def _solve_qp_highs_sensitivity(cov, mu, target_return, return_maximize, max_weight,
@@ -183,6 +164,61 @@ def _solve_qp_highs_sensitivity(cov, mu, target_return, return_maximize, max_wei
     if not ok:
         return weights, ok, None
     return weights, ok, _extract_qp_sensitivity(h, w, has_return, n_extra, support)
+
+
+def _build_lp_model(primary_coef, primary_maximize, eps_list, max_weight, support=None):
+    """Build and solve the proportional LP shared by the plain and dual-returning inner solves:
+    optimize one linear objective over Σw=1, 0 ≤ w ≤ max_weight (0 off ``support``), with each
+    non-primary objective epsilon-constrained. **Row order is the dual reader's contract**: budget
+    Σw=1 at idx 0, then one row per ``eps_list`` entry — so a row dual maps back to the objective it
+    prices. HiGHS minimizes, so a maximize primary is negated. Returns ``(h, w)`` (already solved)."""
+    import highspy
+
+    n = len(primary_coef)
+    ub = float(max_weight) if max_weight is not None else 1.0
+    if support is None:
+        ubs = [ub] * n
+    else:
+        supp = {int(i) for i in support}
+        ubs = [ub if i in supp else 0.0 for i in range(n)]
+    h = highspy.Highs()
+    h.silent()
+    w = [h.addVariable(lb=0.0, ub=ubs[i]) for i in range(n)]
+    h.addConstr(sum(w) == 1)                                          # row 0: budget
+    for coef, tgt, maximize in eps_list:                             # rows 1..: objective floors
+        expr = sum(float(coef[i]) * w[i] for i in range(n))
+        h.addConstr(expr >= float(tgt) if maximize else expr <= float(tgt))
+    sign = -1.0 if primary_maximize else 1.0                         # HiGHS minimizes
+    h.minimize(sum(sign * float(primary_coef[i]) * w[i] for i in range(n)))
+    return h, w
+
+
+def _solve_lp_highs(primary_coef, primary_maximize, eps_list, max_weight, support=None):
+    """One proportional LP via HiGHS — the linear inner-solve contract shared with cuOpt::
+
+        optimize   primary_coef·w        (maximize or minimize)
+        subject to Σw = 1,  0 ≤ w ≤ max_weight  (0 for assets off ``support``)
+                   coef·w ≥/≤ target  for each (coef, target, maximize) in eps_list
+
+    Returns ``(weights as fractions, ok)``. Exact."""
+    h, w = _build_lp_model(primary_coef, primary_maximize, eps_list, max_weight, support)
+    return _qp_primal(h, w, max_weight)
+
+
+def _solve_lp_highs_sensitivity(primary_coef, primary_maximize, eps_list, max_weight, support=None):
+    """Same LP as ``_solve_lp_highs`` plus the exact duals: ``(weights, ok, raw_sensitivity)``.
+    ``raw_sensitivity`` carries budget + per-objective-floor shadow prices (row duals) and
+    per-variable reduced costs (col duals) via the shared marshaller (``has_return=False`` — the
+    primary objective is optimized, not epsilon-constrained). None when the solve is rejected."""
+    h, w = _build_lp_model(primary_coef, primary_maximize, eps_list, max_weight, support)
+    weights, ok = _qp_primal(h, w, max_weight)
+    if not ok:
+        return weights, ok, None
+    sol = h.getSolution()
+    raw = _build_raw_sensitivity([float(x) for x in sol.row_dual],
+                                 [float(x) for x in sol.col_dual],
+                                 len(w), has_return=False, n_extra=len(eps_list), support=support)
+    return weights, ok, raw
 
 
 def _solve_milp_highs(min_coef, eps_list, mc, n, exact=False):
@@ -252,11 +288,17 @@ def _optimize_highs(
     else:
         m = getattr(mode, "value", "fast")
         pop, gen = _QP_BUDGET.get(m, _QP_BUDGET["fast"])
-        # inner_qp_sensitivity attaches solver-exact duals (shadow prices + reduced costs) to
-        # each final-frontier point — the dual read rides the marshaling re-solve, no extra cost.
-        run = optimize_qp(problem, mode, inner_qp=_solve_qp_highs,
-                          inner_qp_sensitivity=_solve_qp_highs_sensitivity, pop=pop, gen=gen,
-                          max_solutions=max_solutions, seed=seed, time_limit=time_limit)
+        # inner_*_sensitivity attaches solver-exact duals (shadow prices + reduced costs) to each
+        # final-frontier point — the dual read rides the marshaling re-solve, no extra cost. A
+        # quadratic-aggregated (mean-variance) objective → convex QP; purely linear → exact LP.
+        if any(o.aggregation == Aggregation.quadratic for o in problem.objectives):
+            run = optimize_qp(problem, mode, inner_qp=_solve_qp_highs,
+                              inner_qp_sensitivity=_solve_qp_highs_sensitivity, pop=pop, gen=gen,
+                              max_solutions=max_solutions, seed=seed, time_limit=time_limit)
+        else:
+            run = optimize_lp(problem, mode, inner_lp=_solve_lp_highs,
+                              inner_lp_sensitivity=_solve_lp_highs_sensitivity, pop=pop, gen=gen,
+                              max_solutions=max_solutions, seed=seed, time_limit=time_limit)
     # Provenance lives with the producer: stamp here so a direct call is labelled correctly,
     # not only when routed through optimize(). exact is a no-op on the always-exact QP path.
     run.solver, run.exact = "highs", exact

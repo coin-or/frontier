@@ -29,8 +29,14 @@ import gc
 
 import numpy as np
 
-from engine.models import Approach, OptimizeMode, Problem, Run
-from solvers._scalarization import _qp_weights_ok, optimize_milp, optimize_qp
+from engine.models import Aggregation, Approach, OptimizeMode, Problem, Run
+from solvers._scalarization import (
+    _build_raw_sensitivity,
+    _qp_weights_ok,
+    optimize_lp,
+    optimize_milp,
+    optimize_qp,
+)
 
 # Re-exported from the shared engine so notebooks/panels that reach into this module by its
 # historical name (e.g. ``cuopt_backend._nearest_psd``) keep resolving after the extraction.
@@ -259,6 +265,245 @@ def _solve_qp_cuopt_matrix(cov, mu, target_return, return_maximize, max_weight,
     return weights, ok
 
 
+# ─── Sensitivity (duals) — HiGHS-parity dual extraction ───
+# The cuOpt twin of HiGHS ``_extract_qp_sensitivity`` / ``_solve_qp_highs_sensitivity``: read the
+# solver-exact duals off a solved QP (or LP) into the SAME role-tagged payload via the shared engine
+# marshaller ``_build_raw_sensitivity`` — so HiGHS/cuOpt × QP/LP are byte-identical and
+# ``_build_solution_sensitivity`` consumes them all the same way. The QP has two read paths mirroring
+# the two plain solves: the default matrix/``DataModel`` path (``get_dual_solution`` /
+# ``get_reduced_cost`` off the ``Solve`` result) and the term-by-term ``Problem`` path (``DualValue`` /
+# ``ReducedCost``); the LP path reads the matrix ``Solve`` result the same way. Constraint-row order is
+# the dual reader's contract, shared with ``_qp_to_csr`` / ``_lp_to_csr``: budget Σw=1 at row 0, then
+# (QP only) the return floor, then one row per extra linear floor — so a row dual maps back to the
+# lever it prices. ``ranging`` is always None: cuOpt has no ranging API (tracked in NVIDIA/cuopt#1395).
+#
+# QP and LP duals are supported in cuOpt (LP under its native LP problem-category). The marshalling is
+# pure (attribute/array reads), so it is CPU-tested here with stand-ins; the dual *numbers* are
+# confirmed on a GPU run by cross-checking the HiGHS oracle (same problem → matching shadow prices +
+# reduced costs), the standard parity check.
+
+
+def _extract_cuopt_qp_sensitivity_matrix(sol, n, has_return, n_extra, support):
+    """Matrix/``DataModel`` dual read (the **default** QP path): ``get_dual_solution()`` returns one
+    row dual per constraint in ``_qp_to_csr`` order, ``get_reduced_cost()`` one per variable. A cuOpt
+    QP is solved under the LP problem-category (there is no separate QP category), so both accessors
+    are populated — they only raise for MILP. Tolerant of a None/empty return so a degenerate solve
+    degrades to a None payload upstream rather than crashing the frontier marshalling."""
+    dual = sol.get_dual_solution()
+    rc = sol.get_reduced_cost()
+    row_dual = [float(x) for x in dual] if dual is not None else []
+    col_dual = [float(x) for x in rc] if rc is not None else []
+    return _build_raw_sensitivity(row_dual, col_dual, n, has_return, n_extra, support)
+
+
+def _solve_qp_cuopt_matrix_sensitivity(cov, mu, target_return, return_maximize, max_weight,
+                                       support=None, extra_linears=None):
+    """Dual-returning twin of ``_solve_qp_cuopt_matrix`` (the default QP path): returns
+    ``(weights, ok, raw_sensitivity)``. Same CSR build + ``Solve`` as the plain matrix path, then reads
+    the duals off the ``Solve`` result; ``raw_sensitivity`` is None when the solve is rejected. Called
+    only on the final-frontier re-solve, never in the EA hot loop, so it adds at most one dual read per
+    surviving point — no extra solves. The cuOpt twin of HiGHS ``_solve_qp_highs_sensitivity``."""
+    from cuopt.linear_programming import DataModel, Solve
+
+    n = len(mu)
+    ub = float(max_weight) if max_weight is not None else 1.0
+    a = _qp_to_csr(cov, mu, target_return, return_maximize, max_weight, support, extra_linears)
+
+    dm = DataModel()
+    dm.set_csr_constraint_matrix(a["A_data"], a["A_indices"], a["A_offsets"])
+    dm.set_constraint_bounds(a["b"])
+    dm.set_row_types(a["row_types"])
+    dm.set_objective_coefficients(a["c"])
+    dm.set_quadratic_objective_matrix(a["Q_data"], a["Q_indices"], a["Q_offsets"])
+    dm.set_variable_lower_bounds(a["var_lb"])
+    dm.set_variable_upper_bounds(a["var_ub"])
+    sol = Solve(dm)
+
+    ok = getattr(sol.get_termination_status(), "name", "") in ("Optimal", "PrimalFeasible")
+    weights = np.asarray(sol.get_primal_solution(), dtype=float) if ok else np.zeros(n)
+    if ok and not _qp_weights_ok(weights, ub):
+        weights, ok = np.zeros(n), False
+    raw = (_extract_cuopt_qp_sensitivity_matrix(sol, n, target_return is not None,
+                                                len(extra_linears or []), support)
+           if ok else None)
+    del dm, sol
+    gc.collect()
+    return weights, ok, raw
+
+
+def _extract_cuopt_qp_sensitivity(prob, w, has_return, n_extra, support):
+    """Term-by-term ``Problem``-API dual read (used when ``_USE_MATRIX_QP`` is off): constraints come
+    back from ``prob.getConstraints()`` in add order (budget, return floor, extra floors), so
+    ``DualValue`` maps to the lever it prices; ``w[i].ReducedCost`` gives the per-asset reduced costs.
+    Feeds the same shared marshaller as the matrix path, so the payload is identical."""
+    cons = list(prob.getConstraints())
+    row_dual = [float(getattr(c, "DualValue", 0.0)) for c in cons]
+    col_dual = [float(getattr(w[i], "ReducedCost", 0.0)) for i in range(len(w))]
+    return _build_raw_sensitivity(row_dual, col_dual, len(w), has_return, n_extra, support)
+
+
+def _solve_qp_cuopt_sensitivity(cov, mu, target_return, return_maximize, max_weight,
+                                support=None, extra_linears=None):
+    """Dual-returning twin of ``_solve_qp_cuopt`` (term-by-term path): ``(weights, ok,
+    raw_sensitivity)``. Mirrors ``_solve_qp_cuopt`` line-for-line, then reads the modeling-API duals;
+    kept separate so the GPU-verified plain path stays untouched."""
+    from cuopt.linear_programming.problem import MINIMIZE, Problem as CuProblem
+
+    n = len(mu)
+    prob = CuProblem("frontier_portfolio_qp")
+    ub = float(max_weight) if max_weight is not None else 1.0
+    if support is None:
+        ubs = [ub] * n
+    else:
+        supp = {int(i) for i in support}
+        ubs = [ub if i in supp else 0.0 for i in range(n)]
+    w = [prob.addVariable(lb=0.0, ub=ubs[i], name=f"w_{i}") for i in range(n)]
+
+    quad = None
+    for i in range(n):
+        for j in range(n):
+            c = float(cov[i, j])
+            if abs(c) > 1e-12:
+                term = c * w[i] * w[j]
+                quad = term if quad is None else quad + term
+    prob.setObjective(quad, sense=MINIMIZE)
+
+    prob.addConstraint(sum(w) == 1, name="fully_invested")               # row 0: budget
+    has_return = target_return is not None
+    if has_return:                                                       # row 1: return floor
+        ret_expr = sum(float(mu[i]) * w[i] for i in range(n))
+        prob.addConstraint(ret_expr >= float(target_return) if return_maximize
+                           else ret_expr <= float(target_return), name="return_target")
+    n_extra = len(extra_linears or [])
+    for k, (coef, tgt, maximize) in enumerate(extra_linears or []):      # rows 2..: extra floors
+        expr = sum(float(coef[i]) * w[i] for i in range(n))
+        prob.addConstraint(expr >= float(tgt) if maximize else expr <= float(tgt), name=f"linear_{k}")
+
+    prob.solve()
+    ok = getattr(prob.Status, "name", "") in ("Optimal", "PrimalFeasible")
+    weights = np.array([w[i].Value for i in range(n)], dtype=float) if ok else np.zeros(n)
+    if ok and not _qp_weights_ok(weights, ub):
+        weights, ok = np.zeros(n), False
+    raw = _extract_cuopt_qp_sensitivity(prob, w, has_return, n_extra, support) if ok else None
+    del prob
+    gc.collect()
+    return weights, ok, raw
+
+
+# ─── LP inner solves (proportional + purely linear objectives) ───
+# The pure-linear twin of the matrix QP path: no quadratic Q, the objective is the linear primary
+# coefficient vector, the rest of the objectives are epsilon-constraint rows. LP is cuOpt's native
+# problem-category (dual simplex / PDLP), so duals + reduced costs are first-class here.
+
+
+def _lp_to_csr(primary_coef, primary_maximize, eps_list, max_weight, support=None):
+    """Marshal one proportional LP into the CSR arrays cuOpt's ``DataModel`` consumes — the linear
+    twin of ``_qp_to_csr`` (no quadratic Q; the objective is the linear ``c``). Pure (no cuOpt
+    import), so it unit-tests on CPU. Objective ``c = ±primary_coef`` (negated to maximize, since
+    cuOpt minimizes). Rows, in order: budget Σw=1 ('E'), then one row per ``eps_list`` floor ('G' for
+    a maximize objective, else 'L'). Box 0 ≤ w ≤ ``max_weight``, off-``support`` pinned to ub=0."""
+    from scipy.sparse import csr_matrix
+
+    n = len(primary_coef)
+    ub = float(max_weight) if max_weight is not None else 1.0
+    var_ub = np.full(n, ub, dtype=np.float64)
+    if support is not None:
+        supp = {int(i) for i in support}
+        var_ub[[i for i in range(n) if i not in supp]] = 0.0
+
+    rows = [np.ones(n, dtype=np.float64)]
+    b = [1.0]
+    row_types = ["E"]
+    for coef, tgt, maximize in eps_list:
+        rows.append(np.asarray(coef, dtype=np.float64))
+        b.append(float(tgt))
+        row_types.append("G" if maximize else "L")
+    A = csr_matrix(np.vstack(rows))
+    sign = -1.0 if primary_maximize else 1.0                             # cuOpt minimizes
+
+    return {
+        "A_data": A.data.astype(np.float64),
+        "A_indices": A.indices.astype(np.int32),
+        "A_offsets": A.indptr.astype(np.int32),
+        "b": np.asarray(b, dtype=np.float64),
+        "row_types": np.array(row_types, dtype="S1"),
+        "c": (sign * np.asarray(primary_coef, dtype=np.float64)).astype(np.float64),
+        "var_lb": np.zeros(n, dtype=np.float64),
+        "var_ub": var_ub,
+    }
+
+
+def _solve_lp_cuopt(primary_coef, primary_maximize, eps_list, max_weight, support=None):
+    """One proportional LP via cuOpt's low-level ``DataModel`` — the linear inner-solve contract
+    shared with HiGHS (optimize a linear objective over Σw=1, box, support, with each non-primary
+    objective epsilon-constrained). Returns ``(weights as fractions, ok)``. Marshaling (``_lp_to_csr``)
+    is pure/CPU-tested; only the ``Solve`` below needs a GPU."""
+    from cuopt.linear_programming import DataModel, Solve
+
+    n = len(primary_coef)
+    ub = float(max_weight) if max_weight is not None else 1.0
+    a = _lp_to_csr(primary_coef, primary_maximize, eps_list, max_weight, support)
+
+    dm = DataModel()
+    dm.set_csr_constraint_matrix(a["A_data"], a["A_indices"], a["A_offsets"])
+    dm.set_constraint_bounds(a["b"])
+    dm.set_row_types(a["row_types"])
+    dm.set_objective_coefficients(a["c"])
+    dm.set_variable_lower_bounds(a["var_lb"])
+    dm.set_variable_upper_bounds(a["var_ub"])
+    sol = Solve(dm)
+
+    ok = getattr(sol.get_termination_status(), "name", "") in ("Optimal", "PrimalFeasible")
+    weights = np.asarray(sol.get_primal_solution(), dtype=float) if ok else np.zeros(n)
+    if ok and not _qp_weights_ok(weights, ub):
+        weights, ok = np.zeros(n), False
+    del dm, sol
+    gc.collect()
+    return weights, ok
+
+
+def _extract_cuopt_lp_sensitivity_matrix(sol, n, n_extra, support):
+    """LP dual read off the cuOpt ``Solve`` result: ``get_dual_solution()`` → budget + objective-floor
+    shadow prices (``_lp_to_csr`` row order), ``get_reduced_cost()`` → per-variable reduced costs. LP
+    is cuOpt's native problem-category, so both accessors are populated. ``has_return=False`` — the
+    primary objective is the LP objective, not an epsilon-constraint, so it carries no shadow price."""
+    dual = sol.get_dual_solution()
+    rc = sol.get_reduced_cost()
+    row_dual = [float(x) for x in dual] if dual is not None else []
+    col_dual = [float(x) for x in rc] if rc is not None else []
+    return _build_raw_sensitivity(row_dual, col_dual, n, has_return=False, n_extra=n_extra,
+                                  support=support)
+
+
+def _solve_lp_cuopt_sensitivity(primary_coef, primary_maximize, eps_list, max_weight, support=None):
+    """Dual-returning twin of ``_solve_lp_cuopt``: ``(weights, ok, raw_sensitivity)``. Same CSR build +
+    ``Solve``, then reads the duals off the result; None when the solve is rejected. The cuOpt LP
+    counterpart of ``_solve_lp_highs_sensitivity``."""
+    from cuopt.linear_programming import DataModel, Solve
+
+    n = len(primary_coef)
+    ub = float(max_weight) if max_weight is not None else 1.0
+    a = _lp_to_csr(primary_coef, primary_maximize, eps_list, max_weight, support)
+
+    dm = DataModel()
+    dm.set_csr_constraint_matrix(a["A_data"], a["A_indices"], a["A_offsets"])
+    dm.set_constraint_bounds(a["b"])
+    dm.set_row_types(a["row_types"])
+    dm.set_objective_coefficients(a["c"])
+    dm.set_variable_lower_bounds(a["var_lb"])
+    dm.set_variable_upper_bounds(a["var_ub"])
+    sol = Solve(dm)
+
+    ok = getattr(sol.get_termination_status(), "name", "") in ("Optimal", "PrimalFeasible")
+    weights = np.asarray(sol.get_primal_solution(), dtype=float) if ok else np.zeros(n)
+    if ok and not _qp_weights_ok(weights, ub):
+        weights, ok = np.zeros(n), False
+    raw = _extract_cuopt_lp_sensitivity_matrix(sol, n, len(eps_list), support) if ok else None
+    del dm, sol
+    gc.collect()
+    return weights, ok, raw
+
+
 def _parallel_solve(fn, arg_tuples, max_workers=None):
     """Run independent inner solves concurrently. The EA's scalarizations are independent, so a
     **thread** pool lets their solves overlap: cuOpt releases the GIL during the C++/GPU
@@ -358,18 +603,31 @@ def _optimize_cuopt(
     exact: bool = False,
     time_limit: float | None = None,
 ) -> Run:
-    """Delegate to the shared NSGA-scalarization engine with the cuOpt inner solves: binary →
-    exact MILP per scalarization, proportional → exact convex QP per scalarization. Returns a
-    ``Run`` in the engine's exact shape (identical to the NSGA paths). ``exact`` certifies each
-    MILP solve; ``time_limit`` (s) bounds the scalarization sweep (best-so-far on a cap)."""
+    """Delegate to the shared NSGA-scalarization engine with the cuOpt inner solves: binary → exact
+    MILP, proportional + quadratic → exact convex QP, proportional + purely linear → exact LP, each
+    per scalarization. Returns a ``Run`` in the engine's exact shape (identical to the NSGA paths).
+    ``exact`` certifies each MILP solve; ``time_limit`` (s) bounds the scalarization sweep."""
     if problem.approach == Approach.binary:
         run = optimize_milp(problem, mode, inner_milp=_solve_milp_cuopt,
                             max_solutions=max_solutions, seed=seed, exact=exact,
                             time_limit=time_limit)
-    else:
-        # Scalable matrix build when enabled, else the GPU-verified term-by-term path.
-        inner_qp = _solve_qp_cuopt_matrix if _USE_MATRIX_QP else _solve_qp_cuopt
+    elif any(o.aggregation == Aggregation.quadratic for o in problem.objectives):
+        # Mean-variance QP. Scalable matrix build when enabled, else the GPU-verified term-by-term
+        # path; each has a dual-returning twin, so solver-exact sensitivity (shadow prices + reduced
+        # costs) rides the final-frontier marshaling re-solve — HiGHS parity, on by default.
+        if _USE_MATRIX_QP:
+            inner_qp, inner_qp_sensitivity = _solve_qp_cuopt_matrix, _solve_qp_cuopt_matrix_sensitivity
+        else:
+            inner_qp, inner_qp_sensitivity = _solve_qp_cuopt, _solve_qp_cuopt_sensitivity
         run = optimize_qp(problem, mode, inner_qp=inner_qp,
+                          inner_qp_sensitivity=inner_qp_sensitivity,
+                          pop=_SPIKE_POP, gen=_SPIKE_GEN,
+                          max_solutions=max_solutions, seed=seed, time_limit=time_limit)
+    else:
+        # Purely linear proportional allocation → exact LP (dual simplex / PDLP), with shadow prices +
+        # reduced costs from the same shared marshaller.
+        run = optimize_lp(problem, mode, inner_lp=_solve_lp_cuopt,
+                          inner_lp_sensitivity=_solve_lp_cuopt_sensitivity,
                           pop=_SPIKE_POP, gen=_SPIKE_GEN,
                           max_solutions=max_solutions, seed=seed, time_limit=time_limit)
     # Provenance lives with the producer: stamp here so a direct call is labelled correctly,
