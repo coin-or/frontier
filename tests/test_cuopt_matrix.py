@@ -17,7 +17,13 @@ import numpy as np
 import pytest
 from scipy.sparse import csr_matrix
 
-from solvers.cuopt_backend import _parallel_solve, _qp_to_csr
+from solvers.cuopt_backend import (
+    _extract_cuopt_qp_sensitivity,
+    _extract_cuopt_qp_sensitivity_matrix,
+    _parallel_solve,
+    _qp_to_csr,
+    _raw_qp_sensitivity,
+)
 
 
 def _dense(data, indices, offsets, shape):
@@ -157,3 +163,116 @@ def test_parallel_solve_matches_sequential_on_highs_qp():
         if ok_s:
             assert np.allclose(w_s, w_p)
             assert abs(w_s.sum() - 1.0) < 1e-3       # fully invested, a real frontier point
+
+
+# ─── sensitivity (duals) marshalling — CPU, stand-in cuOpt objects ───
+# The cuOpt solve is GPU-only, but the dual extractors are pure (array/attribute reads), so the
+# role/index/eligibility mapping is verified here with stand-ins; the dual *numbers* are confirmed on
+# a GPU run vs the HiGHS oracle. Both read paths — the default matrix `Solve` result and the
+# term-by-term `Problem` — must produce the identical role-tagged payload the shared engine consumes.
+
+
+class _FakeSolution:
+    """Matrix-path Solve result stand-in: one dual per constraint (in `_qp_to_csr` add order), one
+    reduced cost per variable."""
+
+    def __init__(self, dual, reduced):
+        self._dual, self._reduced = dual, reduced
+
+    def get_dual_solution(self):
+        return np.asarray(self._dual, dtype=float)
+
+    def get_reduced_cost(self):
+        return np.asarray(self._reduced, dtype=float)
+
+
+class _FakeCon:
+    def __init__(self, dual):
+        self.DualValue = dual
+
+
+class _FakeVar:
+    def __init__(self, rc):
+        self.ReducedCost = rc
+
+
+class _FakeProb:
+    def __init__(self, duals):
+        self._cons = [_FakeCon(d) for d in duals]
+
+    def getConstraints(self):
+        return self._cons
+
+
+def test_matrix_sensitivity_roles_indices_values():
+    # rows in _qp_to_csr add order: budget, return floor, one extra linear floor; 3 assets.
+    sol = _FakeSolution(dual=[-0.05, 0.012, 0.4], reduced=[0.0, 0.0, 0.3])
+    raw = _extract_cuopt_qp_sensitivity_matrix(sol, n=3, has_return=True, n_extra=1, support=None)
+    assert [(s["role"], s["linear_index"]) for s in raw["shadow_prices"]] == [
+        ("budget", None), ("return_floor", 0), ("linear_floor", 1)]
+    assert [s["value"] for s in raw["shadow_prices"]] == [-0.05, 0.012, 0.4]
+    assert raw["reduced_costs"] == [0.0, 0.0, 0.3]
+    assert raw["eligible"] == [True, True, True]
+    assert raw["ranging"] is None
+
+
+def test_matrix_sensitivity_eligibility_from_support():
+    # support={0, 2} → asset 1 is off-support (pinned out, ineligible — not a near-miss).
+    sol = _FakeSolution(dual=[-0.05, 0.01], reduced=[0.0, 0.1, 0.0])
+    raw = _extract_cuopt_qp_sensitivity_matrix(sol, n=3, has_return=True, n_extra=0, support=[0, 2])
+    assert raw["eligible"] == [True, False, True]
+    assert [s["role"] for s in raw["shadow_prices"]] == ["budget", "return_floor"]
+
+
+def test_matrix_sensitivity_no_return_row():
+    # min-variance anchor (target_return=None) → only the budget row, like _qp_to_csr.
+    sol = _FakeSolution(dual=[-0.07], reduced=[0.0, 0.0])
+    raw = _extract_cuopt_qp_sensitivity_matrix(sol, n=2, has_return=False, n_extra=0, support=None)
+    assert [s["role"] for s in raw["shadow_prices"]] == ["budget"]
+    assert raw["shadow_prices"][0]["value"] == -0.07
+
+
+def test_matrix_sensitivity_tolerates_empty_duals():
+    # A degenerate solve may return no duals; degrade to a tagged-but-zero payload, never crash.
+    sol = _FakeSolution(dual=[], reduced=[])
+    raw = _extract_cuopt_qp_sensitivity_matrix(sol, n=2, has_return=True, n_extra=0, support=None)
+    assert [s["value"] for s in raw["shadow_prices"]] == [0.0, 0.0]   # defensive _row → 0.0
+    assert raw["reduced_costs"] == []
+
+
+def test_matrix_and_termwise_paths_agree():
+    # The two cuOpt read paths must produce the identical payload for the same duals — so flipping
+    # _USE_MATRIX_QP can never change the sensitivity a user sees.
+    duals, reduced = [-0.05, 0.012, 0.4], [0.0, 0.0, 0.3]
+    m = _extract_cuopt_qp_sensitivity_matrix(_FakeSolution(duals, reduced), n=3,
+                                             has_return=True, n_extra=1, support=None)
+    t = _extract_cuopt_qp_sensitivity(_FakeProb(duals), [_FakeVar(r) for r in reduced],
+                                      has_return=True, n_extra=1, support=None)
+    assert m == t
+
+
+def test_cuopt_payload_parity_with_highs_shape():
+    # The cuOpt raw payload must carry the exact keys/shape the HiGHS path emits, since the shared
+    # engine (_build_solution_sensitivity) consumes both identically.
+    raw = _raw_qp_sensitivity([-0.05, 0.01], [0.0, 0.2], n=2, has_return=True, n_extra=0, support=None)
+    assert set(raw) == {"shadow_prices", "reduced_costs", "eligible", "ranging"}
+    assert all(set(sp) == {"role", "linear_index", "value"} for sp in raw["shadow_prices"])
+    assert len(raw["reduced_costs"]) == len(raw["eligible"]) == 2
+
+
+def test_cuopt_payload_consumed_by_shared_engine():
+    # End-to-end (CPU): the cuOpt raw payload flows through the shared marshaller into a typed
+    # SolutionSensitivity exactly like HiGHS — proving engine parity without a GPU.
+    from solvers._scalarization import _build_solution_sensitivity
+
+    class _Obj:
+        def __init__(self, name):
+            self.name = name
+
+    raw = _raw_qp_sensitivity([-0.05, 0.012], [0.0, 0.3], n=2, has_return=True, n_extra=0, support=None)
+    sens = _build_solution_sensitivity(raw, opt_names=["A", "B"], alloc_row=[0, 30],
+                                       linear_idxs=[0], obj_list=[_Obj("Return")])
+    assert sens.source == "solver_exact"
+    assert [(sp.role, sp.name) for sp in sens.shadow_prices] == [
+        ("budget", "budget"), ("return_floor", "Return")]
+    assert [(rc.option, rc.allocation) for rc in sens.reduced_costs] == [("A", 0), ("B", 30)]
