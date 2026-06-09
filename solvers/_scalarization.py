@@ -269,6 +269,80 @@ def _solve_individual_sensitivity(cov, linear_coefs, linear_maximize, max_weight
                                 max_weight, support, extra)
 
 
+def _solve_individual_lp(linear_coefs, linear_maximize, max_weight, eps, support, inner_lp):
+    """Inner LP for one EA individual (proportional allocation, purely linear objectives): optimize
+    the **primary** linear objective (``linear_coefs[0]``) subject to every NON-primary objective
+    meeting its epsilon target ``eps[t]``, restricted to ``support``. The continuous-allocation
+    analogue of ``_solve_individual`` — but one linear objective is *optimized* rather than the
+    quadratic, so the genome carries one fewer target (the primary isn't epsilon-constrained)."""
+    eps_list = [(linear_coefs[t + 1], float(eps[t]), linear_maximize[t + 1])
+                for t in range(len(eps))]
+    return inner_lp(linear_coefs[0], linear_maximize[0], eps_list, max_weight, support)
+
+
+def _solve_individual_lp_sensitivity(linear_coefs, linear_maximize, max_weight, eps,
+                                     support, inner_lp_sensitivity):
+    """Dual-returning sibling of ``_solve_individual_lp``: ``(weights_frac, ok, raw_sensitivity)``."""
+    eps_list = [(linear_coefs[t + 1], float(eps[t]), linear_maximize[t + 1])
+                for t in range(len(eps))]
+    return inner_lp_sensitivity(linear_coefs[0], linear_maximize[0], eps_list, max_weight, support)
+
+
+def _decode_support(pri, cardinality_k, groups):
+    """Decode an asset-selection priority vector → the eligible asset indices (or ``None`` when
+    unconstrained). Group-aware: keep the top-``max`` priorities per group and, if a global
+    cardinality cap is also set, the top-K of the remainder. Shared by the QP and LP genomes so the
+    support search behaves identically on both exact paths."""
+    if cardinality_k is None and not groups:
+        return None
+    pri = np.asarray(pri, dtype=float)
+    n = len(pri)
+    if groups:
+        support, grouped = set(), set()
+        for grp, gmax in groups:
+            grouped.update(grp)
+            support.update(int(i) for i in sorted(grp, key=lambda i: pri[i])[-gmax:])
+        ungrouped = [i for i in range(n) if i not in grouped]
+        if cardinality_k is not None:
+            rem = max(0, cardinality_k - len(support))
+            support.update(int(i) for i in sorted(ungrouped, key=lambda i: pri[i])[-rem:])
+        else:
+            support.update(ungrouped)
+        return np.array(sorted(support))
+    return np.argsort(pri)[-cardinality_k:]
+
+
+def _build_raw_sensitivity(row_dual, col_dual, n, has_return, n_extra, support):
+    """Shared dual marshaller for every exact path (HiGHS / cuOpt × QP / LP): role-tag the constraint
+    duals by add-order — budget Σw=1 (row 0), then the return floor (QP only) and the linear-objective
+    floors — and pair the per-variable reduced costs with an ``eligible`` flag, producing the dict
+    shape ``_build_solution_sensitivity`` consumes. ``has_return`` is True on the QP path (its primary
+    linear objective is epsilon-constrained as a return floor) and False on the LP path (its primary
+    linear objective is *optimized*, so it carries no shadow price). An off-``support`` asset is pinned
+    to ub=0 by the cardinality/group search → its reduced cost prices that cap, not a near-miss, so it
+    is flagged ineligible. ``ranging`` is None (no solver exposes it on these paths)."""
+    def _row(i):
+        return float(row_dual[i]) if 0 <= i < len(row_dual) else 0.0
+
+    shadow_prices = [{"role": "budget", "linear_index": None, "value": _row(0)}]
+    idx = 1
+    if has_return:
+        shadow_prices.append({"role": "return_floor", "linear_index": 0, "value": _row(idx)})
+        idx += 1
+    for t in range(n_extra):
+        shadow_prices.append({"role": "linear_floor", "linear_index": t + 1, "value": _row(idx)})
+        idx += 1
+
+    if support is None:
+        eligible = [True] * n
+    else:
+        ss = {int(i) for i in support}
+        eligible = [i in ss for i in range(n)]
+
+    return {"shadow_prices": shadow_prices, "reduced_costs": [float(x) for x in col_dual],
+            "eligible": eligible, "ranging": None}
+
+
 def _build_solution_sensitivity(raw, opt_names, alloc_row, linear_idxs, obj_list):
     """Map a backend's raw dual payload onto option/objective names → a
     ``SolutionSensitivity``. Backend-agnostic: ``raw['shadow_prices']`` is a list of
@@ -320,27 +394,10 @@ class _QpFrontierProblem(PymooProblem):
                          n_ieq_constr=1, xl=np.array(xl), xu=np.array(xu))
 
     def _support_from_row(self, x_row: np.ndarray) -> "np.ndarray | None":
-        """Decode the selection-priority tail of one genome row → eligible asset indices.
-        None when unconstrained. Group-aware: keep the top-``max`` priorities per group and,
-        if a global cardinality cap is also set, the top-K of the remainder."""
-        if self.cardinality_k is None and not self.groups:
-            return None
-        n_lin = len(self.linear_coefs)
-        pri = np.asarray(x_row[n_lin:], dtype=float)
-        n = len(pri)
-        if self.groups:
-            support, grouped = set(), set()
-            for grp, gmax in self.groups:
-                grouped.update(grp)
-                support.update(int(i) for i in sorted(grp, key=lambda i: pri[i])[-gmax:])
-            ungrouped = [i for i in range(n) if i not in grouped]
-            if self.cardinality_k is not None:
-                rem = max(0, self.cardinality_k - len(support))
-                support.update(int(i) for i in sorted(ungrouped, key=lambda i: pri[i])[-rem:])
-            else:
-                support.update(ungrouped)
-            return np.array(sorted(support))
-        return np.argsort(pri)[-self.cardinality_k:]
+        """Decode the selection-priority tail of one genome row → eligible asset indices (None when
+        unconstrained). Delegates to the shared ``_decode_support`` so QP and LP search identically."""
+        return _decode_support(np.asarray(x_row[len(self.linear_coefs):], dtype=float),
+                               self.cardinality_k, self.groups)
 
     def _evaluate(self, X, out, *args, **kwargs):
         X = np.atleast_2d(X)
@@ -469,6 +526,153 @@ def optimize_qp(problem, mode, *, inner_qp, inner_qp_sensitivity=None, pop, gen,
                 objective_values=obj_values, allocations=alloc_map,
                 sensitivity=sensitivity,
             ))
+
+    solutions = _nondominated(solutions, obj_list)
+    max_n = max_solutions or _opt.MAX_PARETO_SOLUTIONS
+    solutions, total_found = _opt._prune_pareto(solutions, obj_list, max_n=max_n)
+    solutions = _opt._sort_and_reindex(solutions, obj_list)
+    return Run(solutions=solutions, total_pareto_found=total_found,
+               quality=_opt._compute_quality(result, seed=seed), mode=mode, seed_used=seed,
+               time_limit=time_limit, time_limited=_opt._was_time_limited(time_limit, _elapsed))
+
+
+# --------------------------------------------------------------------------- #
+# LP genome (proportional allocation, purely linear objectives)
+# --------------------------------------------------------------------------- #
+class _LpFrontierProblem(PymooProblem):
+    """EA genome for proportional allocation with purely linear objectives: one epsilon target per
+    NON-primary objective (plus, under a cardinality/group cap, the asset-selection priorities). The
+    inner solver optimizes the primary linear objective exactly subject to those targets + budget /
+    box / support; NSGA-II explores the epsilon space. The continuous-allocation twin of
+    ``_MilpFrontierProblem`` — an LP inner solve instead of a 0/1 MILP — and the proportional
+    aggregator scores the resulting weights apples-to-apples with the NSGA paths."""
+
+    def __init__(self, prop, linear_coefs, linear_maximize, max_weight, eps_bounds,
+                 cardinality_k=None, groups=None, *, inner_lp):
+        self.prop = prop
+        self.linear_coefs = linear_coefs
+        self.linear_maximize = linear_maximize
+        self.max_weight = max_weight
+        self.cardinality_k = cardinality_k
+        self.groups = groups or []
+        self.inner_lp = inner_lp
+        self.n_eps = len(linear_coefs) - 1            # one epsilon target per non-primary objective
+        n_assets = len(linear_coefs[0])
+        xl = [b[0] for b in eps_bounds]
+        xu = [b[1] for b in eps_bounds]
+        if cardinality_k is not None or self.groups:
+            xl = xl + [0.0] * n_assets
+            xu = xu + [1.0] * n_assets
+        super().__init__(n_var=len(xl), n_obj=prop.n_obj, n_ieq_constr=1,
+                         xl=np.array(xl), xu=np.array(xu))
+
+    def _support_from_row(self, x_row):
+        return _decode_support(np.asarray(x_row[self.n_eps:], dtype=float),
+                               self.cardinality_k, self.groups)
+
+    def _evaluate(self, X, out, *args, **kwargs):
+        X = np.atleast_2d(X)
+        n_pop = X.shape[0]
+        n_assets = len(self.linear_coefs[0])
+        objectives = self.prop.objectives
+        W_pct = np.zeros((n_pop, n_assets))
+        feasible = np.ones(n_pop, dtype=bool)
+        for k in range(n_pop):
+            w_frac, ok = _solve_individual_lp(
+                self.linear_coefs, self.linear_maximize, self.max_weight,
+                X[k, :self.n_eps], self._support_from_row(X[k]), self.inner_lp,
+            )
+            if ok:
+                W_pct[k] = w_frac * 100.0
+            else:
+                feasible[k] = False
+        F = np.zeros((n_pop, len(objectives)))
+        for j, obj in enumerate(objectives):
+            natural = self.prop._aggregate_objective(W_pct, j)
+            F[:, j] = -natural if obj.direction.value == "maximize" else natural
+        F[~feasible, :] = _INFEASIBLE_PENALTY
+        out["F"] = F
+        out["G"] = np.where(feasible, -1.0, 1.0).reshape(-1, 1)
+
+
+def optimize_lp(problem, mode, *, inner_lp, inner_lp_sensitivity=None, pop, gen,
+                max_solutions=None, seed=42, time_limit=None) -> Run:
+    """Proportional allocation with purely linear objectives — an exact multi-objective LP. The EA
+    walks an epsilon-constraint target on each non-primary objective while ``inner_lp`` optimizes the
+    primary linear objective exactly per individual (continuous weights, Σw=1). The pure-linear
+    sibling of ``optimize_qp`` (no covariance / quadratic term); solver-exact shadow prices + reduced
+    costs ride the final-frontier re-solve via ``inner_lp_sensitivity``. Returns a Run in the engine's
+    exact shape, so explorer / metrics / store need no changes."""
+    n_options = len(problem.options)
+    opt_names = [o.name for o in problem.options]
+    obj_list = problem.objectives
+    score_matrix = _opt._build_score_matrix(problem)
+    cp = _opt._parse_constraints(problem)
+
+    linear_idxs = _resolve_linear_objectives(problem)   # all objectives (no quadratic on this path)
+    linear_coefs = [score_matrix[:, j] for j in linear_idxs]
+    linear_maximize = [obj_list[j].direction.value == "maximize" for j in linear_idxs]
+
+    max_weight = (cp["max_allocation"] / 100.0) if cp.get("max_allocation") else None
+    cardinality_k = _cardinality_k(problem)
+    groups = _group_limits(problem)
+
+    prop = _opt._ProportionalProblem(
+        n_options=n_options, score_matrix=score_matrix, objectives=obj_list,
+        interaction_matrices=_opt._build_interaction_matrices(problem), **cp,
+    )
+
+    # Epsilon range per NON-primary objective = [min, max] over the budget/box-feasible region, from
+    # two LP anchor solves that optimize that objective alone (the primary objective ignored).
+    eps_bounds: list[tuple[float, float]] = []
+    for t in range(1, len(linear_coefs)):
+        coef, maximize = linear_coefs[t], linear_maximize[t]
+        w_hi, ok_hi = inner_lp(coef, maximize, [], max_weight, None)        # best for this objective
+        w_lo, ok_lo = inner_lp(coef, not maximize, [], max_weight, None)    # worst for this objective
+        vals = [float(coef @ w) for w, ok in ((w_hi, ok_hi), (w_lo, ok_lo)) if ok]
+        lo, hi = (min(vals), max(vals)) if vals else (float(coef.min()), float(coef.max()))
+        eps_bounds.append((lo, hi if hi > lo else lo + 1e-6))
+
+    pymoo_problem = _LpFrontierProblem(
+        prop, linear_coefs, linear_maximize, max_weight, eps_bounds,
+        cardinality_k, groups, inner_lp=inner_lp,
+    )
+    _t0 = time.monotonic()
+    result = pymoo_minimize(pymoo_problem, NSGA2(pop_size=pop),
+                            _opt._build_termination(gen, time_limit), seed=seed, verbose=False)
+    _elapsed = time.monotonic() - _t0
+
+    n_eps = pymoo_problem.n_eps
+    solutions: list[Solution] = []
+    seen: set[str] = set()
+    if result.X is not None and len(np.atleast_2d(result.X)) > 0:
+        for row in np.atleast_2d(result.X):
+            support = pymoo_problem._support_from_row(row)
+            if inner_lp_sensitivity is not None:
+                w_frac, ok, raw_sens = _solve_individual_lp_sensitivity(
+                    linear_coefs, linear_maximize, max_weight, row[:n_eps], support,
+                    inner_lp_sensitivity)
+            else:
+                w_frac, ok = _solve_individual_lp(
+                    linear_coefs, linear_maximize, max_weight, row[:n_eps], support, inner_lp)
+                raw_sens = None
+            if not ok:
+                continue
+            raw = _round_weights_to_pct(w_frac, n_options, cp.get("max_allocation"))
+            selected = [opt_names[i] for i in range(n_options) if raw[i] > 0]
+            alloc_map = {opt_names[i]: int(raw[i]) for i in range(n_options)}
+            sig = _content_signature(selected, alloc_map)
+            if sig in seen:
+                continue
+            seen.add(sig)
+            W_pct = raw.astype(float).reshape(1, -1)
+            obj_values = {obj.name: round(float(prop._aggregate_objective(W_pct, j)[0]), 4)
+                          for j, obj in enumerate(obj_list)}
+            sensitivity = (_build_solution_sensitivity(raw_sens, opt_names, raw, linear_idxs, obj_list)
+                           if raw_sens else None)
+            solutions.append(Solution(
+                solution_id=len(solutions), selected_options=selected,
+                objective_values=obj_values, allocations=alloc_map, sensitivity=sensitivity))
 
     solutions = _nondominated(solutions, obj_list)
     max_n = max_solutions or _opt.MAX_PARETO_SOLUTIONS

@@ -73,7 +73,8 @@ def _four_objective_problem():
 
 
 def _proportional_no_quad():
-    """Proportional but sum-aggregated — NOT a mean-variance shape, so exact backends decline."""
+    """Proportional with two purely linear (sum/avg) objectives and no quadratic risk term — the
+    exact multi-objective LP shape (previously declined; now owned by the LP path)."""
     names = ["A", "B", "C"]
     scores = [Score(option=n, objective=o, value=v)
               for o in ("Return", "Cost")
@@ -82,6 +83,22 @@ def _proportional_no_quad():
         approach="proportional",
         objectives=[Objective(name="Return", direction="maximize", aggregation="avg"),
                     Objective(name="Cost", direction="minimize", aggregation="sum")],
+        options=[Option(name=n) for n in names],
+        scores=scores,
+    )
+
+
+def _proportional_minmax():
+    """Proportional with a min/max-aggregated (nonlinear) objective — outside both exact shapes
+    (QP and LP), so the exact backends decline to the NSGA heuristic."""
+    names = ["A", "B", "C"]
+    scores = [Score(option=n, objective=o, value=v)
+              for o in ("Return", "Cost")
+              for n, v in zip(names, [10, 12, 8])]
+    return Problem(
+        approach="proportional",
+        objectives=[Objective(name="Return", direction="maximize", aggregation="avg"),
+                    Objective(name="Cost", direction="minimize", aggregation="min")],
         options=[Option(name=n) for n in names],
         scores=scores,
     )
@@ -122,10 +139,15 @@ class TestSelectionSurface:
         fits, reason = exact_solver_fits(_binary_problem())
         assert fits is True and reason == ""
 
-    def test_proportional_without_quadratic_does_not_fit(self):
-        fits, reason = exact_solver_fits(_proportional_no_quad())
+    def test_proportional_linear_fits_as_lp(self):
+        # Two purely linear objectives, no quadratic → the exact multi-objective LP path now owns
+        # this shape (it previously declined to NSGA).
+        fits, _ = exact_solver_fits(_proportional_no_quad())
+        assert fits is True
+
+    def test_proportional_minmax_does_not_fit(self):
+        fits, reason = exact_solver_fits(_proportional_minmax())
         assert fits is False
-        assert "quadratic" in reason
 
     def test_maximize_quadratic_does_not_fit(self):
         # The exact QP is a min-variance solver; a maximize-direction quadratic objective
@@ -166,7 +188,7 @@ class TestOptimizeStamping:
         # degrading to NSGA (no-silent-degradation). The server tool catches this earlier and
         # returns a clean error dict; the library layer fails loud.
         with pytest.raises(ValueError, match="does not fit"):
-            optimize(_proportional_no_quad(), mode=OptimizeMode.fast, seed=1, solver="highs")
+            optimize(_proportional_minmax(), mode=OptimizeMode.fast, seed=1, solver="highs")
 
     def test_unknown_solver_raises(self):
         with pytest.raises(ValueError, match="Unknown solver"):
@@ -220,7 +242,7 @@ class TestSolveToolSelection:
         pid = srv.model(action="create")["problem_id"]
         srv.model(action="update", problem_id=pid, approach="proportional",
                   objectives=[{"name": "Rev", "direction": "maximize", "aggregation": "avg"},
-                              {"name": "Cost", "direction": "minimize", "aggregation": "sum"}],
+                              {"name": "Cost", "direction": "minimize", "aggregation": "min"}],
                   options=[{"name": "A"}, {"name": "B"}, {"name": "C"}],
                   scores=[{"option": o, "objective": ob, "value": v}
                           for o, ob, v in [("A", "Rev", 8), ("A", "Cost", 5),

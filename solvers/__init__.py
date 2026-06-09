@@ -58,6 +58,8 @@ def exact_solver_fits(problem: "Problem") -> tuple[bool, str]:
       * **binary** select-a-subset → exact MILP.
       * **proportional + quadratic** (mean-variance) with an interaction matrix →
         exact convex QP, the EA picking the support under cardinality/group caps.
+      * **proportional + purely linear** (no quadratic), ≥2 objectives → exact
+        multi-objective LP — a linear objective optimized, the rest ε-constrained.
 
     Anything else stays with the default NSGA engine. The ``reason`` explains a
     rejection so the tool can tell the agent *why* an exact run was declined.
@@ -101,10 +103,17 @@ def exact_solver_fits(problem: "Problem") -> tuple[bool, str]:
         )
     quad = [o for o in problem.objectives if o.aggregation == Aggregation.quadratic]
     if not quad:
-        return False, (
-            "proportional problems need a quadratic-aggregated objective (mean-variance "
-            "risk) for the exact QP path; this one has none"
-        )
+        # No quadratic term → purely linear proportional allocation is an exact multi-objective LP
+        # (one linear objective optimized, the rest epsilon-constrained), carrying shadow prices +
+        # reduced costs just like the QP path. Needs >=2 objectives for a frontier; a single linear
+        # objective is a trivial one-shot allocation, left to NSGA for now.
+        if len(problem.objectives) < 2:
+            return False, (
+                "a purely linear proportional problem needs >=2 objectives for the exact LP "
+                "frontier; with one linear objective the allocation is a trivial single solve — "
+                "use the NSGA heuristic, or add a mean-variance risk objective for the QP path"
+            )
+        return True, ""
     # The exact QP minimizes wᵀQw — it is strictly a min-variance/risk solver. A maximize
     # quadratic objective is non-convex maximization, outside that shape; the QP would
     # silently minimize it and return a degenerate frontier. Require minimize so the gate

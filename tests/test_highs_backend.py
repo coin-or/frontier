@@ -117,17 +117,26 @@ class TestGate:
         p = _qp_problem(constraints=[GroupLimitConstraint(options=["A", "B"], max=1)])
         assert exact_solver_fits(p)[0] is True
 
-    def test_proportional_without_quadratic_does_not_fit(self):
-        # No quadratic objective + interaction matrix → not a mean-variance shape; NSGA owns it.
+    def test_proportional_linear_fits_as_lp(self):
+        # Two purely linear objectives (no quadratic) → the exact multi-objective LP path now owns
+        # this shape (it previously declined to NSGA).
         p = _qp_problem(objectives=[Objective(name="Return", direction="maximize", aggregation="avg"),
                                     Objective(name="Risk", direction="minimize", aggregation="sum")],
+                        interaction_matrices=[])
+        assert exact_solver_fits(p)[0] is True
+
+    def test_proportional_minmax_does_not_fit(self):
+        # min/max aggregation is nonlinear → outside both the QP and LP exact shapes; NSGA owns it.
+        p = _qp_problem(objectives=[Objective(name="Return", direction="maximize", aggregation="avg"),
+                                    Objective(name="Risk", direction="minimize", aggregation="min")],
                         interaction_matrices=[])
         assert exact_solver_fits(p)[0] is False
 
     def test_ill_fitting_request_raises(self):
-        # Requesting highs on a shape it can't solve raises rather than silently degrading.
+        # Requesting highs on a shape it can't solve (min/max aggregation is nonlinear) raises
+        # rather than silently degrading.
         p = _qp_problem(objectives=[Objective(name="Return", direction="maximize", aggregation="avg"),
-                                    Objective(name="Risk", direction="minimize", aggregation="sum")],
+                                    Objective(name="Risk", direction="minimize", aggregation="min")],
                         interaction_matrices=[])
         with pytest.raises(ValueError, match="does not fit"):
             optimize(p, mode=OptimizeMode.fast, solver="highs")
@@ -300,10 +309,11 @@ class TestSensitivity:
             near_options = {nm["option"] for nm in res["near_misses"]}
             assert near_options.isdisjoint(ineligible)
 
-    def test_lp_shape_has_no_exact_path_and_falls_back(self):
-        # Per-type matrix: solver-exact duals are QP-only. A linear-continuous (LP-shaped)
-        # proportional problem has no exact path (the gate declines it → NSGA), so
-        # explore sensitivity falls back to frontier_inferred — no solver duals.
+    def test_lp_shape_has_exact_path_with_duals(self):
+        # Per-type matrix (updated): solver-exact duals now cover the LP path too. A purely linear
+        # proportional problem (>=2 objectives, no quadratic risk term) is an exact multi-objective
+        # LP — explore sensitivity returns solver_exact shadow prices + reduced costs, not the
+        # frontier-inferred fallback. (Closes the gap the old version of this test documented.)
         names = ["A", "B", "C", "D"]
         ret, yld = {"A": 10, "B": 12, "C": 8, "D": 15}, {"A": 3, "B": 2, "C": 5, "D": 1}
         sc = []
@@ -315,7 +325,24 @@ class TestSensitivity:
                                 Objective(name="Yield", direction="maximize", aggregation="avg")],
                     options=[Option(name=n) for n in names], scores=sc,
                     constraints=[MaxAllocationConstraint(max=50)])
-        assert exact_solver_fits(p)[0] is False        # no exact path for a linear-continuous shape
-        p.run = optimize(p, mode=OptimizeMode.fast)     # heuristic NSGA run
+        assert exact_solver_fits(p)[0] is True          # linear-continuous now has an exact LP path
+        run = _optimize_highs(p, mode=OptimizeMode.fast)
+        assert run.solver == "highs"
+        assert len(run.solutions) >= 2 and _nondominated_ok(run.solutions, p.objectives)
+        for s in run.solutions:
+            assert abs(sum(s.allocations.values()) - 100) <= 1   # fully invested
+            assert all(v <= 50 for v in s.allocations.values())  # max-allocation cap
+
+        withsens = [s for s in run.solutions if s.sensitivity]
+        assert withsens, "LP frontier points should carry solver-exact sensitivity"
+        sens = withsens[0].sensitivity
+        assert sens.source == "solver_exact"
+        roles = {sp.role for sp in sens.shadow_prices}
+        assert "budget" in roles                                  # the Σw=1 dual is always present
+        assert "linear_floor" in roles                            # the epsilon-constrained objective
+        assert len(sens.reduced_costs) == len(names)              # one reduced cost per option
+
+        p.exact_run = run
         res = explorer.sensitivity_analysis(p)
-        assert res["source"] == "frontier_inferred"
+        assert res["source"] == "solver_exact"
+        assert "where_to_invest" in res and "near_misses" in res
