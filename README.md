@@ -35,7 +35,7 @@ Under the hood it maps the **Pareto frontier** (every option where you can't imp
 
 Spreadsheets hit a wall once options and constraints in a decision multiply. Generative AI models reason about tradeoffs but can't *solve* them: they can't reliably enumerate a huge option space, enforce hard constraints, and produce the frontier. Frontier fills the gap: the LLM translates and narrates, an optimizer does the math, and you get the tradeoffs instead of a guess.
 
-**When it fits (by shape, not domain):** any decision that picks a subset from many options (which K of N) or splits a budget across them (how much of each), under conflicting objectives and hard constraints, with data to score the options. Pairwise interactions (covariance, audience overlap, correlated risk) make it genuinely nonlinear.
+**When it fits:** any decision that picks a subset from many options or splits an allocation across them, under conflicting objectives and hard constraints, with data to score the options. Pairwise interactions make it genuinely nonlinear.
 
 **What it adds beyond an LLM alone:**
 - **Full tradeoff frontier**: every Pareto-optimal option, not one recommendation or a weighted ranking.
