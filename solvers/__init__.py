@@ -12,7 +12,8 @@ route a run. It owns two pure, dependency-light checks so both callers agree:
   * ``available_solvers()`` — which backends can actually run here (the exact ones
     depend on an optional import being present).
   * ``exact_solver_fits(problem)`` — whether a problem's *shape* is one the exact
-    backends solve (binary selection, or a quadratic mean-variance portfolio).
+    backends solve (binary selection, a quadratic mean-variance portfolio, or a
+    purely linear proportional allocation).
 
 Probing availability with ``importlib.util.find_spec`` keeps this importable with no
 solver installed; the backends themselves import their solver lazily inside each
