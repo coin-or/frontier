@@ -735,7 +735,9 @@ class TestScenarios:
         assert regret["minimax_choice"]["solution_id"] is not None
         assert len(regret["per_solution"]) > 0
         first = regret["per_solution"][0]
-        assert {"solution_id", "max_regret", "mean_regret", "feasible_in_all"} <= set(first)
+        assert {"solution_id", "max_regret", "mean_regret", "feasible_in_all", "by_scenario"} <= set(first)
+        # by_scenario drives the panel's per-solution tooltip — keyed by scenario name.
+        assert set(first["by_scenario"]) == {"Base", "Growth"}
 
     def test_scenario_results_without_run(self):
         pid = _build_solvable_problem()

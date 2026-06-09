@@ -297,6 +297,6 @@ function pct(v: number | null | undefined): string {
 function byScenarioTitle(byScenario?: Record<string, number>): string | undefined {
   if (!byScenario || Object.keys(byScenario).length === 0) return undefined;
   return Object.entries(byScenario)
-    .map(([name, v]) => `${name}: ${(v * 100).toFixed(1)}%`)
+    .map(([name, v]) => `${name}: ${pct(v)}`)
     .join(" · ");
 }
