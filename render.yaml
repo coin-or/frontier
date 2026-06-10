@@ -19,7 +19,9 @@ services:
     name: frontier
     runtime: python
     branch: main
-    buildCommand: pip install -r requirements.txt
+    # sse = uvicorn for the SSE transport; highs = the CPU exact backend so the
+    # hosted engine can run the certify/sensitivity flows the README demos.
+    buildCommand: pip install ".[sse,highs]"
     startCommand: MCP_TRANSPORT=sse python -m mcp_server.server
     envVars:
       - key: PYTHON_VERSION

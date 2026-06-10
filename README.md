@@ -130,7 +130,7 @@ Point your MCP client at the local server – for SSE that's `http://localhost:8
 
 Both pieces are plain web services – host them anywhere (Render, Fly, Railway, a VPS, Docker):
 
-- **Engine** (Python) – `pip install -r requirements.txt`, then `MCP_TRANSPORT=sse python -m mcp_server.server`. Set `MCP_HOST=0.0.0.0` and `FRONTIER_MCP_TOKEN`; the host supplies `$PORT`. Must be publicly reachable – Anthropic's MCP connector calls it.
+- **Engine** (Python) – `pip install ".[sse]"` (add `,highs` for the CPU exact backend), then `MCP_TRANSPORT=sse python -m mcp_server.server`. Set `MCP_HOST=0.0.0.0` and `FRONTIER_MCP_TOKEN`; the host supplies `$PORT`. Must be publicly reachable – Anthropic's MCP connector calls it.
 - **Web UI** (Node, in `ui/`) – `npm install && npm run build`, then `npm start`. Set `FRONTIER_MCP_URL` (the engine's `/sse`), `FRONTIER_MCP_TOKEN`, `ANTHROPIC_API_KEY`, `AGENT_BACKEND=messages-api`, and `UI_ACCESS_PASSWORD`. Long-session context management and prompt caching are env-tunable (`AGENT_CONTEXT_WINDOW`, `AGENT_CONTEXT_MANAGEMENT`, `AGENT_PROMPT_CACHE`, and related); [`architecture.md`](architecture.md#5-web-ui--hosting) documents the knobs and defaults.
 
 `FRONTIER_MCP_TOKEN` must match on both – that's what authenticates the UI to the engine.
