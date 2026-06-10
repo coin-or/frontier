@@ -1588,11 +1588,16 @@ def _format_explore(result: dict) -> dict:
 # back, leaving the agent either holding the guidance or one call away from it. Centralized
 # as one map + one helper so the convention stays uniform, never re-stated per action.
 
+# Navigation/recording actions (solutions, solution, curated, uncurate, rename_curated,
+# export_curated, feedback) intentionally carry no pointer — they list or record rather
+# than present a decision read, so there is no interpretation guidance to cite.
 _DECISION_GUIDANCE: dict[str, tuple[str, str]] = {
     "tradeoffs": ("solution_interpreter", "Presentation Order: Extremes → Balanced → Inflection → Risk → Preference"),
     "compare": ("solution_interpreter", "Differentiating Options"),
     "compare_curated": ("solution_interpreter", "Differentiating Options"),
+    "compare_runs": ("solution_interpreter", "Run Diff Interpretation"),
     "scenario_results": ("solution_interpreter", "Scenario Results Presentation"),
+    "scenario_frontiers": ("solution_interpreter", "Scenario Results Presentation"),
     "composition": ("solution_interpreter", "Mining the Solution Set"),
     "marginal_analysis": ("solution_interpreter", "Marginal Analysis Interpretation"),
     "curate": ("solution_interpreter", "Solution Curation"),
@@ -1832,7 +1837,7 @@ def explore(
             if not run_ids or len(run_ids) < 2:
                 return {"error": "run_ids must contain at least 2 run IDs for compare_runs."}
             try:
-                return explorer.compare_runs(p, run_ids)
+                return _attach_guidance_pointer(explorer.compare_runs(p, run_ids), action)
             except ValueError as e:
                 return {"error": str(e)}
         case "certify":
@@ -1882,7 +1887,7 @@ def explore(
             return _attach_guidance_pointer(result, action)
         case "scenario_frontiers":
             try:
-                return explorer.get_scenario_frontiers(p)
+                return _attach_guidance_pointer(explorer.get_scenario_frontiers(p), action)
             except ValueError as e:
                 return {"error": str(e)}
         case "curate":

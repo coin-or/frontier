@@ -22,7 +22,7 @@ Frontier exposes 4 tools – 3 domain tools with multiple actions, plus a skill 
 | Tool | Action | Purpose |
 |------|--------|---------|
 | **model** | `create` | Start a new optimization problem (name, domain, context, approach) |
-| | `update` | Add/modify objectives (2–7), options, scores, constraints, reference points, scenarios. Merge semantics for scores; full replacement for everything else. Marks results stale on structural changes. |
+| | `update` | Add/modify objectives (≥2 enforced; 2–7 is the designed envelope), options, scores, constraints, reference points, scenarios. Merge semantics for scores; full replacement for everything else. Marks results stale on structural changes. |
 | | `get` | Return problem state. Optional `section` param for targeted slices: summary, objectives, options, scores, constraints, matrices, scenarios, run, runs, exact_run, curated, references. Without section: full dump. |
 | | `list` | List all problems with metadata snapshots |
 | | `delete` | Remove a problem and its data file |
@@ -198,7 +198,7 @@ flowchart TB
 
 ### Problem Persistence: Live Store vs Portable Bundles
 
-A problem persists two ways: the **live store** (`store.py` → `data/{problem_id}.json`) holds the full canonical `Problem` keyed by UUID (session state – a stateful deployment just mounts a disk here); writes go through an **atomic** `save` (temp file + `os.replace`), so a concurrent reader never sees a half-written file and a background solve worker can persist without tearing a foreground edit (see *Long-running Solves*). **Portable bundles** (`problem_io.py`, the `model save` / `load` format the [`examples/`](examples/) use) split it across `problem.json` (definition), `scores.json` (data), and `solutions.json` (results, written when solved). `save` writes to a gitignored `saved/` library; `load` resolves a name against `saved/` then `examples/`, minting a fresh `problem_id`. `problem_io` is also where the examples' top-level `scenarios` list is bridged to `scenario_config` (`enabled=True`) – a naive `Problem(**problem_json)` would drop scenarios, since the field is `scenario_config` and pydantic ignores unknown keys.
+A problem persists two ways: the **live store** (`store.py` → `data/{problem_id}.json`) holds the full canonical `Problem` keyed by UUID (session state – a stateful deployment just mounts a disk here; the bundled render.yaml blueprint deliberately doesn't yet, so hosted-beta state is ephemeral); writes go through an **atomic** `save` (temp file + `os.replace`), so a concurrent reader never sees a half-written file and a background solve worker can persist without tearing a foreground edit (see *Long-running Solves*). **Portable bundles** (`problem_io.py`, the `model save` / `load` format the [`examples/`](examples/) use) split it across `problem.json` (definition), `scores.json` (data), and `solutions.json` (results, written when solved). `save` writes to a gitignored `saved/` library; `load` resolves a name against `saved/` then `examples/`, minting a fresh `problem_id`. `problem_io` is also where the examples' top-level `scenarios` list is bridged to `scenario_config` (`enabled=True`) – a naive `Problem(**problem_json)` would drop scenarios, since the field is `scenario_config` and pydantic ignores unknown keys.
 
 ### Solver Backends (Pluggable)
 
