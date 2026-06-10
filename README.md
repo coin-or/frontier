@@ -33,7 +33,7 @@ Under the hood it maps the **Pareto frontier** (every option where you can't imp
 
 ## Purpose
 
-Spreadsheets hit a wall once options and constraints in a decision multiply. Generative AI models reason about tradeoffs but can't *solve* them: they can't reliably enumerate a huge option space, enforce hard constraints, and produce the frontier. Frontier fills the gap: the LLM translates and narrates, an optimizer does the math, and you get the tradeoffs instead of a guess.
+Spreadsheets hit a complexity wall once options and constraints in a decision multiply. Generative AI models reason about tradeoffs but can't *solve* them: they can't reliably enumerate a huge option space, enforce hard constraints, and produce the frontier. Frontier fills the gap: the LLM translates and narrates, an optimizer does the math, and you get the tradeoffs instead of a guess.
 
 **When it fits:** any decision that picks a subset from many options or splits an allocation across them, under conflicting objectives and hard constraints, with data to score the options. Pairwise interactions make it genuinely nonlinear.
 
@@ -71,7 +71,7 @@ Every problem is auto-persisted in the engine's store (`data/`, keyed by id) –
 
 <p align="center"><img src="assets/architecture.png" alt="Frontier architecture: agent clients and the web UI speak MCP to one server exposing four tools, with skills and solvers attached and a deterministic engine beneath" width="560" /></p>
 
-Frontier is a Python MCP server (FastMCP) wrapping pymoo's NSGA-II/III evolutionary solvers, with two first-class exact-solver backends (HiGHS on CPU, cuOpt on GPU) the agent can elect per run as an audit layer over the heuristic frontier. State persists per-problem as JSON; the optimizer produces a Pareto frontier with quality indicators, scenario-aware results, and shadow-price rates per binding constraint. Domain expertise lives in skill markdown files that the server auto-injects at workflow transitions, so the same rigor reaches every MCP client.
+Frontier is a Python MCP server (FastMCP) wrapping pymoo's NSGA-II/III evolutionary solvers, with two first-class exact-solver backends (HiGHS on CPU, cuOpt on GPU) the agent can elect per run as an audit layer over the heuristic frontier. State persists per-problem as JSON; the optimizer produces a Pareto frontier with quality indicators, scenario-aware results, and shadow-price rates per binding constraint. Domain expertise lives in skill markdown files that the server auto-injects at workflow transitions.
 
 For full schemas, action parameters, data model, persistence layout, and the skill auto-injection mechanism, see [`architecture.md`](architecture.md). For skill, prompt, and MCP design principles, see [`best-practices.md`](best-practices.md).
 
@@ -97,7 +97,7 @@ Markdown guides the server auto-injects at workflow transitions (also fetchable 
 
 Two ways to use Frontier:
 
-- **Web UI**: a browser chat shell over the engine, with interactive charts (2D/3D scatter and parallel coordinates that adapt to objective count – a 3-objective frontier can also render as a 2D scatter colored by a chosen objective – per-scenario overlays, and exact-certified points denoted on the frontier once you certify) and curate-straight-from-the-chart. Try the hosted app at **[frontier-ui.onrender.com](https://frontier-ui.onrender.com/)** (password-gated – ask @cafzal for access), or run/deploy your own (requires an API key; see [`ui/`](ui/) and [Deploy your own](#deploy-your-own))
+- **Web UI**: a browser chat shell over the engine, with interactive charts and curation. Try the hosted app at **[frontier-ui.onrender.com](https://frontier-ui.onrender.com/)** (password-gated – ask @cafzal for access), or run/deploy your own (requires an API key; see [`ui/`](ui/) and [Deploy your own](#deploy-your-own))
 - **MCP client**: connect any MCP-compatible client (Claude Code, Claude Desktop, claude.ai, Cursor, Codex). The hosted beta engine (`https://frontier-592q.onrender.com/sse`) is gated by a token – ask @cafzal for `FRONTIER_TOKEN`; or [self-host](#self-host) your own (ungated by default).
 
 The MCP-client snippets below assume the hosted engine.
@@ -163,7 +163,7 @@ Both pieces are plain web services – host them anywhere (Render, Fly, Railway,
 
 `FRONTIER_MCP_TOKEN` must match on both – that's what authenticates the UI to the engine.
 
-**Render (one-click example):** [`render.yaml`](render.yaml) provisions both as a blueprint – auto-generates the shared token, derives the engine URL, leaves only `ANTHROPIC_API_KEY` to set. Point Render at your fork (New → Blueprint). The blueprint's engine storage is **ephemeral** (problems reset on redeploy) – attach a Render disk at `data/` when you want durable state.
+**Render (one-click example):** [`render.yaml`](render.yaml) provisions both as a blueprint.
 
 ## Background
 
