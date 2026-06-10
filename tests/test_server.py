@@ -2117,3 +2117,28 @@ class TestRegret:
         srv.solve(action="run_scenarios", problem_id=pid)
         regret = srv.explore(action="scenario_results", problem_id=pid)["regret"]
         assert regret["available"] is False
+
+
+# ─── HTTP transport gating (fail-closed) ───
+
+
+class TestHttpTransportAction:
+    """The auth decision for the SSE / streamable-http transports.
+
+    A token always gates. Without a token, a loopback bind serves (local dev)
+    but a routable bind fails closed rather than exposing an ungated engine.
+    """
+
+    def test_token_always_gates(self):
+        for host in ("127.0.0.1", "0.0.0.0", "10.0.0.5", "example.com"):
+            assert srv._http_transport_action("secret", host) == "gated"
+
+    def test_no_token_loopback_serves_ungated(self):
+        for host in ("127.0.0.1", "::1", "localhost"):
+            assert srv._http_transport_action(None, host) == "ungated"
+
+    def test_no_token_routable_bind_refuses(self):
+        # "" is INADDR_ANY (all interfaces) in uvicorn — exposed, not loopback.
+        for host in ("0.0.0.0", "10.0.0.5", "192.168.1.10", "example.com", ""):
+            assert srv._http_transport_action(None, host) == "refuse"
+            assert srv._http_transport_action("", host) == "refuse"

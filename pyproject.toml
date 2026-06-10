@@ -37,7 +37,9 @@ dependencies = [
 examples = ["matplotlib>=3.7", "pandas>=2.0"]
 # CPU exact-solver backend (solver="highs"). A plain, cross-platform pip package —
 # unlike cuOpt it needs no special index or GPU — but kept opt-in so the default NSGA path
-# stays dependency-light. `pip install frontier[highs]`.
+# stays dependency-light. Install from a clone of this repo: `pip install -e ".[highs]"`.
+# (NB: the bare name `frontier` on PyPI is an unrelated third-party package — install
+# this project from source, not via `pip install frontier`.)
 highs = ["highspy>=1.7"]
 # SSE / streamable-http transports (remote MCP clients, hosted deploys). The stdio
 # default needs nothing extra. `pip install ".[sse]"` — replaces the old requirements.txt.

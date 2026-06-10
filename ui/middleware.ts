@@ -10,13 +10,25 @@ import { NextRequest, NextResponse } from "next/server";
  * from the engine's FRONTIER_MCP_TOKEN: that token authenticates the app→engine
  * connector call and is never exposed to UI users, so the UI needs its own gate.
  *
- * Disabled when UI_ACCESS_PASSWORD is unset (local dev / single-user self-host),
- * mirroring the engine's ungated-by-default behavior. Set it in production.
+ * Open when UI_ACCESS_PASSWORD is unset in development (local / single-user
+ * self-host). In production the gate fails CLOSED: an unset password makes the
+ * app refuse to serve (503) rather than run unauthenticated, since an open
+ * public deploy lets anyone with the URL spend the operator's ANTHROPIC_API_KEY
+ * and drive engine compute.
  * Username is optional: unset UI_ACCESS_USER = any username + correct password.
  */
 export function middleware(req: NextRequest) {
   const expectedPass = process.env.UI_ACCESS_PASSWORD;
-  if (!expectedPass) return NextResponse.next();
+  if (!expectedPass) {
+    if (process.env.NODE_ENV === "production") {
+      return new NextResponse(
+        "Server misconfigured: UI_ACCESS_PASSWORD is not set; refusing to serve " +
+          "an unauthenticated production deployment.",
+        { status: 503 },
+      );
+    }
+    return NextResponse.next();
+  }
 
   const expectedUser = process.env.UI_ACCESS_USER;
   const header = req.headers.get("authorization");

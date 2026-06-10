@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from datetime import datetime, timezone
 
 from mcp.server.fastmcp import FastMCP
@@ -1772,9 +1773,10 @@ def _bearer_gate(app, token: str, gated_prefixes: tuple[str, ...]):
 
     Only HTTP requests to the transport endpoints are gated, leaving health
     checks and other paths open. When FRONTIER_MCP_TOKEN is unset the engine
-    runs ungated (local dev / single-user self-host); set it to lock a publicly
-    hosted engine. Per-user scoping (owner_id) is a later step — this is a
-    single shared secret shared by the web app and direct MCP-client users.
+    runs ungated only on a loopback bind (local dev / single-user self-host); a
+    routable bind without a token is refused at startup (see `main`). Per-user
+    scoping (owner_id) is a later step — this is a single shared secret shared
+    by the web app and direct MCP-client users.
     """
     import hmac
 
@@ -1794,22 +1796,54 @@ def _bearer_gate(app, token: str, gated_prefixes: tuple[str, ...]):
     return gated
 
 
+# Hosts that keep an ungated HTTP transport reachable only from the local
+# machine. Binding anywhere else without a token would expose the engine — note
+# an empty host is NOT loopback: uvicorn binds "" to all interfaces (INADDR_ANY).
+_LOOPBACK_HOSTS = {"127.0.0.1", "::1", "localhost"}
+
+
+def _http_transport_action(token: str | None, host: str) -> str:
+    """Decide how to serve an HTTP MCP transport, given the token and bind host.
+
+    stdio is local-trust and never reaches here. For the HTTP transports:
+      - "gated"   — a token is set → wrap the app in the bearer gate.
+      - "ungated" — no token but a loopback bind → serve with a warning (local dev).
+      - "refuse"  — no token on a routable bind → fail closed; an ungated, publicly
+                    reachable MCP endpoint hands anyone full model/solve/explore access.
+    """
+    if token:
+        return "gated"
+    return "ungated" if host in _LOOPBACK_HOSTS else "refuse"
+
+
 def main():
     transport = os.environ.get("MCP_TRANSPORT", "stdio")
     token = os.environ.get("FRONTIER_MCP_TOKEN")
 
-    # Gate the HTTP transports when a shared token is configured; stdio is
-    # local-trust and never gated.
-    if token and transport in ("sse", "streamable-http"):
+    if transport in ("sse", "streamable-http"):
         import uvicorn
 
+        host = os.environ.get("MCP_HOST", "127.0.0.1")
+        action = _http_transport_action(token, host)
+        if action == "refuse":
+            raise SystemExit(
+                f"Refusing to start: MCP_TRANSPORT={transport} bound to "
+                f"MCP_HOST={host} without FRONTIER_MCP_TOKEN would serve an "
+                "unauthenticated, publicly reachable engine. Set FRONTIER_MCP_TOKEN, "
+                "or bind MCP_HOST to loopback (127.0.0.1) for local use."
+            )
+        if action == "ungated":
+            print(
+                f"WARNING: serving {transport} on {host} without FRONTIER_MCP_TOKEN "
+                "(ungated). Fine for local dev; set FRONTIER_MCP_TOKEN before "
+                "exposing the engine.",
+                file=sys.stderr,
+            )
+
         app = mcp.sse_app() if transport == "sse" else mcp.streamable_http_app()
-        app = _bearer_gate(app, token, ("/sse", "/messages", "/mcp"))
-        uvicorn.run(
-            app,
-            host=os.environ.get("MCP_HOST", "127.0.0.1"),
-            port=int(os.environ.get("PORT", "8000")),
-        )
+        if action == "gated":
+            app = _bearer_gate(app, token, ("/sse", "/messages", "/mcp"))
+        uvicorn.run(app, host=host, port=int(os.environ.get("PORT", "8000")))
     else:
         mcp.run(transport=transport)
 
