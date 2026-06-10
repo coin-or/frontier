@@ -21,7 +21,9 @@ services:
     branch: main
     # sse = uvicorn for the SSE transport; highs = the CPU exact backend so the
     # hosted engine can run the certify/sensitivity flows the README demos.
-    buildCommand: pip install ".[sse,highs]"
+    # -c constraints.txt pins the full resolved dependency tree (reproducible,
+    # supply-chain-pinned builds) — regenerate with the command in its header.
+    buildCommand: pip install -c constraints.txt ".[sse,highs]"
     startCommand: MCP_TRANSPORT=sse python -m mcp_server.server
     envVars:
       - key: PYTHON_VERSION
@@ -57,7 +59,8 @@ services:
       - key: AGENT_BACKEND
         value: messages-api
       # Shared password gating the web UI (Basic Auth) — set by hand, hand it to
-      # beta users. Unset = open. NOTE: the engine token above does NOT gate the
-      # UI; without this, anyone with the URL can spend your ANTHROPIC_API_KEY.
+      # beta users. The engine token above does NOT gate the UI. Leaving this
+      # unset on a production build makes the app fail closed (503) rather than
+      # serve unauthenticated — set it before the UI will serve.
       - key: UI_ACCESS_PASSWORD
         sync: false

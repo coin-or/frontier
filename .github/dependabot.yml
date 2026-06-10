@@ -1,0 +1,23 @@
+# Dependabot: weekly version-update PRs so dependency bumps land deliberately
+# (with a reviewable diff) instead of floating in at the next CI run / deploy.
+# Pairs with constraints.txt (Python) and ui/package-lock.json (Node) — the
+# pinned trees Dependabot proposes bumps against.
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: npm
+    directory: "/ui"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5

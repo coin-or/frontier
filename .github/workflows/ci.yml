@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
 
+# Least privilege: CI only needs to read the repo. Override per-job if a step
+# ever needs more (e.g. packages: write).
+permissions:
+  contents: read
+
 jobs:
   python:
     runs-on: ubuntu-latest
@@ -14,8 +19,12 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-          cache-dependency-path: pyproject.toml
-      - run: pip install -e ".[sse,highs]" pytest
+          cache-dependency-path: |
+            pyproject.toml
+            constraints.txt
+      # -c constraints.txt pins the full resolved dependency tree (see the file
+      # header for how to regenerate); pytest is dev-only and left unpinned.
+      - run: pip install -c constraints.txt -e ".[sse,highs]" pytest
       - run: pytest tests/ --ignore=tests/ui -q
 
   ui:
