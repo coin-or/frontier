@@ -73,128 +73,17 @@ Skills provide domain guidance the agent consults at each workflow stage:
 
 ## 1. User Workflow
 
-How an end-user interacts with the AI agent, which drives Frontier on their behalf.
-
-```mermaid
-flowchart TD
-    subgraph USER["End User"]
-        U1([Describe decision problem])
-        U2([Provide scores, constraints,<br/>reference points & scenarios])
-        U3([Review tradeoffs])
-        U4([Refine & iterate])
-        U5([Curate final selections])
-    end
-
-    subgraph AGENT["AI Agent (Claude)"]
-        A1[Translate business language<br/>into objectives, options, approach]
-        A2[Guide score collection, constraint<br/>setup, reference points & scenarios]
-        A3[Run optimization &<br/>interpret Pareto frontier]
-        A3b[Run scenario optimization<br/>& identify robust options]
-        A4[Present tradeoffs, comparisons,<br/>dominance, scenario analysis]
-        A5[Elicit preferences via<br/>marginal tradeoff questions]
-        A6[Track curated solutions<br/>& collect feedback]
-    end
-
-    subgraph SKILLS["Agent Skills (Resources)"]
-        S1[problem_framing.md]
-        S2[data_collection.md]
-        S3[optimization_strategy.md]
-        S4[solution_interpreter.md]
-    end
-
-    subgraph FRONTIER["Frontier MCP Tools"]
-        T1["model (create/update)"]
-        T2["solve (validate/run/run_scenarios)"]
-        T3["explore (tradeoffs/compare/curate)"]
-    end
-
-    U1 --> A1
-    A1 -.->|reads| S1
-    A1 -->|"create problem, set approach"| T1
-
-    U2 --> A2
-    A2 -.->|reads| S1 & S2
-    A2 -->|"update scores, constraints,<br/>reference points, scenarios"| T1
-
-    A3 -.->|reads| S3
-    T1 -->|problem ready| A3
-    A3 -->|validate & run| T2
-    A3b -.->|reads| S3
-    A3b -->|run_scenarios| T2
-    T2 -->|"Pareto frontier<br/>+ scenario runs"| A4
-
-    A4 -.->|reads| S4
-    A4 -->|"tradeoffs, compare, scenarios,<br/>reference comparisons"| T3
-    T3 -->|insights| A4
-    A4 --> U3
-
-    U3 --> U4
-    U4 --> A5
-    A5 -->|"update scores, constraints,<br/>scenarios / re-run"| T1
-    A5 -->|re-solve| T2
-
-    U3 --> U5
-    U5 --> A6
-    A6 -->|curate & feedback| T3
-```
+The user describes a decision in plain language; the agent translates it into Frontier's model and drives the loop: **frame** (objectives, options, constraints, scenarios — `model`) → **score** (`model update`) → **solve** (`solve validate/run/run_scenarios`, optionally per scenario or with an exact backend) → **explore** (tradeoffs, comparisons, scenario robustness, certification — `explore`) → **refine and re-solve** → **curate and decide**. Each phase transition auto-injects the matching skill (§ Skill Auto-Injection), so the agent gets framing judgment before modeling, scoring judgment before data entry, solve strategy before running, and presentation judgment before narrating results. The full per-action contract is the tools table above.
 
 ## 2. System Architecture
 
-MCP tools, skills, engine internals, and how they connect to the agent client.
+Three layers between the agent client and the data on disk:
 
-```mermaid
-flowchart TB
-    subgraph CLIENT["Agent Client (Claude Code / Desktop / claude.ai / any MCP host)"]
-        CC[Claude Agent]
-    end
+- **MCP server** (`mcp_server/server.py`, FastMCP, stdio/SSE) — the 4 tools (`model`, `solve`, `explore`, `get_skill`) plus `frontier://skills/*` resources; skill auto-injection state, guidance pointers, background solve jobs, response compaction, and the optional bearer gate all live here.
+- **Engine** (`engine/`) — `models.py` (the canonical `Problem`: objectives, options, scores, 8 constraint types, interaction matrices, scenarios, runs, curation, feedback), `optimizer.py` (NSGA-II/III via pymoo; binary + proportional modes, constraint encoding, quadratic aggregation, scenario optimization, infeasibility analysis), `explorer.py` (tradeoff/scenario/curation analytics, certification, sensitivity, ASCII + `viz_data` renderers), `metrics.py` (deterministic framing/data/solve metrics, `frontier_quality` gates), `store.py` (atomic JSON persistence to `data/{problem_id}.json`), `problem_io.py` (portable save/load bundles).
+- **Exact backends** (`solvers/`) — `highs_backend.py` (CPU) and `cuopt_backend.py` (GPU) behind one scalarization engine (`_scalarization.py`) and one shape/availability gate (`__init__.py`); opt-in per run via `solve(solver=…)` (§ Solver Backends).
 
-    subgraph MCP_LAYER["Frontier MCP Server"]
-        direction TB
-        subgraph TOOLS["Tools (stdio / SSE)"]
-            GETSKILL["get_skill<br/><i>Retrieve workflow guidance by name</i>"]
-            MODEL["model<br/><i>create | update | get | list | delete</i>"]
-            SOLVE["solve<br/><i>validate | run | run_scenarios</i>"]
-            EXPLORE["explore<br/><i>tradeoffs | compare | solutions | solution<br/>feedback | compare_runs | certify | scenario_results | scenario_frontiers<br/>curate | uncurate | rename_curated<br/>curated | export_curated | compare_curated | marginal_analysis | composition</i>"]
-        end
-        subgraph RESOURCES["Skills (MCP Resources)"]
-            R1["problem_framing<br/><i>Objective/option/constraint guidance</i>"]
-            R2["data_collection<br/><i>Scoring strategies & quality signals</i>"]
-            R3["optimization_strategy<br/><i>Solve progression & iteration</i>"]
-            R4["solution_interpreter<br/><i>Presentation & preference elicitation</i>"]
-        end
-    end
-
-    subgraph ENGINE["Engine Layer"]
-        direction TB
-        MODELS["models.py<br/><i>Problem, Objective, Option, Score,<br/>Constraint (8 types incl. max_allocation),<br/>InteractionMatrix (mode: replace/upsert,<br/>scale_groups for regime shifts),<br/>InteractionScaleGroup,<br/>Run (mode, total_pareto_found, seed_used,<br/>solver, exact),<br/>QualityIndicators,<br/>Scenario (incl. interaction_matrix_overrides),<br/>ScenarioConfig, ScenarioRun,<br/>ScoreAdjustment, CuratedSolution<br/>(+ feedback history), ReferencePoint,<br/>Feedback, ValidationResult</i>"]
-        OPT["optimizer.py<br/><i>NSGA-II/III (pymoo)<br/>Binary & Proportional modes<br/>Adaptive parameter tuning<br/>Constraint encoding (8 types)<br/>Quadratic aggregation (interaction matrices)<br/>Scenario optimization<br/>Infeasibility analysis</i>"]
-        EXP["explorer.py<br/><i>Tradeoff analysis, comparisons,<br/>balanced solution detection,<br/>scenario aggregation, curation,<br/>reference point analysis,<br/>marginal rate analysis,<br/>dual viz: ASCII + structured viz_data</i>"]
-        MET["metrics.py<br/><i>Framing, data, solve,<br/>outcome metrics, diagnostics,<br/>frontier_quality classifier<br/>(GOOD/WARNING/POOR)</i>"]
-        STORE["store.py<br/><i>File-based JSON persistence</i>"]
-    end
-
-    subgraph STORAGE["Persistence"]
-        FS[("./data/<br/>{problem_id}.json")]
-    end
-
-    CC <-->|"tool calls / results<br/>(JSON over stdio/SSE)"| TOOLS
-    CC -.->|"reads skill content<br/>(Claude Code only)"| RESOURCES
-    GETSKILL -.->|reads| RESOURCES
-
-    MODEL --> MODELS
-    MODEL --> MET
-    MODEL --> STORE
-    SOLVE --> OPT
-    SOLVE --> MET
-    SOLVE --> STORE
-    EXPLORE --> EXP
-    EXPLORE --> STORE
-
-    OPT --> MODELS
-    EXP --> MODELS
-    MET --> MODELS
-    STORE --> FS
-```
+The skills (`skills/*/SKILL.md` + per-skill `references/`) are data, not code: markdown the server injects and serves, carrying the judgment layer described above.
 
 ### Problem Persistence: Live Store vs Portable Bundles
 
@@ -418,8 +307,14 @@ An optional web app ([`ui/`](ui/)) is the **visualize** surface – a thin chat 
 - **Thin system prompt, behavior fetched from the engine** (`ui/lib/system-prompt.ts`) – no skill/workflow content is *hardcoded* in the UI. Each adapter fetches the engine's MCP `instructions` (the canonical workflow + framing guidance) and folds them into the system prompt: `anthropic-local` / `openai-compatible` get them from their MCP client, and `messages-api` fetches them over a short-lived authenticated client (cached) because the Anthropic connector does **not** surface the `instructions` field. The prompt file itself holds only identity + web-UI-specific *presentation* directives (e.g. render charts, don't echo the engine's ASCII visualizations) that by definition can't live in the shared engine. Domain/workflow fixes still belong in the engine, never the prompt.
 - **Direct SSE, no AI SDK**: each `data: {…}` line is a raw Anthropic event; `ui/lib/stream-reducer.ts` folds them into message state incrementally. It addresses content blocks by the server-assigned `index` (which counts thinking blocks the UI doesn't store), never by array position – position-based addressing misroutes every delta after a thinking block, leaving empty text blocks the API rejects on the next turn (`text content blocks must be non-empty`). The same module strips internal fields and drops empty text blocks when building the round-trip payload.
 - **Clean assistant rendering** (`ui/app/page.tsx`, `ui/components/Viz/`) – the chat surfaces only the model's prose, markdown tables, and charts drawn from each `tool_result`'s `viz_data` (frontier scatter/3D and the per-scenario overlay via Plotly, compare parallel-coords and marginal rates via D3, scenario summary and formulation as cards). Raw tool-call input/result JSON is **not** rendered, and the engine's ASCII visualizations are stripped if the model echoes them – the value-add over the coding-agent MCP surface is a clean, chart-first view.
-- **Token-budget-aware history compaction** (`ui/lib/compaction.ts`) – the UI resends the full transcript every turn and, unlike a coding agent, does no compaction of its own, so a long session would grow until it hits the model's context window and hard-fails. When (system + history) approaches a budget, `compactHistory` **pins** the durable layers – the system prompt (durable index), the first user turn (decision anchor), and the last K messages – and drops the older middle turns behind one breadcrumb naming how many turns were elided and the active skill's `get_skill()` re-fetch path. Dropping whole turns is safe because each turn bundles its own `tool_use`+`tool_result`, and the breadcrumb (assistant) plus a user-turn tail boundary preserve the user/assistant alternation the APIs require. Budget knobs are env-tunable (`AGENT_CONTEXT_WINDOW` / `AGENT_OUTPUT_RESERVE` / `AGENT_KEEP_RECENT_MESSAGES`); defaults target the prod Anthropic path. This is the web-UI half of *Guidance Persistence* (§ Skill Auto-Injection): it keeps a long session from dying at the context wall and leaves a breadcrumb back to the skills the durable index names. This client-side trim is the provider-agnostic **floor** (it also covers the `openai-compatible` adapter, which has no native equivalent), and bounds growth **between** turns – the transcript the UI resends. On the Anthropic backends it is paired with the engine's **native context management** (`anthropic-request.ts` `contextManagement()`): `clear_tool_uses` clears the oldest tool results – Frontier's large explore/solve JSON – server-side with a placeholder, or `compact` summarizes – *intended to* bound growth **within** a single agentic turn (the server-side connector loop), not only between turns. Env-gated: `AGENT_CONTEXT_MANAGEMENT=clear_tool_uses｜compact｜off` (default `clear_tool_uses`); the connector + context-management beta combination isn't yet confirmed end-to-end, so smoke-test before relying on the within-turn bound, and `off` falls back to the client-side floor.
-- **Prompt caching** (`anthropic-request.ts` `cachedSystem` / `cachedTools` / `withCacheBreakpoint`) – the dominant cost lever. `cache_control` breakpoints mark the stable prefix – the system prompt, the four tool definitions (on the `mcp_toolset` entry), and the conversation prefix including the injected skill cores (~4.7k tokens for `solution_interpreter`; its deep sections are fetched per-section on demand rather than injected) – so every later turn and every server-side tool-call iteration re-reads them at ~10% of input price instead of re-processing them in full. Caching itself **removes nothing**: skill guidance stays in context, just cheap. Context management *does* trim: `clear_tool_uses` clears old tool results, which on a long session can include the auto-injected skill bodies (only the explicit `get_skill` re-fetch path is excluded). Guidance that ages out is recovered via the durable index's `get_skill` re-fetch (§ Skill Auto-Injection) – so skill content stays *available*: present and cheap while cached, recoverable once cleared. `AGENT_PROMPT_CACHE=off` disables; cache hit/write token counts are logged server-side for verification.
+- **Token-budget-aware history compaction** (`ui/lib/compaction.ts`) – the UI resends the full transcript every turn and, unlike a coding agent, does no compaction of its own, so a long session would otherwise grow until it hits the model's context window and hard-fails.
+
+  When (system + history) approaches a budget, `compactHistory` **pins** the durable layers – the system prompt (durable index), the first user turn (decision anchor), and the last K messages – and drops the older middle turns behind one breadcrumb naming how many turns were elided and the active skill's `get_skill()` re-fetch path. Dropping whole turns is safe because each turn bundles its own `tool_use`+`tool_result`, and the breadcrumb (assistant) plus a user-turn tail boundary preserve the user/assistant alternation the APIs require. Budget knobs are env-tunable (`AGENT_CONTEXT_WINDOW` / `AGENT_OUTPUT_RESERVE` / `AGENT_KEEP_RECENT_MESSAGES`); defaults target the prod Anthropic path. This is the web-UI half of *Guidance Persistence* (§ Skill Auto-Injection): the session survives the context wall and keeps a breadcrumb back to the skills the durable index names.
+
+  This client-side trim is the provider-agnostic **floor** (it also covers the `openai-compatible` adapter, which has no native equivalent) and bounds growth **between** turns – the transcript the UI resends. On the Anthropic backends it pairs with the engine's **native context management** (`anthropic-request.ts` `contextManagement()`): `clear_tool_uses` clears the oldest tool results – Frontier's large explore/solve JSON – server-side with a placeholder, or `compact` summarizes; *intended to* bound growth **within** a single agentic turn (the server-side connector loop), not only between turns. Env-gated: `AGENT_CONTEXT_MANAGEMENT=clear_tool_uses｜compact｜off` (default `clear_tool_uses`); the connector + context-management beta combination isn't yet confirmed end-to-end, so smoke-test before relying on the within-turn bound, and `off` falls back to the client-side floor.
+- **Prompt caching** (`anthropic-request.ts` `cachedSystem` / `cachedTools` / `withCacheBreakpoint`) – the dominant cost lever. `cache_control` breakpoints mark the stable prefix – the system prompt, the four tool definitions (on the `mcp_toolset` entry), and the conversation prefix including the injected skill cores (~4.7k tokens for `solution_interpreter`; deep sections are fetched per-section on demand rather than injected) – so every later turn and every server-side tool-call iteration re-reads them at ~10% of input price instead of re-processing them in full.
+
+  Caching itself **removes nothing**: skill guidance stays in context, just cheap. Context management *does* trim: `clear_tool_uses` clears old tool results, which on a long session can include the auto-injected skill cores (only the explicit `get_skill` re-fetch path is excluded). Guidance that ages out is recovered via the durable index's `get_skill` re-fetch (§ Skill Auto-Injection) – so skill content stays *available*: present and cheap while cached, recoverable once cleared. `AGENT_PROMPT_CACHE=off` disables; cache hit/write token counts are logged server-side for verification.
 - **Ephemeral sessions**: a random `problem_id` per session (pre-D.1 multi-tenancy); refreshing the page starts a new one.
 
 **Hosting & auth**: [`render.yaml`](render.yaml) provisions both services (engine + web UI) and is the OSS deploy path. There are **two independent gates**, both shared-secret and both open-when-unset (local dev / self-host):
