@@ -5,8 +5,6 @@
  *   anthropic-local     Anthropic Messages API + client-side MCP loop
  *   openai-compatible   Any OpenAI Chat Completions-compatible provider +
  *                       client-side MCP loop (point OPENAI_BASE_URL anywhere)
- *   managed-agents      stub
- *   agent-sdk           stub
  *
  * Provider lock-in is bounded to this file. The chat shell, MCP server,
  * skills, and every other surface are provider-agnostic. Adapters emit
@@ -904,38 +902,21 @@ const anthropicLocalAdapter: AgentRuntime = {
   },
 };
 
-// ─── managed-agents adapter (stub) ──────────────────────────────────────────
-
-const managedAgentsAdapter: AgentRuntime = {
-  async stream(_messages) {
-    throw new Error(
-      "managed-agents adapter not implemented yet. " +
-      "Set AGENT_BACKEND=messages-api or implement against " +
-      "https://platform.claude.com/docs/en/managed-agents/overview"
-    );
-  },
-};
-
-// ─── agent-sdk adapter (stub) ───────────────────────────────────────────────
-
-const agentSdkAdapter: AgentRuntime = {
-  async stream(_messages) {
-    throw new Error(
-      "agent-sdk adapter not implemented yet. " +
-      "Set AGENT_BACKEND=messages-api or implement against the Claude Agent SDK."
-    );
-  },
-};
-
 // ─── selector ───────────────────────────────────────────────────────────────
 
 const adapters: Record<string, AgentRuntime> = {
   "messages-api": messagesApiAdapter,
   "anthropic-local": anthropicLocalAdapter,
   "openai-compatible": openAICompatibleAdapter,
-  "managed-agents": managedAgentsAdapter,
-  "agent-sdk": agentSdkAdapter,
 };
 
 const backend = process.env.AGENT_BACKEND ?? "messages-api";
-export const agentRuntime: AgentRuntime = adapters[backend] ?? messagesApiAdapter;
+const selected = adapters[backend];
+if (!selected) {
+  // Fail at startup, not on the first request — and never silently fall back:
+  // a typo'd backend quietly running messages-api would spend the API key.
+  throw new Error(
+    `Unknown AGENT_BACKEND "${backend}". Valid: ${Object.keys(adapters).join(", ")}.`
+  );
+}
+export const agentRuntime: AgentRuntime = selected;
