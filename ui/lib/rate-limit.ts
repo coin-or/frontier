@@ -113,24 +113,42 @@ function intEnv(name: string, fallback: number): number {
 const WINDOW_MS = 60_000;
 
 /**
- * Build the shared chat limiter from env. Defaults are generous for a
- * human-driven beta (30 req/min per client, 90 req/min total) but cap a
- * runaway loop. Tunable via CHAT_RATE_LIMIT_PER_MIN / CHAT_RATE_LIMIT_GLOBAL_PER_MIN.
+ * Build a limiter from env. Defaults are generous for a human-driven beta but
+ * cap a runaway loop. A per-route prefix gives each route an independent budget,
+ * so a burst on one route can't exhaust another's global cap. Tunable via
+ * <PREFIX>_RATE_LIMIT_PER_MIN / <PREFIX>_RATE_LIMIT_GLOBAL_PER_MIN.
  */
-export function createChatRateLimiter(): RateLimiter {
+export function createRateLimiter(
+  envPrefix: string,
+  perKeyDefault: number,
+  globalDefault: number,
+): RateLimiter {
   return new RateLimiter({
-    perKey: { limit: intEnv("CHAT_RATE_LIMIT_PER_MIN", 30), windowMs: WINDOW_MS },
-    global: { limit: intEnv("CHAT_RATE_LIMIT_GLOBAL_PER_MIN", 90), windowMs: WINDOW_MS },
+    perKey: { limit: intEnv(`${envPrefix}_RATE_LIMIT_PER_MIN`, perKeyDefault), windowMs: WINDOW_MS },
+    global: { limit: intEnv(`${envPrefix}_RATE_LIMIT_GLOBAL_PER_MIN`, globalDefault), windowMs: WINDOW_MS },
   });
 }
 
-/** Shared singleton — one fixed-window counter set per server instance. */
-export const chatRateLimiter = createChatRateLimiter();
+// Independent per-instance counters. /api/chat drives paid Anthropic calls (the
+// tighter budget); /api/render is read-only engine compute, no model spend, so a
+// render burst gets its own looser budget and can't starve the chat cap.
+export const chatRateLimiter = createRateLimiter("CHAT", 30, 90);
+export const renderRateLimiter = createRateLimiter("RENDER", 60, 180);
 
-/** Best-effort client identifier from proxy headers (Render sets x-forwarded-for). */
+/**
+ * Best-effort client identifier from proxy headers. Uses the RIGHTMOST
+ * x-forwarded-for hop — the value appended by the trusted proxy (Render) — because
+ * a client controls everything to its left, so keying on the leftmost would let an
+ * attacker mint a fresh bucket per request. Behind multiple proxy hops the rightmost
+ * may be an infra IP (per-IP then coarsens toward the global cap, which is the real
+ * bound); adjust if deployed behind a different topology.
+ */
 export function clientKey(req: Request): string {
   const xff = req.headers.get("x-forwarded-for");
-  if (xff) return xff.split(",")[0]!.trim() || "unknown";
+  if (xff) {
+    const hops = xff.split(",").map((s) => s.trim()).filter(Boolean);
+    if (hops.length) return hops[hops.length - 1]!;
+  }
   return req.headers.get("x-real-ip")?.trim() || "unknown";
 }
 

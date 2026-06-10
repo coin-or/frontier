@@ -18,7 +18,7 @@
 import { Client as MCPClient } from "@modelcontextprotocol/sdk/client/index.js";
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { extractVizData } from "@/lib/viz-data";
-import { chatRateLimiter, clientKey, tooManyRequests } from "@/lib/rate-limit";
+import { renderRateLimiter, clientKey, tooManyRequests } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -40,7 +40,7 @@ function authedFetch(token?: string) {
 }
 
 export async function GET(req: Request) {
-  const limit = chatRateLimiter.check(clientKey(req));
+  const limit = renderRateLimiter.check(clientKey(req));
   if (!limit.ok) return tooManyRequests(limit);
 
   const url = new URL(req.url);

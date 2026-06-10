@@ -1,7 +1,8 @@
 # Dependabot: weekly version-update PRs so dependency bumps land deliberately
-# (with a reviewable diff) instead of floating in at the next CI run / deploy.
-# Pairs with constraints.txt (Python) and ui/package-lock.json (Node) — the
-# pinned trees Dependabot proposes bumps against.
+# (with a reviewable diff). Covers pyproject.toml floors (pip), ui/package-lock.json
+# (npm), and workflow action versions (github-actions).
+# NOTE: Dependabot does not track a standalone constraints.txt — after a pip bump
+# lands, regenerate the lock with the uv command in that file's header.
 version: 2
 updates:
   - package-ecosystem: pip

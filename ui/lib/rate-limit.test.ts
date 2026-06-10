@@ -93,10 +93,12 @@ test("a rejected request consumes no slot in either window (check before commit)
   assert.equal(rl.check("d").scope, "global"); // now exhausted
 });
 
-test("clientKey reads the first x-forwarded-for IP, then x-real-ip, then unknown", () => {
+test("clientKey uses the rightmost (proxy-appended) x-forwarded-for hop, then x-real-ip, then unknown", () => {
+  // Rightmost wins: a client-spoofed leftmost ("1.2.3.4") is ignored in favor of
+  // the trusted-proxy-appended "5.6.7.8".
   assert.equal(
     clientKey(new Request("http://x", { headers: { "x-forwarded-for": "1.2.3.4, 5.6.7.8" } })),
-    "1.2.3.4",
+    "5.6.7.8",
   );
   assert.equal(
     clientKey(new Request("http://x", { headers: { "x-real-ip": "9.9.9.9" } })),
