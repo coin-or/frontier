@@ -15,7 +15,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "node --test --experimental-strip-types lib/*.test.ts"
+    "test": "node --test --experimental-strip-types lib/*.test.ts ../tests/ui/*.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.40.0",
