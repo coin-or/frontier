@@ -14,7 +14,7 @@ Loadable Frontier problems: combinatorial, multi-objective decisions beyond a sp
 
 **Solver-exact explainability:** the [budget allocation](budget_allocation/) and [production mix](production_mix/) examples (purely linear **LP**) and the [investment portfolio](investment_portfolio/) (mean-variance **QP**) each run the full workflow – `solve run` → `solve solver="highs"` → `explore certify` → `explore sensitivity` – surfacing shadow prices ("where to invest") and reduced costs ("near-misses") straight from the optimizer on the continuous (LP / QP) paths. (Binary MILP shapes have no duals and fall back to the frontier-inferred estimate.)
 
-**GPU (cuOpt):** the hosted beta is CPU-only, so the GPU backend ships as a ready-to-run Colab template — [cuopt_colab.ipynb](cuopt_colab.ipynb) runs the same explore → exact → certify → duals arc on the investment portfolio with `solver="cuopt"` (open it in Colab, switch the runtime to GPU, run top to bottom).
+**GPU (cuOpt):** the hosted beta is CPU-only, so the GPU backend ships as a ready-to-run Colab template — [cuopt_colab.ipynb](cuopt_colab.ipynb) runs the same explore → exact → certify → duals arc with `solver="cuopt"` on **any bundled example — or your own problem** (it scaffolds both paths): open it in Colab, switch the runtime to GPU, run top to bottom.
 
 **Load by name:** with the engine running, `model load source="investment_portfolio"` rebuilds any example directly – scenarios, interaction matrices, and all – with no manual re-entry. Problems you build save back to this same format (into a gitignored `saved/` library) via `model save`. See [Saving & loading](../README.md#saving--loading).
 
