@@ -1,0 +1,7 @@
+# Compat pointer for environments with a cached legacy build command
+# (`pip install -r requirements.txt`) — e.g. the pre-blueprint Render service
+# (srv-d72b894g9agc739473n0), whose stored settings render.yaml cannot update.
+# pyproject.toml is the single source of dependencies; this line just installs
+# the package with the hosted extras. Safe to delete once the service's build
+# command is updated in the dashboard to: pip install ".[sse,highs]"
+.[sse,highs]
