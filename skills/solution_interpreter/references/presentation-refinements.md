@@ -199,7 +199,7 @@ The explore tool renders ASCII visualizations inline with each response. The for
 
 - **`tradeoffs`** → **2D scatter plot** of the most conflicting objective pair (highest |negative correlation|). Shows all frontier solutions as `·` on a grid, with labeled markers for extremes (`●`), balanced (`⚖`), and inflection points (`◆`). Reveals WHERE solutions cluster, WHERE tradeoff costs jump, and the shape of the frontier. Axes are direction-aware — "better" always points right/up.
 
-- **`compare` / `compare_curated`** → **Parallel coordinates** — one row per solution, one column per objective (capped at 6 most differentiating), each normalized to its range with direction-aware orientation. Shows at a glance which solution wins on which objective and how they trade off. Use this for 2-6 candidate solutions or curated shortlists.
+- **`compare`** (by `solution_ids`, or `signatures` for the curated set) → **Parallel coordinates** — one row per solution, one column per objective (capped at 6 most differentiating), each normalized to its range with direction-aware orientation. Shows at a glance which solution wins on which objective and how they trade off. Use this for 2-6 candidate solutions or curated shortlists.
 
 - **`scenario_results`** → **Range comparison bars** per objective per scenario, showing how the feasible range shifts across futures, plus **option robustness table** (ranked by importance with tiers) and expected values.
 
@@ -357,7 +357,7 @@ Curation is how users build a decision set from the raw frontier. Use `explore c
 
 **Presentation framing:** Once the curated set has 3+ solutions, it IS the decision set. Present curated solutions first, the full frontier as background. Frame the final question around the curated set using custom names.
 
-**Handoff via export:** When the user is ready to leave Frontier — building a deck, writing a memo, sharing with a team — offer `explore export_curated`. Two formats:
+**Handoff via export:** When the user is ready to leave Frontier — building a deck, writing a memo, sharing with a team — offer the curated export — `explore curated format=…`. Two formats:
 
 - `format="markdown"` (default): pipe-aligned table, paste-ready for docs and messages.
 - `format="csv"`: for spreadsheets or further tooling.
