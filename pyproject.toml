@@ -55,7 +55,7 @@ frontier = "mcp_server.server:main"
 packages = ["engine", "mcp_server", "solvers"]
 
 # The server reads skill markdown at runtime relative to the installed package
-# (mcp_server/server.py: SKILLS_DIR = <package root>/skills), so a non-editable
+# (mcp_server/guidance.py: SKILLS_DIR = <package root>/skills), so a non-editable
 # install must ship skills/ alongside the packages or get_skill + auto-injection
 # break at runtime.
 [tool.hatch.build.targets.wheel.force-include]

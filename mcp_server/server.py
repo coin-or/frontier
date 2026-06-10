@@ -15,17 +15,9 @@ Injection map:
 
 from __future__ import annotations
 
-import functools
-import hashlib
 import json
 import os
-import re
-import threading
-import uuid
-from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
 from datetime import datetime, timezone
-from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
 
@@ -56,6 +48,39 @@ from engine.models import (
     Score,
 )
 from engine.store import Store
+# Re-exports: tests and callers reach these via the server namespace (mutable state
+# is shared by object identity, so mutation-based test resets keep working).
+from mcp_server.guidance import (
+    SKILLS_DIR,
+    _DECISION_GUIDANCE,
+    _HEADING_RE,
+    _SKILL_MAP,
+    _SOLUTION_INTERPRETER_PROMPT,
+    _attach_guidance_pointer,
+    _extract_section,
+    _injected_skills,
+    _inject_skill,
+    _load_skill,
+    _mark_injected,
+    _reset_all_injections,
+    _reset_injection,
+    _section_titles,
+    _skill_files,
+    _was_injected,
+)
+from mcp_server.jobs import (
+    SolveJob,
+    _deliver,
+    _resolve_wait,
+    _running_handle,
+    _solve_dispatch,
+    _solve_fingerprint,
+    _solve_jobs,
+    _solve_jobs_lock,
+    _solve_label,
+    _solve_status,
+    _store_write_lock,
+)
 
 mcp = FastMCP(
     "Frontier",
@@ -110,246 +135,11 @@ mcp = FastMCP(
 )
 store = Store()
 
-SKILLS_DIR = Path(__file__).resolve().parent.parent / "skills"
 
 # Soft cap on `explore` actions that can return unbounded per-solution detail.
 # Above this, the response truncates and points the caller at full_result_path
 # on disk to avoid blowing the MCP token budget.
 EXPLORE_DETAIL_CAP = 50
-
-# Single inject prompt used by both solve/run and solve/run_scenarios — covers
-# both the regular-frontier presentation framing and the scenario-specific
-# next-step pointer, so the throttle's single shared flag never silently drops
-# guidance depending on which solve mode fired first.
-_SOLUTION_INTERPRETER_PROMPT = (
-    "Optimization complete. Use this guide to present results — never say 'best', "
-    "start with extremes and balanced, quantify tradeoffs. "
-    "For scenario runs, also surface cross-scenario robustness via "
-    "`explore scenario_results` and present results per scenario."
-)
-
-
-# ─── Skill auto-injection helpers ───
-
-
-# Per-problem tracking of which skills have been injected, to avoid redundancy.
-_injected_skills: dict[str, set[str]] = {}
-
-
-def _mark_injected(problem_id: str, skill_name: str) -> None:
-    _injected_skills.setdefault(problem_id, set()).add(skill_name)
-
-
-def _reset_injection(problem_id: str, skill_name: str) -> None:
-    if problem_id in _injected_skills:
-        _injected_skills[problem_id].discard(skill_name)
-
-
-def _reset_all_injections(problem_id: str) -> None:
-    _injected_skills.pop(problem_id, None)
-
-
-def _was_injected(problem_id: str, skill_name: str) -> bool:
-    return skill_name in _injected_skills.get(problem_id, set())
-
-
-@functools.lru_cache(maxsize=4)
-def _load_skill(skill_name: str) -> str:
-    """Load skill content from disk, cached across calls."""
-    dirname = _SKILL_MAP.get(skill_name)
-    if not dirname:
-        return ""
-    path = SKILLS_DIR / dirname / "SKILL.md"
-    return path.read_text() if path.exists() else ""
-
-
-def _inject_skill(result: dict, skill_name: str, reason: str) -> dict:
-    """Append skill content to a tool response under a standard key."""
-    content = _load_skill(skill_name)
-    if content:
-        result["_skill_guidance"] = {
-            "skill": skill_name,
-            "reason": reason,
-            "content": content,
-        }
-    return result
-
-
-# ─── Long-running solve jobs ───
-#
-# FastMCP runs *sync* tool functions directly on the asyncio event loop, so a 150 s
-# optimize() blocks the whole server (no pings/keepalive, no other calls) AND blows the
-# client's per-call timeout — the turn dies before the solve returns. So `solve run`
-# dispatches the heavy optimize+persist to a worker thread, waits inline only a short
-# budget, and otherwise hands back a {status:"running", job_id} handle the agent polls via
-# `solve status`. Fast solves still finish within the wait and return inline (unchanged).
-# The worker persists the run, so results survive even if polling is interrupted.
-# Determinism holds: the optimizer's seeded-RNG shim is thread-local, and optimize_scenarios
-# already runs solves off-thread the same way.
-
-_SOLVE_WAIT_SECONDS = float(os.environ.get("FRONTIER_SOLVE_WAIT_SECONDS", "10"))  # inline budget
-_SOLVE_WAIT_CAP = float(os.environ.get("FRONTIER_SOLVE_WAIT_CAP", "60"))          # max caller-set wait
-_SOLVE_WORKERS = int(os.environ.get("FRONTIER_SOLVE_WORKERS", "4"))
-_SOLVE_JOB_TTL = float(os.environ.get("FRONTIER_SOLVE_JOB_TTL", "3600"))          # keep finished jobs (s)
-
-
-@dataclass
-class SolveJob:
-    job_id: str
-    problem_id: str
-    action: str            # "run" | "run_scenarios"
-    label: str             # human phase label for progress narration, e.g. "solve: highs thorough"
-    started_at: datetime
-    done: threading.Event
-    status: str = "running"      # running | complete | error
-    result: dict | None = None   # delivered payload (success / infeasible / stale)
-    error: str | None = None     # unexpected worker crash only (optimize errors are caught in-body)
-    finished_at: datetime | None = None
-    delivered: bool = False      # once-guard for delivery side effects (skill injection)
-
-
-_solve_jobs: dict[str, SolveJob] = {}
-_solve_jobs_lock = threading.Lock()
-_solve_pool = ThreadPoolExecutor(max_workers=_SOLVE_WORKERS, thread_name_prefix="frontier-solve")
-
-# Serializes the read-modify-write a solve worker does to attach its run to the stored problem.
-# Concurrent same-problem background solves are a normal flow (run NSGA, then run an exact
-# overlay) — without this their load→modify→save could interleave and lose one run. Held only
-# for the brief persist, on the worker thread; foreground edits made *during* a solve are caught
-# separately by the fingerprint stale-guard.
-_store_write_lock = threading.Lock()
-
-# Problem fields that determine a solve's result. If any change while a background solve runs,
-# the computed frontier no longer matches the stored problem, so the worker reports `stale`
-# rather than overwriting the concurrent edit (results/curation/etc. are deliberately excluded).
-_SOLVE_INPUT_FIELDS = {
-    "approach", "objectives", "options", "scores", "constraints",
-    "interaction_matrices", "scenario_config",
-}
-
-
-def _solve_fingerprint(p: Problem) -> str:
-    payload = p.model_dump(mode="json", include=_SOLVE_INPUT_FIELDS)
-    return hashlib.md5(json.dumps(payload, sort_keys=True, default=str).encode()).hexdigest()
-
-
-def _solve_label(action: str, mode: OptimizeMode | None, solver: str | None,
-                 exact: bool, time_limit: float | None) -> str:
-    parts = [f"{solver or 'nsga'} {(mode.value if mode else 'fast')}"]
-    if exact and solver:
-        parts.append("exact-certified")
-    if time_limit:
-        parts.append(f"≤{time_limit:g}s")
-    base = "scenarios" if action == "run_scenarios" else "solve"
-    return f"{base}: {' '.join(parts)}"
-
-
-def _resolve_wait(wait_seconds: float | None) -> float:
-    if wait_seconds is None:
-        return _SOLVE_WAIT_SECONDS
-    return max(0.0, min(float(wait_seconds), _SOLVE_WAIT_CAP))
-
-
-def _reap_jobs() -> None:
-    """Evict finished jobs past their TTL so the registry can't grow unbounded. Called (under
-    the lock) when a new job is registered — cheap, and recent results stay pollable."""
-    now = datetime.now(timezone.utc)
-    expired = [jid for jid, j in _solve_jobs.items()
-               if j.finished_at and (now - j.finished_at).total_seconds() > _SOLVE_JOB_TTL]
-    for jid in expired:
-        _solve_jobs.pop(jid, None)
-
-
-def _running_handle(job: SolveJob) -> dict:
-    elapsed = (datetime.now(timezone.utc) - job.started_at).total_seconds()
-    return {
-        "status": "running",
-        "job_id": job.job_id,
-        "problem_id": job.problem_id,
-        "action": job.action,
-        "label": job.label,
-        "started_at": job.started_at.isoformat(),
-        "elapsed_s": round(elapsed, 1),
-        "poll_with": f"solve(action='status', job_id='{job.job_id}')",
-        "note": (
-            f"Solve is running in the background ({job.label}) — expected for thorough, exact, "
-            "or large problems. Poll `solve status` with this job_id until status is 'complete'; "
-            "the run is persisted, so `explore` works once it finishes. Between polls, tell the "
-            "user it's optimizing and how long it's taken so far — don't claim results yet."
-        ),
-    }
-
-
-def _deliver(problem_id: str, job: SolveJob) -> dict:
-    """Render a finished job for return. Adds job_id + a status that reflects the OUTCOME
-    (complete / infeasible / error / stale), and on a successful solve injects
-    solution_interpreter once per problem + re-arms optimization_strategy — the same throttle
-    the old inline _solve_run applied, now at delivery time (inline-complete or status), always
-    on a request thread (never the worker), so the injection state stays single-threaded. The
-    injection/reset side effects fire once per job (`delivered`), so re-polling a finished job
-    is a pure read and can't re-arm/suppress guidance for a later model cycle."""
-    if job.status == "error":  # unexpected worker crash
-        return {"status": "error", "job_id": job.job_id, "feasible": False, "error": job.error}
-    result = dict(job.result or {})
-    result["job_id"] = job.job_id
-    succeeded = "run_id" in result or "scenarios_optimized" in result
-    if "status" not in result:  # stale already sets its own; classify the rest by outcome
-        result["status"] = ("complete" if succeeded
-                            else "error" if result.get("error")
-                            else "infeasible")
-    if succeeded and not job.delivered:  # a real frontier was produced, first delivery only
-        if not _was_injected(problem_id, "solution_interpreter"):
-            _inject_skill(result, "solution_interpreter", _SOLUTION_INTERPRETER_PROMPT)
-            _mark_injected(problem_id, "solution_interpreter")
-        _reset_injection(problem_id, "optimization_strategy")
-    job.delivered = True
-    return result
-
-
-def _solve_dispatch(p: Problem, action: str, work_fn, *, label: str,
-                    wait_seconds: float | None) -> dict:
-    """Run ``work_fn`` (the heavy solve+persist) in a worker thread, wait inline up to the
-    resolved budget, and return the full result if it finished — else a running handle to poll."""
-    job = SolveJob(
-        job_id=uuid.uuid4().hex,
-        problem_id=p.problem_id,
-        action=action,
-        label=label,
-        started_at=datetime.now(timezone.utc),
-        done=threading.Event(),
-    )
-    with _solve_jobs_lock:
-        _reap_jobs()
-        _solve_jobs[job.job_id] = job
-
-    def _runner() -> None:
-        try:
-            job.result = work_fn()
-            job.status = "complete"
-        except Exception as e:  # optimize errors are caught in-body; this is an unexpected crash
-            job.status = "error"
-            job.error = str(e)
-        finally:
-            job.finished_at = datetime.now(timezone.utc)
-            job.done.set()
-
-    _solve_pool.submit(_runner)
-    if job.done.wait(timeout=_resolve_wait(wait_seconds)):
-        return _deliver(p.problem_id, job)
-    return _running_handle(job)
-
-
-def _solve_status(job_id: str | None) -> dict:
-    if not job_id:
-        return {"error": "status requires a job_id (from a prior solve run/run_scenarios response)."}
-    with _solve_jobs_lock:
-        job = _solve_jobs.get(job_id)
-    if job is None:
-        return {"error": f"No solve job '{job_id}'. It may have expired (TTL) or the id is wrong."}
-    if not job.done.is_set():
-        return _running_handle(job)
-    return _deliver(job.problem_id, job)
-
 
 # ─── Skills as resources ───
 
@@ -378,50 +168,6 @@ def skill_solution_interpreter() -> str:
 
 # Skill names map 1:1 onto skills/<name>/ directories. The set doubles as the
 # valid-name gate for get_skill and the resource readers.
-_SKILL_MAP = {
-    "problem_framing": "problem_framing",
-    "data_collection": "data_collection",
-    "optimization_strategy": "optimization_strategy",
-    "solution_interpreter": "solution_interpreter",
-}
-
-_HEADING_RE = re.compile(r"^(#{2,4})\s+(.*\S)\s*$")
-
-
-def _skill_files(dirname: str) -> list[Path]:
-    """A skill's core (SKILL.md) plus its on-demand reference files."""
-    base = SKILLS_DIR / dirname
-    files = [base / "SKILL.md"]
-    refdir = base / "references"
-    if refdir.is_dir():
-        files += sorted(refdir.glob("*.md"))
-    return [f for f in files if f.exists()]
-
-
-def _extract_section(text: str, section: str) -> str | None:
-    """Return one markdown section (heading through next same-or-higher heading)."""
-    want = section.strip().lower()
-    out: list[str] = []
-    level: int | None = None
-    for ln in text.splitlines(keepends=True):
-        m = _HEADING_RE.match(ln)
-        if m:
-            if level is not None and len(m.group(1)) <= level:
-                break
-            if level is None and m.group(2).strip().lower() == want:
-                level = len(m.group(1))
-        if level is not None:
-            out.append(ln)
-    return "".join(out) if out else None
-
-
-def _section_titles(dirname: str) -> list[str]:
-    titles: list[str] = []
-    for f in _skill_files(dirname):
-        titles += [m.group(2).strip() for m in map(_HEADING_RE.match, f.read_text().splitlines()) if m]
-    return titles
-
-
 @mcp.tool()
 def get_skill(skill_name: str, section: str | None = None) -> str:
     """Retrieve workflow guidance for a specific stage.
@@ -1638,50 +1384,6 @@ def _format_explore(result: dict) -> dict:
 # session — so every decision action points at the section to re-read and how to get it
 # back, leaving the agent either holding the guidance or one call away from it. Centralized
 # as one map + one helper so the convention stays uniform, never re-stated per action.
-
-# Navigation/recording actions (solutions, curated, feedback) intentionally carry no
-# pointer — they list or record rather than present a decision read, so there is no
-# interpretation guidance to cite.
-_DECISION_GUIDANCE: dict[str, tuple[str, str]] = {
-    "tradeoffs": ("solution_interpreter", "Presentation Order: Extremes → Balanced → Inflection → Risk → Preference"),
-    "compare": ("solution_interpreter", "Differentiating Options"),
-    "compare_runs": ("solution_interpreter", "Run Diff Interpretation"),
-    "scenario_results": ("solution_interpreter", "Scenario Results Presentation"),
-    "scenario_frontiers": ("solution_interpreter", "Scenario Results Presentation"),
-    "composition": ("solution_interpreter", "Mining the Solution Set"),
-    "marginal_analysis": ("solution_interpreter", "Marginal Analysis Interpretation"),
-    "curate": ("solution_interpreter", "Solution Curation"),
-    "certify": ("solution_interpreter", "Reading the Certificate (explore certify)"),
-    "sensitivity": ("solution_interpreter", "Exact Sensitivity — Shadow Prices & Reduced Costs (solver duals)"),
-}
-
-
-def _attach_guidance_pointer(result: dict, action: str) -> dict:
-    """Point a decision action's response at the skill section that governs reading it.
-
-    No-op for non-decision actions and for error results (nothing to present). The note's
-    conditional phrasing holds whether or not the full skill is also in context: if it is,
-    the agent reads on; if it scrolled out, the agent re-fetches — so this composes cleanly
-    with the once-per-problem full-skill injection rather than contradicting it."""
-    if not isinstance(result, dict) or "error" in result:
-        return result
-    entry = _DECISION_GUIDANCE.get(action)
-    if not entry:
-        return result
-    skill, section = entry
-    # Sensitivity falls back to the frontier-inferred binding analysis when a problem has no
-    # exact duals — point at that section instead so the cited guidance matches the output.
-    if action == "sensitivity" and result.get("source") == "frontier_inferred":
-        section = "Binding Analysis"
-    result["guidance_pointer"] = {
-        "skill": skill,
-        "section": section,
-        "note": (f"Present this with the {skill} skill → '{section}'. If that section isn't in "
-                 f"recent context, fetch exactly it with get_skill('{skill}', section='{section}') "
-                 "before presenting — don't go from memory."),
-    }
-    return result
-
 
 # ─── Tool 3: explore ───
 
