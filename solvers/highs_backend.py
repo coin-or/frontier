@@ -38,10 +38,11 @@ from solvers._scalarization import (
     optimize_qp,
 )
 
-# Per-scalarization MILP controls. The default ``mip_rel_gap`` is far below unit score
-# granularity, so the incumbent is the true optimum while skipping the (irrelevant) proof;
-# ``exact=True`` drops the gap to 0. ``time_limit`` is only a safety deadline.
-_MILP_REL_GAP = 1e-4
+# Per-scalarization MILP controls. The default ``mip_rel_gap`` matches cuopt_backend —
+# the uniform 0.1% certificate margin the docs quote for both backends. On integer
+# scores the incumbent is the true optimum anyway; the gap only skips the (irrelevant)
+# proof. ``exact=True`` drops the gap to 0. ``time_limit`` is only a safety deadline.
+_MILP_REL_GAP = 1e-3
 _MILP_TIME_LIMIT = 30.0
 
 # QP EA budget (pop, gen) by mode. The cheap continuous QP can afford a dense search; the

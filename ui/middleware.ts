@@ -3,8 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 /**
  * Shared-password gate for the hosted web UI (HTTP Basic Auth).
  *
- * Covers BOTH the page and /api/chat — the API must be gated too, or a request
- * could POST straight to it and spend the ANTHROPIC_API_KEY. This is distinct
+ * Covers the page and every API route — /api/chat and /api/render alike (the
+ * matcher excludes only Next internals) — the APIs must be gated too, or a request
+ * could hit chat and spend the ANTHROPIC_API_KEY, or render and spend engine
+ * compute, straight past the page gate. This is distinct
  * from the engine's FRONTIER_MCP_TOKEN: that token authenticates the app→engine
  * connector call and is never exposed to UI users, so the UI needs its own gate.
  *

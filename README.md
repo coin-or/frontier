@@ -40,11 +40,11 @@ Spreadsheets hit a wall once options and constraints in a decision multiply. Gen
 **What it adds beyond an LLM alone:**
 - **Full tradeoff frontier**: every Pareto-optimal option, not one recommendation or a weighted ranking.
 - **Optional exact audit**: certify the finalists against an exact solver (HiGHS on CPU, cuOpt on GPU) on supported shapes; it catches dominated points the heuristic showed as efficient.
-- **Hard constraints, enforced**: eight types: cardinality, force include/exclude, objective bounds, exclusion pairs, dependencies, group limits, and allocation caps
+- **Hard constraints, enforced**: eight types: cardinality, force include, force exclude, objective bounds, exclusion pairs, dependencies, group limits, and allocation caps.
 - **Grounded & reproducible**: every number traces to computed data, and the same inputs + seed reproduce the exact frontier.
 - **Scenarios & risk**: independent frontiers per scenario, plus CVaR / worst-case / expected / minimax-regret per objective.
 - **Knowledge discovery**: mine the frontier for selection rates, design principles, and strategy families (`explore composition`).
-- **Persistent state**: problems persist across sessions; curated picks track survival across re-runs.
+- **Persistent state**: problems persist across sessions (on a deployment with durable storage — the default Render blueprint is ephemeral); curated picks track survival across re-runs.
 
 ## Workflow
 
@@ -135,7 +135,7 @@ Both pieces are plain web services – host them anywhere (Render, Fly, Railway,
 
 `FRONTIER_MCP_TOKEN` must match on both – that's what authenticates the UI to the engine.
 
-**Render (one-click example):** [`render.yaml`](render.yaml) provisions both as a blueprint – auto-generates the shared token, derives the engine URL, leaves only `ANTHROPIC_API_KEY` to set. Point Render at your fork (New → Blueprint).
+**Render (one-click example):** [`render.yaml`](render.yaml) provisions both as a blueprint – auto-generates the shared token, derives the engine URL, leaves only `ANTHROPIC_API_KEY` to set. Point Render at your fork (New → Blueprint). The blueprint's engine storage is **ephemeral** (problems reset on redeploy) – attach a Render disk at `data/` when you want durable state.
 
 ## Architecture
 

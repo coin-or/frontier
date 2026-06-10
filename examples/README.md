@@ -1,6 +1,6 @@
 # Examples
 
-Loadable Frontier problems: combinatorial, multi-objective decisions beyond a spreadsheet. Each ships a `problem.json` (objectives, approach, constraints, scenarios), a `scores.json` (options, scores, interaction matrices), a paste-able prompt, and a workflow walkthrough in its own README. Each is pre-framed and pre-scored, so its walkthrough picks up the [main workflow](../README.md#workflow) at **Solve** (steps 1–2, Frame and Score, are already done).
+Loadable Frontier problems: combinatorial, multi-objective decisions beyond a spreadsheet. Each ships a `problem.json` (objectives, approach, constraints, scenarios), a `scores.json` (options, scores, interaction matrices), a pre-solved `solutions.json` (results restored on load), a paste-able prompt, and a workflow walkthrough in its own README. Each is pre-framed and pre-scored, so its walkthrough picks up the [main workflow](../README.md#workflow) at **Solve** (steps 1–2, Frame and Score, are already done).
 
 | Example | Decision & objectives | Files |
 |---|---|---|
@@ -14,6 +14,6 @@ Loadable Frontier problems: combinatorial, multi-objective decisions beyond a sp
 
 **Solver-exact explainability:** the [budget allocation](budget_allocation/) and [production mix](production_mix/) examples (purely linear **LP**) and the [investment portfolio](investment_portfolio/) (mean-variance **QP**) each run the full workflow – `solve run` → `solve solver="highs"` → `explore certify` → `explore sensitivity` – surfacing shadow prices ("where to invest") and reduced costs ("near-misses") straight from the optimizer on the continuous (LP / QP) paths. (Binary MILP shapes have no duals and fall back to the frontier-inferred estimate.)
 
-**Load by name:** with the engine running, `model load source="investment_portfolio"` rebuilds any example directly – scenarios, interaction matrices, and all – with no manual re-entry. Problems you build save back to this same format (into a gitignored `saved/` library) via `model save`. See [Saving & loading problems](../README.md#saving--loading-problems).
+**Load by name:** with the engine running, `model load source="investment_portfolio"` rebuilds any example directly – scenarios, interaction matrices, and all – with no manual re-entry. Problems you build save back to this same format (into a gitignored `saved/` library) via `model save`. See [Saving & loading](../README.md#saving--loading).
 
 See the [main README](../README.md) for setup and [architecture.md](../architecture.md) for technical reference.
