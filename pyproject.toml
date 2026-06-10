@@ -39,6 +39,9 @@ examples = ["matplotlib>=3.7", "pandas>=2.0"]
 # unlike cuOpt it needs no special index or GPU — but kept opt-in so the default NSGA path
 # stays dependency-light. `pip install frontier[highs]`.
 highs = ["highspy>=1.7"]
+# SSE / streamable-http transports (remote MCP clients, hosted deploys). The stdio
+# default needs nothing extra. `pip install ".[sse]"` — replaces the old requirements.txt.
+sse = ["uvicorn>=0.30"]
 
 [project.urls]
 Homepage = "https://github.com/cafzal/frontier"
@@ -50,6 +53,13 @@ frontier = "mcp_server.server:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["engine", "mcp_server", "solvers"]
+
+# The server reads skill markdown at runtime relative to the installed package
+# (mcp_server/server.py: SKILLS_DIR = <package root>/skills), so a non-editable
+# install must ship skills/ alongside the packages or get_skill + auto-injection
+# break at runtime.
+[tool.hatch.build.targets.wheel.force-include]
+"skills" = "skills"
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
