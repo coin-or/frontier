@@ -10,7 +10,7 @@
 
 Frontier helps you make hard decisions that have many options and conflicting goals: which projects to fund, how to split a budget, who to source from. You describe the decision to an AI agent in plain language; it models the problem, optimizes it, and walks you through the **full set of optimal tradeoffs** rather than one black-box answer. You make the final call.
 
-Under the hood it maps the **Pareto frontier** (every option where you can't improve one goal without sacrificing another) with evolutionary search (NSGA-II/III) plus optional exact solvers (HiGHS, cuOpt), all exposed as MCP tools. Every number it reports is computed, not guessed, so the decision stays explainable and auditable, and the engine never overrides the two calls that are yours: how to frame the problem and which tradeoff to pick.
+Under the hood it maps the **Pareto frontier** (every option where you can't improve one goal without sacrificing another) with evolutionary search plus optional exact solvers, all exposed as MCP tools. Every number it reports is computed, not guessed, so the decision stays explainable and auditable, and the engine never overrides the two calls that are yours: how to frame the problem and which tradeoff to pick.
 
 **Try it:** the [hosted demo](https://frontier-ui.onrender.com/) (ask @cafzal for access), or [set up your own](#setup) in any MCP client.
 
@@ -66,6 +66,32 @@ Every problem is auto-persisted in the engine's store (`data/`, keyed by id) –
 
 - **`model save problem_id=… save_as="<name>"`**: save to your gitignored `saved/` library (override with `FRONTIER_SAVED_DIR`), bundling the solved frontier when present.
 - **`model load source="<name>"`**: rebuild a problem, resolving `saved/` first, then bundled `examples/`; omit `source` to list available names.
+
+## Architecture
+
+<p align="center"><img src="assets/architecture.png" alt="Frontier architecture: agent clients and the web UI speak MCP to one server exposing four tools, with skills and solvers attached and a deterministic engine beneath" width="560" /></p>
+
+Frontier is a Python MCP server (FastMCP) wrapping pymoo's NSGA-II/III evolutionary solvers, with two first-class exact-solver backends (HiGHS on CPU, cuOpt on GPU) the agent can elect per run as an audit layer over the heuristic frontier. State persists per-problem as JSON; the optimizer produces a Pareto frontier with quality indicators, scenario-aware results, and shadow-price rates per binding constraint. Domain expertise lives in skill markdown files that the server auto-injects at workflow transitions, so the same rigor reaches every MCP client.
+
+For full schemas, action parameters, data model, persistence layout, and the skill auto-injection mechanism, see [`architecture.md`](architecture.md). For skill, prompt, and MCP design principles, see [`best-practices.md`](best-practices.md).
+
+### Tools
+
+Four MCP tools – full action lists and parameters in [`architecture.md`](architecture.md):
+
+- **`model`**: define and edit the problem (objectives, options, scores, 8 constraint types, interaction matrices, scenarios): `create` / `update` / `get`, plus `save` / `load` for named problems.
+- **`solve`**: validate and optimize (NSGA-II/III, fast/thorough, seeded): `run`, `run_scenarios`, and `status` to poll background runs; opt-in `solver="highs"|"cuopt"` exact backends on supported shapes.
+- **`explore`**: navigate results: `tradeoffs`, `certify` (audit the exact overlay), `sensitivity` (solver-exact shadow prices + near-misses), `composition` (mine selection rates, principles, strategy families), plus `compare` / `solutions` / `scenario_results` / `curate`.
+- **`get_skill`**: fetch the workflow guidance below.
+
+### Skills
+
+Markdown guides the server auto-injects at workflow transitions (also fetchable via `get_skill`) – domain judgment, not tool docs:
+
+- **`problem_framing`**: objectives vs constraints, approach + aggregation, scenario definition.
+- **`data_collection`**: score elicitation without anchoring bias, quality signals.
+- **`optimization_strategy`**: iteration, constraint strategy, infeasibility, re-run judgment.
+- **`solution_interpreter`**: presenting tradeoffs without a "best", eliciting preferences, curation.
 
 ## Setup
 
@@ -138,32 +164,6 @@ Both pieces are plain web services – host them anywhere (Render, Fly, Railway,
 `FRONTIER_MCP_TOKEN` must match on both – that's what authenticates the UI to the engine.
 
 **Render (one-click example):** [`render.yaml`](render.yaml) provisions both as a blueprint – auto-generates the shared token, derives the engine URL, leaves only `ANTHROPIC_API_KEY` to set. Point Render at your fork (New → Blueprint). The blueprint's engine storage is **ephemeral** (problems reset on redeploy) – attach a Render disk at `data/` when you want durable state.
-
-## Architecture
-
-<p align="center"><img src="assets/architecture.png" alt="Frontier architecture: agent clients and the web UI speak MCP to one server exposing four tools, with skills and solvers attached and a deterministic engine beneath" width="560" /></p>
-
-Frontier is a Python MCP server (FastMCP) wrapping pymoo's NSGA-II/III evolutionary solvers, with two first-class exact-solver backends (HiGHS on CPU, cuOpt on GPU) the agent can elect per run as an audit layer over the heuristic frontier. State persists per-problem as JSON; the optimizer produces a Pareto frontier with quality indicators, scenario-aware results, and shadow-price rates per binding constraint. Domain expertise lives in skill markdown files that the server auto-injects at workflow transitions, so the same rigor reaches every MCP client.
-
-For full schemas, action parameters, data model, persistence layout, and the skill auto-injection mechanism, see [`architecture.md`](architecture.md). For skill, prompt, and MCP design principles, see [`best-practices.md`](best-practices.md).
-
-### Tools
-
-Four MCP tools – full action lists and parameters in [`architecture.md`](architecture.md):
-
-- **`model`**: define and edit the problem (objectives, options, scores, 8 constraint types, interaction matrices, scenarios): `create` / `update` / `get`, plus `save` / `load` for named problems.
-- **`solve`**: validate and optimize (NSGA-II/III, fast/thorough, seeded): `run`, `run_scenarios`, and `status` to poll background runs; opt-in `solver="highs"|"cuopt"` exact backends on supported shapes.
-- **`explore`**: navigate results: `tradeoffs`, `certify` (audit the exact overlay), `sensitivity` (solver-exact shadow prices + near-misses), `composition` (mine selection rates, principles, strategy families), plus `compare` / `solutions` / `scenario_results` / `curate`.
-- **`get_skill`**: fetch the workflow guidance below.
-
-### Skills
-
-Markdown guides the server auto-injects at workflow transitions (also fetchable via `get_skill`) – domain judgment, not tool docs:
-
-- **`problem_framing`**: objectives vs constraints, approach + aggregation, scenario definition.
-- **`data_collection`**: score elicitation without anchoring bias, quality signals.
-- **`optimization_strategy`**: iteration, constraint strategy, infeasibility, re-run judgment.
-- **`solution_interpreter`**: presenting tradeoffs without a "best", eliciting preferences, curation.
 
 ## Background
 
