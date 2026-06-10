@@ -72,7 +72,7 @@ class TestModelUpdate:
         srv.model(action="update", problem_id=pid, scores=[
             {"option": "B", "objective": "Rev", "value": 7},
         ])
-        problem = srv.model(action="get", problem_id=pid)
+        problem = srv.model(action="get", problem_id=pid, section="full")
         assert len(problem["scores"]) == 2
 
     def test_update_scores_upsert(self):
@@ -88,7 +88,7 @@ class TestModelUpdate:
         srv.model(action="update", problem_id=pid, scores=[
             {"option": "A", "objective": "Rev", "value": 99},
         ])
-        problem = srv.model(action="get", problem_id=pid)
+        problem = srv.model(action="get", problem_id=pid, section="full")
         rev_scores = [s for s in problem["scores"] if s["option"] == "A" and s["objective"] == "Rev"]
         assert len(rev_scores) == 1
         assert rev_scores[0]["value"] == 99
@@ -111,14 +111,14 @@ class TestModelUpdate:
                   ],
                   constraints=[{"type": "cardinality", "min": 1, "max": 2}])
         srv.solve(action="run", problem_id=pid)
-        p = srv.model(action="get", problem_id=pid)
+        p = srv.model(action="get", problem_id=pid, section="full")
         assert p["run"] is not None
 
         # Updating scores should mark results stale (not clear the run)
         srv.model(action="update", problem_id=pid, scores=[
             {"option": "A", "objective": "Rev", "value": 1},
         ])
-        p = srv.model(action="get", problem_id=pid)
+        p = srv.model(action="get", problem_id=pid, section="full")
         assert p["run"] is not None  # run preserved for comparison
         assert p["results_stale"] is True
 
@@ -137,7 +137,7 @@ class TestModelUpdate:
         srv.model(action="update", problem_id=pid,
                   objectives=[{"name": "Rev", "direction": "maximize"},
                               {"name": "Impact", "direction": "maximize"}])
-        p = srv.model(action="get", problem_id=pid)
+        p = srv.model(action="get", problem_id=pid, section="full")
         # Only Rev score should remain
         assert all(s["objective"] != "Eff" for s in p["scores"])
 
@@ -152,7 +152,7 @@ class TestModelUpdate:
         # Remove option A
         srv.model(action="update", problem_id=pid,
                   options=[{"name": "B"}, {"name": "C"}, {"name": "D"}])
-        p = srv.model(action="get", problem_id=pid)
+        p = srv.model(action="get", problem_id=pid, section="full")
         assert len(p["constraints"]) == 0
 
     def test_update_nonexistent_problem(self):
@@ -246,10 +246,16 @@ class TestModelDelete:
 
 
 class TestModelGet:
-    def test_get(self):
+    def test_get_defaults_to_summary(self):
         created = srv.model(action="create", name="Fetch Me")
         pid = created["problem_id"]
-        result = srv.model(action="get", problem_id=pid)
+        result = srv.model(action="get", problem_id=pid)   # no section -> summary
+        assert result["section"] == "summary"
+
+    def test_get_full_dump(self):
+        created = srv.model(action="create", name="Fetch Me")
+        pid = created["problem_id"]
+        result = srv.model(action="get", problem_id=pid, section="full")
         assert result["name"] == "Fetch Me"
 
     def test_get_summary_section(self):
@@ -486,7 +492,7 @@ class TestRunHistory:
     def test_structural_change_sets_stale(self):
         pid = _build_solvable_problem()
         srv.solve(action="run", problem_id=pid)
-        p = srv.model(action="get", problem_id=pid)
+        p = srv.model(action="get", problem_id=pid, section="full")
         assert p["results_stale"] is False
 
         # Structural change sets stale
@@ -494,7 +500,7 @@ class TestRunHistory:
             {"option": "A", "objective": "Rev", "value": 1},
         ])
         assert result["status"]["results_stale"] is True
-        p = srv.model(action="get", problem_id=pid)
+        p = srv.model(action="get", problem_id=pid, section="full")
         assert p["results_stale"] is True
         assert p["run"] is not None  # run preserved
 
@@ -504,12 +510,12 @@ class TestRunHistory:
         srv.model(action="update", problem_id=pid, scores=[
             {"option": "A", "objective": "Rev", "value": 1},
         ])
-        p = srv.model(action="get", problem_id=pid)
+        p = srv.model(action="get", problem_id=pid, section="full")
         assert p["results_stale"] is True
 
         # Re-solve clears stale
         srv.solve(action="run", problem_id=pid)
-        p = srv.model(action="get", problem_id=pid)
+        p = srv.model(action="get", problem_id=pid, section="full")
         assert p["results_stale"] is False
 
     def test_solve_archives_previous_run(self):
@@ -521,7 +527,7 @@ class TestRunHistory:
         result2 = srv.solve(action="run", problem_id=pid)
         run2_id = result2["run_id"]
 
-        p = srv.model(action="get", problem_id=pid)
+        p = srv.model(action="get", problem_id=pid, section="full")
         assert p["run"]["run_id"] == run2_id
         assert len(p["runs"]) == 1
         assert p["runs"][0]["run_id"] == run1_id
@@ -529,7 +535,7 @@ class TestRunHistory:
     def test_run_has_constraints_snapshot(self):
         pid = _build_solvable_problem()
         result = srv.solve(action="run", problem_id=pid)
-        p = srv.model(action="get", problem_id=pid)
+        p = srv.model(action="get", problem_id=pid, section="full")
         assert len(p["run"]["constraints_snapshot"]) > 0
         assert p["run"]["constraints_snapshot"][0]["type"] == "cardinality"
 
@@ -538,7 +544,7 @@ class TestRunHistory:
         srv.solve(action="run", problem_id=pid)
         srv.solve(action="run", problem_id=pid)
         srv.solve(action="run", problem_id=pid)
-        p = srv.model(action="get", problem_id=pid)
+        p = srv.model(action="get", problem_id=pid, section="full")
         assert len(p["runs"]) == 2  # 2 archived + 1 current
         assert p["run"] is not None
 
@@ -557,7 +563,7 @@ class TestReferencePoints:
             {"type": "baseline", "name": "Current", "objective_values": {"Rev": 10, "Eff": 8}},
             {"type": "aspirational", "name": "Target", "objective_values": {"Rev": 20, "Eff": 3}},
         ])
-        p = srv.model(action="get", problem_id=pid)
+        p = srv.model(action="get", problem_id=pid, section="full")
         assert len(p["reference_points"]) == 2
         assert p["reference_points"][0]["type"] == "baseline"
 
@@ -654,7 +660,7 @@ class TestScenarios:
                 ]},
             ],
         })
-        p = srv.model(action="get", problem_id=pid)
+        p = srv.model(action="get", problem_id=pid, section="full")
         assert p["scenario_config"]["enabled"] is True
         assert len(p["scenario_config"]["scenarios"]) == 2
 
@@ -1370,7 +1376,7 @@ class TestCreateAcceptsObjectivesAndOptions:
             {"name": "Eff", "direction": "minimize"},
         ])
         assert result["objectives"] == 2
-        p = srv.model(action="get", problem_id=result["problem_id"])
+        p = srv.model(action="get", problem_id=result["problem_id"], section="full")
         assert len(p["objectives"]) == 2
 
     def test_create_with_options(self):
@@ -1378,7 +1384,7 @@ class TestCreateAcceptsObjectivesAndOptions:
             {"name": "A"}, {"name": "B"}, {"name": "C"},
         ])
         assert result["options"] == 3
-        p = srv.model(action="get", problem_id=result["problem_id"])
+        p = srv.model(action="get", problem_id=result["problem_id"], section="full")
         assert len(p["options"]) == 3
 
     def test_create_with_objectives_and_options(self):
@@ -1859,8 +1865,8 @@ class TestDecisionGuidancePointers:
         assert gp is not None, f"expected a guidance_pointer, got keys {list(result)}"
         assert gp["skill"] == "solution_interpreter"
         assert gp["section"] == section
-        # The note must carry the re-fetch path — that's the compaction-survivor trigger.
-        assert "get_skill('solution_interpreter')" in gp["note"]
+        # The note must carry the exact section-fetch path — the compaction-survivor trigger.
+        assert f"get_skill('solution_interpreter', section='{section}')" in gp["note"]
 
     def test_tradeoffs_points_to_presentation_order(self):
         pid = self._solved_pid()
@@ -1949,14 +1955,28 @@ class TestDecisionGuidancePointers:
             sections_by_skill.setdefault(skill, set()).add(section)
         sections_by_skill["solution_interpreter"].add("Binding Analysis")  # sensitivity fallback
         for skill, sections in sections_by_skill.items():
-            path = srv.SKILLS_DIR / srv._SKILL_MAP[skill] / "SKILL.md"
-            headings = {
-                line.lstrip("#").strip()
-                for line in path.read_text().splitlines()
-                if line.lstrip().startswith("#")
-            }
+            # Headings span the skill core AND its references — a pointer target may
+            # live in either; _section_titles is the same resolver get_skill uses.
+            headings = set(srv._section_titles(srv._SKILL_MAP[skill]))
             missing = sections - headings
-            assert not missing, f"{skill} SKILL.md is missing heading(s): {missing}"
+            assert not missing, f"{skill} is missing heading(s): {missing}"
+
+    def test_get_skill_section_fetch(self):
+        """The recovery loop the split depends on: every pointer-cited section is
+        retrievable as exactly one section via get_skill(name, section=...)."""
+        body = srv.get_skill("solution_interpreter", section="Reading the Certificate (explore certify)")
+        assert body.startswith("### Reading the Certificate")
+        assert "dominance_audit" in body.lower() or "dominance audit" in body.lower()
+        # core fetch stays lean and does NOT inline the reference depth
+        core = srv.get_skill("solution_interpreter")
+        assert "Never Say \"Best\"" in core
+        assert "### Reading the Certificate" not in core
+        # depth section from the other split skill resolves too
+        depth = srv.get_skill("optimization_strategy", section="Exact Solvers — Depth")
+        assert "three formulations" in depth
+        # unknown section errors with the available titles, not silence
+        miss = srv.get_skill("solution_interpreter", section="No Such Heading")
+        assert "Unknown section" in miss and "Solution Curation" in miss
 
 
 class TestComposition:

@@ -19,6 +19,7 @@ import functools
 import hashlib
 import json
 import os
+import re
 import threading
 import uuid
 from concurrent.futures import ThreadPoolExecutor
@@ -74,11 +75,11 @@ mcp = FastMCP(
         "  - data_collection — SCORING: eliciting/estimating scores without anchoring bias, quality signals.\n"
         "  - optimization_strategy — SOLVING: mode + solver choice (incl. the exact-certify flow), constraint strategy, infeasibility, iteration.\n"
         "  - solution_interpreter — INTERPRETING: presenting tradeoffs (never 'best'), reading the certificate + exact sensitivity, curation, deciding.\n"
-        "data_collection / optimization_strategy / solution_interpreter AUTO-INJECT (full text) into tool responses at their phase transition. "
+        "data_collection / optimization_strategy / solution_interpreter AUTO-INJECT (their core text) into tool responses at their phase transition. "
         "problem_framing does NOT — call get_skill('problem_framing') before the first model/create when framing isn't obvious.\n"
-        "PERSISTENCE: in a long session a skill's full text can scroll out of context, but this map stays here. If you're deciding in a "
-        "phase whose guide you no longer have in view, RE-FETCH it with get_skill(<name>) before acting — don't proceed from memory. "
-        "Tool responses also name the specific section to re-read.\n\n"
+        "PERSISTENCE + DEPTH: each skill's deep, situational sections live in its references — NOT injected — and are fetched one at a time with "
+        "get_skill(<name>, section=<heading>); decision responses name the exact section to fetch in their guidance_pointer. If you're deciding in a "
+        "phase whose guidance you no longer have in view, RE-FETCH it (whole skill or one section) before acting — don't proceed from memory.\n\n"
         "## Pre-create framing checklist (read before model/create)\n"
         "Picking the right approach + aggregation upfront avoids a re-solve. Ask:\n"
         "1. Approach — does the user want to *select* options or *allocate* across them?\n"
@@ -355,53 +356,102 @@ def _solve_status(job_id: str | None) -> dict:
 
 @mcp.resource("frontier://skills/problem_framing")
 def skill_problem_framing() -> str:
-    return (SKILLS_DIR / "problem-framing" / "SKILL.md").read_text()
+    return (SKILLS_DIR / "problem_framing" / "SKILL.md").read_text()
 
 
 @mcp.resource("frontier://skills/data_collection")
 def skill_data_collection() -> str:
-    return (SKILLS_DIR / "data-collection" / "SKILL.md").read_text()
+    return (SKILLS_DIR / "data_collection" / "SKILL.md").read_text()
 
 
 @mcp.resource("frontier://skills/optimization_strategy")
 def skill_optimization_strategy() -> str:
-    return (SKILLS_DIR / "optimization-strategy" / "SKILL.md").read_text()
+    return (SKILLS_DIR / "optimization_strategy" / "SKILL.md").read_text()
 
 
 @mcp.resource("frontier://skills/solution_interpreter")
 def skill_solution_interpreter() -> str:
-    return (SKILLS_DIR / "solution-interpreter" / "SKILL.md").read_text()
+    return (SKILLS_DIR / "solution_interpreter" / "SKILL.md").read_text()
 
 
 # ─── Skill delivery tool (works with all MCP clients) ───
 
+# Skill names map 1:1 onto skills/<name>/ directories. The set doubles as the
+# valid-name gate for get_skill and the resource readers.
 _SKILL_MAP = {
-    "problem_framing": "problem-framing",
-    "data_collection": "data-collection",
-    "optimization_strategy": "optimization-strategy",
-    "solution_interpreter": "solution-interpreter",
+    "problem_framing": "problem_framing",
+    "data_collection": "data_collection",
+    "optimization_strategy": "optimization_strategy",
+    "solution_interpreter": "solution_interpreter",
 }
+
+_HEADING_RE = re.compile(r"^(#{2,4})\s+(.*\S)\s*$")
+
+
+def _skill_files(dirname: str) -> list[Path]:
+    """A skill's core (SKILL.md) plus its on-demand reference files."""
+    base = SKILLS_DIR / dirname
+    files = [base / "SKILL.md"]
+    refdir = base / "references"
+    if refdir.is_dir():
+        files += sorted(refdir.glob("*.md"))
+    return [f for f in files if f.exists()]
+
+
+def _extract_section(text: str, section: str) -> str | None:
+    """Return one markdown section (heading through next same-or-higher heading)."""
+    want = section.strip().lower()
+    out: list[str] = []
+    level: int | None = None
+    for ln in text.splitlines(keepends=True):
+        m = _HEADING_RE.match(ln)
+        if m:
+            if level is not None and len(m.group(1)) <= level:
+                break
+            if level is None and m.group(2).strip().lower() == want:
+                level = len(m.group(1))
+        if level is not None:
+            out.append(ln)
+    return "".join(out) if out else None
+
+
+def _section_titles(dirname: str) -> list[str]:
+    titles: list[str] = []
+    for f in _skill_files(dirname):
+        titles += [m.group(2).strip() for m in map(_HEADING_RE.match, f.read_text().splitlines()) if m]
+    return titles
 
 
 @mcp.tool()
-def get_skill(skill_name: str) -> str:
+def get_skill(skill_name: str, section: str | None = None) -> str:
     """Retrieve workflow guidance for a specific stage.
 
-    NOTE: Skills are auto-injected into tool responses at phase transitions.
-    Use this tool only if you need to re-read a skill or access it outside
-    the normal workflow sequence.
+    NOTE: each skill's core is auto-injected into tool responses at its phase
+    transition. Use this tool to re-read a skill, to fetch one outside the normal
+    sequence, or — most often — to fetch a single deep section at the moment of
+    need: pass `section=<heading>` (decision responses name the exact section in
+    their `guidance_pointer`). Deep sections live in each skill's references and
+    are NOT part of the injected core, so fetch them before presenting the output
+    they govern.
 
     Available skills:
     - problem_framing — structuring objectives, options, constraints, approach
     - data_collection — scoring best practices, anchoring, completeness
-    - optimization_strategy — mode selection, constraint strategy, iteration
-    - solution_interpreter — presenting tradeoffs, eliciting preferences, curation
+    - optimization_strategy — mode selection, solver choice, iteration (deep: 'Exact Solvers — Depth')
+    - solution_interpreter — presenting tradeoffs, preferences, curation (deep: per-output presentation sections)
 
-    Returns the full skill guide as markdown.
+    Returns markdown: the skill core (no section), or exactly the named section.
     """
     dirname = _SKILL_MAP.get(skill_name)
     if not dirname:
         return f"Unknown skill: {skill_name}. Available: {list(_SKILL_MAP.keys())}"
+    if section:
+        for f in _skill_files(dirname):
+            found = _extract_section(f.read_text(), section)
+            if found:
+                return found
+        return (f"Unknown section: {section!r} in {skill_name}. "
+                f"Available sections: {_section_titles(dirname)}")
     path = SKILLS_DIR / dirname / "SKILL.md"
     if not path.exists():
         return f"Skill file not found: {skill_name}"
@@ -453,12 +503,12 @@ def model(
                 mark the latest run stale and re-arm solution_interpreter — and, on an objectives/options
                 shape change, optimization_strategy — so the next solve re-injects fresh guidance.
       get     — Problem state. Params: problem_id, section? (optional).
-                Without section: full dump (can exceed token cap for large models).
+                Without section: the summary (counts + status flags — always small).
                 With section: targeted slice. Valid sections:
-                  summary (counts + status flags — always small),
-                  objectives, options, scores, constraints, matrices,
-                  scenarios, run, runs, curated, references.
-                Prefer section="summary" for a lightweight overview, then drill down.
+                  summary, objectives, options, scores, constraints, matrices,
+                  scenarios, run, runs, curated, references,
+                  full (the complete dump — can exceed token cap for large models).
+                Drill into the slice you need rather than pulling "full".
       list    — All problems. No params.
       delete  — Remove problem. Params: problem_id
                 Side effects: deletes the problem and its run history; resets all skill-injection
@@ -784,11 +834,12 @@ def _model_get(params: dict) -> dict:
     except FileNotFoundError:
         return {"error": f"Problem {pid} not found."}
 
-    section = params.get("section")
-    if section:
-        return _model_get_section(p, section)
-
-    return json.loads(p.model_dump_json())
+    # Summary by default — the full dump can exceed the token cap on large models,
+    # so it's opt-in via section="full" (the docstring steers at targeted slices).
+    section = params.get("section") or "summary"
+    if section == "full":
+        return json.loads(p.model_dump_json())
+    return _model_get_section(p, section)
 
 
 def _fmt_num(v) -> str:
@@ -1626,8 +1677,8 @@ def _attach_guidance_pointer(result: dict, action: str) -> dict:
     result["guidance_pointer"] = {
         "skill": skill,
         "section": section,
-        "note": (f"Present this with the {skill} skill → '{section}'. If that guidance isn't in "
-                 f"recent context (long session / compaction), re-fetch it with get_skill('{skill}') "
+        "note": (f"Present this with the {skill} skill → '{section}'. If that section isn't in "
+                 f"recent context, fetch exactly it with get_skill('{skill}', section='{section}') "
                  "before presenting — don't go from memory."),
     }
     return result
