@@ -2422,6 +2422,7 @@ def sensitivity_analysis(problem: Problem, solution_id: int | None = None,
         return {
             "source": "frontier_inferred",
             "solver": run.solver,
+            "frontier_source": _frontier_provenance(problem, run, scenario),
             "scope": "frontier-regression estimates — no solver-exact duals on this run",
             "note": ("Run solve(solver='highs' or 'cuopt') on a continuous/proportional (QP) "
                      "problem for exact shadow prices + reduced costs. Integer/MILP solutions "
@@ -2438,13 +2439,20 @@ def sensitivity_analysis(problem: Problem, solution_id: int | None = None,
     else:
         ref = _find_balanced(exact, problem.objectives)
 
-    where, near, capped = _format_solution_sensitivity(ref)
+    optimized = _optimized_objective(problem, ref.sensitivity)
+    where, near, capped = _format_solution_sensitivity(ref, optimized)
+    scope = ("Exact LP/QP duals (continuous path). Shadow price = marginal change in the "
+             "optimized objective per unit a binding constraint is relaxed; reduced cost = "
+             "how far an unheld option must improve to enter. Undefined for integer/MILP.")
+    if optimized:
+        scope += (f" The optimized objective here is '{optimized}' — the ε-constraint primary; "
+                  "the other objectives enter as floors.")
     return {
         "source": "solver_exact",
         "solver": run.solver,
-        "scope": ("Exact LP/QP duals (continuous path). Shadow price = marginal change in the "
-                  "optimized objective per unit a binding constraint is relaxed; reduced cost = "
-                  "how far an unheld option must improve to enter. Undefined for integer/MILP."),
+        "frontier_source": _frontier_provenance(problem, run, scenario),
+        **({"optimized_objective": optimized} if optimized else {}),
+        "scope": scope,
         "reference_solution": {
             "solution_id": ref.solution_id,
             "objective_values": ref.objective_values,
@@ -2465,31 +2473,46 @@ def sensitivity_analysis(problem: Problem, solution_id: int | None = None,
     }
 
 
-def _shadow_interpretation(sp) -> str:
+def _optimized_objective(problem: Problem, sens) -> str | None:
+    """Name the ε-constraint primary: the one objective the duals don't floor.
+
+    Each exact scalarization optimizes a single objective (the QP risk term, or
+    the LP first objective) and floors the rest — so the floor levers name every
+    objective except the optimized one. Returns None when that inference isn't
+    unambiguous: an explainability payload should never guess."""
+    floored = {sp.name for sp in sens.shadow_prices
+               if sp.role in ("return_floor", "linear_floor")}
+    free = [o.name for o in problem.objectives if o.name not in floored]
+    return free[0] if len(free) == 1 else None
+
+
+def _shadow_interpretation(sp, objective: str | None) -> str:
+    target = f"'{objective}'" if objective else "the optimized objective"
     if sp.role == "budget":
-        return ("marginal change in the optimized objective per unit of total budget "
+        return (f"marginal change in {target} per unit of total budget "
                 "(allocations are normalized to 100%)")
     if sp.role in ("return_floor", "linear_floor"):
         return (f"marginal cost of '{sp.name}': raising the {sp.name} requirement by one unit "
-                f"shifts the optimized objective by ~{sp.shadow_price:.4g}")
-    return "marginal change in the optimized objective per unit this constraint is relaxed"
+                f"shifts {target} by ~{sp.shadow_price:.4g}")
+    return f"marginal change in {target} per unit this constraint is relaxed"
 
 
-def _format_solution_sensitivity(s):
+def _format_solution_sensitivity(s, objective: str | None = None):
     """(where_to_invest, near_misses, capped) for one solution's solver-exact duals."""
     sens = s.sensitivity
+    target = f"'{objective}'" if objective else "the optimal mix"
     where = [{
         "lever": sp.name,
         "role": sp.role,
         "shadow_price": sp.shadow_price,
-        "interpretation": _shadow_interpretation(sp),
+        "interpretation": _shadow_interpretation(sp, objective),
     } for sp in sorted(sens.shadow_prices, key=lambda x: -abs(x.shadow_price))]
 
     near = [{
         "option": rc.option,
         "reduced_cost": rc.reduced_cost,
-        "interpretation": ("unheld — would enter the optimal mix if its marginal contribution "
-                           f"improved by ~{abs(rc.reduced_cost):.4g}"),
+        "interpretation": (f"unheld — would enter the optimal mix if its marginal contribution "
+                           f"to {target} improved by ~{abs(rc.reduced_cost):.4g}"),
     } for rc in sorted((r for r in sens.reduced_costs
                         if r.eligible and r.allocation == 0 and abs(r.reduced_cost) > 1e-9),
                        key=lambda x: abs(x.reduced_cost))]

@@ -285,6 +285,12 @@ class TestSensitivity:
         assert res["where_to_invest"]                       # budget + return levers
         assert "near_misses" in res and "frontier_shadow_price_trend" in res
         assert all("shadow_price" in t for t in res["frontier_shadow_price_trend"])
+        # provenance + the named ε-constraint primary (QP primary = the quadratic objective)
+        assert res["frontier_source"]["kind"] == "exact"
+        quad = next(o.name for o in p.objectives
+                    if getattr(o.aggregation, "value", o.aggregation) == "quadratic")
+        assert res["optimized_objective"] == quad
+        assert f"'{quad}'" in res["where_to_invest"][0]["interpretation"]
 
     def test_explore_sensitivity_falls_back_for_milp(self):
         p = _binary_problem()
@@ -292,6 +298,7 @@ class TestSensitivity:
         res = explorer.sensitivity_analysis(p)
         assert res["source"] == "frontier_inferred"
         assert "binding_analysis" in res
+        assert "frontier_source" in res    # provenance echoed on the fallback too
 
     def test_cardinality_qp_keeps_offsupport_out_of_near_misses(self):
         # With a cardinality cap the EA pins off-support assets to ub=0 — their reduced cost is
