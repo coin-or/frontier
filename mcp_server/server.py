@@ -1429,7 +1429,7 @@ def _solve_run_body(p: Problem, fingerprint: str, *, mode: OptimizeMode | None =
              "`explore certify` (no params) to audit it: dominance audit, coverage gain, the NSGA-never-dominates "
              "invariant, and per-objective corner sharpening. Then use "
              if is_exact_solver(run.solver) else "Use ")
-            + "`explore tradeoffs` for the frontier overview, `explore solution <id>` for a "
+            + "`explore tradeoffs` for the frontier overview, `explore solutions solution_id=<id>` for a "
             "single solution's detail, and `explore curate` to pin strategies. For bulk export "
             "or assembling artifacts that need every solution with allocations, read the file at "
             "`full_result_path` directly — it contains all solutions without token overhead. "
@@ -1456,7 +1456,7 @@ def _objective_ranges(solutions: list, objectives: list) -> dict:
 def _solve_preview(solutions: list, objectives: list) -> dict:
     """Compact preview: extremes per objective + balanced solution, by id + objective_values only.
 
-    Full solution detail (allocations, selected_options) retrievable via `explore solution <id>`.
+    Full solution detail (allocations, selected_options) retrievable via `explore solutions solution_id=<id>`.
     """
     if not solutions:
         return {}
@@ -1609,7 +1609,7 @@ def _format_explore(result: dict) -> dict:
     fields already covered by the visualization to prevent MCP truncation.
     """
     # Compact extreme_solutions — keep id + value, drop option lists
-    # (agent can use `explore solution <id>` for full detail)
+    # (agent can use `explore solutions solution_id=<id>` for full detail)
     if "extreme_solutions" in result:
         result["extreme_solutions"] = {
             name: {"solution_id": ext["solution_id"], "value": ext["value"]}
@@ -1639,13 +1639,12 @@ def _format_explore(result: dict) -> dict:
 # back, leaving the agent either holding the guidance or one call away from it. Centralized
 # as one map + one helper so the convention stays uniform, never re-stated per action.
 
-# Navigation/recording actions (solutions, solution, curated, uncurate, rename_curated,
-# export_curated, feedback) intentionally carry no pointer — they list or record rather
-# than present a decision read, so there is no interpretation guidance to cite.
+# Navigation/recording actions (solutions, curated, feedback) intentionally carry no
+# pointer — they list or record rather than present a decision read, so there is no
+# interpretation guidance to cite.
 _DECISION_GUIDANCE: dict[str, tuple[str, str]] = {
     "tradeoffs": ("solution_interpreter", "Presentation Order: Extremes → Balanced → Inflection → Risk → Preference"),
     "compare": ("solution_interpreter", "Differentiating Options"),
-    "compare_curated": ("solution_interpreter", "Differentiating Options"),
     "compare_runs": ("solution_interpreter", "Run Diff Interpretation"),
     "scenario_results": ("solution_interpreter", "Scenario Results Presentation"),
     "scenario_frontiers": ("solution_interpreter", "Scenario Results Presentation"),
@@ -1699,6 +1698,8 @@ def explore(
     run_ids: list[str] | None = None,
     custom_name: str | None = None,
     content_signature: str | None = None,
+    remove: bool = False,
+    rename: str | None = None,
     signatures: list[str] | None = None,
     scenario: str | None = None,
     source: str | None = None,
@@ -1728,103 +1729,70 @@ def explore(
                    returns boundaries), frontier_shape, binding_analysis.
                    Optional: scenario.
       compare    — Side-by-side comparison.
-                   Requires: solution_ids (list of 2+ ints). Optional: scenario.
-      solutions  — Pareto frontier listing.
-                   Default: compact — solution_id + objective_values + content_signature per solution.
-                   Pass detail=true for full dump including selected_options and allocations.
-                   Optional: detail, scenario.
-      solution   — Single solution detail.
-                   Requires: solution_id (int). Optional: scenario.
+                   Requires: solution_ids (2+ ints) — or signatures (2+ curated
+                   content_signatures) to compare the curated set. Optional: scenario, detail.
+      solutions  — Pareto frontier listing — or one solution's detail.
+                   Default: compact list (solution_id + objective_values + content_signature).
+                   Pass solution_id for single-solution detail (incl. reference-point analysis);
+                   detail=true for the full list dump (selected_options, allocations).
+                   Optional: solution_id, detail, scenario.
       feedback   — Record user feedback. Feedback links to content_signature (stable across runs)
                    and attaches to curated solutions.
                    Requires: solution_id OR content_signature.
                    Optional: rating (1-5), notes, stage.
-      compare_runs — Compare run history.
-                   Requires: run_ids (list of 2+ run ID strings).
-      certify    — Audit the exploratory NSGA frontier against the exact overlay: how many
-                   NSGA points the exact frontier dominates (heuristic slack), the hypervolume
-                   coverage it reclaims, the invariant that NSGA dominates no exact point, and
-                   per-objective corner sharpening (strongest at
-                   the convex risk/variance corner). The explore→certify workflow made measurable.
-                   No params needed — audits `run` (NSGA) against `exact_run` (the exact
-                   overlay), so the flow is: solve(), then solve(solver="highs"|"cuopt"), then
-                   certify. Optional run_ids (exactly 2 — one NSGA, one exact, order-free) overrides
-                   with explicit historical runs.
-      scenario_results — Per-scenario robustness analysis with frequency-weighted option importance.
-                   Returns option_robustness (sorted by importance = avg_frequency × avg_weight),
-                   with tiers: core (>50% freq in all scenarios), common (>25%), marginal (<25%).
-                   Also: scenario-specific options, expected values (ideal-point, not achievable),
-                   scenario_risk per objective (expected / worst_case / best_case / cvar_<alpha>%),
-                   and regret (scenario minimax-regret per solution + the minimax_choice — a
-                   distinct lens from CVaR: how much worse than the best achievable, in hindsight).
-                   Optional: cvar_alpha (float in (0,1), default 0.2) to set the CVaR tail fraction.
-      curate     — Add solution to curated set.
-                   Requires: solution_id. Optional: custom_name, notes, scenario.
-      uncurate   — Remove from curated set.
-                   Requires: content_signature.
-      rename_curated — Update name.
-                   Requires: content_signature, custom_name.
-      curated    — List curated solutions. No params.
-                   Returns: total_curated, curated_solutions[] each with
-                   content_signature, custom_name, selected_options, allocations,
-                   objective_values, source_run_id, notes, feedback[], feedback_count,
-                   avg_rating, and `in_current_frontier` (survival flag — false means
-                   the latest re-solve no longer produces this solution).
-      export_curated — Raw formatted export of curated solutions for handoff.
-                   Optional: format ("markdown" default pipe table, or "csv").
-      compare_curated — Compare curated solutions.
-                   Default: compact — shared/differentiating option sets + objective values per solution.
-                   Pass detail=true for full selected_options and allocations per solution.
-                   Requires: signatures (list of 2+ content_signature strings). Optional: detail.
+      compare_runs — Diff two runs (criteria, frontier ranges, option coverage).
+                   Default: current run vs the previous one ("what changed since my
+                   last solve?"). Optional: run_ids (2+) for explicit historical runs.
+      certify    — Audit the NSGA frontier against the exact overlay: dominance audit,
+                   hypervolume coverage reclaimed, soundness invariant, per-objective corner
+                   sharpening. No params (audits `run` vs `exact_run`; flow: solve →
+                   solve(solver="highs"|"cuopt") → certify). Optional: run_ids (exactly 2,
+                   one NSGA + one exact, order-free) for explicit historical runs.
+      scenario_results — Cross-scenario robustness: option_robustness (importance-ranked,
+                   tiers core/common/marginal), scenario-specific options, expected values
+                   (ideal-point), scenario_risk per objective (expected/worst/best/cvar), and
+                   regret (minimax-regret per solution + minimax_choice).
+                   Optional: cvar_alpha (float in (0,1), default 0.2).
+      scenario_frontiers — Per-scenario Pareto frontiers overlaid: viz_data for the chart
+                   surface's colored parallel-coordinates overlay; ASCII range table. No params.
+      curate     — Pin a solution to the curated set — and manage existing pins.
+                   Pin: solution_id (optional custom_name, notes, scenario).
+                   Manage: remove=true unpins; rename="<name>" renames — both by
+                   content_signature (stable across re-solves).
+      curated    — List curated solutions (each with in_current_frontier survival flag,
+                   feedback history, avg_rating). No params — or format="markdown"|"csv"
+                   to render the raw handoff export instead of the list.
       marginal_analysis — Marginal rate analysis: cost-per-unit between adjacent solutions, inflection point detection.
                    Default: summary per pair (inflection, stats, top-5 steepest, truncated viz).
                    Pass detail=true for full rates array + untruncated visualization.
                    Optional: detail, scenario.
-      sensitivity — Exact-solver explainability: shadow prices + reduced costs.
-                   where_to_invest (constraint shadow prices, ranked — marginal objective change
-                   per unit relaxed) and near_misses (unheld options by reduced cost — closest to
-                   entering), for a reference solution (default balanced; solution_id overrides),
-                   plus frontier_shadow_price_trend (diminishing-returns curve). Needs an exact run
-                   (solve(solver="highs"|"cuopt")); falls back to the frontier-inferred binding
-                   analysis otherwise. Tagged source=solver_exact|frontier_inferred. Continuous/QP
-                   only — integer/MILP solutions have no exact duals.
+      sensitivity — Solver-exact duals: where_to_invest (shadow prices, ranked), near_misses
+                   (reduced costs), capped_options, frontier_shadow_price_trend — anchored on a
+                   reference solution (default balanced; solution_id overrides) and naming the
+                   optimized_objective. Needs an exact continuous run (LP/QP); falls back to the
+                   frontier-inferred binding analysis (tagged) on heuristic/MILP runs.
                    Optional: solution_id, scenario, source.
-      composition — Mine the solution set (knowledge discovery): per-option selection count/%
-                   (consensus vs distinctive), option co-occurrence (complements/substitutes),
-                   design principles (always / never / region-bound), decision-space strategy
-                   families (clusters), and — when feedback exists — rules separating liked from
-                   disliked solutions. Operates on the active frontier, or a curated subset.
+      composition — Mine the solution set: option selection rates (consensus vs distinctive),
+                   co-occurrence, design principles, decision-space strategy clusters, and
+                   feedback rules when ratings exist. Frontier-wide or a curated subset.
                    Optional: solution_ids, signatures, detail, source.
 
     Scenario param (optional):
       Pass scenario="<name>" to inspect a specific scenario's results instead of the base case.
-      Works with: tradeoffs, compare, solutions, solution, curate, marginal_analysis.
+      Works with: tradeoffs, compare, solutions, curate, marginal_analysis.
       Use scenario_results (no scenario param) for cross-scenario robustness analysis.
 
     Source param (optional):
-      Selects which base-case frontier to analyze: "run" (default) is the exploratory
-      NSGA frontier; "exact" is the exact-solver overlay (exact_run). Use
-      source="exact" to run tradeoffs/marginal_analysis/etc. over the exact-solver
-      frontier (each point optimal to a 0.1% gap) when a problem holds both frontiers
-      (explore-with-NSGA, then certify). Works
-      with: tradeoffs, compare, solutions, solution, curate, marginal_analysis. When the
-      problem has only an exact_run (no NSGA run), the default already falls back to it.
-      Ignored when scenario is set (scenario runs are NSGA-only).
-      Every analytics result (tradeoffs/compare/solutions/solution/marginal_analysis) echoes
-      `frontier_source` ({run_id, solver, kind="heuristic"|"exact"}) so the provenance is never
-      ambiguous: if you requested
-      source="exact" but see kind="heuristic" (e.g. source was dropped by a stale transport),
-      trust the label, not the request. When the heuristic frontier is served while an exact
-      overlay exists, the label adds exact_overlay_available + a hint to reach it.
+      Selects the base-case frontier: "run" (default, NSGA) or "exact" (the exact_run
+      overlay). Works with: tradeoffs, compare, solutions, curate, marginal_analysis.
+      Ignored when scenario is set. Analytics results echo `frontier_source`
+      ({run_id, solver, kind}) — trust that label over your request (a stale transport
+      can drop `source`); a heuristic result flags exact_overlay_available when an
+      overlay exists.
 
-    Key guidance:
-    - Never say "best" — every Pareto solution is optimal at its tradeoff.
-    - Present extremes first, then balanced + inflection points, then ask what resonates.
-    - Quantify tradeoffs: "Solution A gains 20% revenue but costs 15% more risk."
-    - Elicit preferences via marginal tradeoff questions, not abstract weights.
-    - Curated solutions persist across re-runs via content_signature — check `in_current_frontier`.
-    - Once 3+ curated: that IS the decision set, present curated first.
-    - With scenarios: use option_robustness tiers (core/common/marginal) to identify safe bets.
+    Presentation judgment (never "best", extremes-first, preference elicitation, curation
+    flow) lives in the solution_interpreter skill — injected on first solve; deep sections
+    via get_skill('solution_interpreter', section=...).
     """
     try:
         p = store.load(problem_id)
@@ -1853,14 +1821,29 @@ def explore(
                     "allocation to pin it.")
             return _attach_guidance_pointer(result, action)
         case "compare":
+            # signatures compares the curated set (absorbs the old `compare_curated` action).
+            if signatures:
+                if len(signatures) < 2:
+                    return {"error": "signatures must contain at least 2 content_signature strings."}
+                try:
+                    result = _format_explore(explorer.compare_curated(p, signatures, detail=detail))
+                except ValueError as e:
+                    return {"error": str(e)}
+                return _attach_guidance_pointer(result, action)
             if not solution_ids or len(solution_ids) < 2:
-                return {"error": "solution_ids must contain at least 2 IDs for compare."}
+                return {"error": "compare needs solution_ids (2+ ints) or signatures (2+ curated content_signatures)."}
             try:
                 result = _format_explore(explorer.compare_solutions(p, solution_ids, scenario=scenario, source=source))
             except ValueError as e:
                 return {"error": str(e)}
             return _attach_guidance_pointer(result, action)
         case "solutions":
+            # solution_id narrows to single-solution detail (absorbs the old `solution` action).
+            if solution_id is not None:
+                try:
+                    return explorer.get_solution(p, solution_id, scenario=scenario, source=source)
+                except ValueError as e:
+                    return {"error": str(e)}
             try:
                 result = explorer.get_solutions(p, scenario=scenario, detail=detail, source=source)
             except ValueError as e:
@@ -1875,17 +1858,18 @@ def explore(
                     store.run_result_path(p.problem_id, result["run_id"], scenario=scenario)
                 )
             return result
-        case "solution":
-            if solution_id is None:
-                return {"error": "solution_id required for solution action."}
-            try:
-                return explorer.get_solution(p, solution_id, scenario=scenario, source=source)
-            except ValueError as e:
-                return {"error": str(e)}
         case "feedback":
             return _explore_feedback(p, solution_id, content_signature, rating, notes, stage)
         case "compare_runs":
-            if not run_ids or len(run_ids) < 2:
+            # Default: current run vs the most recently archived one — the "what changed
+            # since my last solve?" question the skills steer agents to ask.
+            if not run_ids:
+                if p.run is not None and p.runs:
+                    run_ids = [p.runs[-1].run_id, p.run.run_id]
+                else:
+                    return {"error": "compare_runs needs two runs — re-solve after a change, "
+                                     "or pass run_ids (2+) explicitly."}
+            if len(run_ids) < 2:
                 return {"error": "run_ids must contain at least 2 run IDs for compare_runs."}
             try:
                 return _attach_guidance_pointer(explorer.compare_runs(p, run_ids), action)
@@ -1942,47 +1926,42 @@ def explore(
             except ValueError as e:
                 return {"error": str(e)}
         case "curate":
+            # remove / rename manage existing pins (absorb the old uncurate / rename_curated);
+            # both key on content_signature, which survives re-solves.
+            if remove:
+                if not content_signature:
+                    return {"error": "content_signature required to remove a curated solution."}
+                try:
+                    result = explorer.uncurate_solution(p, content_signature)
+                    store.save(p)
+                    return result
+                except ValueError as e:
+                    return {"error": str(e)}
+            if rename is not None:
+                if not content_signature:
+                    return {"error": "content_signature required to rename a curated solution."}
+                try:
+                    result = explorer.rename_curated(p, content_signature, rename)
+                    store.save(p)
+                    return result
+                except ValueError as e:
+                    return {"error": str(e)}
             if solution_id is None:
-                return {"error": "solution_id required for curate action."}
+                return {"error": "solution_id required to curate a solution."}
             try:
                 result = explorer.curate_solution(p, solution_id, custom_name or "", notes or "", scenario=scenario, source=source)
                 store.save(p)
                 return _attach_guidance_pointer(result, action)
             except ValueError as e:
                 return {"error": str(e)}
-        case "uncurate":
-            if not content_signature:
-                return {"error": "content_signature required for uncurate action."}
-            try:
-                result = explorer.uncurate_solution(p, content_signature)
-                store.save(p)
-                return result
-            except ValueError as e:
-                return {"error": str(e)}
-        case "rename_curated":
-            if not content_signature or not custom_name:
-                return {"error": "content_signature and custom_name required for rename_curated."}
-            try:
-                result = explorer.rename_curated(p, content_signature, custom_name)
-                store.save(p)
-                return result
-            except ValueError as e:
-                return {"error": str(e)}
         case "curated":
+            # format renders the raw handoff export (absorbs the old `export_curated` action).
+            if format:
+                try:
+                    return explorer.export_curated(p, format=format)
+                except ValueError as e:
+                    return {"error": str(e)}
             return explorer.list_curated(p)
-        case "export_curated":
-            try:
-                return explorer.export_curated(p, format=format or "markdown")
-            except ValueError as e:
-                return {"error": str(e)}
-        case "compare_curated":
-            if not signatures or len(signatures) < 2:
-                return {"error": "signatures must contain at least 2 content_signature strings."}
-            try:
-                result = _format_explore(explorer.compare_curated(p, signatures, detail=detail))
-            except ValueError as e:
-                return {"error": str(e)}
-            return _attach_guidance_pointer(result, action)
         case "marginal_analysis":
             try:
                 result = explorer.marginal_analysis(p, scenario=scenario, detail=detail, source=source)

@@ -157,7 +157,7 @@ export type VizData =
 /**
  * Walk a tool_result's text payload and pull out every viz_data block.
  * Handles:
- *   - top-level `viz_data` (tradeoffs, compare, compare_curated, scenario_results)
+ *   - top-level `viz_data` (tradeoffs, compare — incl. signatures= for curated, scenario_results)
  *   - nested `pairs[].viz_data` (marginal_analysis returns multiple pairs)
  * Returns [] if not parseable JSON or no viz_data present.
  */
