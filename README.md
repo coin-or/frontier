@@ -48,6 +48,8 @@ Spreadsheets hit a wall once options and constraints in a decision multiply. Gen
 
 ## Workflow
 
+<p align="center"><img src="assets/workflow-progression-icon.png" alt="Workflow progression: frame, score, solve, explore, decide" width="560" /></p>
+
 Drive Frontier by interacting with an AI agent, in a coding-agent MCP client or the hosted web chat, in plain language. The agent translates your decision into Frontier's model, runs the solver, and reads the results back. A typical sequence (you describe what you want; the agent picks the tools):
 
 1. **Frame it.** Name the objectives (what to maximize or minimize), the options to choose among, and any hard constraints, plus scenarios if the future is uncertain. *e.g. "We're choosing a CRM for a 10-person startup: maximize features and support, minimize cost; budget under $50k/yr; pick one."*
@@ -138,6 +140,8 @@ Both pieces are plain web services – host them anywhere (Render, Fly, Railway,
 **Render (one-click example):** [`render.yaml`](render.yaml) provisions both as a blueprint – auto-generates the shared token, derives the engine URL, leaves only `ANTHROPIC_API_KEY` to set. Point Render at your fork (New → Blueprint). The blueprint's engine storage is **ephemeral** (problems reset on redeploy) – attach a Render disk at `data/` when you want durable state.
 
 ## Architecture
+
+<p align="center"><img src="assets/architecture.png" alt="Frontier architecture: agent clients and the web UI speak MCP to one server exposing four tools, with skills and solvers attached and a deterministic engine beneath" width="560" /></p>
 
 Frontier is a Python MCP server (FastMCP) wrapping pymoo's NSGA-II/III evolutionary solvers, with two first-class exact-solver backends (HiGHS on CPU, cuOpt on GPU) the agent can elect per run as an audit layer over the heuristic frontier. State persists per-problem as JSON; the optimizer produces a Pareto frontier with quality indicators, scenario-aware results, and shadow-price rates per binding constraint. Domain expertise lives in skill markdown files that the server auto-injects at workflow transitions, so the same rigor reaches every MCP client.
 

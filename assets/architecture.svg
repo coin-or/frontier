@@ -1,0 +1,60 @@
+<svg viewBox="0 0 680 500" width="680" height="500" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system, 'Helvetica Neue', Arial, sans-serif">
+<rect x="0" y="0" width="680" height="500" fill="#FFFFFF"/>
+<defs>
+<marker id="arr" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#888780"/></marker>
+</defs>
+
+<rect x="40" y="16" width="200" height="50" rx="4" fill="#F1EFE8" stroke="#5F5E5A"/>
+<text x="140" y="46" text-anchor="middle" font-size="14" font-weight="500" fill="#444441">Agent clients</text>
+<rect x="240" y="16" width="200" height="50" rx="4" fill="#F1EFE8" stroke="#5F5E5A"/>
+<text x="340" y="46" text-anchor="middle" font-size="14" font-weight="500" fill="#444441">Web UI</text>
+
+<line x1="140" y1="66" x2="140" y2="114" stroke="#888780" stroke-width="1.5" marker-end="url(#arr)"/>
+<line x1="340" y1="66" x2="340" y2="114" stroke="#888780" stroke-width="1.5" marker-end="url(#arr)"/>
+<text x="240" y="95" text-anchor="middle" font-size="11" fill="#5F5E5A">MCP (stdio/SSE)</text>
+
+<rect x="40" y="118" width="400" height="172" rx="4" fill="#EEEDFE" stroke="#534AB7"/>
+<text x="240" y="146" text-anchor="middle" font-size="14" font-weight="500" fill="#3C3489">MCP server</text>
+<text x="90" y="205" text-anchor="middle" font-size="13" font-weight="500" fill="#3C3489">model</text>
+<text x="190" y="205" text-anchor="middle" font-size="13" font-weight="500" fill="#3C3489">solve</text>
+<text x="290" y="205" text-anchor="middle" font-size="13" font-weight="500" fill="#3C3489">explore</text>
+<text x="390" y="205" text-anchor="middle" font-size="13" font-weight="500" fill="#3C3489">get_skill</text>
+
+<rect x="470" y="118" width="170" height="92" rx="4" fill="#FAECE7" stroke="#993C1D"/>
+<text x="555" y="139" text-anchor="middle" font-size="13" font-weight="500" fill="#712B13">Skills</text>
+<text x="555" y="158" text-anchor="middle" font-size="11" fill="#993C1D">problem_framing</text>
+<text x="555" y="172" text-anchor="middle" font-size="11" fill="#993C1D">data_collection</text>
+<text x="555" y="186" text-anchor="middle" font-size="11" fill="#993C1D">optimization_strategy</text>
+<text x="555" y="200" text-anchor="middle" font-size="11" fill="#993C1D">solution_interpreter</text>
+<line x1="470" y1="164" x2="448" y2="164" stroke="#D85A30" stroke-width="1.5" marker-end="url(#arr)"/>
+
+<rect x="470" y="222" width="170" height="68" rx="4" fill="#E1F5EE" stroke="#0F6E56"/>
+<text x="555" y="243" text-anchor="middle" font-size="13" font-weight="500" fill="#085041">Solvers</text>
+<text x="555" y="262" text-anchor="middle" font-size="11" fill="#0F6E56">approx — NSGA-II/III</text>
+<text x="555" y="278" text-anchor="middle" font-size="11" fill="#0F6E56">exact — HiGHS · cuOpt</text>
+<line x1="470" y1="252" x2="448" y2="252" stroke="#1D9E75" stroke-width="1.5" marker-end="url(#arr)"/>
+
+<line x1="240" y1="290" x2="240" y2="334" stroke="#888780" stroke-width="1.5" marker-end="url(#arr)"/>
+
+<rect x="40" y="338" width="400" height="76" rx="4" fill="#E1F5EE" stroke="#0F6E56"/>
+<text x="240" y="364" text-anchor="middle" font-size="14" font-weight="500" fill="#085041">Engine</text>
+<text x="90" y="394" text-anchor="middle" font-size="13" font-weight="500" fill="#085041">optimizer</text>
+<text x="190" y="394" text-anchor="middle" font-size="13" font-weight="500" fill="#085041">explorer</text>
+<text x="290" y="394" text-anchor="middle" font-size="13" font-weight="500" fill="#085041">viz</text>
+<text x="390" y="394" text-anchor="middle" font-size="13" font-weight="500" fill="#085041">store</text>
+
+<rect x="56" y="446" width="92" height="30" rx="15" fill="#F1EFE8" stroke="#5F5E5A"/>
+<text x="102" y="465" text-anchor="middle" font-size="12.5" fill="#444441">frame</text>
+<line x1="148" y1="461" x2="174" y2="461" stroke="#888780" stroke-width="1.5" marker-end="url(#arr)"/>
+<rect x="176" y="446" width="92" height="30" rx="15" fill="#F1EFE8" stroke="#5F5E5A"/>
+<text x="222" y="465" text-anchor="middle" font-size="12.5" fill="#444441">score</text>
+<line x1="268" y1="461" x2="294" y2="461" stroke="#888780" stroke-width="1.5" marker-end="url(#arr)"/>
+<rect x="296" y="446" width="92" height="30" rx="15" fill="#F1EFE8" stroke="#5F5E5A"/>
+<text x="342" y="465" text-anchor="middle" font-size="12.5" fill="#444441">solve</text>
+<line x1="388" y1="461" x2="414" y2="461" stroke="#888780" stroke-width="1.5" marker-end="url(#arr)"/>
+<rect x="416" y="446" width="92" height="30" rx="15" fill="#F1EFE8" stroke="#5F5E5A"/>
+<text x="462" y="465" text-anchor="middle" font-size="12.5" fill="#444441">explore</text>
+<line x1="508" y1="461" x2="534" y2="461" stroke="#888780" stroke-width="1.5" marker-end="url(#arr)"/>
+<rect x="536" y="446" width="92" height="30" rx="15" fill="#F1EFE8" stroke="#5F5E5A"/>
+<text x="582" y="465" text-anchor="middle" font-size="12.5" fill="#444441">decide</text>
+</svg>
