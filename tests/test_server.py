@@ -452,7 +452,7 @@ class TestExploreCompare:
         srv.solve(action="run", problem_id=pid)
         result = srv.explore(action="compare", problem_id=pid, solution_ids=[1])
         assert "error" in result
-        assert "at least 2" in result["error"]
+        assert "2+" in result["error"]
 
     def test_compare_success(self):
         pid = _build_solvable_problem()
@@ -472,19 +472,21 @@ class TestExploreSolutions:
     def test_single_solution(self):
         pid = _build_solvable_problem()
         srv.solve(action="run", problem_id=pid)
-        result = srv.explore(action="solution", problem_id=pid, solution_id=1)
+        result = srv.explore(action="solutions", problem_id=pid, solution_id=1)
         assert result["solution_id"] == 1
 
     def test_single_solution_missing_id(self):
         pid = _build_solvable_problem()
         srv.solve(action="run", problem_id=pid)
+        # `solution` was consolidated into `solutions(solution_id=)` — the old name
+        # is a clean break, not an alias.
         result = srv.explore(action="solution", problem_id=pid)
         assert "error" in result
 
     def test_single_solution_not_found(self):
         pid = _build_solvable_problem()
         srv.solve(action="run", problem_id=pid)
-        result = srv.explore(action="solution", problem_id=pid, solution_id=9999)
+        result = srv.explore(action="solutions", problem_id=pid, solution_id=9999)
         assert "error" in result
 
 
@@ -584,7 +586,7 @@ class TestReferencePoints:
             {"type": "aspirational", "name": "Goal", "objective_values": {"Rev": 25, "Eff": 2}},
         ])
         srv.solve(action="run", problem_id=pid)
-        result = srv.explore(action="solution", problem_id=pid, solution_id=1)
+        result = srv.explore(action="solutions", problem_id=pid, solution_id=1)
         assert "vs_references" in result
         ref = result["vs_references"][0]
         assert "Rev" in ref["objectives"]
@@ -1017,7 +1019,7 @@ class TestCuration:
         srv.solve(action="run", problem_id=pid)
         srv.explore(action="curate", problem_id=pid, solution_id=1, custom_name="First")
         srv.explore(action="curate", problem_id=pid, solution_id=2, custom_name="Second")
-        result = srv.explore(action="export_curated", problem_id=pid)
+        result = srv.explore(action="curated", problem_id=pid, format="markdown")
         assert result["format"] == "markdown"
         assert result["total_curated"] == 2
         content = result["content"]
@@ -1029,7 +1031,7 @@ class TestCuration:
         pid = _build_solvable_problem()
         srv.solve(action="run", problem_id=pid)
         srv.explore(action="curate", problem_id=pid, solution_id=1, custom_name="First")
-        result = srv.explore(action="export_curated", problem_id=pid, format="csv")
+        result = srv.explore(action="curated", problem_id=pid, format="csv")
         assert result["format"] == "csv"
         content = result["content"]
         assert "name,content_signature" in content
@@ -1038,7 +1040,7 @@ class TestCuration:
     def test_export_curated_empty(self):
         pid = _build_solvable_problem()
         srv.solve(action="run", problem_id=pid)
-        result = srv.explore(action="export_curated", problem_id=pid)
+        result = srv.explore(action="curated", problem_id=pid, format="markdown")
         assert result["total_curated"] == 0
         assert result["content"] == ""
 
@@ -1046,7 +1048,7 @@ class TestCuration:
         pid = _build_solvable_problem()
         srv.solve(action="run", problem_id=pid)
         srv.explore(action="curate", problem_id=pid, solution_id=1)
-        result = srv.explore(action="export_curated", problem_id=pid, format="xml")
+        result = srv.explore(action="curated", problem_id=pid, format="xml")
         assert "error" in result
 
     def test_uncurate(self):
@@ -1056,7 +1058,7 @@ class TestCuration:
             action="curate", problem_id=pid, solution_id=1, custom_name="Pick A",
         )
         sig = curate_result["content_signature"]
-        result = srv.explore(action="uncurate", problem_id=pid, content_signature=sig)
+        result = srv.explore(action="curate", problem_id=pid, content_signature=sig, remove=True)
         assert result["total_curated"] == 0
 
     def test_rename_curated(self):
@@ -1067,8 +1069,8 @@ class TestCuration:
         )
         sig = curate_result["content_signature"]
         result = srv.explore(
-            action="rename_curated", problem_id=pid,
-            content_signature=sig, custom_name="New Name",
+            action="curate", problem_id=pid,
+            content_signature=sig, rename="New Name",
         )
         assert result["custom_name"] == "New Name"
 
@@ -1078,7 +1080,7 @@ class TestCuration:
         r1 = srv.explore(action="curate", problem_id=pid, solution_id=1, custom_name="A")
         r2 = srv.explore(action="curate", problem_id=pid, solution_id=2, custom_name="B")
         result = srv.explore(
-            action="compare_curated", problem_id=pid,
+            action="compare", problem_id=pid,
             signatures=[r1["content_signature"], r2["content_signature"]],
         )
         assert "shared_options" in result
@@ -1097,7 +1099,7 @@ class TestCuration:
         r1 = srv.explore(action="curate", problem_id=pid, solution_id=1, custom_name="A")
         r2 = srv.explore(action="curate", problem_id=pid, solution_id=2, custom_name="B")
         result = srv.explore(
-            action="compare_curated", problem_id=pid,
+            action="compare", problem_id=pid,
             signatures=[r1["content_signature"], r2["content_signature"]],
             detail=True,
         )
@@ -1920,7 +1922,7 @@ class TestDecisionGuidancePointers:
             srv.explore(action="curate", problem_id=pid, solution_id=s["solution_id"], custom_name=nm)
         sigs = [c["content_signature"]
                 for c in srv.explore(action="curated", problem_id=pid)["curated_solutions"]]
-        result = srv.explore(action="compare_curated", problem_id=pid, signatures=sigs[:2])
+        result = srv.explore(action="compare", problem_id=pid, signatures=sigs[:2])
         self._assert_pointer(result, "Differentiating Options")
 
     def test_certify_points_to_reading_the_certificate(self):
