@@ -2134,10 +2134,11 @@ class TestHttpTransportAction:
             assert srv._http_transport_action("secret", host) == "gated"
 
     def test_no_token_loopback_serves_ungated(self):
-        for host in ("127.0.0.1", "::1", "localhost", ""):
+        for host in ("127.0.0.1", "::1", "localhost"):
             assert srv._http_transport_action(None, host) == "ungated"
 
     def test_no_token_routable_bind_refuses(self):
-        for host in ("0.0.0.0", "10.0.0.5", "192.168.1.10", "example.com"):
+        # "" is INADDR_ANY (all interfaces) in uvicorn — exposed, not loopback.
+        for host in ("0.0.0.0", "10.0.0.5", "192.168.1.10", "example.com", ""):
             assert srv._http_transport_action(None, host) == "refuse"
             assert srv._http_transport_action("", host) == "refuse"

@@ -1797,8 +1797,9 @@ def _bearer_gate(app, token: str, gated_prefixes: tuple[str, ...]):
 
 
 # Hosts that keep an ungated HTTP transport reachable only from the local
-# machine. Binding anywhere else without a token would expose the engine.
-_LOOPBACK_HOSTS = {"127.0.0.1", "::1", "localhost", ""}
+# machine. Binding anywhere else without a token would expose the engine — note
+# an empty host is NOT loopback: uvicorn binds "" to all interfaces (INADDR_ANY).
+_LOOPBACK_HOSTS = {"127.0.0.1", "::1", "localhost"}
 
 
 def _http_transport_action(token: str | None, host: str) -> str:
