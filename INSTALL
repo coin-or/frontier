@@ -1,0 +1,29 @@
+Frontier — installation
+=======================
+
+Requirements
+  Python 3.11+        engine + MCP server
+  Node 18+            optional web UI (ui/)
+
+Engine + MCP server
+  git clone https://github.com/cafzal/frontier.git
+  cd frontier
+  pip install -e .    # installs all required Python dependencies (see pyproject.toml)
+
+Run
+  python -m mcp_server.server                       # stdio transport (local MCP clients)
+  MCP_TRANSPORT=sse python -m mcp_server.server     # SSE transport, serves http://localhost:8000/sse
+
+Verify
+  pytest tests/
+
+Optional third-party exact solvers
+  pip install highspy   # HiGHS (CPU)  -> solve(solver="highs")
+  cuOpt (NVIDIA GPU)    # https://github.com/NVIDIA/cuopt -> solve(solver="cuopt")
+                        # no GPU at hand? examples/cuopt_colab.ipynb is a ready Colab template
+
+Optional web UI
+  cd ui && npm install && npm run build && npm start
+  # env vars and hosting: ui/README.md and README.md ("Deploy your own")
+
+Full setup guide (hosted engine, MCP client snippets, deployment): README.md ("Setup").
