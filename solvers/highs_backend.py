@@ -33,6 +33,7 @@ from engine.models import Aggregation, Approach, OptimizeMode, Problem, Run
 from solvers._scalarization import (
     _build_raw_sensitivity,
     _qp_weights_ok,
+    certify_curated_frontier,
     optimize_lp,
     optimize_milp,
     optimize_qp,
@@ -302,5 +303,25 @@ def _optimize_highs(
                               max_solutions=max_solutions, seed=seed, time_limit=time_limit)
     # Provenance lives with the producer: stamp here so a direct call is labelled correctly,
     # not only when routed through optimize(). exact is a no-op on the always-exact QP path.
+    run.solver, run.exact = "highs", exact
+    return run
+
+
+def _certify_curated_highs(problem: Problem, source_run: Run, *, exact: bool = False,
+                           mode=None, max_solutions=None) -> Run:
+    """Progressive certify with HiGHS inner solves: exact-solve only ``source_run``'s frontier points —
+    the ~|frontier|-solve twin of a full ``_optimize_highs`` exact pass, on any supported shape
+    (binary MILP, proportional QP/LP)."""
+    if problem.approach == Approach.binary:
+        run = certify_curated_frontier(problem, source_run, inner_milp=_solve_milp_highs,
+                                       exact=exact, mode=mode, max_solutions=max_solutions)
+    elif any(o.aggregation == Aggregation.quadratic for o in problem.objectives):
+        run = certify_curated_frontier(problem, source_run, inner=_solve_qp_highs,
+                                       inner_sensitivity=_solve_qp_highs_sensitivity,
+                                       mode=mode, max_solutions=max_solutions)
+    else:
+        run = certify_curated_frontier(problem, source_run, inner=_solve_lp_highs,
+                                       inner_sensitivity=_solve_lp_highs_sensitivity,
+                                       mode=mode, max_solutions=max_solutions)
     run.solver, run.exact = "highs", exact
     return run

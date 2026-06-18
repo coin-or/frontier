@@ -33,6 +33,7 @@ from engine.models import Aggregation, Approach, OptimizeMode, Problem, Run
 from solvers._scalarization import (
     _build_raw_sensitivity,
     _qp_weights_ok,
+    certify_curated_frontier,
     optimize_lp,
     optimize_milp,
     optimize_qp,
@@ -633,4 +634,25 @@ def _optimize_cuopt(
     # Provenance lives with the producer: stamp here so a direct call is labelled correctly,
     # not only when routed through optimize(). exact is a no-op on the always-exact QP path.
     run.solver, run.exact = "cuopt", exact
+    return run
+
+
+def _certify_curated_cuopt(problem: Problem, source_run: Run, *, exact: bool = False,
+                           mode=None, max_solutions=None) -> Run:
+    """Progressive certify with cuOpt (GPU) inner solves: exact-solve only ``source_run``'s frontier
+    points — the ~|frontier|-solve twin of a full ``_optimize_cuopt`` exact pass, on any supported
+    shape (binary MILP, proportional QP/LP)."""
+    if problem.approach == Approach.binary:
+        run = certify_curated_frontier(problem, source_run, inner_milp=_solve_milp_cuopt,
+                                       exact=exact, mode=mode, max_solutions=max_solutions)
+        run.solver, run.exact = "cuopt", exact
+        return run
+    if any(o.aggregation == Aggregation.quadratic for o in problem.objectives):
+        inner, inner_sens = ((_solve_qp_cuopt_matrix, _solve_qp_cuopt_matrix_sensitivity) if _USE_MATRIX_QP
+                             else (_solve_qp_cuopt, _solve_qp_cuopt_sensitivity))
+    else:
+        inner, inner_sens = _solve_lp_cuopt, _solve_lp_cuopt_sensitivity
+    run = certify_curated_frontier(problem, source_run, inner=inner, inner_sensitivity=inner_sens,
+                                   mode=mode, max_solutions=max_solutions)
+    run.solver, run.exact = "cuopt", False
     return run
