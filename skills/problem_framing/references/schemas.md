@@ -1,0 +1,60 @@
+# Problem Framing — Schema Reference
+
+JSON shapes for the structured fields passed through `model/create` and `model/update`, factored out of the `frontier://skills/problem_framing` core (they're API shapes, not framing judgment). Fetch when constructing a payload: `get_skill('problem_framing', section='Constraint schemas' | 'Interaction matrix schema' | 'Interaction matrix override schema' | 'Scenario schema')`.
+
+## Constraint schemas
+
+Pass to the `constraints` param as a list of dicts:
+
+```
+{"type": "cardinality", "min": <int>, "max": <int>}
+{"type": "force_include", "option": "<name>"}
+{"type": "force_exclude", "option": "<name>"}
+{"type": "objective_bound", "objective": "<name>", "operator": "min"|"max", "value": <float>}
+{"type": "exclusion_pair", "option_a": "<name>", "option_b": "<name>"}
+{"type": "dependency", "if_option": "<name>", "then_option": "<name>"}
+{"type": "group_limit", "options": ["<name>", ...], "max": <int>}
+{"type": "max_allocation", "max": <int>}  (proportional only: cap single option allocation)
+```
+
+## Interaction matrix schema
+
+For objectives with `aggregation="quadratic"`:
+
+```
+{"objective": "<name>", "entries": {"opt_a": {"opt_a": <float>, "opt_b": <float>, ...}, ...}}
+```
+
+Entries must be symmetric. For portfolio volatility, entries = covariance matrix. Base-matrix uploads always use default `mode="replace"` with the full matrix.
+
+## Interaction matrix override schema
+
+For scenario overrides (composable fields):
+
+```
+{
+  "objective": "<name>",
+  "mode": "replace" | "upsert",              # default "replace"
+  "entries": {"opt_a": {"opt_b": <float>}},  # replace: full matrix; upsert: only changed cells
+  "scale_groups": [{"options": ["a", "b", ...], "factor": <float>}]  # optional; applied after mode
+}
+```
+
+- `mode="upsert"`: merge the listed cells into the base matrix; symmetry auto-enforced.
+- `scale_groups`: multiply off-diagonals within each group by factor. Use for regime shifts (e.g. recession: equity correlations × 1.5). Compose with upsert cells for precise + broad overrides.
+
+## Scenario schema
+
+Pass to `scenario_config.scenarios` as a list of dicts:
+
+```
+{
+  "name": "<name>",
+  "probability": <float 0-1>,                  # optional
+  "description": "<text>",                     # optional
+  "score_overrides": [{"option", "objective", "value"}],
+  "score_adjustments": [{"objective", "multiply"?, "add"?}],
+  "constraint_overrides": [<constraint dict>], # full replacement when non-empty
+  "interaction_matrix_overrides": [<matrix override dict>]  # see schema above
+}
+```
