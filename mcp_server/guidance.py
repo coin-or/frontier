@@ -106,16 +106,28 @@ def _load_skill(skill_name: str) -> str:
     return path.read_text() if path.exists() else ""
 
 
-def _inject_skill(result: dict, skill_name: str, reason: str) -> dict:
-    """Append skill content to a tool response under a standard key."""
+def _inject_skill(result: dict, skill_name: str, reason: str, problem_id: str) -> bool:
+    """Embed a skill's full core into a tool response — once per problem.
+
+    The once-per-problem guard lives here so every injection point inherits it: a core
+    the agent already received for this problem stays out of later responses (it's in the
+    agent's context; re-sending wastes tokens, and prompt caching covers the rare
+    cross-problem repeat). Re-arming after a shape change is explicit, via
+    `_reset_injection`. Returns True if the core was embedded this call, False if skipped
+    (already injected, or the skill has no content) — callers branch fall-through on it.
+    """
+    if _was_injected(problem_id, skill_name):
+        return False
     content = _load_skill(skill_name)
-    if content:
-        result["_skill_guidance"] = {
-            "skill": skill_name,
-            "reason": reason,
-            "content": content,
-        }
-    return result
+    if not content:
+        return False
+    result["_skill_guidance"] = {
+        "skill": skill_name,
+        "reason": reason,
+        "content": content,
+    }
+    _mark_injected(problem_id, skill_name)
+    return True
 
 
 # Navigation/recording actions (solutions, curated, feedback) intentionally carry no

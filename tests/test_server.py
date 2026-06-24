@@ -1450,6 +1450,43 @@ class TestCreateAcceptsObjectivesAndOptions:
         assert result["options"] == 2
 
 
+class TestInjectSkillThrottle:
+    """The once-per-problem throttle lives in _inject_skill itself (B-P0), so every call
+    site inherits 'inject once, then it's in the agent's context' without re-implementing
+    the guard. These pin that contract directly; the integration paths below exercise it
+    through the real tool flow."""
+
+    def test_injects_once_then_noops(self):
+        pid = "throttle-unit-once"
+        srv._reset_all_injections(pid)
+        first = {}
+        assert srv._inject_skill(first, "data_collection", "why", pid) is True
+        assert first["_skill_guidance"]["skill"] == "data_collection"
+        assert srv._was_injected(pid, "data_collection")
+        # Second call for the same problem is a no-op — the core is already in context.
+        second = {}
+        assert srv._inject_skill(second, "data_collection", "again", pid) is False
+        assert "_skill_guidance" not in second
+
+    def test_reset_rearms_injection(self):
+        pid = "throttle-unit-reset"
+        srv._reset_all_injections(pid)
+        assert srv._inject_skill({}, "optimization_strategy", "r", pid) is True
+        assert srv._inject_skill({}, "optimization_strategy", "r", pid) is False
+        # Explicit re-arm (e.g. an objectives/options shape change) re-enables injection.
+        srv._reset_injection(pid, "optimization_strategy")
+        rearmed = {}
+        assert srv._inject_skill(rearmed, "optimization_strategy", "r", pid) is True
+        assert rearmed["_skill_guidance"]["skill"] == "optimization_strategy"
+
+    def test_throttle_is_per_skill(self):
+        pid = "throttle-unit-perskill"
+        srv._reset_all_injections(pid)
+        assert srv._inject_skill({}, "data_collection", "a", pid) is True
+        # A different skill for the same problem still injects.
+        assert srv._inject_skill({}, "optimization_strategy", "b", pid) is True
+
+
 class TestSkillInjectionOnCreate:
     def test_create_injects_data_collection(self):
         result = srv.model(action="create", name="Test")
