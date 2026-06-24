@@ -44,8 +44,8 @@ Spreadsheets hit a complexity wall once options and constraints in a decision mu
 - **Hard constraints, enforced**: eight types: cardinality, force include, force exclude, objective bounds, exclusion pairs, dependencies, group limits, and allocation caps.
 - **Grounded & reproducible**: every number traces to computed data, and the same inputs + seed reproduce the exact frontier.
 - **Scenarios & risk**: independent frontiers per scenario, plus CVaR / worst-case / expected / minimax-regret per objective.
-- **Knowledge discovery**: mine the frontier for selection rates, design principles, and strategy families (`explore composition`).
-- **Persistent state**: problems persist across sessions (on a deployment with durable storage — the default Render blueprint is ephemeral); curated picks track survival across re-runs.
+- **Knowledge discovery**: mine the frontier for selection rates, design principles, and strategy patterns.
+- **Persistent state**: problems persist across sessions (on a deployment with durable storage); curated picks track survival across re-runs.
 
 ## Workflow
 
