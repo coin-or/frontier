@@ -148,13 +148,24 @@ _DECISION_GUIDANCE: dict[str, tuple[str, str]] = {
 }
 
 
+def _make_guidance_pointer(skill: str, section: str) -> dict:
+    """The standard read-side pointer: which skill section governs presenting this result,
+    and how to fetch exactly it if it has scrolled out of context. The conditional phrasing
+    holds whether or not the full skill is also in context — if it is, the agent reads on;
+    if it scrolled out, the agent re-fetches — so it composes with the once-per-problem
+    full-skill injection rather than contradicting it."""
+    return {
+        "skill": skill,
+        "section": section,
+        "note": (f"Present this with the {skill} skill → '{section}'. If that section isn't in "
+                 f"recent context, fetch exactly it with get_skill('{skill}', section='{section}') "
+                 "before presenting — don't go from memory."),
+    }
+
+
 def _attach_guidance_pointer(result: dict, action: str) -> dict:
     """Point a decision action's response at the skill section that governs reading it.
-
-    No-op for non-decision actions and for error results (nothing to present). The note's
-    conditional phrasing holds whether or not the full skill is also in context: if it is,
-    the agent reads on; if it scrolled out, the agent re-fetches — so this composes cleanly
-    with the once-per-problem full-skill injection rather than contradicting it."""
+    No-op for non-decision actions and for error results (nothing to present)."""
     if not isinstance(result, dict) or "error" in result:
         return result
     entry = _DECISION_GUIDANCE.get(action)
@@ -165,11 +176,28 @@ def _attach_guidance_pointer(result: dict, action: str) -> dict:
     # exact duals — point at that section instead so the cited guidance matches the output.
     if action == "sensitivity" and result.get("source") == "frontier_inferred":
         section = "Binding Analysis"
-    result["guidance_pointer"] = {
-        "skill": skill,
-        "section": section,
-        "note": (f"Present this with the {skill} skill → '{section}'. If that section isn't in "
-                 f"recent context, fetch exactly it with get_skill('{skill}', section='{section}') "
-                 "before presenting — don't go from memory."),
-    }
+    result["guidance_pointer"] = _make_guidance_pointer(skill, section)
+    return result
+
+
+def _attach_solve_guidance_pointer(result: dict) -> dict:
+    """Point a solved frontier at the playbook for the most urgent thing it surfaced.
+
+    Unlike the explore pointer (keyed by action), this is keyed by signal: a quality
+    warning or structural diagnostics take precedence over the always-present presentation
+    guidance (the solution_interpreter core covers that and is injected on solve). No
+    signal → no pointer; the core suffices. Defensive on shape — infeasible and scenario
+    results lack these keys and pass through untouched."""
+    if not isinstance(result, dict) or "error" in result or result.get("guidance_pointer"):
+        return result
+    fq = result.get("frontier_quality")
+    status = fq.get("status") if isinstance(fq, dict) else None
+    diagnostics = (result.get("metrics") or {}).get("diagnostics")
+    if status in ("POOR", "WARNING"):
+        section = "Frontier Quality and Completeness Signals"
+    elif diagnostics:
+        section = "Diagnostic Patterns"
+    else:
+        return result
+    result["guidance_pointer"] = _make_guidance_pointer("solution_interpreter", section)
     return result

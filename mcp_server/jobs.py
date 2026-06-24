@@ -22,6 +22,7 @@ from engine.models import OptimizeMode, Problem
 
 from mcp_server.guidance import (
     _SOLUTION_INTERPRETER_PROMPT,
+    _attach_solve_guidance_pointer,
     _inject_skill,
 )
 
@@ -158,6 +159,9 @@ def _deliver(problem_id: str, job: SolveJob) -> dict:
         # _inject_skill throttles once-per-problem; the job-level `delivered` guard makes
         # re-polling a finished job a pure read.
         _inject_skill(result, "solution_interpreter", _SOLUTION_INTERPRETER_PROMPT, problem_id)
+    # Route to the signal-specific playbook (quality warning / diagnostics) on every
+    # delivery, including status re-polls — mirrors the explore read-side pointer.
+    _attach_solve_guidance_pointer(result)
     job.delivered = True
     return result
 

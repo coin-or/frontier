@@ -9,6 +9,7 @@ from engine.store import Store
 # We test the internal handler functions directly, not via MCP protocol.
 # This validates the logic without needing an MCP client.
 import mcp_server.server as srv
+import mcp_server.guidance as guidance
 
 
 @pytest.fixture(autouse=True)
@@ -1485,6 +1486,54 @@ class TestInjectSkillThrottle:
         assert srv._inject_skill({}, "data_collection", "a", pid) is True
         # A different skill for the same problem still injects.
         assert srv._inject_skill({}, "optimization_strategy", "b", pid) is True
+
+
+class TestSolveGuidancePointer:
+    """Solve responses carry a signal-keyed read pointer (B-P1a): a quality warning or
+    structural diagnostics route to the matching playbook; a clean solve gets none, since
+    the solution_interpreter core (injected on solve) already covers presentation."""
+
+    def test_warning_quality_points_to_quality_signals(self):
+        r = {"frontier_quality": {"status": "WARNING"}, "metrics": {"diagnostics": []}}
+        guidance._attach_solve_guidance_pointer(r)
+        assert r["guidance_pointer"]["skill"] == "solution_interpreter"
+        assert r["guidance_pointer"]["section"] == "Frontier Quality and Completeness Signals"
+
+    def test_poor_quality_points_to_quality_signals(self):
+        r = {"frontier_quality": {"status": "POOR"}}
+        guidance._attach_solve_guidance_pointer(r)
+        assert r["guidance_pointer"]["section"] == "Frontier Quality and Completeness Signals"
+
+    def test_diagnostics_point_to_diagnostic_patterns(self):
+        r = {"frontier_quality": {"status": "GOOD"},
+             "metrics": {"diagnostics": [{"pattern": "p", "severity": "warning"}]}}
+        guidance._attach_solve_guidance_pointer(r)
+        assert r["guidance_pointer"]["section"] == "Diagnostic Patterns"
+
+    def test_quality_takes_priority_over_diagnostics(self):
+        r = {"frontier_quality": {"status": "WARNING"},
+             "metrics": {"diagnostics": [{"pattern": "p"}]}}
+        guidance._attach_solve_guidance_pointer(r)
+        assert r["guidance_pointer"]["section"] == "Frontier Quality and Completeness Signals"
+
+    def test_clean_solve_gets_no_pointer(self):
+        r = {"frontier_quality": {"status": "GOOD"}, "metrics": {"diagnostics": []}}
+        guidance._attach_solve_guidance_pointer(r)
+        assert "guidance_pointer" not in r
+
+    def test_error_and_scenario_shapes_pass_through(self):
+        err = {"error": "boom", "frontier_quality": {"status": "POOR"}}
+        guidance._attach_solve_guidance_pointer(err)
+        assert "guidance_pointer" not in err
+        scenario = {"scenarios_optimized": 3, "summary": {}}  # no top-level signals
+        guidance._attach_solve_guidance_pointer(scenario)
+        assert "guidance_pointer" not in scenario
+
+    def test_cited_sections_resolve(self):
+        # The cited sections must be fetchable via get_skill — guard against heading drift.
+        txt = "".join(p.read_text() for p in guidance._skill_files("solution_interpreter"))
+        for section in ("Frontier Quality and Completeness Signals", "Diagnostic Patterns"):
+            assert guidance._extract_section(txt, section), section
 
 
 class TestSkillInjectionOnCreate:
