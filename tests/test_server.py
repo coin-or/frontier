@@ -1732,6 +1732,57 @@ class TestSkillInjectionOnUpdate:
         assert result["_skill_guidance"]["skill"] == "optimization_strategy"
 
 
+class TestFramingSurfacing:
+    """problem_framing isn't auto-injected, so B-P1b gives it signal-driven surfacing:
+    a reframe injection when a model is scored with <2 objectives, and a validate-time
+    pointer to the framing checkpoint when the model is structurally thin."""
+
+    def _create(self):
+        return srv.model(action="create", name="F")["problem_id"]
+
+    def test_scoring_thin_model_injects_problem_framing(self):
+        pid = self._create()
+        # One objective + options + scores: scoring before there's a real tradeoff.
+        r = srv.model(action="update", problem_id=pid,
+            objectives=[{"name": "Rev", "direction": "maximize"}],
+            options=[{"name": "A"}, {"name": "B"}, {"name": "C"}],
+            scores=[{"option": o, "objective": "Rev", "value": v}
+                    for o, v in [("A", 5), ("B", 7), ("C", 9)]])
+        assert r["_skill_guidance"]["skill"] == "problem_framing"
+
+    def test_scoring_complete_two_objective_model_does_not_inject_framing(self):
+        pid = self._create()
+        r = srv.model(action="update", problem_id=pid,
+            objectives=[{"name": "Rev", "direction": "maximize"},
+                        {"name": "Cost", "direction": "minimize"}],
+            options=[{"name": "A"}, {"name": "B"}, {"name": "C"}],
+            scores=[{"option": o, "objective": ob, "value": v}
+                    for o, ob, v in [("A", "Rev", 5), ("A", "Cost", 3), ("B", "Rev", 7),
+                                     ("B", "Cost", 5), ("C", "Rev", 9), ("C", "Cost", 6)]])
+        assert r["_skill_guidance"]["skill"] == "optimization_strategy"
+
+    def test_validate_thin_model_points_to_framing_checkpoint(self):
+        pid = self._create()
+        srv.model(action="update", problem_id=pid,
+            objectives=[{"name": "Rev", "direction": "maximize"}],
+            options=[{"name": "A"}, {"name": "B"}, {"name": "C"}])
+        r = srv.solve(action="validate", problem_id=pid)
+        assert r["guidance_pointer"]["skill"] == "problem_framing"
+        assert r["guidance_pointer"]["section"] == "Formalization Checkpoint"
+
+    def test_validate_ready_model_has_no_framing_pointer(self):
+        pid = self._create()
+        srv.model(action="update", problem_id=pid,
+            objectives=[{"name": "Rev", "direction": "maximize"},
+                        {"name": "Cost", "direction": "minimize"}],
+            options=[{"name": "A"}, {"name": "B"}, {"name": "C"}],
+            scores=[{"option": o, "objective": ob, "value": v}
+                    for o, ob, v in [("A", "Rev", 5), ("A", "Cost", 3), ("B", "Rev", 7),
+                                     ("B", "Cost", 5), ("C", "Rev", 9), ("C", "Cost", 6)]])
+        r = srv.solve(action="validate", problem_id=pid)
+        assert "guidance_pointer" not in r
+
+
 class TestSkillInjectionOnSolve:
     def test_solve_run_injects_solution_interpreter(self):
         pid = _build_solvable_problem()

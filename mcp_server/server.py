@@ -64,6 +64,7 @@ from mcp_server.guidance import (
     _injected_skills,
     _inject_skill,
     _load_skill,
+    _make_guidance_pointer,
     _mark_injected,
     _reset_all_injections,
     _reset_injection,
@@ -587,17 +588,26 @@ def _model_update(params: dict) -> dict:
     added_options = "options" in params
     scores_complete = result["status"]["scores_complete"]
 
-    # Inject the phase skill once (throttle lives in _inject_skill): data_collection when
-    # structure is (re)defined, else optimization_strategy when scoring just completed.
-    # Branch the second inject on whether data_collection actually fired, so an
+    # Inject the phase skill once (throttle lives in _inject_skill). Precedence follows the
+    # workflow: scoring a model with <2 objectives is mis-framed — there's no real tradeoff
+    # to optimize — so surface problem_framing ahead of the scoring/solve guidance; else
+    # data_collection when structure is (re)defined; else optimization_strategy when scoring
+    # just completed. Branch each fallback on whether the prior inject fired so an
     # already-delivered core still falls through to the next phase's guidance.
+    injected_framing = False
+    if "scores" in params and len(p.objectives) < 2:
+        injected_framing = _inject_skill(result, "problem_framing",
+            "Scores were added, but the model has fewer than 2 objectives — Frontier needs "
+            "≥2 genuinely conflicting objectives for a tradeoff to optimize. Reframe first "
+            "(is something a constraint, or a second goal?) before scoring.",
+            pid)
     injected_dc = False
-    if added_objectives or added_options:
+    if not injected_framing and (added_objectives or added_options):
         injected_dc = _inject_skill(result, "data_collection",
             "Objectives/options defined. Use this guide for scoring — "
             "anchor best/worst first, batch by objective, push for 100% completeness.",
             pid)
-    if not injected_dc and scores_complete == 1.0:
+    if not injected_framing and not injected_dc and scores_complete == 1.0:
         _inject_skill(result, "optimization_strategy",
             "Score matrix is 100% complete. Use this guide before running solve — "
             "it covers mode selection, constraint strategy, and iteration expectations.",
@@ -1041,11 +1051,16 @@ def solve(
             vr = optimizer.validate(p)
             result = json.loads(vr.model_dump_json())
             result["solvers"] = _solver_availability(p)
-            # If ready to solve, inject optimization_strategy
             if vr.ready:
+                # If ready to solve, inject optimization_strategy
                 _inject_skill(result, "optimization_strategy",
                     "Problem validates as ready. Review this guide before running solve.",
                     problem_id)
+            elif len(p.objectives) < 2:
+                # Not ready and structurally thin — route to the framing checkpoint to catch
+                # mis-framing before spending compute (problem_framing isn't auto-injected).
+                result["guidance_pointer"] = _make_guidance_pointer(
+                    "problem_framing", "Formalization Checkpoint")
             return result
         case "run":
             return _solve_run(p, opt_mode, max_solutions=max_solutions, seed=seed,
