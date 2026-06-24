@@ -68,7 +68,7 @@ The system selects the optimization algorithm based on objective count. Know the
 | Objectives | Algorithm | Why |
 |---|---|---|
 | 2-3 | NSGA-II | Crowding distance works; tradeoffs intuitive and solutions spread naturally |
-| 4+ | NSGA-III | Reference points prevent clustering at extremes; handles constraints unlike decomposition methods |
+| 4+ | NSGA-III | Reference points preserve diversity where crowding distance breaks down; constraint-domination handles constraints more robustly than vanilla decomposition (MOEA/D) |
 
 **Implications**: With 7+ objectives, nearly everything appears "optimal" — probe whether all objectives genuinely conflict. With 2-3, expect a clean, intuitive frontier.
 
@@ -116,6 +116,7 @@ When the solver returns no solutions:
 - Suggest relaxing the tightest constraint first.
 - Ask the user: "Which of these constraints is most negotiable?"
 - To confirm infeasibility **exactly** before (or without) a full solve — or get a concrete feasible *witness* plan when the constraints ARE satisfiable — use `explore audit` with no property: the binary feasibility probe, the exact counterpart to `validate`'s pre-solve conflict check. With a property (any constraint shape), `explore audit` also proves whether a guardrail holds across the *entire* feasible space (verdict `holds`) or returns a counterexample plan — the governance read, presented via `frontier://skills/solution_interpreter` → *Reading the Audit*.
+- Relaxing the tightest constraint often just exposes the *next* one binding underneath — so relax and re-solve incrementally rather than all at once.
 
 ### Status Literacy
 

@@ -26,8 +26,8 @@ Focus precision where it matters: high-variance objectives that drive tradeoffs 
 
 ## Core Judgment
 
-### Anchoring Technique
-For each objective, identify the best and worst option first. Score everything else relative to those anchors. This reduces cognitive load and improves consistency.
+### Best-Worst Anchoring
+For each objective, identify the best and worst option first, then score everything else relative to those two endpoints. This reduces cognitive load and improves consistency. (This is deliberate *relative scaling*, distinct from the anchoring *bias* to avoid: the trap is letting one arbitrary outside number silently set the scale; fixing the real best and worst as the endpoints is the antidote, not the trap.)
 
 Example: "For [objective], which option performs best? And worst? If the best is 10 and the worst is 1, where do the others fall?"
 
@@ -68,8 +68,18 @@ When multiple sources disagree on a score:
 1. Prefer the more authoritative source (official > benchmark > analysis)
 2. Prefer the more recent source
 3. Check if they're measuring different things (units, scope)
-4. When genuinely conflicting, use the more conservative estimate
-5. Note the disagreement — the user may want to review
+4. Investigate outliers rather than averaging them away — a figure several times the others usually measures something different (a different tier, region, or edition); find out which before folding it in
+5. When genuinely conflicting, use the more conservative estimate
+6. Note the disagreement — the user may want to review
+
+### Score Provenance
+
+Where a score came from is part of the score. Frontier's outputs are traceable by design — every number it reports traces to computed data — and that chain is only as sound as the inputs feeding it, so carry provenance from the first cell.
+
+- **Keep each researched score attributable.** Note its source alongside the number (in `context` or the conversation) so a later "why is this a 7?" has an answer. A score no one can trace back is the input-side of phantom precision.
+- **Let confidence ride with the value.** A figure off a spec sheet and a midpoint-of-a-range guess can be the same number but aren't the same evidence. Recording which is which doesn't change what you enter — it marks where the frontier rests on soft ground, and a low-confidence score on a high-leverage objective is the first thing to re-check with `explore sensitivity` once results show what actually moves the answer.
+
+This is the upstream end of *Traceable Claims* (`frontier://skills/solution_interpreter`): provenance of inputs, so the decision audits end to end.
 
 ### Score Quality Signals
 A complete matrix isn't necessarily a useful one. The `model update` response includes `score_variance_by_objective` and `dominated_options` — read these after every score entry and flag issues proactively:

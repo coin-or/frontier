@@ -200,7 +200,7 @@ Each objective has an aggregation mode that determines how individual option sco
 
 **Aggregation vs. exact certification.** All five modes run on the default NSGA engine — pick the one that matches the meaning. The optional *exact* audit is narrower: a binary selection certifies only with `sum` objectives (the MILP is linear), and a mean-variance portfolio with `sum`/`avg` linear objectives plus its one **minimize**-`quadratic` risk term; `min`/`max` (and a maximize-quadratic) stay heuristic. So if an exact certificate will matter and the semantics genuinely allow a total, `sum` keeps that option open — but don't force `sum` onto an `avg`/`min`/`max` meaning just to certify (that answers a different question). Details: `optimization_strategy` → *Exact Solvers*.
 
-**Quadratic** is for when the portfolio value depends on pairwise interactions (e.g., risk reduced by diversification). Requires an `interaction_matrices` entry with the pairwise matrix. Individual scores are still needed for display.
+**Quadratic** is for when the portfolio value depends on pairwise interactions (e.g., risk reduced by diversification). Requires an `interaction_matrices` entry with the pairwise matrix. Individual scores are still needed for display. It models *symmetric* variance/volatility — penalizing upside dispersion as much as downside — and is the only risk-as-objective Frontier optimizes. When the decision turns specifically on *downside* risk (a loss floor, tail outcomes), don't expect the optimizer to minimize a tail measure: encode the uncertainty as scenarios (see *Scenarios* below) and read the downside diagnostically — worst-case and CVaR (`frontier://skills/solution_interpreter` → *Scenario Results Presentation*).
 
 ### Scope Calibration
 - Is this actually a portfolio selection problem? "Pick K of N" or "allocate across N" — if neither fits, this might not need Frontier.
@@ -212,11 +212,12 @@ For any domain, identify 2-4 objectives that represent genuinely conflicting goa
 
 ### Formalization Checkpoint
 
-Before handing a finished model to the solver, make one pass that asks whether it captures the *right* problem — not just whether it will solve. The solver is precise about whatever it's given, so a clean frontier over a mis-specified model is more dangerous than a rough frontier over the right one: the precision disguises the error. Confirm three things before solving:
+Before handing a finished model to the solver, make one pass that asks whether it captures the *right* problem — not just whether it will solve. The solver is precise about whatever it's given, so a clean frontier over a mis-specified model is more dangerous than a rough frontier over the right one: the precision disguises the error. Confirm four things before solving:
 
 - **Units and comparability** — each objective's scores should share one consistent unit across all options (all dollars, or all 1-10 ratings — not dollars for some options and a "high/medium/low" guess for others). `sum` and `avg` are only meaningful within a single scale; mixed units silently distort the frontier.
 - **Unambiguous direction** — every objective resolves to a single maximize-or-minimize sense. "Balance cost and speed" is two objectives, not one; pin each direction before solve.
 - **PSD for quadratic interactions** — any objective using `quadratic` aggregation carries an interaction matrix, and for that aggregation to be a valid measure the matrix must be positive semi-definite. The schema enforces *symmetry* only (see *Interaction matrix schema*) — PSD is your check, not the tool's. A covariance matrix estimated from real, time-aligned data is PSD by construction; one entered by hand, stitched from mismatched windows, or built from a truncated factor model may not be — and an indefinite matrix makes the "risk" it reports meaningless. Confirm before solving.
+- **Decision-question coverage** — read the captured question back against the model: every goal the user named should land as an objective or a constraint. A goal mentioned in passing but encoded nowhere is the most common silent mis-spec, and it's catchable precisely because the question is stored (see *Decision Question*).
 
 ## Stage Awareness
 
@@ -249,7 +250,7 @@ Use this expertise at the start of any conversation, before any tool calls. Vali
 
 ### Reference Points
 
-Before optimization, encourage the user to set anchors for interpreting results — a **baseline** (status quo) and/or **aspirational** targets. These don't constrain the optimizer — they make results interpretable by grounding them in familiar context. "This achieves 95% of your cost target" is more useful than a raw number.
+Before optimization, encourage the user to set anchors for interpreting results — a **baseline** (status quo) and/or **aspirational** targets. These don't constrain the optimizer — they make results interpretable by grounding them in familiar context. "This achieves 95% of your cost target" is more useful than a raw number. They are purely interpretive: Frontier does not steer the search toward a reference point. To actually *pull* solutions toward a target outcome, use an `objective_bound` constraint (a floor or ceiling the optimizer must respect); a reference point only annotates how far each solution lands from it.
 
 Set via `model update` with `reference_points`. Baselines can include the current portfolio of selected options; aspirational targets are objective values only.
 

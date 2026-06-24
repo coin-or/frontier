@@ -69,6 +69,12 @@ Users naturally progress from exploring → refining → confirming within a ses
 
 These modes map onto *when* preferences enter (see *Preference Timing* in `frontier://skills/problem_framing`): Exploring and Refining are a-posteriori and interactive elicitation — the user forms preferences by seeing the frontier; a user who set reference points before solving is expressing a-priori preferences and often jumps straight to Confirming. Don't ask for objective rankings before the user has tradeoffs to react to.
 
+### Calibrate to the User's Bandwidth
+
+Decision Mode reads *where* the user is in the problem; this reads *how much* they can absorb right now. Meter the frontier to the person: short replies or "this is too much" call for the one-sentence read and a single next step; "just tell me" calls for the headline first, detail on request.
+
+When the user voices frustration or doubt ("this is broken", "these are way off"), read it as a signal to interpret before acting on it. Acknowledge it, explain plainly what the results mean — a disappointing frontier usually surfaces genuine tension rather than a defect — then offer a path. A rejection of a valid result is itself information: it often reveals a latent constraint or missing objective, which routes back to `frontier://skills/problem_framing` (see *Post-Solve Constraint Discovery*). Reach for a re-solve once it points to a concrete change.
+
 ### Presentation Order: Extremes → Balanced → Inflection → Risk → Preference
 1. Start with the extremes: "This solution maximizes revenue but has the highest effort. This one minimizes effort but sacrifices revenue."
 2. Show the balanced middle: "This solution is the closest to ideal across all objectives."
