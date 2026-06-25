@@ -262,6 +262,8 @@ def model(
                 objectives?, options?, constraints? (all optional; add via update later).
                 Scores, reference_points, scenario_config, and interaction_matrices are
                 NOT applied at create — passing them errors with a pointer to update.
+                `source` belongs to action='load' (it rebuilds a saved/example bundle),
+                so passing it to create errors with a pointer there.
       update  — Modify problem. Params: problem_id (required), plus any of:
                 name, domain, context, objectives, options, scores, constraints,
                 approach ("binary" or "proportional"),
@@ -350,6 +352,12 @@ def _model_create(params: dict) -> dict:
         return {"error": f"{', '.join(unsupported)} not applied at create — "
                          "create the problem first, then pass them to "
                          "model update problem_id=<id>."}
+    # `source` is the loader param — create ignores it, which would silently yield an
+    # empty problem. Point at the action that actually rebuilds a bundle rather than
+    # dropping it (the same "don't let a content param vanish" rule as above).
+    if "source" in params:
+        return {"error": f"source is only applied by action='load'. Did you mean "
+                         f"model(action='load', source='{params['source']}')?"}
     kwargs = dict(
         name=params.get("name", ""),
         domain=params.get("domain", ""),
