@@ -279,7 +279,7 @@ When scenarios are defined and optimized, use `explore scenario_results` to pres
 2. **Scenario-specific opportunities** — options in `scenario_specific` that excel in particular futures (grouped by scenario name → list of options). Frame: "If you believe [scenario] is likely, [option] becomes attractive."
 3. **Frame around risk tolerance** — "The core options protect your downside across all futures. The marginal options offer upside in specific scenarios. Which matters more?"
 
-Present the top 5-8 from `option_robustness` with their tier, frequency, and avg weight. Don't list every option — the tail is noise. Start with core vs scenario-specific, then drill down if the user asks.
+Present the top 5-8 from `option_robustness` with their tier, frequency, and avg weight. Don't list every option — the tail is noise. Start with core vs scenario-specific, then drill down if the user asks. If the tiers are flat — options appear at similar frequency across every scenario — the scenarios aren't differentiating the decision; say so and suggest simplifying the scenario set rather than reading false signal into it.
 
 **Expected values caveat**: The `expected_values` in scenario_results are ideal-point values (best-per-objective across scenarios, probability-weighted). No single solution achieves all simultaneously. Present them as "theoretical ceiling" when useful, but always caveat.
 
