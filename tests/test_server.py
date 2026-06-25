@@ -594,6 +594,13 @@ class TestReferencePoints:
         assert len(p["reference_points"]) == 2
         assert p["reference_points"][0]["type"] == "baseline"
 
+    def test_setting_reference_points_points_to_narration(self):
+        # B-P2: setting reference points surfaces the read-side narration playbook.
+        pid = _build_solvable_problem()
+        r = srv.model(action="update", problem_id=pid, reference_points=[
+            {"type": "baseline", "name": "Current", "objective_values": {"Rev": 10, "Eff": 8}}])
+        assert r["guidance_pointer"]["section"] == "Reference Point Narration"
+
     def test_reference_in_tradeoffs(self):
         pid = _build_solvable_problem()
         srv.model(action="update", problem_id=pid, reference_points=[
@@ -1063,6 +1070,7 @@ class TestCuration:
         result = srv.explore(action="curated", problem_id=pid)
         assert result["total_curated"] == 2
         assert all(c["in_current_frontier"] for c in result["curated_solutions"])
+        assert "guidance_pointer" not in result  # a bare listing is navigation, not a handoff
 
     def test_export_curated_markdown(self):
         pid = _build_solvable_problem()
@@ -1076,6 +1084,8 @@ class TestCuration:
         assert "| name |" in content
         assert "content_signature" in content
         assert "First" in content and "Second" in content
+        # B-P2: the export (handoff moment) carries the Stakeholder Writeup pointer.
+        assert result["guidance_pointer"]["section"] == "Stakeholder Writeup & the Why-Triplet"
 
     def test_export_curated_csv(self):
         pid = _build_solvable_problem()
@@ -1524,6 +1534,24 @@ class TestSolveGuidancePointer:
              "metrics": {"diagnostics": [{"pattern": "p"}]}}
         guidance._attach_solve_guidance_pointer(r)
         assert r["guidance_pointer"]["section"] == "Frontier Quality and Completeness Signals"
+
+    def test_exact_overlay_points_to_denoting_certification(self):
+        # B-P2: an exact overlay (no more-urgent signal) routes to the denotation playbook.
+        r = {"frontier_quality": {"status": "GOOD"}, "metrics": {"diagnostics": []},
+             "solver_used": "highs"}
+        guidance._attach_solve_guidance_pointer(r)
+        assert r["guidance_pointer"]["section"] == "Denoting Certification — Prose & Tables"
+
+    def test_quality_takes_precedence_over_denoting(self):
+        r = {"frontier_quality": {"status": "WARNING"}, "solver_used": "highs"}
+        guidance._attach_solve_guidance_pointer(r)
+        assert r["guidance_pointer"]["section"] == "Frontier Quality and Completeness Signals"
+
+    def test_nsga_solve_gets_no_denoting_pointer(self):
+        r = {"frontier_quality": {"status": "GOOD"}, "metrics": {"diagnostics": []},
+             "solver_used": "nsga"}
+        guidance._attach_solve_guidance_pointer(r)
+        assert "guidance_pointer" not in r
 
     def test_clean_solve_gets_no_pointer(self):
         r = {"frontier_quality": {"status": "GOOD"}, "metrics": {"diagnostics": []}}

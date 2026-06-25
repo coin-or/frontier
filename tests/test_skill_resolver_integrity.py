@@ -77,6 +77,9 @@ def test_prose_and_code_referenced_sections_resolve():
         ("solution_interpreter", "Frontier Quality and Completeness Signals"),  # solve quality pointer
         ("solution_interpreter", "Diagnostic Patterns"),     # solve diagnostics pointer
         ("solution_interpreter", "Binding Analysis"),        # sensitivity frontier-inferred fallback
+        ("solution_interpreter", "Reference Point Narration"),               # B-P2: model/update reference_points
+        ("solution_interpreter", "Denoting Certification — Prose & Tables"), # B-P2: exact-overlay solve
+        ("solution_interpreter", "Stakeholder Writeup & the Why-Triplet"),   # B-P2: curated export
         ("problem_framing", "Formalization Checkpoint"),     # validate framing pointer
         ("problem_framing", "Constraint schemas"),           # schema-extraction targets
         ("problem_framing", "Interaction matrix schema"),

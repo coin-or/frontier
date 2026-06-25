@@ -631,6 +631,12 @@ def _model_update(params: dict) -> dict:
     if interpreter_rearm:
         _reset_injection(pid, "solution_interpreter")
 
+    # Setting reference points is the moment to learn how to narrate baseline/aspirational
+    # distance once results exist — point at the read-side playbook (B-P2).
+    if "reference_points" in params and "guidance_pointer" not in result:
+        result["guidance_pointer"] = _make_guidance_pointer(
+            "solution_interpreter", "Reference Point Narration")
+
     return result
 
 
@@ -1769,9 +1775,14 @@ def explore(
             # format renders the raw handoff export (absorbs the old `export_curated` action).
             if format:
                 try:
-                    return explorer.export_curated(p, format=format)
+                    result = explorer.export_curated(p, format=format)
                 except ValueError as e:
                     return {"error": str(e)}
+                # Rendering an export is the handoff moment — point at the writeup playbook
+                # (B-P2). A plain `curated` listing is navigation and stays pointer-free.
+                result["guidance_pointer"] = _make_guidance_pointer(
+                    "solution_interpreter", "Stakeholder Writeup & the Why-Triplet")
+                return result
             return explorer.list_curated(p)
         case "marginal_analysis":
             try:

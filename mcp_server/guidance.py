@@ -201,6 +201,10 @@ def _attach_solve_guidance_pointer(result: dict) -> dict:
         section = "Frontier Quality and Completeness Signals"
     elif actionable:
         section = "Diagnostic Patterns"
+    elif result.get("solver_used") in ("highs", "cuopt"):
+        # An exact overlay just landed — the next move is presenting certified vs superseded
+        # points, so route to the denotation playbook (quality/diagnostics take precedence).
+        section = "Denoting Certification — Prose & Tables"
     else:
         return result
     result["guidance_pointer"] = _make_guidance_pointer("solution_interpreter", section)
