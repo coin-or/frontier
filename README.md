@@ -12,7 +12,7 @@ Frontier helps you make hard decisions that have many options and conflicting go
 
 Under the hood it maps the **Pareto frontier** (every option where you can't improve one goal without sacrificing another) with evolutionary search plus optional exact solvers, all exposed as MCP tools backed by skills. Every number it reports is computed, not guessed, so the decision stays explainable and auditable, and the engine never overrides the two calls that are yours: how to frame the problem and which tradeoff to pick.
 
-**Try it:** the [hosted demo](https://frontier-ui.onrender.com/) (ask @cafzal for access), or [set up your own](#setup) in any MCP client.
+**Try it:** the [hosted demo](https://frontier-ui.onrender.com/) (ask @cafzal for access), or [set up your own](#setup).
 
 ## Examples
 
@@ -45,7 +45,7 @@ Spreadsheets hit a complexity wall once options and constraints in a decision mu
 - **Grounded & reproducible**: every number traces to computed data, and the same inputs + seed reproduce the exact frontier.
 - **Scenarios & risk**: independent frontiers per scenario, plus CVaR / worst-case / expected / minimax-regret per objective.
 - **Knowledge discovery**: mine the frontier for selection rates, design principles, and strategy patterns.
-- **Persistent state**: problems persist across sessions (on a deployment with durable storage); curated picks track survival across re-runs.
+- **Persistent state**: problems persist across sessions; curated picks track survival across re-runs.
 
 ## Workflow
 
@@ -72,7 +72,7 @@ Every problem is auto-persisted in the engine's store (`data/`, keyed by id) –
 
 <p align="center"><img src="assets/architecture.png" alt="Frontier architecture: agent clients and the web UI speak MCP to one server exposing four tools, with skills and solvers attached and a deterministic engine beneath" width="560" /></p>
 
-Frontier is a Python MCP server (FastMCP) wrapping pymoo's NSGA-II/III evolutionary solvers, with two first-class exact-solver backends (HiGHS on CPU, cuOpt on GPU) the agent can elect per run as an audit layer over the heuristic frontier. State persists per-problem as JSON; the optimizer produces a Pareto frontier with quality indicators, scenario-aware results, and shadow-price rates per binding constraint. Domain expertise lives in skill markdown files that the server auto-injects at workflow transitions.
+Frontier is a Python MCP server (FastMCP) wrapping pymoo's NSGA-II/III evolutionary solvers, with two exact-solver backends (HiGHS on CPU, cuOpt on GPU). State persists per-problem as JSON; the optimizer produces a Pareto frontier with detailed indicators to guide the decision. Domain expertise lives in skill markdown files that the server auto-injects at workflow transitions.
 
 For full schemas, action parameters, data model, persistence layout, and the skill auto-injection mechanism, see [`architecture.md`](architecture.md). For skill, prompt, and MCP design principles, see [`best-practices.md`](best-practices.md).
 
