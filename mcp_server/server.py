@@ -64,6 +64,7 @@ from mcp_server.guidance import (
     _injected_skills,
     _inject_skill,
     _load_skill,
+    _make_guidance_pointer,
     _mark_injected,
     _reset_all_injections,
     _reset_injection,
@@ -379,11 +380,11 @@ def _model_create(params: dict) -> dict:
         "options": len(p.options),
         "constraints": len(p.constraints),
     }
-    # Next step is scoring — inject data_collection guidance
+    # Next step is scoring — inject data_collection guidance (throttled in _inject_skill)
     _inject_skill(result, "data_collection",
         "Problem created. Use this guide when entering scores — "
-        "it covers anchoring, batch efficiency, and completeness.")
-    _mark_injected(p.problem_id, "data_collection")
+        "it covers anchoring, batch efficiency, and completeness.",
+        p.problem_id)
     return result
 
 
@@ -587,19 +588,30 @@ def _model_update(params: dict) -> dict:
     added_options = "options" in params
     scores_complete = result["status"]["scores_complete"]
 
-    # If structure was (re)defined, inject data_collection for scoring guidance
-    if (added_objectives or added_options) and not _was_injected(pid, "data_collection"):
-        _inject_skill(result, "data_collection",
+    # Inject the phase skill once (throttle lives in _inject_skill). Precedence follows the
+    # workflow: scoring a model with <2 objectives is mis-framed — there's no real tradeoff
+    # to optimize — so surface problem_framing ahead of the scoring/solve guidance; else
+    # data_collection when structure is (re)defined; else optimization_strategy when scoring
+    # just completed. Branch each fallback on whether the prior inject fired so an
+    # already-delivered core still falls through to the next phase's guidance.
+    injected_framing = False
+    if "scores" in params and len(p.objectives) < 2:
+        injected_framing = _inject_skill(result, "problem_framing",
+            "Scores were added, but the model has fewer than 2 objectives — Frontier needs "
+            "≥2 genuinely conflicting objectives for a tradeoff to optimize. Reframe first "
+            "(is something a constraint, or a second goal?) before scoring.",
+            pid)
+    injected_dc = False
+    if not injected_framing and (added_objectives or added_options):
+        injected_dc = _inject_skill(result, "data_collection",
             "Objectives/options defined. Use this guide for scoring — "
-            "anchor best/worst first, batch by objective, push for 100% completeness.")
-        _mark_injected(pid, "data_collection")
-
-    # If scores just reached 100%, inject optimization_strategy for solve guidance
-    elif scores_complete == 1.0 and not _was_injected(pid, "optimization_strategy"):
+            "anchor best/worst first, batch by objective, push for 100% completeness.",
+            pid)
+    if not injected_framing and not injected_dc and scores_complete == 1.0:
         _inject_skill(result, "optimization_strategy",
             "Score matrix is 100% complete. Use this guide before running solve — "
-            "it covers mode selection, constraint strategy, and iteration expectations.")
-        _mark_injected(pid, "optimization_strategy")
+            "it covers mode selection, constraint strategy, and iteration expectations.",
+            pid)
 
     # Reset optimization_strategy injection only when the problem's *shape* changes
     # (objectives or options) — those invalidate the methodology guidance.
@@ -618,6 +630,12 @@ def _model_update(params: dict) -> dict:
     # the guidance_pointer re-fetch covers long-session context loss instead.
     if interpreter_rearm:
         _reset_injection(pid, "solution_interpreter")
+
+    # Setting reference points is the moment to learn how to narrate baseline/aspirational
+    # distance once results exist — point at the read-side playbook (B-P2).
+    if "reference_points" in params and "guidance_pointer" not in result:
+        result["guidance_pointer"] = _make_guidance_pointer(
+            "solution_interpreter", "Reference Point Narration")
 
     return result
 
@@ -878,13 +896,13 @@ def _model_load(params: dict) -> dict:
     if has_results:
         _inject_skill(result, "solution_interpreter",
             "Loaded a solved problem with results. Use this guide to present the "
-            "frontier — never say 'best', start with extremes and the balanced solution.")
-        _mark_injected(p.problem_id, "solution_interpreter")
+            "frontier — never say 'best', start with extremes and the balanced solution.",
+            p.problem_id)
     else:
         _inject_skill(result, "optimization_strategy",
             "Problem loaded and ready. Use this guide before solving — it covers "
-            "mode selection, constraint strategy, and iteration expectations.")
-        _mark_injected(p.problem_id, "optimization_strategy")
+            "mode selection, constraint strategy, and iteration expectations.",
+            p.problem_id)
     return result
 
 
@@ -1039,11 +1057,16 @@ def solve(
             vr = optimizer.validate(p)
             result = json.loads(vr.model_dump_json())
             result["solvers"] = _solver_availability(p)
-            # If ready to solve, inject optimization_strategy
-            if vr.ready and not _was_injected(problem_id, "optimization_strategy"):
+            if vr.ready:
+                # If ready to solve, inject optimization_strategy
                 _inject_skill(result, "optimization_strategy",
-                    "Problem validates as ready. Review this guide before running solve.")
-                _mark_injected(problem_id, "optimization_strategy")
+                    "Problem validates as ready. Review this guide before running solve.",
+                    problem_id)
+            elif len(p.objectives) < 2:
+                # Not ready and structurally thin — route to the framing checkpoint to catch
+                # mis-framing before spending compute (problem_framing isn't auto-injected).
+                result["guidance_pointer"] = _make_guidance_pointer(
+                    "problem_framing", "Formalization Checkpoint")
             return result
         case "run":
             return _solve_run(p, opt_mode, max_solutions=max_solutions, seed=seed,
@@ -1698,9 +1721,7 @@ def explore(
                 return {"error": str(e)}
             # Surface the read-side guidance ('Reading the Certificate') at the moment the
             # certificate lands, mirroring the solve-response injection.
-            if not _was_injected(p.problem_id, "solution_interpreter"):
-                _inject_skill(result, "solution_interpreter", _SOLUTION_INTERPRETER_PROMPT)
-                _mark_injected(p.problem_id, "solution_interpreter")
+            _inject_skill(result, "solution_interpreter", _SOLUTION_INTERPRETER_PROMPT, p.problem_id)
             return _attach_guidance_pointer(result, action)
         case "audit":
             # Witness / feasibility auditor — proves a property across the whole feasible space (or
@@ -1754,9 +1775,14 @@ def explore(
             # format renders the raw handoff export (absorbs the old `export_curated` action).
             if format:
                 try:
-                    return explorer.export_curated(p, format=format)
+                    result = explorer.export_curated(p, format=format)
                 except ValueError as e:
                     return {"error": str(e)}
+                # Rendering an export is the handoff moment — point at the writeup playbook
+                # (B-P2). A plain `curated` listing is navigation and stays pointer-free.
+                result["guidance_pointer"] = _make_guidance_pointer(
+                    "solution_interpreter", "Stakeholder Writeup & the Why-Triplet")
+                return result
             return explorer.list_curated(p)
         case "marginal_analysis":
             try:

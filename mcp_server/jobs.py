@@ -22,9 +22,8 @@ from engine.models import OptimizeMode, Problem
 
 from mcp_server.guidance import (
     _SOLUTION_INTERPRETER_PROMPT,
+    _attach_solve_guidance_pointer,
     _inject_skill,
-    _mark_injected,
-    _was_injected,
 )
 
 # ─── Long-running solve jobs ───
@@ -157,9 +156,12 @@ def _deliver(problem_id: str, job: SolveJob) -> dict:
                             else "error" if result.get("error")
                             else "infeasible")
     if succeeded and not job.delivered:  # a real frontier was produced, first delivery only
-        if not _was_injected(problem_id, "solution_interpreter"):
-            _inject_skill(result, "solution_interpreter", _SOLUTION_INTERPRETER_PROMPT)
-            _mark_injected(problem_id, "solution_interpreter")
+        # _inject_skill throttles once-per-problem; the job-level `delivered` guard makes
+        # re-polling a finished job a pure read.
+        _inject_skill(result, "solution_interpreter", _SOLUTION_INTERPRETER_PROMPT, problem_id)
+    # Route to the signal-specific playbook (quality warning / diagnostics) on every
+    # delivery, including status re-polls — mirrors the explore read-side pointer.
+    _attach_solve_guidance_pointer(result)
     job.delivered = True
     return result
 

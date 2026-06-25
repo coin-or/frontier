@@ -87,7 +87,7 @@ Parameters adapt automatically to problem complexity (option count, objective co
 
 **When fast is fine**: The user is still exploring — adding options, adjusting scores, testing constraints. Fast mode gives quick feedback to inform the next iteration.
 
-### Exact Solvers (Optional)
+### Exact Solvers
 
 `mode` tunes how hard the *evolutionary* search works; `solver` picks *which engine* runs. The default (`solver` omitted, or `"nsga"`) is NSGA-II/III — evolutionary, fits **any** shape, the right call for exploration and almost every run. Two co-equal **exact** backends layer an optional **audit / certification** pass over it: each frontier point becomes optimal (to a 0.1% gap) for its scalarization, so an exact overlay can only *confirm or improve* the heuristic frontier, never worsen it.
 

@@ -106,16 +106,28 @@ def _load_skill(skill_name: str) -> str:
     return path.read_text() if path.exists() else ""
 
 
-def _inject_skill(result: dict, skill_name: str, reason: str) -> dict:
-    """Append skill content to a tool response under a standard key."""
+def _inject_skill(result: dict, skill_name: str, reason: str, problem_id: str) -> bool:
+    """Embed a skill's full core into a tool response — once per problem.
+
+    The once-per-problem guard lives here so every injection point inherits it: a core
+    the agent already received for this problem stays out of later responses (it's in the
+    agent's context; re-sending wastes tokens, and prompt caching covers the rare
+    cross-problem repeat). Re-arming after a shape change is explicit, via
+    `_reset_injection`. Returns True if the core was embedded this call, False if skipped
+    (already injected, or the skill has no content) — callers branch fall-through on it.
+    """
+    if _was_injected(problem_id, skill_name):
+        return False
     content = _load_skill(skill_name)
-    if content:
-        result["_skill_guidance"] = {
-            "skill": skill_name,
-            "reason": reason,
-            "content": content,
-        }
-    return result
+    if not content:
+        return False
+    result["_skill_guidance"] = {
+        "skill": skill_name,
+        "reason": reason,
+        "content": content,
+    }
+    _mark_injected(problem_id, skill_name)
+    return True
 
 
 # Navigation/recording actions (solutions, curated, feedback) intentionally carry no
@@ -136,13 +148,24 @@ _DECISION_GUIDANCE: dict[str, tuple[str, str]] = {
 }
 
 
+def _make_guidance_pointer(skill: str, section: str) -> dict:
+    """The standard read-side pointer: which skill section governs presenting this result,
+    and how to fetch exactly it if it has scrolled out of context. The conditional phrasing
+    holds whether or not the full skill is also in context — if it is, the agent reads on;
+    if it scrolled out, the agent re-fetches — so it composes with the once-per-problem
+    full-skill injection rather than contradicting it."""
+    return {
+        "skill": skill,
+        "section": section,
+        "note": (f"Present this with the {skill} skill → '{section}'. If that section isn't in "
+                 f"recent context, fetch exactly it with get_skill('{skill}', section='{section}') "
+                 "before presenting — don't go from memory."),
+    }
+
+
 def _attach_guidance_pointer(result: dict, action: str) -> dict:
     """Point a decision action's response at the skill section that governs reading it.
-
-    No-op for non-decision actions and for error results (nothing to present). The note's
-    conditional phrasing holds whether or not the full skill is also in context: if it is,
-    the agent reads on; if it scrolled out, the agent re-fetches — so this composes cleanly
-    with the once-per-problem full-skill injection rather than contradicting it."""
+    No-op for non-decision actions and for error results (nothing to present)."""
     if not isinstance(result, dict) or "error" in result:
         return result
     entry = _DECISION_GUIDANCE.get(action)
@@ -153,11 +176,36 @@ def _attach_guidance_pointer(result: dict, action: str) -> dict:
     # exact duals — point at that section instead so the cited guidance matches the output.
     if action == "sensitivity" and result.get("source") == "frontier_inferred":
         section = "Binding Analysis"
-    result["guidance_pointer"] = {
-        "skill": skill,
-        "section": section,
-        "note": (f"Present this with the {skill} skill → '{section}'. If that section isn't in "
-                 f"recent context, fetch exactly it with get_skill('{skill}', section='{section}') "
-                 "before presenting — don't go from memory."),
-    }
+    result["guidance_pointer"] = _make_guidance_pointer(skill, section)
+    return result
+
+
+def _attach_solve_guidance_pointer(result: dict) -> dict:
+    """Point a solved frontier at the playbook for the most urgent thing it surfaced.
+
+    Keyed by signal (not action): a frontier-quality warning, else an *actionable*
+    diagnostic. Quality leads because a degenerate frontier is the headline issue. Only
+    warning/error diagnostics fire the pointer — `info` patterns (a binding constraint, an
+    unselected option) are present on most healthy solves, so pointing on them would fire
+    on nearly every call (against the "surface on a real signal, not every call" rule); the
+    agent still reads those via the core's browse list. No signal → no pointer; the injected
+    solution_interpreter core covers routine presentation. Defensive on shape — infeasible
+    and scenario results lack these keys and pass through untouched."""
+    if not isinstance(result, dict) or "error" in result or result.get("guidance_pointer"):
+        return result
+    fq = result.get("frontier_quality")
+    status = fq.get("status") if isinstance(fq, dict) else None
+    diagnostics = (result.get("metrics") or {}).get("diagnostics") or []
+    actionable = any(d.get("severity") in ("warning", "error") for d in diagnostics)
+    if status in ("POOR", "WARNING"):
+        section = "Frontier Quality and Completeness Signals"
+    elif actionable:
+        section = "Diagnostic Patterns"
+    elif result.get("solver_used") in ("highs", "cuopt"):
+        # An exact overlay just landed — the next move is presenting certified vs superseded
+        # points, so route to the denotation playbook (quality/diagnostics take precedence).
+        section = "Denoting Certification — Prose & Tables"
+    else:
+        return result
+    result["guidance_pointer"] = _make_guidance_pointer("solution_interpreter", section)
     return result

@@ -190,13 +190,13 @@ Each objective has an aggregation mode that determines how individual option sco
 
 | Mode | Meaning | When to use |
 |---|---|---|
-| `sum` (default) | Total across selected options | Revenue, cost, effort — additive quantities |
-| `avg` | Average across selected options | Satisfaction, quality — portfolio consistency matters |
+| `sum` (default) | Total across selected options | An **accumulating quantity** — revenue, cost, effort, headcount (units that add up) |
+| `avg` | Allocation-weighted average | A **per-unit rate** — return %, yield %, ROAS, a 1-10 quality/satisfaction score (units that don't add up) |
 | `min` | Worst individual option score | Reliability, security — weakest link matters |
 | `max` | Best individual option score | Peak performance, showcase capability |
 | `quadratic` | √(w^T M w) using interaction matrix | Risk, volatility, synergy — value depends on pairwise interactions |
 
-**Most objectives use sum.** Only change aggregation when the semantics genuinely differ. Ask: *"Does picking more options increase this value (sum), or does the portfolio quality depend on its weakest member (min) or average (avg)?"*
+**The test: does funding another option *add* to this value, or *average* into it?** A quantity that accumulates (dollars, hours, count) is `sum`; a rate or score that's a property of the mix (a %, a ratio, a 1-10 rating) is `avg` — summing a rate double-counts and inflates it as the portfolio grows. Reach min/max/quadratic only when their semantics above genuinely fit. (This matches the always-on pre-create checklist in the server instructions; keep the two consistent.)
 
 **Aggregation vs. exact certification.** All five modes run on the default NSGA engine — pick the one that matches the meaning. The optional *exact* audit is narrower: a binary selection certifies only with `sum` objectives (the MILP is linear), and a mean-variance portfolio with `sum`/`avg` linear objectives plus its one **minimize**-`quadratic` risk term; `min`/`max` (and a maximize-quadratic) stay heuristic. So if an exact certificate will matter and the semantics genuinely allow a total, `sum` keeps that option open — but don't force `sum` onto an `avg`/`min`/`max` meaning just to certify (that answers a different question). Details: `optimization_strategy` → *Exact Solvers*.
 
@@ -216,7 +216,7 @@ Before handing a finished model to the solver, make one pass that asks whether i
 
 - **Units and comparability** — each objective's scores should share one consistent unit across all options (all dollars, or all 1-10 ratings — not dollars for some options and a "high/medium/low" guess for others). `sum` and `avg` are only meaningful within a single scale; mixed units silently distort the frontier.
 - **Unambiguous direction** — every objective resolves to a single maximize-or-minimize sense. "Balance cost and speed" is two objectives, not one; pin each direction before solve.
-- **PSD for quadratic interactions** — any objective using `quadratic` aggregation carries an interaction matrix, and for that aggregation to be a valid measure the matrix must be positive semi-definite. The schema enforces *symmetry* only (see *Interaction matrix schema*) — PSD is your check, not the tool's. A covariance matrix estimated from real, time-aligned data is PSD by construction; one entered by hand, stitched from mismatched windows, or built from a truncated factor model may not be — and an indefinite matrix makes the "risk" it reports meaningless. Confirm before solving.
+- **PSD for quadratic interactions** — any objective using `quadratic` aggregation carries an interaction matrix, and for that aggregation to be a valid measure the matrix must be positive semi-definite. The schema enforces *symmetry* only (see *Interaction matrix schema* in `references/schemas.md`) — PSD is your check, not the tool's. A covariance matrix estimated from real, time-aligned data is PSD by construction; one entered by hand, stitched from mismatched windows, or built from a truncated factor model may not be — and an indefinite matrix makes the "risk" it reports meaningless. Confirm before solving.
 - **Decision-question coverage** — read the captured question back against the model: every goal the user named should land as an objective or a constraint. A goal mentioned in passing but encoded nowhere is the most common silent mis-spec, and it's catchable precisely because the question is stored (see *Decision Question*).
 
 ## Stage Awareness
@@ -296,61 +296,4 @@ The goal is a *working decision model fast enough that iteration becomes practic
 
 ## Schema Reference
 
-JSON shapes for the structured fields passed through `model/create` and `model/update`. Use these when constructing payloads.
-
-### Constraint schemas
-
-Pass to the `constraints` param as a list of dicts:
-
-```
-{"type": "cardinality", "min": <int>, "max": <int>}
-{"type": "force_include", "option": "<name>"}
-{"type": "force_exclude", "option": "<name>"}
-{"type": "objective_bound", "objective": "<name>", "operator": "min"|"max", "value": <float>}
-{"type": "exclusion_pair", "option_a": "<name>", "option_b": "<name>"}
-{"type": "dependency", "if_option": "<name>", "then_option": "<name>"}
-{"type": "group_limit", "options": ["<name>", ...], "max": <int>}
-{"type": "max_allocation", "max": <int>}  (proportional only: cap single option allocation)
-```
-
-### Interaction matrix schema
-
-For objectives with `aggregation="quadratic"`:
-
-```
-{"objective": "<name>", "entries": {"opt_a": {"opt_a": <float>, "opt_b": <float>, ...}, ...}}
-```
-
-Entries must be symmetric. For portfolio volatility, entries = covariance matrix. Base-matrix uploads always use default `mode="replace"` with the full matrix.
-
-### Interaction matrix override schema
-
-For scenario overrides (composable fields):
-
-```
-{
-  "objective": "<name>",
-  "mode": "replace" | "upsert",              # default "replace"
-  "entries": {"opt_a": {"opt_b": <float>}},  # replace: full matrix; upsert: only changed cells
-  "scale_groups": [{"options": ["a", "b", ...], "factor": <float>}]  # optional; applied after mode
-}
-```
-
-- `mode="upsert"`: merge the listed cells into the base matrix; symmetry auto-enforced.
-- `scale_groups`: multiply off-diagonals within each group by factor. Use for regime shifts (e.g. recession: equity correlations × 1.5). Compose with upsert cells for precise + broad overrides.
-
-### Scenario schema
-
-Pass to `scenario_config.scenarios` as a list of dicts:
-
-```
-{
-  "name": "<name>",
-  "probability": <float 0-1>,                  # optional
-  "description": "<text>",                     # optional
-  "score_overrides": [{"option", "objective", "value"}],
-  "score_adjustments": [{"objective", "multiply"?, "add"?}],
-  "constraint_overrides": [<constraint dict>], # full replacement when non-empty
-  "interaction_matrix_overrides": [<matrix override dict>]  # see schema above
-}
-```
+JSON shapes for the structured `constraints`, `interaction_matrices`, and `scenario_config` fields live in `references/schemas.md` — they're API shapes, not framing judgment, so they stay out of the core. Fetch when building a payload: `get_skill('problem_framing', section='Constraint schemas' | 'Interaction matrix schema' | 'Interaction matrix override schema' | 'Scenario schema')`.

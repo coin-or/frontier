@@ -9,6 +9,7 @@ from engine.store import Store
 # We test the internal handler functions directly, not via MCP protocol.
 # This validates the logic without needing an MCP client.
 import mcp_server.server as srv
+import mcp_server.guidance as guidance
 
 
 @pytest.fixture(autouse=True)
@@ -593,6 +594,13 @@ class TestReferencePoints:
         assert len(p["reference_points"]) == 2
         assert p["reference_points"][0]["type"] == "baseline"
 
+    def test_setting_reference_points_points_to_narration(self):
+        # B-P2: setting reference points surfaces the read-side narration playbook.
+        pid = _build_solvable_problem()
+        r = srv.model(action="update", problem_id=pid, reference_points=[
+            {"type": "baseline", "name": "Current", "objective_values": {"Rev": 10, "Eff": 8}}])
+        assert r["guidance_pointer"]["section"] == "Reference Point Narration"
+
     def test_reference_in_tradeoffs(self):
         pid = _build_solvable_problem()
         srv.model(action="update", problem_id=pid, reference_points=[
@@ -1062,6 +1070,7 @@ class TestCuration:
         result = srv.explore(action="curated", problem_id=pid)
         assert result["total_curated"] == 2
         assert all(c["in_current_frontier"] for c in result["curated_solutions"])
+        assert "guidance_pointer" not in result  # a bare listing is navigation, not a handoff
 
     def test_export_curated_markdown(self):
         pid = _build_solvable_problem()
@@ -1075,6 +1084,8 @@ class TestCuration:
         assert "| name |" in content
         assert "content_signature" in content
         assert "First" in content and "Second" in content
+        # B-P2: the export (handoff moment) carries the Stakeholder Writeup pointer.
+        assert result["guidance_pointer"]["section"] == "Stakeholder Writeup & the Why-Triplet"
 
     def test_export_curated_csv(self):
         pid = _build_solvable_problem()
@@ -1450,6 +1461,118 @@ class TestCreateAcceptsObjectivesAndOptions:
         assert result["options"] == 2
 
 
+class TestInjectSkillThrottle:
+    """The once-per-problem throttle lives in _inject_skill itself (B-P0), so every call
+    site inherits 'inject once, then it's in the agent's context' without re-implementing
+    the guard. These pin that contract directly; the integration paths below exercise it
+    through the real tool flow."""
+
+    def test_injects_once_then_noops(self):
+        pid = "throttle-unit-once"
+        srv._reset_all_injections(pid)
+        first = {}
+        assert srv._inject_skill(first, "data_collection", "why", pid) is True
+        assert first["_skill_guidance"]["skill"] == "data_collection"
+        assert srv._was_injected(pid, "data_collection")
+        # Second call for the same problem is a no-op — the core is already in context.
+        second = {}
+        assert srv._inject_skill(second, "data_collection", "again", pid) is False
+        assert "_skill_guidance" not in second
+
+    def test_reset_rearms_injection(self):
+        pid = "throttle-unit-reset"
+        srv._reset_all_injections(pid)
+        assert srv._inject_skill({}, "optimization_strategy", "r", pid) is True
+        assert srv._inject_skill({}, "optimization_strategy", "r", pid) is False
+        # Explicit re-arm (e.g. an objectives/options shape change) re-enables injection.
+        srv._reset_injection(pid, "optimization_strategy")
+        rearmed = {}
+        assert srv._inject_skill(rearmed, "optimization_strategy", "r", pid) is True
+        assert rearmed["_skill_guidance"]["skill"] == "optimization_strategy"
+
+    def test_throttle_is_per_skill(self):
+        pid = "throttle-unit-perskill"
+        srv._reset_all_injections(pid)
+        assert srv._inject_skill({}, "data_collection", "a", pid) is True
+        # A different skill for the same problem still injects.
+        assert srv._inject_skill({}, "optimization_strategy", "b", pid) is True
+
+
+class TestSolveGuidancePointer:
+    """Solve responses carry a signal-keyed read pointer (B-P1a): a quality warning or
+    structural diagnostics route to the matching playbook; a clean solve gets none, since
+    the solution_interpreter core (injected on solve) already covers presentation."""
+
+    def test_warning_quality_points_to_quality_signals(self):
+        r = {"frontier_quality": {"status": "WARNING"}, "metrics": {"diagnostics": []}}
+        guidance._attach_solve_guidance_pointer(r)
+        assert r["guidance_pointer"]["skill"] == "solution_interpreter"
+        assert r["guidance_pointer"]["section"] == "Frontier Quality and Completeness Signals"
+
+    def test_poor_quality_points_to_quality_signals(self):
+        r = {"frontier_quality": {"status": "POOR"}}
+        guidance._attach_solve_guidance_pointer(r)
+        assert r["guidance_pointer"]["section"] == "Frontier Quality and Completeness Signals"
+
+    def test_actionable_diagnostics_point_to_diagnostic_patterns(self):
+        r = {"frontier_quality": {"status": "GOOD"},
+             "metrics": {"diagnostics": [{"pattern": "clustered_solutions", "severity": "warning"}]}}
+        guidance._attach_solve_guidance_pointer(r)
+        assert r["guidance_pointer"]["section"] == "Diagnostic Patterns"
+
+    def test_info_only_diagnostics_get_no_pointer(self):
+        # info patterns (binding_constraint, option_never_selected) are on most healthy
+        # solves — pointing on them would fire on nearly every call. Gate to warning/error.
+        r = {"frontier_quality": {"status": "GOOD"},
+             "metrics": {"diagnostics": [{"pattern": "binding_constraint", "severity": "info"},
+                                         {"pattern": "option_never_selected", "severity": "info"}]}}
+        guidance._attach_solve_guidance_pointer(r)
+        assert "guidance_pointer" not in r
+
+    def test_quality_takes_priority_over_diagnostics(self):
+        r = {"frontier_quality": {"status": "WARNING"},
+             "metrics": {"diagnostics": [{"pattern": "p"}]}}
+        guidance._attach_solve_guidance_pointer(r)
+        assert r["guidance_pointer"]["section"] == "Frontier Quality and Completeness Signals"
+
+    def test_exact_overlay_points_to_denoting_certification(self):
+        # B-P2: an exact overlay (no more-urgent signal) routes to the denotation playbook.
+        r = {"frontier_quality": {"status": "GOOD"}, "metrics": {"diagnostics": []},
+             "solver_used": "highs"}
+        guidance._attach_solve_guidance_pointer(r)
+        assert r["guidance_pointer"]["section"] == "Denoting Certification — Prose & Tables"
+
+    def test_quality_takes_precedence_over_denoting(self):
+        r = {"frontier_quality": {"status": "WARNING"}, "solver_used": "highs"}
+        guidance._attach_solve_guidance_pointer(r)
+        assert r["guidance_pointer"]["section"] == "Frontier Quality and Completeness Signals"
+
+    def test_nsga_solve_gets_no_denoting_pointer(self):
+        r = {"frontier_quality": {"status": "GOOD"}, "metrics": {"diagnostics": []},
+             "solver_used": "nsga"}
+        guidance._attach_solve_guidance_pointer(r)
+        assert "guidance_pointer" not in r
+
+    def test_clean_solve_gets_no_pointer(self):
+        r = {"frontier_quality": {"status": "GOOD"}, "metrics": {"diagnostics": []}}
+        guidance._attach_solve_guidance_pointer(r)
+        assert "guidance_pointer" not in r
+
+    def test_error_and_scenario_shapes_pass_through(self):
+        err = {"error": "boom", "frontier_quality": {"status": "POOR"}}
+        guidance._attach_solve_guidance_pointer(err)
+        assert "guidance_pointer" not in err
+        scenario = {"scenarios_optimized": 3, "summary": {}}  # no top-level signals
+        guidance._attach_solve_guidance_pointer(scenario)
+        assert "guidance_pointer" not in scenario
+
+    def test_cited_sections_resolve(self):
+        # The cited sections must be fetchable via get_skill — guard against heading drift.
+        txt = "".join(p.read_text() for p in guidance._skill_files("solution_interpreter"))
+        for section in ("Frontier Quality and Completeness Signals", "Diagnostic Patterns"):
+            assert guidance._extract_section(txt, section), section
+
+
 class TestSkillInjectionOnCreate:
     def test_create_injects_data_collection(self):
         result = srv.model(action="create", name="Test")
@@ -1644,6 +1767,57 @@ class TestSkillInjectionOnUpdate:
         # data_collection already marked → elif falls through to optimization_strategy
         assert "_skill_guidance" in result
         assert result["_skill_guidance"]["skill"] == "optimization_strategy"
+
+
+class TestFramingSurfacing:
+    """problem_framing isn't auto-injected, so B-P1b gives it signal-driven surfacing:
+    a reframe injection when a model is scored with <2 objectives, and a validate-time
+    pointer to the framing checkpoint when the model is structurally thin."""
+
+    def _create(self):
+        return srv.model(action="create", name="F")["problem_id"]
+
+    def test_scoring_thin_model_injects_problem_framing(self):
+        pid = self._create()
+        # One objective + options + scores: scoring before there's a real tradeoff.
+        r = srv.model(action="update", problem_id=pid,
+            objectives=[{"name": "Rev", "direction": "maximize"}],
+            options=[{"name": "A"}, {"name": "B"}, {"name": "C"}],
+            scores=[{"option": o, "objective": "Rev", "value": v}
+                    for o, v in [("A", 5), ("B", 7), ("C", 9)]])
+        assert r["_skill_guidance"]["skill"] == "problem_framing"
+
+    def test_scoring_complete_two_objective_model_does_not_inject_framing(self):
+        pid = self._create()
+        r = srv.model(action="update", problem_id=pid,
+            objectives=[{"name": "Rev", "direction": "maximize"},
+                        {"name": "Cost", "direction": "minimize"}],
+            options=[{"name": "A"}, {"name": "B"}, {"name": "C"}],
+            scores=[{"option": o, "objective": ob, "value": v}
+                    for o, ob, v in [("A", "Rev", 5), ("A", "Cost", 3), ("B", "Rev", 7),
+                                     ("B", "Cost", 5), ("C", "Rev", 9), ("C", "Cost", 6)]])
+        assert r["_skill_guidance"]["skill"] == "optimization_strategy"
+
+    def test_validate_thin_model_points_to_framing_checkpoint(self):
+        pid = self._create()
+        srv.model(action="update", problem_id=pid,
+            objectives=[{"name": "Rev", "direction": "maximize"}],
+            options=[{"name": "A"}, {"name": "B"}, {"name": "C"}])
+        r = srv.solve(action="validate", problem_id=pid)
+        assert r["guidance_pointer"]["skill"] == "problem_framing"
+        assert r["guidance_pointer"]["section"] == "Formalization Checkpoint"
+
+    def test_validate_ready_model_has_no_framing_pointer(self):
+        pid = self._create()
+        srv.model(action="update", problem_id=pid,
+            objectives=[{"name": "Rev", "direction": "maximize"},
+                        {"name": "Cost", "direction": "minimize"}],
+            options=[{"name": "A"}, {"name": "B"}, {"name": "C"}],
+            scores=[{"option": o, "objective": ob, "value": v}
+                    for o, ob, v in [("A", "Rev", 5), ("A", "Cost", 3), ("B", "Rev", 7),
+                                     ("B", "Cost", 5), ("C", "Rev", 9), ("C", "Cost", 6)]])
+        r = srv.solve(action="validate", problem_id=pid)
+        assert "guidance_pointer" not in r
 
 
 class TestSkillInjectionOnSolve:
