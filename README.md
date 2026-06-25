@@ -51,7 +51,7 @@ Spreadsheets hit a complexity wall once options and constraints in a decision mu
 
 <p align="center"><img src="assets/workflow-progression-icon.png" alt="Workflow progression: frame, score, solve, explore, decide" width="560" /></p>
 
-Drive Frontier by interacting with an AI agent, in a coding-agent MCP client or the hosted web chat, in plain language. The agent translates your decision into Frontier's model, runs the solver, and reads the results back. A typical sequence (you describe what you want; the agent picks the tools):
+Drive Frontier by interacting with an a coding agent or the hosted web chat, in plain language. AI translates your decision into Frontier's model, runs the solver, and reads the results back. A typical sequence:
 
 1. **Frame it.** Name the objectives (what to maximize or minimize), the options to choose among, and any hard constraints, plus scenarios if the future is uncertain. *e.g. "We're choosing a CRM for a 10-person startup: maximize features and support, minimize cost; budget under $50k/yr; pick one."*
 2. **Score the options.** Hand over the numbers, or let the agent estimate and flag what's shaky. *e.g. "Score these five CRMs on cost and support from their pricing pages."*
@@ -78,7 +78,7 @@ For full schemas, action parameters, data model, persistence layout, and the ski
 
 ### Tools
 
-Four MCP tools – full action lists and parameters in [`architecture.md`](architecture.md):
+Full action lists and parameters in [`architecture.md`](architecture.md):
 
 - **`model`**: define and edit the problem (objectives, options, scores, 8 constraint types, interaction matrices, scenarios): `create` / `update` / `get`, plus `save` / `load` for named problems.
 - **`solve`**: validate and optimize (NSGA-II/III, fast/thorough, seeded): `run`, `run_scenarios`, and `status` to poll background runs; opt-in `solver="highs"|"cuopt"` exact backends on supported shapes.
