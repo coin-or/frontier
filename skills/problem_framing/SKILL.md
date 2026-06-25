@@ -190,13 +190,13 @@ Each objective has an aggregation mode that determines how individual option sco
 
 | Mode | Meaning | When to use |
 |---|---|---|
-| `sum` (default) | Total across selected options | Revenue, cost, effort — additive quantities |
-| `avg` | Average across selected options | Satisfaction, quality — portfolio consistency matters |
+| `sum` (default) | Total across selected options | An **accumulating quantity** — revenue, cost, effort, headcount (units that add up) |
+| `avg` | Allocation-weighted average | A **per-unit rate** — return %, yield %, ROAS, a 1-10 quality/satisfaction score (units that don't add up) |
 | `min` | Worst individual option score | Reliability, security — weakest link matters |
 | `max` | Best individual option score | Peak performance, showcase capability |
 | `quadratic` | √(w^T M w) using interaction matrix | Risk, volatility, synergy — value depends on pairwise interactions |
 
-**Most objectives use sum.** Only change aggregation when the semantics genuinely differ. Ask: *"Does picking more options increase this value (sum), or does the portfolio quality depend on its weakest member (min) or average (avg)?"*
+**The test: does funding another option *add* to this value, or *average* into it?** A quantity that accumulates (dollars, hours, count) is `sum`; a rate or score that's a property of the mix (a %, a ratio, a 1-10 rating) is `avg` — summing a rate double-counts and inflates it as the portfolio grows. Reach min/max/quadratic only when their semantics above genuinely fit. (This matches the always-on pre-create checklist in the server instructions; keep the two consistent.)
 
 **Aggregation vs. exact certification.** All five modes run on the default NSGA engine — pick the one that matches the meaning. The optional *exact* audit is narrower: a binary selection certifies only with `sum` objectives (the MILP is linear), and a mean-variance portfolio with `sum`/`avg` linear objectives plus its one **minimize**-`quadratic` risk term; `min`/`max` (and a maximize-quadratic) stay heuristic. So if an exact certificate will matter and the semantics genuinely allow a total, `sum` keeps that option open — but don't force `sum` onto an `avg`/`min`/`max` meaning just to certify (that answers a different question). Details: `optimization_strategy` → *Exact Solvers*.
 
