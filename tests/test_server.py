@@ -1504,11 +1504,20 @@ class TestSolveGuidancePointer:
         guidance._attach_solve_guidance_pointer(r)
         assert r["guidance_pointer"]["section"] == "Frontier Quality and Completeness Signals"
 
-    def test_diagnostics_point_to_diagnostic_patterns(self):
+    def test_actionable_diagnostics_point_to_diagnostic_patterns(self):
         r = {"frontier_quality": {"status": "GOOD"},
-             "metrics": {"diagnostics": [{"pattern": "p", "severity": "warning"}]}}
+             "metrics": {"diagnostics": [{"pattern": "clustered_solutions", "severity": "warning"}]}}
         guidance._attach_solve_guidance_pointer(r)
         assert r["guidance_pointer"]["section"] == "Diagnostic Patterns"
+
+    def test_info_only_diagnostics_get_no_pointer(self):
+        # info patterns (binding_constraint, option_never_selected) are on most healthy
+        # solves — pointing on them would fire on nearly every call. Gate to warning/error.
+        r = {"frontier_quality": {"status": "GOOD"},
+             "metrics": {"diagnostics": [{"pattern": "binding_constraint", "severity": "info"},
+                                         {"pattern": "option_never_selected", "severity": "info"}]}}
+        guidance._attach_solve_guidance_pointer(r)
+        assert "guidance_pointer" not in r
 
     def test_quality_takes_priority_over_diagnostics(self):
         r = {"frontier_quality": {"status": "WARNING"},

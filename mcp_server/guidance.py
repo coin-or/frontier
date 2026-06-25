@@ -183,19 +183,23 @@ def _attach_guidance_pointer(result: dict, action: str) -> dict:
 def _attach_solve_guidance_pointer(result: dict) -> dict:
     """Point a solved frontier at the playbook for the most urgent thing it surfaced.
 
-    Unlike the explore pointer (keyed by action), this is keyed by signal: a quality
-    warning or structural diagnostics take precedence over the always-present presentation
-    guidance (the solution_interpreter core covers that and is injected on solve). No
-    signal → no pointer; the core suffices. Defensive on shape — infeasible and scenario
-    results lack these keys and pass through untouched."""
+    Keyed by signal (not action): a frontier-quality warning, else an *actionable*
+    diagnostic. Quality leads because a degenerate frontier is the headline issue. Only
+    warning/error diagnostics fire the pointer — `info` patterns (a binding constraint, an
+    unselected option) are present on most healthy solves, so pointing on them would fire
+    on nearly every call (against the "surface on a real signal, not every call" rule); the
+    agent still reads those via the core's browse list. No signal → no pointer; the injected
+    solution_interpreter core covers routine presentation. Defensive on shape — infeasible
+    and scenario results lack these keys and pass through untouched."""
     if not isinstance(result, dict) or "error" in result or result.get("guidance_pointer"):
         return result
     fq = result.get("frontier_quality")
     status = fq.get("status") if isinstance(fq, dict) else None
-    diagnostics = (result.get("metrics") or {}).get("diagnostics")
+    diagnostics = (result.get("metrics") or {}).get("diagnostics") or []
+    actionable = any(d.get("severity") in ("warning", "error") for d in diagnostics)
     if status in ("POOR", "WARNING"):
         section = "Frontier Quality and Completeness Signals"
-    elif diagnostics:
+    elif actionable:
         section = "Diagnostic Patterns"
     else:
         return result
