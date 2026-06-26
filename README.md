@@ -32,7 +32,7 @@ Under the hood it maps the **Pareto frontier** (every outcome where improving on
 
 ## Workflow
 
-<p align="center"><img src="assets/workflow-progression-icon.png" alt="Frontier decision workflow: frame, score, explore, curate, certify, examine, decide" width="100%" /></p>
+<p align="center"><img src="assets/workflow-progression-icon.svg" alt="Frontier decision workflow: frame, score, explore, curate, certify, examine, decide" width="100%" /></p>
 
 Drive Frontier in plain language, from a coding agent or the hosted web chat. You describe the decision in business terms; the agent translates it into an optimization model, solves it, and translates the results back into a decision. A typical sequence:
 
