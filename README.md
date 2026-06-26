@@ -34,17 +34,17 @@ Under the hood it maps the **Pareto frontier** (every outcome where improving on
 
 <p align="center"><img src="assets/workflow-progression-icon.png" alt="Workflow progression: frame, score, solve, explore, decide" width="560" /></p>
 
-Drive Frontier by interacting with a coding agent or the hosted web chat, in plain language. AI translates your decision into Frontier's model, runs the solver, and reads the results back.
+Drive Frontier in plain language, from a coding agent or the hosted web chat. You describe the decision in business terms; the agent translates it into an optimization model, solves it, and translates the results back into a decision. A typical sequence:
 
-The loop runs in three phases. **Explore** maps the tradeoff space broadly with the approximate solver, measured by *coverage* (how much of the space you hold). **Certify** proves the finalists you'd commit to with an exact solver, measured by the *optimality gap* (how far from proven-best). **Explain** names what would move the answer: the biggest lever, what survives across scenarios, and a guarantee that holds across every feasible plan. A typical sequence walks all three:
+1. **Frame.** Name the objectives (what to maximize or minimize), the options to choose among, the hard constraints, and any scenarios; the agent translates this from business language into the model. *e.g. "Which projects should we fund for the most value, at the least cost and risk?"*
+2. **Score.** Hand over the numbers, or let the agent estimate and flag what's shaky. *e.g. "Score the projects from these briefs."*
+3. **Explore.** The agent runs the approximate solver and maps the frontier broadly for *coverage* (how much of the tradeoff space you hold): its shape, the extremes, the balanced/knee, the marginal cost of pushing an objective, the per-scenario frontiers. *e.g. "Show the tradeoffs and suggest a balanced one."*
+4. **Curate.** Narrow the frontier to the handful you'd defend; curated picks track survival across re-runs. *e.g. "Keep the balanced and the safest options."*
+5. **Certify.** Where the shape supports it, the agent runs an exact solver to prove the curated finalists, each best for its own tradeoff target, to a measured *optimality gap* (how far from proven-best), catching plans that only looked efficient. *e.g. "Confirm these hold up."*
+6. **Examine.** The agent reads the results back in the language of the decision: why this mix over the alternatives, the one lever that moves the outcome most, what holds when the world shifts, and a guarantee that holds across every feasible plan. *e.g. "What's holding us back, and what would more budget buy?"*
+7. **Decide.** Commit to the pick that fits your tradeoffs: the engine lays out the options and leaves the final call to you. *e.g. "Go with the balanced one."*
 
-1. **Frame it.** Name the objectives (what to maximize or minimize), the options to choose among, and any hard constraints, plus scenarios if the future is uncertain. *e.g. "We're choosing a CRM for a 10-person startup: maximize features and support, minimize cost; budget under $50k/yr; pick one."*
-2. **Score the options.** Hand over the numbers, or let the agent estimate and flag what's shaky. *e.g. "Score these five CRMs on cost and support from their pricing pages."*
-3. **Solve.** The agent validates the setup, then runs the optimizer for the Pareto frontier, optionally once per scenario. *e.g. "Solve it."*
-4. **Explore the tradeoffs.** Frontier shape, the extremes, the balanced/knee, the marginal cost of pushing an objective, robustness across scenarios. *e.g. "Show the tradeoffs and recommend a balanced pick."*
-5. **Certify and examine.** Before committing, stress-test the finalists where the problem's shape supports it: have an exact solver certify your finalists, see which constraints bind and what relaxing each would buy, and get a guarantee that a guardrail holds across every feasible plan. *e.g. "Certify the finalists and show me what's binding."*
-6. **Iterate.** Tighten a constraint, add a scenario, re-solve, and compare against the previous run. *e.g. "Cap cost at $40k and re-run: what dropped off the frontier?"*
-7. **Decide.** Curate the finalists and commit to the pick that fits your tradeoffs: the engine lays out the options and leaves the final call to you. *e.g. "Curate the balanced plan as 'Lean choice' and commit."*
+Two loops run throughout. **Iterate** to refine the model and re-solve as you go: tighten a constraint, add a scenario, compare against the last run. **Update** to revisit the decision as data or conditions change, with curated picks and feedback carrying across runs, so the decision stays live.
 
 ## Purpose
 
