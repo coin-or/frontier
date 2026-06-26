@@ -107,6 +107,8 @@ Don't pin seeds by default — fresh seeds each run give you a free stability ch
 
 ## Examine
 
+*(This is the solve-health read of what came back: solution count, binding, diagnostics. It is distinct from the workflow's EXAMINE phase, the decision-language read owned by `solution_interpreter`.)*
+
 ### Infeasibility Response
 When the solver returns no solutions:
 - Check if cardinality is too tight given force_include/force_exclude.

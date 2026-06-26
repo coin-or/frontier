@@ -76,7 +76,7 @@ When multiple sources disagree on a score:
 
 Where a score came from is part of the score. Frontier's outputs are traceable by design — every number it reports traces to computed data — and that chain is only as sound as the inputs feeding it, so carry provenance from the first cell.
 
-- **Keep each researched score attributable.** Note its source alongside the number (in `context` or the conversation) so a later "why is this a 7?" has an answer. A score no one can trace back is the input-side of phantom precision.
+- **Keep each researched score attributable.** Note its source in the conversation so a later "why is this a 7?" has an answer. A score no one can trace back is the input-side of phantom precision.
 - **Let confidence ride with the value.** A figure off a spec sheet and a midpoint-of-a-range guess can be the same number but aren't the same evidence. Recording which is which doesn't change what you enter — it marks where the frontier rests on soft ground, and a low-confidence score on a high-leverage objective is the first thing to re-check with `explore sensitivity` once results show what actually moves the answer.
 
 This is the upstream end of *Traceable Claims* (`frontier://skills/solution_interpreter`): provenance of inputs, so the decision audits end to end.
@@ -100,7 +100,7 @@ The score matrix must be 100% before solving — the optimizer cannot evaluate t
 But completeness doesn't mean perfection. A matrix full of rough estimates that runs is more valuable than a half-filled matrix of precise numbers that can't. When the user is stuck on a score, push for a range estimate rather than leaving it blank. Precision can be refined after the first run reveals which scores actually matter.
 
 ## Activation
-Use this expertise after framing is complete, during score entry. The matrix is your responsibility.
+Use this expertise after framing is complete, during score entry. The matrix is your responsibility. Enter scores with `model update` as a flat list of `{option, objective, value}` triples (upserted by option+objective); every option×objective cell must be filled before the solve.
 
 ## Scope Boundaries
 - **Owns:** Score matrix — getting numbers for every option×objective cell, evaluating source quality, handling uncertainty
