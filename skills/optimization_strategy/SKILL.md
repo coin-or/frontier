@@ -10,6 +10,8 @@ version: 1.0.0
 
 ## The Solve Loop
 
+In the user's decision workflow (FRAME → SCORE → EXPLORE → CURATE → CERTIFY → EXAMINE → DECIDE), this skill drives the middle: you EXPLORE the frontier (the approximate solve), help the user CURATE finalists, and CERTIFY them with an exact solver. Track where the user is and guide them forward; reading the certified results back in their terms (EXAMINE, DECIDE) is `solution_interpreter`'s job.
+
 The solve phase is a loop — **validate → run → examine → iterate → certify** — and this skill is organized around it: *Run* (set up and launch), *Examine* (read what came back), *Iterate* (refine and re-solve), *Certify* (the optional exact audit at the commit point). Validate is the entry gate (the table below).
 
 By default Frontier uses evolutionary (approximate) methods. Unlike exact solvers that solve each scalarization to optimality, evolutionary methods explore the solution space heuristically. (Optional exact backends make each point optimal to a 0.1% gap on supported shapes — zero-gap with `exact=true` — see *Exact Solvers* — but evolutionary search is the default and the workflow's center of gravity.) This means:
