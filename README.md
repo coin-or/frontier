@@ -10,7 +10,7 @@
 
 Frontier helps you make hard decisions that have many options and conflicting goals: which projects to fund, how to split a budget, who to source from. You describe the decision to an AI agent in plain language; it models the problem, optimizes it, and walks you through the **full set of optimal tradeoffs** rather than one black-box answer. You make the final call.
 
-Under the hood it maps the **Pareto frontier** (every option where you can't improve one goal without sacrificing another) with evolutionary search plus optional exact solvers, all exposed as MCP tools backed by skills. Every number it reports is computed, not guessed, so the decision stays explainable and auditable, and the engine never overrides the two calls that are yours: how to frame the problem and which tradeoff to pick.
+Under the hood it maps the **Pareto frontier** (every outcome where you can't improve one goal without sacrificing another) with evolutionary search plus optional exact solvers, all exposed as MCP tools backed by skills. Every number it reports is computed, not guessed, so the decision stays explainable and auditable, and the engine never overrides the two calls that are yours: how to frame the problem and which tradeoff to pick.
 
 **Try it:** the [hosted demo](https://frontier-ui.onrender.com/) (ask @cafzal for access), or [set up your own](#setup).
 
@@ -33,15 +33,15 @@ Under the hood it maps the **Pareto frontier** (every option where you can't imp
 
 ## Purpose
 
-Spreadsheets hit a complexity wall once options and constraints in a decision multiply. Generative AI models reason about tradeoffs but can't *solve* them: they can't reliably enumerate a huge option space, enforce hard constraints, and produce the frontier. Frontier fills the gap: the LLM translates and narrates, an optimizer does the math, and you get the tradeoffs instead of a guess.
+Spreadsheets hit a complexity wall once options and constraints in a decision multiply. Generative AI models reason about tradeoffs but can't *solve* them: they can't reliably enumerate a huge option space, enforce hard constraints, and produce the frontier. Frontier fills the gap: the LLM translates and narrates, an optimizer does the math.
 
-**When it fits:** any decision that picks a subset from many options or splits an allocation across them, under conflicting objectives and hard constraints, with data to score the options. Pairwise interactions make it genuinely nonlinear.
+**When it fits:** any decision that picks a subset from many options or splits an allocation across them, under conflicting objectives and hard constraints, with data to score the options. Pairwise interactions between options, where one's value depends on another, make the problem genuinely nonlinear: beyond what a ranking or weighted sum can capture.
 
 **What it adds beyond an LLM alone:**
-- **Full tradeoff frontier**: every Pareto-optimal option, not one recommendation or a weighted ranking.
+- **Full tradeoff frontier**: every Pareto-optimal plan, not one recommendation or a weighted ranking.
 - **Optional exact audit**: certify the finalists against an exact solver (HiGHS on CPU, cuOpt on GPU) on supported shapes; it catches dominated points the heuristic showed as efficient.
 - **Governance guarantees**: on selection problems, a proof that a guardrail holds for *every* feasible plan, or a concrete counterexample.
-- **Hard constraints, enforced**: eight types: cardinality, force include, force exclude, objective bounds, exclusion pairs, dependencies, group limits, and allocation caps.
+- **Hard constraints, enforced**: eight types – cardinality, force include, force exclude, objective bounds, exclusion pairs, dependencies, group limits, and allocation caps.
 - **Grounded & reproducible**: every number traces to computed data, and the same inputs + seed reproduce the exact frontier.
 - **Scenarios & risk**: independent frontiers per scenario, plus CVaR / worst-case / expected / minimax-regret per objective.
 - **Knowledge discovery**: mine the frontier for selection rates, design principles, and strategy patterns.
@@ -51,7 +51,7 @@ Spreadsheets hit a complexity wall once options and constraints in a decision mu
 
 <p align="center"><img src="assets/workflow-progression-icon.png" alt="Workflow progression: frame, score, solve, explore, decide" width="560" /></p>
 
-Drive Frontier by interacting with an a coding agent or the hosted web chat, in plain language. AI translates your decision into Frontier's model, runs the solver, and reads the results back. A typical sequence:
+Drive Frontier by interacting with a coding agent or the hosted web chat, in plain language. AI translates your decision into Frontier's model, runs the solver, and reads the results back. A typical sequence:
 
 1. **Frame it.** Name the objectives (what to maximize or minimize), the options to choose among, and any hard constraints, plus scenarios if the future is uncertain. *e.g. "We're choosing a CRM for a 10-person startup: maximize features and support, minimize cost; budget under $50k/yr; pick one."*
 2. **Score the options.** Hand over the numbers, or let the agent estimate and flag what's shaky. *e.g. "Score these five CRMs on cost and support from their pricing pages."*
@@ -98,8 +98,8 @@ Markdown guides the server auto-injects at workflow transitions (also fetchable 
 
 Two ways to use Frontier:
 
-- **Web UI**: a browser chat shell over the engine, with interactive charts and curation. Try the hosted app at **[frontier-ui.onrender.com](https://frontier-ui.onrender.com/)** (password-gated – ask @cafzal for access), or run/deploy your own (requires an API key; see [`ui/`](ui/) and [Deploy your own](#deploy-your-own))
-- **MCP client**: connect any MCP-compatible client (Claude Code, Claude Desktop, claude.ai, Cursor, Codex). The hosted beta engine (`https://frontier-592q.onrender.com/sse`) is gated by a token – ask @cafzal for `FRONTIER_TOKEN`; or [self-host](#self-host) your own (ungated by default).
+- **Web UI**: a browser chat shell over the engine, with interactive charts and curation. Try the hosted app at **[frontier-ui.onrender.com](https://frontier-ui.onrender.com/)** (password-gated – ask @cafzal for access), or run/deploy your own (requires an API key; see [`ui/`](ui/) and [Deploy your own](#deploy-your-own)).
+- **MCP client**: connect any MCP-compatible client (Claude Code, Claude Desktop, claude.ai, Cursor, Codex). The hosted beta engine (`https://frontier-592q.onrender.com/sse`) is gated by a token – ask @cafzal for the `FRONTIER_MCP_TOKEN` value; or [self-host](#self-host) your own (ungated by default).
 
 The MCP-client snippets below assume the hosted engine.
 
@@ -108,7 +108,7 @@ The MCP-client snippets below assume the hosted engine.
 ```bash
 claude mcp add frontier --transport sse \
   --url https://frontier-592q.onrender.com/sse \
-  --header "Authorization: Bearer $FRONTIER_TOKEN"
+  --header "Authorization: Bearer $FRONTIER_MCP_TOKEN"
 ```
 
 ### Claude Desktop
@@ -121,7 +121,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
     "frontier": {
       "transport": "sse",
       "url": "https://frontier-592q.onrender.com/sse",
-      "headers": { "Authorization": "Bearer YOUR_FRONTIER_TOKEN" }
+      "headers": { "Authorization": "Bearer YOUR_FRONTIER_MCP_TOKEN" }
     }
   }
 }
@@ -129,7 +129,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 ### claude.ai (MCP integrations)
 
-Add Frontier as a remote MCP server in claude.ai settings using the SSE URL `https://frontier-592q.onrender.com/sse`, with an `Authorization: Bearer <FRONTIER_TOKEN>` header.
+Add Frontier as a remote MCP server in claude.ai settings using the SSE URL `https://frontier-592q.onrender.com/sse`, with an `Authorization: Bearer <FRONTIER_MCP_TOKEN>` header.
 
 ### Self-host
 
@@ -153,7 +153,7 @@ FRONTIER_MCP_TOKEN=your-secret MCP_TRANSPORT=sse python -m mcp_server.server
 
 Point your MCP client at the local server – for SSE that's `http://localhost:8000/sse`. The optional web UI lives in [`ui/`](ui/) – see its [README](ui/README.md).
 
-**Exact solvers (optional).** Install `highspy` (CPU; `pip install highspy`) or cuOpt (NVIDIA GPU) to unlock `solver="highs"|"cuopt"` (no GPU at hand? [examples/cuopt_colab.ipynb](examples/cuopt_colab.ipynb) is a ready Colab template for the cuOpt arc): exact certification (`explore certify`) and solver-exact sensitivity (`explore sensitivity`) on supported shapes. How it works (the shared scalarization engine, the certify invariant, which shapes carry duals) is in [`architecture.md`](architecture.md#solver-backends-pluggable).
+**Exact solvers (optional).** Install `highspy` (CPU; `pip install highspy`) or cuOpt (NVIDIA GPU) to unlock `solver="highs"|"cuopt"`: exact certification (`explore certify`) and solver-exact sensitivity (`explore sensitivity`) on supported shapes. No GPU at hand? [examples/cuopt_colab.ipynb](examples/cuopt_colab.ipynb) is a ready Colab template for the cuOpt arc. How it works (the shared scalarization engine, the certify invariant, which shapes carry duals) is in [`architecture.md`](architecture.md#solver-backends-pluggable).
 
 ### Deploy your own
 
