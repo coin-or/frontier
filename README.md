@@ -47,13 +47,6 @@ The loop runs in three phases. **Explore** maps the tradeoff space broadly with 
 6. **Iterate.** Tighten a constraint, add a scenario, re-solve, and compare against the previous run. *e.g. "Cap cost at $40k and re-run: what dropped off the frontier?"*
 7. **Decide.** Curate the finalists and commit to the pick that fits your tradeoffs: the engine lays out the options and leaves the final call to you. *e.g. "Curate the balanced plan as 'Lean choice' and commit."*
 
-### Saving & loading
-
-Every problem is auto-persisted in the engine's store (`data/`, keyed by id) – session state the engine manages for you. Separately, `model save` writes a **named, portable copy** in the [examples](examples/) format, to reload or share by name:
-
-- **`model save problem_id=… save_as="<name>"`**: save to your gitignored `saved/` library (override with `FRONTIER_SAVED_DIR`), bundling the solved frontier when present.
-- **`model load source="<name>"`**: rebuild a problem, resolving `saved/` first, then bundled `examples/`; omit `source` to list available names.
-
 ## Purpose
 
 Spreadsheets hit a complexity wall once options and constraints in a decision multiply. Generative AI models reason about tradeoffs but can't *solve* them: reliably enumerating a huge option space, enforcing hard constraints, and producing the frontier are beyond them. Frontier fills the gap: the LLM translates and narrates, an optimizer does the math, and the judgment stays with you.
@@ -95,6 +88,13 @@ Markdown guides the server auto-injects at workflow transitions (also fetchable 
 - **`data_collection`**: score elicitation without anchoring bias, quality signals.
 - **`optimization_strategy`**: iteration, constraint strategy, infeasibility, re-run judgment.
 - **`solution_interpreter`**: presenting tradeoffs without a "best", eliciting preferences, curation.
+
+### Saving & loading
+
+Every problem is auto-persisted in the engine's store (`data/`, keyed by id) – session state the engine manages for you. Separately, `model save` writes a **named, portable copy** in the [examples](examples/) format, to reload or share by name:
+
+- **`model save problem_id=… save_as="<name>"`**: save to your gitignored `saved/` library (override with `FRONTIER_SAVED_DIR`), bundling the solved frontier when present.
+- **`model load source="<name>"`**: rebuild a problem, resolving `saved/` first, then bundled `examples/`; omit `source` to list available names.
 
 ## Setup
 
