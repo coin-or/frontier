@@ -8,9 +8,9 @@
 
 ## Summary
 
-Frontier helps you make hard decisions that have many options and conflicting goals: which projects to fund, how to split a budget, who to source from. You describe the decision to an AI agent in plain language; it models the problem, optimizes it, and walks you through the **full set of optimal tradeoffs** rather than one black-box answer. You make the final call.
+Frontier helps you make hard decisions that have many options and conflicting goals: which projects to fund, how to split a budget, who to source from. You describe the decision to an AI agent in plain language; it models the problem, optimizes it, and walks you through the **full set of optimal tradeoffs**. You make the final call.
 
-Under the hood it maps the **Pareto frontier** (every outcome where you can't improve one goal without sacrificing another) with evolutionary search plus optional exact solvers, all exposed as MCP tools backed by skills. Every number it reports is computed, not guessed, so the decision stays explainable and auditable, and the engine never overrides the two calls that are yours: how to frame the problem and which tradeoff to pick.
+Under the hood it maps the **Pareto frontier** (every outcome where improving one goal means giving up another) with evolutionary search plus optional exact solvers. Every number it reports is computed, not guessed, so the decision stays explainable and auditable, and framing the problem and picking the tradeoff stay yours.
 
 **Try it:** the [hosted demo](https://frontier-ui.onrender.com/) (ask @cafzal for access), or [set up your own](#setup).
 
@@ -31,48 +31,50 @@ Under the hood it maps the **Pareto frontier** (every outcome where you can't im
 </tr>
 </table>
 
-## Purpose
-
-Spreadsheets hit a complexity wall once options and constraints in a decision multiply. Generative AI models reason about tradeoffs but can't *solve* them: they can't reliably enumerate a huge option space, enforce hard constraints, and produce the frontier. Frontier fills the gap: the LLM translates and narrates, an optimizer does the math.
-
-**When it fits:** any decision that picks a subset from many options or splits an allocation across them, under conflicting objectives and hard constraints, with data to score the options. Pairwise interactions between options, where one's value depends on another, make the problem genuinely nonlinear: beyond what a ranking or weighted sum can capture.
-
-**What it adds beyond an LLM alone:**
-- **Full tradeoff frontier**: every Pareto-optimal plan, not one recommendation or a weighted ranking.
-- **Optional exact audit**: certify the finalists against an exact solver (HiGHS on CPU, cuOpt on GPU) on supported shapes; it catches dominated points the heuristic showed as efficient.
-- **Governance guarantees**: on selection problems, a proof that a guardrail holds for *every* feasible plan, or a concrete counterexample.
-- **Hard constraints, enforced**: eight types – cardinality, force include, force exclude, objective bounds, exclusion pairs, dependencies, group limits, and allocation caps.
-- **Grounded & reproducible**: every number traces to computed data, and the same inputs + seed reproduce the exact frontier.
-- **Scenarios & risk**: independent frontiers per scenario, plus CVaR / worst-case / expected / minimax-regret per objective.
-- **Knowledge discovery**: mine the frontier for selection rates, design principles, and strategy patterns.
-- **Persistent state**: problems persist across sessions; curated picks track survival across re-runs.
-
 ## Workflow
 
 <p align="center"><img src="assets/workflow-progression-icon.png" alt="Workflow progression: frame, score, solve, explore, decide" width="560" /></p>
 
-Drive Frontier by interacting with a coding agent or the hosted web chat, in plain language. AI translates your decision into Frontier's model, runs the solver, and reads the results back. A typical sequence:
+Drive Frontier by interacting with a coding agent or the hosted web chat, in plain language. AI translates your decision into Frontier's model, runs the solver, and reads the results back.
+
+The loop runs in three phases. **Explore** maps the tradeoff space broadly with the approximate solver, measured by *coverage* (how much of the space you hold). **Certify** proves the finalists you'd commit to with an exact solver, measured by the *optimality gap* (how far from proven-best). **Explain** names what would move the answer: the biggest lever, what survives across scenarios, and a guarantee that holds across every feasible plan. A typical sequence walks all three:
 
 1. **Frame it.** Name the objectives (what to maximize or minimize), the options to choose among, and any hard constraints, plus scenarios if the future is uncertain. *e.g. "We're choosing a CRM for a 10-person startup: maximize features and support, minimize cost; budget under $50k/yr; pick one."*
 2. **Score the options.** Hand over the numbers, or let the agent estimate and flag what's shaky. *e.g. "Score these five CRMs on cost and support from their pricing pages."*
 3. **Solve.** The agent validates the setup, then runs the optimizer for the Pareto frontier, optionally once per scenario. *e.g. "Solve it."*
 4. **Explore the tradeoffs.** Frontier shape, the extremes, the balanced/knee, the marginal cost of pushing an objective, robustness across scenarios. *e.g. "Show the tradeoffs and recommend a balanced pick."*
-5. **Certify and examine.** Before committing, stress-test the finalists where the problem's shape supports it: confirm an exact solver finds nothing better, see which constraints bind and what relaxing each would buy, and get a guarantee that a guardrail holds across every feasible plan. *e.g. "Certify the finalists and show me what's binding."*
+5. **Certify and examine.** Before committing, stress-test the finalists where the problem's shape supports it: have an exact solver certify your finalists, see which constraints bind and what relaxing each would buy, and get a guarantee that a guardrail holds across every feasible plan. *e.g. "Certify the finalists and show me what's binding."*
 6. **Iterate.** Tighten a constraint, add a scenario, re-solve, and compare against the previous run. *e.g. "Cap cost at $40k and re-run: what dropped off the frontier?"*
 7. **Decide.** Curate the finalists and commit to the pick that fits your tradeoffs: the engine lays out the options and leaves the final call to you. *e.g. "Curate the balanced plan as 'Lean choice' and commit."*
 
 ### Saving & loading
 
-Every problem is auto-persisted in the engine's store (`data/`, keyed by id) – session state you don't manage. Separately, `model save` writes a **named, portable copy** in the [examples](examples/) format, to reload or share by name:
+Every problem is auto-persisted in the engine's store (`data/`, keyed by id) – session state the engine manages for you. Separately, `model save` writes a **named, portable copy** in the [examples](examples/) format, to reload or share by name:
 
 - **`model save problem_id=… save_as="<name>"`**: save to your gitignored `saved/` library (override with `FRONTIER_SAVED_DIR`), bundling the solved frontier when present.
 - **`model load source="<name>"`**: rebuild a problem, resolving `saved/` first, then bundled `examples/`; omit `source` to list available names.
+
+## Purpose
+
+Spreadsheets hit a complexity wall once options and constraints in a decision multiply. Generative AI models reason about tradeoffs but can't *solve* them: reliably enumerating a huge option space, enforcing hard constraints, and producing the frontier are beyond them. Frontier fills the gap: the LLM translates and narrates, an optimizer does the math, and the judgment stays with you.
+
+**When it fits:** any decision that picks a subset from many options or splits an allocation across them, under conflicting objectives and hard constraints, with data to score the options. Pairwise interactions between options, where one's value depends on another, make the problem genuinely nonlinear: beyond what a ranking or weighted sum can capture. **When it's overkill:** one objective, a handful of options, or goals that mostly agree; a spreadsheet or a sorted ranking already answers those.
+
+**What it adds beyond an LLM alone** (its design principles):
+- **The full frontier**: every Pareto-optimal plan, yours to weigh.
+- **Explore broadly, certify selectively**: the heuristic maps the whole space; an exact solver then proves the finalists you'd commit to on supported shapes, catching dominated points the heuristic showed as efficient. It can only confirm or improve them.
+- **Constraints enforced**: eight hard types (cardinality, force include, force exclude, objective bounds, exclusion pairs, dependencies, group limits, allocation caps), respected by every plan the search returns.
+- **Governance guarantees**: on selection problems, a proof that a guardrail holds for *every* feasible plan, or a concrete counterexample.
+- **Grounded and reproducible**: every number traces to a score, an objective value, a dual, or a binding constraint, and the same inputs + seed reproduce the exact frontier.
+- **Scenarios & risk**: independent frontiers per scenario, plus CVaR / worst-case / expected / minimax-regret per objective.
+- **Knowledge discovery**: mine the frontier for selection rates, recurring rules, and strategy families.
+- **Durable decisions**: problems persist across sessions; curated picks and feedback attach to the decision and survive re-runs.
 
 ## Architecture
 
 <p align="center"><img src="assets/architecture.png" alt="Frontier architecture: agent clients and the web UI speak MCP to one server exposing four tools, with skills and solvers attached and a deterministic engine beneath" width="560" /></p>
 
-Frontier is a Python MCP server (FastMCP) wrapping pymoo's NSGA-II/III evolutionary solvers, with two exact-solver backends (HiGHS on CPU, cuOpt on GPU). State persists per-problem as JSON; the optimizer produces a Pareto frontier with detailed indicators to guide the decision. Domain expertise lives in skill markdown files that the server auto-injects at workflow transitions.
+Frontier is a Python MCP server (FastMCP) wrapping pymoo's NSGA-II/III evolutionary solvers, with two exact-solver backends (HiGHS on CPU, cuOpt on GPU). State persists per-problem as JSON; the optimizer produces a Pareto frontier with indicators to guide the decision. Domain expertise lives in skill markdown files that the server auto-injects at workflow transitions.
 
 For full schemas, action parameters, data model, persistence layout, and the skill auto-injection mechanism, see [`architecture.md`](architecture.md). For skill, prompt, and MCP design principles, see [`best-practices.md`](best-practices.md).
 
@@ -87,7 +89,7 @@ Full action lists and parameters in [`architecture.md`](architecture.md):
 
 ### Skills
 
-Markdown guides the server auto-injects at workflow transitions (also fetchable via `get_skill`) – domain judgment, not tool docs:
+Markdown guides the server auto-injects at workflow transitions (also fetchable via `get_skill`) – the domain judgment for each phase:
 
 - **`problem_framing`**: objectives vs constraints, approach + aggregation, scenario definition.
 - **`data_collection`**: score elicitation without anchoring bias, quality signals.
@@ -133,7 +135,7 @@ Add Frontier as a remote MCP server in claude.ai settings using the SSE URL `htt
 
 ### Self-host
 
-Run your own instance instead of using the hosted one. Requires Python 3.11+.
+Run your own instance. Requires Python 3.11+.
 
 ```bash
 git clone https://github.com/cafzal/frontier.git
@@ -159,7 +161,7 @@ Point your MCP client at the local server – for SSE that's `http://localhost:8
 
 Both pieces are plain web services – host them anywhere (Render, Fly, Railway, a VPS, Docker):
 
-- **Engine** (Python) – `pip install ".[sse]"` (add `,highs` for the CPU exact backend), then `MCP_TRANSPORT=sse python -m mcp_server.server`. Set `MCP_HOST=0.0.0.0` and `FRONTIER_MCP_TOKEN`; the host supplies `$PORT`. Must be publicly reachable – Anthropic's MCP connector calls it.
+- **Engine** (Python) – `pip install ".[sse]"` (add `,highs` for the CPU exact backend), then run the SSE server as in [Self-host](#self-host), bound publicly: set `MCP_HOST=0.0.0.0` and `FRONTIER_MCP_TOKEN`, with the host supplying `$PORT`. Must be publicly reachable – Anthropic's MCP connector calls it.
 - **Web UI** (Node, in `ui/`) – `npm install && npm run build`, then `npm start`. Set `FRONTIER_MCP_URL` (the engine's `/sse`), `FRONTIER_MCP_TOKEN`, `ANTHROPIC_API_KEY`, `AGENT_BACKEND=messages-api`, and `UI_ACCESS_PASSWORD`. Long-session context management and prompt caching are env-tunable (`AGENT_CONTEXT_WINDOW`, `AGENT_CONTEXT_MANAGEMENT`, `AGENT_PROMPT_CACHE`, and related); [`architecture.md`](architecture.md#5-web-ui--hosting) documents the knobs and defaults.
 
 `FRONTIER_MCP_TOKEN` must match on both – that's what authenticates the UI to the engine.
@@ -184,7 +186,7 @@ Contributions welcome – start with the developer docs:
 
 ## Acknowledgements
 
-Frontier builds on excellent open-source optimization work, with thanks to:
+Frontier builds on open-source optimization work, with thanks to:
 
 - **[pymoo](https://github.com/anyoptimization/pymoo)** (Apache-2.0) – the NSGA-II / NSGA-III evolutionary solvers at Frontier's core. Blank, J. & Deb, K. (2020). *pymoo: Multi-Objective Optimization in Python.* IEEE Access, 8, 89497–89509. The underlying algorithms are Deb et al., NSGA-II (2002) and Deb & Jain, NSGA-III (2014).
 - **[HiGHS](https://github.com/ERGO-Code/HiGHS)** (MIT) – CPU exact-solver backend (`solver="highs"`). Huangfu, Q. & Hall, J.A.J. (2018). *Parallelizing the dual revised simplex method.* Mathematical Programming Computation, 10(1), 119–142.
