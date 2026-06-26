@@ -4,7 +4,7 @@
 </p>
 
 <p align="center">
-  Multi-objective decision optimization toolkit. Use in any MCP client or via the integrated web UI.
+  Multi-objective decision optimization agent toolkit. Use in any MCP client or via the integrated web UI.
 </p>
 
 Frontier helps you make hard decisions that have many options and conflicting goals: which projects to fund, how to split a budget, who to source from. You describe the decision to an AI agent in plain language; it models the problem, optimizes it, and walks you through the **full set of optimal tradeoffs**. You make the final call.
