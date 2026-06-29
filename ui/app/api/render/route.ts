@@ -54,6 +54,8 @@ export async function GET(req: Request) {
   const source = url.searchParams.get("source") ?? undefined; // "exact" → exact-only; omit → heuristic + overlay (combined)
   const scenario = url.searchParams.get("scenario") ?? undefined;
   const color = url.searchParams.get("color") ?? undefined; // a 3rd objective to encode as marker color (2D color-by view)
+  const swapxy = url.searchParams.get("swapxy"); // capture-only: swap which objective is X vs Y (e.g. Volatility-on-X / Return-on-Y convention)
+  const drop = url.searchParams.get("drop"); // capture-only: drop an objective so a 3-obj frontier renders as a pure 2D scatter (e.g. drop=Yield -> Vol/Return 2D, keeping the exact-certify overlay visible)
   if (!problem_id) {
     return Response.json({ error: "problem_id query param required" }, { status: 400 });
   }
@@ -98,6 +100,17 @@ export async function GET(req: Request) {
     // route's way to get a 2D-colored-by-3rd-objective scatter the chat agent's viz_data can't express).
     if (color && viz.type === "scatter" && viz.objectives.some((o) => o.name === color)) {
       viz.color_objective = color;
+    }
+    // Capture-only: drop an objective so a 3-obj frontier renders as a pure 2D scatter. FrontierPlot
+    // only does 2D-without-color at <=2 objectives; removing the 3rd keeps the exact-certify overlay
+    // (emerald diamonds over faded dominated) visible instead of a color-by view that hides it.
+    if (drop && viz.type === "scatter" && viz.objectives.length > 2) {
+      viz.objectives = viz.objectives.filter((o) => o.name !== drop);
+    }
+    // Capture-only axis convention: swap which objective lands on X vs Y. Data is untouched —
+    // points/overlay/extremes are keyed by objective name, so reordering the objectives array is enough.
+    if (swapxy && viz.type === "scatter" && viz.objectives.length >= 2) {
+      [viz.objectives[0], viz.objectives[1]] = [viz.objectives[1], viz.objectives[0]];
     }
     return Response.json({ vizData: viz });
   } catch (err) {
