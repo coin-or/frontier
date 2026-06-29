@@ -4,6 +4,12 @@ A living reference for designing skills, tool descriptions, and agent instructio
 
 **Related docs:** [`architecture.md`](architecture.md) — system architecture, tool/skill reference, data flow | [`README.md`](README.md) — user setup and usage guide
 
+**Using this guide (by lifecycle phase)** — pull up the part that applies at each phase instead of re-reading the whole file:
+- **Designing** a new skill or MCP tool → §1 (Skill File Design), §3 (MCP Tool Description Design), §4 (Context Engineering)
+- **Developing** prompts, tool descriptions, or skill content → §2 (Prompt Best Practices)
+- **Reviewing** a skill or prompt change → §1 agent-usability criteria + conciseness; verify cross-references and MECE boundaries
+- **Testing** a new feature → §1 safety patterns (confirmation gates, validation loops)
+
 ---
 
 ## 1. Skill File Design

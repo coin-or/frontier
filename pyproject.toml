@@ -66,6 +66,6 @@ packages = ["engine", "mcp_server", "solvers"]
 [tool.pytest.ini_options]
 pythonpath = ["."]
 # Collect only the real suite. dev_temp/ holds ephemeral scratch tests/generators
-# (per CLAUDE.md) that can do import-time I/O against transient paths; collecting them
-# from the repo root would let one stale scratch file abort the entire run.
+# that can do import-time I/O against transient paths; collecting them from the repo
+# root would let one stale scratch file abort the entire run.
 testpaths = ["tests"]
