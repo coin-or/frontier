@@ -89,7 +89,7 @@ Dict keyed by objective name:
 {"Volatility": {"nsga_best": 4.29, "exact_best": 4.07, "improvement": 0.22, "status": "sharpened", "is_risk_corner": true}}
 ```
 
-`status` ∈ `sharpened` (exact beat the EA's best), `matched` (EA already optimal), `under-sampled` (negative improvement = EA-budget artifact, **not** an exact-solver limit — raise the budget to close it). `is_risk_corner` flags the convex variance corner the decision usually hinges on.
+`status` ∈ `sharpened` (exact beat the EA's best), `matched` (EA already optimal), `under-sampled` (negative improvement — rare now that every overlay anchor-samples each objective's extreme; chiefly a cardinality/group-capped QP, where anchors defer to the seeded search. An EA-budget artifact, **not** an exact-solver limit — raise the budget to close it). `is_risk_corner` flags the convex variance corner the decision usually hinges on.
 
 ## `scenario_risk` (from `scenario_results`)
 
