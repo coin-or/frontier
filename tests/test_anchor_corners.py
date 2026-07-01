@@ -127,6 +127,39 @@ def test_certify_anchors_recover_extremes_the_source_run_missed_lp():
         assert cert_best >= max(vals) - 0.02 * span
 
 
+def _capped_lp_problem():
+    data = {"A": (8, 3), "B": (6, 7), "C": (9, 2), "D": (4, 8), "E": (7, 5)}
+    return from_portable(
+        {"name": "alloc-capped", "domain": "d", "context": "c", "approach": "proportional",
+         "objectives": [{"name": "ROI", "direction": "maximize", "aggregation": "avg"},
+                        {"name": "Reach", "direction": "maximize", "aggregation": "avg"}],
+         "constraints": [{"type": "max_allocation", "max": 60},
+                         {"type": "cardinality", "min": 1, "max": 2}]},
+        {"options": [{"name": n} for n in data],
+         "scores": [{"option": o, "objective": ob, "value": float(v)}
+                    for o, vv in data.items() for ob, v in zip(["ROI", "Reach"], vv)]})
+
+
+@needs_highs
+def test_capped_lp_anchors_reach_true_capped_extremes():
+    """Under a cardinality cap the LP anchors carry a priority tail selecting each objective's
+    top-K support — greedy-optimal for a linear objective — so the exact frontier contains the
+    true capped extreme allocation for every objective. Ground truth is exact by construction:
+    best-ROI = top-2 ROI coefs (C=9, A=8) greedy-filled to the 60% cap → {C: 60, A: 40};
+    best-Reach = (D=8, B=7) → {D: 60, B: 40}."""
+    p = _capped_lp_problem()
+    run = optimize(p, seed=42, solver="highs")
+    allocs = [{k: v for k, v in (s.allocations or {}).items() if v > 0} for s in run.solutions]
+    assert {"C": 60, "A": 40} in allocs
+    assert {"D": 60, "B": 40} in allocs
+    # The lean certify path recovers the same corners from a single mid-frontier source point.
+    mid = sorted(run.solutions, key=lambda s: s.objective_values["ROI"])[len(run.solutions) // 2]
+    cert = certify_curated(p, Run(solutions=[mid]), solver="highs")
+    cert_allocs = [{k: v for k, v in (s.allocations or {}).items() if v > 0} for s in cert.solutions]
+    assert {"C": 60, "A": 40} in cert_allocs
+    assert {"D": 60, "B": 40} in cert_allocs
+
+
 # --- proportional QP (mean-variance) -----------------------------------------------------------
 
 def _qp_problem():

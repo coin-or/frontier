@@ -297,6 +297,18 @@ def _prop_anchor_rows(linear_coefs, linear_maximize, max_weight, include_primary
     return rows
 
 
+def _rank_priorities(coef, maximize) -> np.ndarray:
+    """Priority tail favoring a linear objective's best assets, rank-normalized to [0,1] so
+    ``_decode_support`` selects the top-K (or top-per-group) assets by coefficient. For a
+    linear objective the top-K support is greedy-optimal — any weight on a lower-coefficient
+    asset improves by moving to an unused higher one — so an anchor carrying this tail reaches
+    the true capped extreme; and any feasible cap satisfies ``K·cap ≥ 1 ≥ ceil(1/cap)·cap``,
+    so ``_box_extreme``'s uncapped greedy value is already attainable on that support."""
+    c = np.asarray(coef, dtype=float)
+    ranks = np.argsort(np.argsort(c if maximize else -c))
+    return ranks / max(len(c) - 1, 1)
+
+
 def _milp_anchor_sels(S, dirs, mc, n, inner_milp, exact, first_stage=None) -> list:
     """Anchor selections for the binary MILP paths: per objective, the feasible plan
     lexicographically best on it — solve that objective alone, then re-solve the primary with
@@ -730,9 +742,16 @@ def optimize_lp(problem, mode, *, inner_lp, inner_lp_sensitivity=None, pop, gen,
     rows = list(np.atleast_2d(result.X)) if result.X is not None else []
     # Anchor corners: the best-primary corner (all floors loose) plus each non-primary
     # objective's lexicographic extreme — sampled even when the EA's epsilon sweep
-    # under-covered them. Skipped under a cardinality/group support search (no priority tail).
-    if cardinality_k is None and not groups:
-        rows += _prop_anchor_rows(linear_coefs, linear_maximize, max_weight, include_primary_eps=False)
+    # under-covered them. Under a cardinality/group cap each anchor row carries a priority
+    # tail favoring its objective's best assets (``_rank_priorities``): for a linear
+    # objective the top-K support is greedy-optimal, so the decoded support reaches the true
+    # capped extreme — exact under a pure cardinality cap; group caps inherit the EA's
+    # decode semantics. (Row order: all-loose → objective 0, then pinned rows → 1..n_eps.)
+    anchor_rows = _prop_anchor_rows(linear_coefs, linear_maximize, max_weight, include_primary_eps=False)
+    if cardinality_k is not None or groups:
+        anchor_rows = [np.concatenate([row, _rank_priorities(linear_coefs[j], linear_maximize[j])])
+                       for j, row in enumerate(anchor_rows)]
+    rows += anchor_rows
     solutions: list[Solution] = []
     seen: set[str] = set()
     if rows:
@@ -845,12 +864,20 @@ def certify_curated_frontier(problem, source_run, *, inner=None, inner_sensitivi
              [opt_index[nm] for nm in src.selected_options if nm in opt_index])
             for src in source_run.solutions
         ]
-        # Anchor corners (support=None — every asset eligible): the overlay samples each
-        # per-objective extreme even when the source run missed one. Skipped under a
-        # cardinality/group cap, where support=None would sidestep the support search.
-        if _cardinality_k(problem) is None and not _group_limits(problem):
-            targets += [(row, None) for row in _prop_anchor_rows(
-                linear_coefs, linear_maximize, max_weight, include_primary_eps=is_qp)]
+        # Anchor corners: the overlay samples each per-objective extreme even when the source
+        # run missed one. Uncapped: support=None (every asset eligible). Under a cardinality/
+        # group cap, LP anchors pair each row with the decoded top-K support for its objective
+        # (greedy-optimal for a linear objective — see ``_rank_priorities``); QP anchors are
+        # skipped there — the min-variance corner has no greedy-derivable support, and the
+        # capped QP path's seeded population owns corner coverage.
+        k_cap, glims = _cardinality_k(problem), _group_limits(problem)
+        anchor_rows = _prop_anchor_rows(linear_coefs, linear_maximize, max_weight, include_primary_eps=is_qp)
+        if k_cap is None and not glims:
+            targets += [(row, None) for row in anchor_rows]
+        elif not is_qp:
+            targets += [(row, _decode_support(_rank_priorities(linear_coefs[j], linear_maximize[j]),
+                                              k_cap, glims))
+                        for j, row in enumerate(anchor_rows)]
         for eps, support in targets:
             if is_qp and inner_sensitivity is not None:
                 w_frac, ok, raw_sens = _solve_individual_sensitivity(
