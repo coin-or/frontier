@@ -246,6 +246,96 @@ def _seed_cardinality_population(linear_coefs, cov, eps_bounds, k, pop, seed) ->
 
 
 # --------------------------------------------------------------------------- #
+# Anchor corners (per-objective extremes)
+#
+# The EA's epsilon sweep samples the scalarization box stochastically, so it can leave the
+# frontier's per-objective extreme corners under-covered — the "exact looks short of NSGA at
+# a linear extreme" artifact. These helpers add one anchor scalarization per objective (the
+# classic epsilon-constraint payoff-table step), so every exact overlay — full pass or
+# progressive certify — samples the true corners regardless of the sweep's budget. Anchors
+# flow through the same inner solves and marshaling as every other point (dedup'd by content
+# signature, dominance-filtered), so the change is strictly additive.
+# --------------------------------------------------------------------------- #
+def _box_extreme(coef, maximize, max_weight) -> float:
+    """Feasible extreme of a linear objective over the budget+box region (Σw=1, 0≤w≤cap),
+    closed form: fill the best assets to the cap. Unlike ``coef.max()`` (the best single
+    asset), this value is reachable under a max-allocation cap, so it makes a solvable
+    epsilon target for an anchor corner."""
+    coef = np.asarray(coef, dtype=float)
+    cap = max_weight if max_weight is not None else 1.0
+    order = np.argsort(coef)
+    if maximize:
+        order = order[::-1]
+    w = np.zeros(len(coef))
+    remaining = 1.0
+    for i in order:
+        take = min(cap, remaining)
+        w[i] = take
+        remaining -= take
+        if remaining <= 1e-12:
+            break
+    return float(coef @ w)
+
+
+def _prop_anchor_rows(linear_coefs, linear_maximize, max_weight, include_primary_eps) -> list:
+    """Anchor epsilon-rows for the proportional exact paths. One all-loose row — every floor
+    trivially satisfied, so the inner solve lands on the minimand's own corner (min-variance
+    for the QP, best-primary for the LP) — plus one row per epsilon'd objective pinning it at
+    its feasible box extreme while the rest stay loose (its lexicographic corner, minimand as
+    tiebreak). A loose floor is the objective's guaranteed bound over the simplex: any
+    budget-feasible w has ``coef·w ≥ coef.min()`` (maximize floors) and ``≤ coef.max()``
+    (minimize ceilings). ``include_primary_eps`` mirrors the genome shape: the QP
+    epsilon-constrains every linear objective, the LP all but the optimized primary."""
+    coefs = linear_coefs if include_primary_eps else linear_coefs[1:]
+    maxs = linear_maximize if include_primary_eps else linear_maximize[1:]
+    loose = [float(np.min(c)) if m else float(np.max(c)) for c, m in zip(coefs, maxs)]
+    rows = [np.array(loose, dtype=float)]
+    for k in range(len(coefs)):
+        row = list(loose)
+        row[k] = _box_extreme(coefs[k], maxs[k], max_weight)
+        rows.append(np.array(row, dtype=float))
+    return rows
+
+
+def _rank_priorities(coef, maximize) -> np.ndarray:
+    """Priority tail favoring a linear objective's best assets, rank-normalized to [0,1] so
+    ``_decode_support`` selects the top-K (or top-per-group) assets by coefficient. For a
+    linear objective the top-K support is greedy-optimal — any weight on a lower-coefficient
+    asset improves by moving to an unused higher one — so an anchor carrying this tail reaches
+    the true capped extreme; and any feasible cap satisfies ``K·cap ≥ 1 ≥ ceil(1/cap)·cap``,
+    so ``_box_extreme``'s uncapped greedy value is already attainable on that support."""
+    c = np.asarray(coef, dtype=float)
+    ranks = np.argsort(np.argsort(c if maximize else -c))
+    return ranks / max(len(c) - 1, 1)
+
+
+def _milp_anchor_sels(S, dirs, mc, n, inner_milp, exact, first_stage=None) -> list:
+    """Anchor selections for the binary MILP paths: per objective, the feasible plan
+    lexicographically best on it — solve that objective alone, then re-solve the primary with
+    the achieved optimum as an epsilon floor (tiebreak), so ties on the anchored objective
+    resolve toward the frontier rather than arbitrarily. Infeasible/failed anchors are simply
+    skipped (best-effort). ``first_stage`` maps objective index → an already-solved
+    best-for-that-objective selection (optimize_milp's eps-bounds loop produces exactly
+    these), skipping the duplicate first-stage solve; objectives it omits are solved here."""
+    first_stage = first_stage or {}
+    sels: list = []
+    for j in range(S.shape[1]):
+        sel = first_stage.get(j)
+        if sel is None:
+            sel, ok = inner_milp(dirs[j] * S[:, j], [], mc, n, exact)
+            if not ok:
+                continue
+        if j != 0:  # pin objective j at its optimum, optimize the primary as tiebreak
+            vj = float(S[:, j] @ sel)
+            eps = [(S[:, j], "ge" if dirs[j] < 0 else "le", vj)]
+            sel2, ok2 = inner_milp(dirs[0] * S[:, 0], eps, mc, n, exact)
+            if ok2:
+                sel = sel2
+        sels.append(sel)
+    return sels
+
+
+# --------------------------------------------------------------------------- #
 # QP genome (proportional mean-variance)
 # --------------------------------------------------------------------------- #
 def _solve_individual(cov, linear_coefs, linear_maximize, max_weight, eps, support, inner_qp):
@@ -488,10 +578,16 @@ def optimize_qp(problem, mode, *, inner_qp, inner_qp_sensitivity=None, pop, gen,
     _elapsed = time.monotonic() - _t0
 
     n_lin = len(linear_coefs)
+    rows = list(np.atleast_2d(result.X)) if result.X is not None else []
+    # Anchor corners: guarantee the per-objective extremes are sampled even when the EA's
+    # epsilon sweep under-covered them. Skipped under a cardinality/group support search —
+    # an anchor row carries no priority tail, and support=None would sidestep the cap.
+    if cardinality_k is None and not groups:
+        rows += _prop_anchor_rows(linear_coefs, linear_maximize, max_weight, include_primary_eps=True)
     solutions: list[Solution] = []
     seen: set[str] = set()
-    if result.X is not None and len(np.atleast_2d(result.X)) > 0:
-        for row in np.atleast_2d(result.X):
+    if rows:
+        for row in rows:
             support = pymoo_problem._support_from_row(row)
             if inner_qp_sensitivity is not None:
                 w_frac, ok, raw_sens = _solve_individual_sensitivity(
@@ -643,10 +739,23 @@ def optimize_lp(problem, mode, *, inner_lp, inner_lp_sensitivity=None, pop, gen,
     _elapsed = time.monotonic() - _t0
 
     n_eps = pymoo_problem.n_eps
+    rows = list(np.atleast_2d(result.X)) if result.X is not None else []
+    # Anchor corners: the best-primary corner (all floors loose) plus each non-primary
+    # objective's lexicographic extreme — sampled even when the EA's epsilon sweep
+    # under-covered them. Under a cardinality/group cap each anchor row carries a priority
+    # tail favoring its objective's best assets (``_rank_priorities``): for a linear
+    # objective the top-K support is greedy-optimal, so the decoded support reaches the true
+    # capped extreme — exact under a pure cardinality cap; group caps inherit the EA's
+    # decode semantics. (Row order: all-loose → objective 0, then pinned rows → 1..n_eps.)
+    anchor_rows = _prop_anchor_rows(linear_coefs, linear_maximize, max_weight, include_primary_eps=False)
+    if cardinality_k is not None or groups:
+        anchor_rows = [np.concatenate([row, _rank_priorities(linear_coefs[j], linear_maximize[j])])
+                       for j, row in enumerate(anchor_rows)]
+    rows += anchor_rows
     solutions: list[Solution] = []
     seen: set[str] = set()
-    if result.X is not None and len(np.atleast_2d(result.X)) > 0:
-        for row in np.atleast_2d(result.X):
+    if rows:
+        for row in rows:
             support = pymoo_problem._support_from_row(row)
             if inner_lp_sensitivity is not None:
                 w_frac, ok, raw_sens = _solve_individual_lp_sensitivity(
@@ -698,7 +807,9 @@ def certify_curated_frontier(problem, source_run, *, inner=None, inner_sensitivi
     it kept. Covers all three shapes (inner shape-matched by the caller): binary 0/1 **MILP** via
     ``inner_milp``, proportional **QP**/**LP** via ``inner`` (+ ``inner_sensitivity`` for solver duals).
     Each returned point is optimal for its scalarization, so the overlay can only confirm or sharpen the
-    source frontier — the same auditor guarantee as the full exact pass, at a fraction of the cost."""
+    source frontier — the same auditor guarantee as the full exact pass, at a fraction of the cost.
+    Like the full pass, the overlay also carries per-objective **anchor corners** (the epsilon-constraint
+    payoff-table step), so it samples the frontier's extremes even when the source run missed them."""
     n_options = len(problem.options)
     opt_names = [o.name for o in problem.options]
     opt_index = {n: i for i, n in enumerate(opt_names)}
@@ -713,12 +824,17 @@ def certify_curated_frontier(problem, source_run, *, inner=None, inner_sensitivi
         # constraints. Mirrors optimize_milp's inner solve, once per curated point instead of pop×gen.
         n, names, S, dirs, mc = _build_milp_data(problem)
         primary, nonprimary = 0, [j for j in range(len(obj_list)) if j != 0]
+        cand_sels: list = []
         for src in source_run.solutions:
             eps_list = [(S[:, j], "ge" if dirs[j] < 0 else "le",
                          float(src.objective_values.get(obj_list[j].name, 0.0))) for j in nonprimary]
             sel, ok = inner_milp(dirs[primary] * S[:, primary], eps_list, mc, n, exact)
-            if not ok:
-                continue
+            if ok:
+                cand_sels.append(sel)
+        # Anchor corners: the overlay samples every per-objective extreme even when the
+        # source run missed one — the certify-path half of the "short at a linear extreme" fix.
+        cand_sels += _milp_anchor_sels(S, dirs, mc, n, inner_milp, exact)
+        for sel in cand_sels:
             selected = [names[i] for i in range(n) if sel[i] > 0.5]
             key = tuple(sorted(selected))
             if key in seen:
@@ -739,13 +855,30 @@ def certify_curated_frontier(problem, source_run, *, inner=None, inner_sensitivi
                                          objectives=obj_list, interaction_matrices=im, **cp)
         is_qp = bool(im)
         cov = _nearest_psd(im[_resolve_objective_roles(problem)[0]]) if is_qp else None
-        for src in source_run.solutions:
-            support = [opt_index[n] for n in src.selected_options if n in opt_index]
-            # Each source point's reported objective values become its epsilon targets: QP epsilon-
-            # constrains every linear objective (variance minimized); LP optimizes the primary and
-            # epsilon-constrains the rest, so it carries one fewer target.
-            idxs = linear_idxs if is_qp else linear_idxs[1:]
-            eps = np.array([src.objective_values.get(obj_list[j].name, 0.0) for j in idxs], dtype=float)
+        # Each source point's reported objective values become its epsilon targets: QP epsilon-
+        # constrains every linear objective (variance minimized); LP optimizes the primary and
+        # epsilon-constrains the rest, so it carries one fewer target.
+        idxs = linear_idxs if is_qp else linear_idxs[1:]
+        targets = [
+            (np.array([src.objective_values.get(obj_list[j].name, 0.0) for j in idxs], dtype=float),
+             [opt_index[nm] for nm in src.selected_options if nm in opt_index])
+            for src in source_run.solutions
+        ]
+        # Anchor corners: the overlay samples each per-objective extreme even when the source
+        # run missed one. Uncapped: support=None (every asset eligible). Under a cardinality/
+        # group cap, LP anchors pair each row with the decoded top-K support for its objective
+        # (greedy-optimal for a linear objective — see ``_rank_priorities``); QP anchors are
+        # skipped there — the min-variance corner has no greedy-derivable support, and the
+        # capped QP path's seeded population owns corner coverage.
+        k_cap, glims = _cardinality_k(problem), _group_limits(problem)
+        anchor_rows = _prop_anchor_rows(linear_coefs, linear_maximize, max_weight, include_primary_eps=is_qp)
+        if k_cap is None and not glims:
+            targets += [(row, None) for row in anchor_rows]
+        elif not is_qp:
+            targets += [(row, _decode_support(_rank_priorities(linear_coefs[j], linear_maximize[j]),
+                                              k_cap, glims))
+                        for j, row in enumerate(anchor_rows)]
+        for eps, support in targets:
             if is_qp and inner_sensitivity is not None:
                 w_frac, ok, raw_sens = _solve_individual_sensitivity(
                     cov, linear_coefs, linear_maximize, max_weight, eps, support, inner_sensitivity)
@@ -864,14 +997,20 @@ def optimize_milp(problem, mode, *, inner_milp, max_solutions=None,
     primary = 0
     nonprimary = [j for j in range(len(objs)) if j != primary]
 
-    # epsilon range per non-primary objective = [min, max] over the feasible set.
+    # epsilon range per non-primary objective = [min, max] over the feasible set. The
+    # best-for-j selection each pair of solves discovers doubles as the anchor helper's
+    # first stage, so the anchor pass never repeats these exact solves.
     eps_bounds = []
+    anchor_first_stage: dict = {}
     for j in nonprimary:
         smin, ok1 = inner_milp(S[:, j], [], mc, n, exact)
         smax, ok2 = inner_milp(-S[:, j], [], mc, n, exact)
         lo = float(S[:, j] @ smin) if ok1 else float(S[:, j].min())
         hi = float(S[:, j] @ smax) if ok2 else float(S[:, j].sum())
         eps_bounds.append((lo, hi if hi > lo else lo + 1e-6))
+        best, ok_best = (smax, ok2) if dirs[j] < 0 else (smin, ok1)
+        if ok_best:
+            anchor_first_stage[j] = best
 
     pp = _MilpFrontierProblem(S, dirs, primary, nonprimary, mc, n, objs, eps_bounds,
                               exact=exact, inner_milp=inner_milp)
@@ -880,21 +1019,30 @@ def optimize_milp(problem, mode, *, inner_milp, max_solutions=None,
                             seed=seed, verbose=False)
     _elapsed = time.monotonic() - _t0
 
-    solutions: list[Solution] = []
-    seen: set = set()
+    sels: list = []
     if result.X is not None and len(np.atleast_2d(result.X)) > 0:
         for row in np.atleast_2d(result.X):
             sel, ok = pp._solve_row(row)
-            if not ok:
-                continue
-            selected = [names[i] for i in range(n) if sel[i] > 0.5]
-            key = tuple(sorted(selected))
-            if key in seen:
-                continue
-            seen.add(key)
-            obj_values = {o.name: round(float(S[:, j] @ sel), 4) for j, o in enumerate(objs)}
-            solutions.append(Solution(solution_id=len(solutions), selected_options=selected,
-                                      objective_values=obj_values))
+            if ok:
+                sels.append(sel)
+    # Anchor corners: one lexicographically-best plan per objective, so the frontier's
+    # extremes are present regardless of the EA sweep's coverage. mc carries the
+    # combinatorial constraints, so anchors are feasible by construction; the eps-bounds
+    # selections serve as the first stage, so only the tiebreak solves are new work.
+    sels += _milp_anchor_sels(S, dirs, mc, n, inner_milp, exact,
+                              first_stage=anchor_first_stage)
+
+    solutions: list[Solution] = []
+    seen: set = set()
+    for sel in sels:
+        selected = [names[i] for i in range(n) if sel[i] > 0.5]
+        key = tuple(sorted(selected))
+        if key in seen:
+            continue
+        seen.add(key)
+        obj_values = {o.name: round(float(S[:, j] @ sel), 4) for j, o in enumerate(objs)}
+        solutions.append(Solution(solution_id=len(solutions), selected_options=selected,
+                                  objective_values=obj_values))
 
     solutions = _nondominated(solutions, objs)
     max_n = max_solutions or _opt.MAX_PARETO_SOLUTIONS
