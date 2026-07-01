@@ -297,17 +297,22 @@ def _prop_anchor_rows(linear_coefs, linear_maximize, max_weight, include_primary
     return rows
 
 
-def _milp_anchor_sels(S, dirs, mc, n, inner_milp, exact) -> list:
+def _milp_anchor_sels(S, dirs, mc, n, inner_milp, exact, first_stage=None) -> list:
     """Anchor selections for the binary MILP paths: per objective, the feasible plan
     lexicographically best on it — solve that objective alone, then re-solve the primary with
     the achieved optimum as an epsilon floor (tiebreak), so ties on the anchored objective
     resolve toward the frontier rather than arbitrarily. Infeasible/failed anchors are simply
-    skipped (best-effort)."""
+    skipped (best-effort). ``first_stage`` maps objective index → an already-solved
+    best-for-that-objective selection (optimize_milp's eps-bounds loop produces exactly
+    these), skipping the duplicate first-stage solve; objectives it omits are solved here."""
+    first_stage = first_stage or {}
     sels: list = []
     for j in range(S.shape[1]):
-        sel, ok = inner_milp(dirs[j] * S[:, j], [], mc, n, exact)
-        if not ok:
-            continue
+        sel = first_stage.get(j)
+        if sel is None:
+            sel, ok = inner_milp(dirs[j] * S[:, j], [], mc, n, exact)
+            if not ok:
+                continue
         if j != 0:  # pin objective j at its optimum, optimize the primary as tiebreak
             vj = float(S[:, j] @ sel)
             eps = [(S[:, j], "ge" if dirs[j] < 0 else "le", vj)]
@@ -965,14 +970,20 @@ def optimize_milp(problem, mode, *, inner_milp, max_solutions=None,
     primary = 0
     nonprimary = [j for j in range(len(objs)) if j != primary]
 
-    # epsilon range per non-primary objective = [min, max] over the feasible set.
+    # epsilon range per non-primary objective = [min, max] over the feasible set. The
+    # best-for-j selection each pair of solves discovers doubles as the anchor helper's
+    # first stage, so the anchor pass never repeats these exact solves.
     eps_bounds = []
+    anchor_first_stage: dict = {}
     for j in nonprimary:
         smin, ok1 = inner_milp(S[:, j], [], mc, n, exact)
         smax, ok2 = inner_milp(-S[:, j], [], mc, n, exact)
         lo = float(S[:, j] @ smin) if ok1 else float(S[:, j].min())
         hi = float(S[:, j] @ smax) if ok2 else float(S[:, j].sum())
         eps_bounds.append((lo, hi if hi > lo else lo + 1e-6))
+        best, ok_best = (smax, ok2) if dirs[j] < 0 else (smin, ok1)
+        if ok_best:
+            anchor_first_stage[j] = best
 
     pp = _MilpFrontierProblem(S, dirs, primary, nonprimary, mc, n, objs, eps_bounds,
                               exact=exact, inner_milp=inner_milp)
@@ -989,8 +1000,10 @@ def optimize_milp(problem, mode, *, inner_milp, max_solutions=None,
                 sels.append(sel)
     # Anchor corners: one lexicographically-best plan per objective, so the frontier's
     # extremes are present regardless of the EA sweep's coverage. mc carries the
-    # combinatorial constraints, so anchors are feasible by construction.
-    sels += _milp_anchor_sels(S, dirs, mc, n, inner_milp, exact)
+    # combinatorial constraints, so anchors are feasible by construction; the eps-bounds
+    # selections serve as the first stage, so only the tiebreak solves are new work.
+    sels += _milp_anchor_sels(S, dirs, mc, n, inner_milp, exact,
+                              first_stage=anchor_first_stage)
 
     solutions: list[Solution] = []
     seen: set = set()
