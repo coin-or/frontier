@@ -2508,8 +2508,10 @@ def sensitivity_analysis(problem: Problem, solution_id: int | None = None,
     optimized = _optimized_objective(problem, ref.sensitivity)
     where, near, capped = _format_solution_sensitivity(ref, optimized)
     scope = ("Exact LP/QP duals (continuous path). Shadow price = marginal change in the "
-             "optimized objective per unit a binding constraint is relaxed; reduced cost = "
-             "how far an unheld option must improve to enter. Undefined for integer/MILP.")
+             "optimized objective per unit a binding constraint is relaxed (that constraint's "
+             "own unit — rates on different levers aren't directly comparable); reduced cost = "
+             "roughly how far an unheld option must improve to become competitive (a marginal "
+             "rate). Undefined for integer/MILP.")
     if optimized:
         scope += (f" The optimized objective here is '{optimized}' — the ε-constraint primary; "
                   "the other objectives enter as floors.")
@@ -2532,10 +2534,12 @@ def sensitivity_analysis(problem: Problem, solution_id: int | None = None,
                  "trend shows how the swept-constraint shadow price changes along the frontier "
                  "(rising = diminishing returns)."),
         "next_steps": ("Read these duals with the `solution_interpreter` skill ('Exact Sensitivity'): "
-                       "the top `where_to_invest` shadow price is the highest-leverage constraint to "
-                       "renegotiate; the smallest `near_misses` reduced cost is the option closest to "
-                       "entering (a re-scoring / cap-relaxation prompt). Anchor every number in the "
-                       "reference solution; route a persistent near-miss back to problem_framing."),
+                       "`where_to_invest` shortlists the binding constraints to renegotiate (price "
+                       "each lever as rate × a realistic increment before naming a top one, and "
+                       "confirm with a re-solve); the smallest `near_misses` reduced cost is the "
+                       "option closest to entering (a re-scoring / cap-relaxation prompt). Anchor "
+                       "every number in the reference solution; route a persistent near-miss back "
+                       "to problem_framing."),
     }
 
 
