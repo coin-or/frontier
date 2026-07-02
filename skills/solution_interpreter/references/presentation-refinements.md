@@ -113,6 +113,8 @@ See `references/explore-diagnostics.md` for the full schema of `binding_analysis
 
 `explore sensitivity` reports **solver-exact** duals when the frontier came from an exact continuous solve (`solve(solver="highs"|"cuopt")` on a continuous LP/QP shape). It is the *exact* counterpart to the frontier-inferred `binding_analysis` above, and answers two decision questions directly. The payload names the `optimized_objective` (the ε-constraint primary the duals are measured against) — anchor every shadow-price and reduced-cost sentence on that objective by name, never on an unnamed "the objective".
 
+The division of labor: **duals give direction and a shortlist; differencing — a re-solve at the real increment — gives any number you'd act on.** Every bullet below is a case of that rule.
+
 Keep its scope straight: this is the *local, marginal* lens — how the current optimum shifts under a small change in one input, valid only while the same constraints stay active. It is not scenario analysis, which bundles many changes into a named world and fully re-solves (so the optimal mix itself can change). Don't present a shadow price as a scenario outcome or vice versa. (See *Sensitivity vs Scenario Analysis* in `frontier://skills/optimization_strategy`.)
 
 Every response is tagged `source`:
