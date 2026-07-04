@@ -85,6 +85,34 @@ def test_no_binding_levers_no_suggestions():
     assert "suggested_scenarios" not in out
 
 
+def test_scenario_results_declines_clearly_on_unscored_option():
+    # Root-guard repro: solve, run scenarios, then add an option WITHOUT scoring it
+    # (results_stale doesn't gate explore) — scenario regret re-scores base solutions and
+    # used to crash with a raw KeyError ('NEW', 'V'); now the score-matrix build declines
+    # in words naming the cell.
+    import pytest
+    from engine.models import Option, ScenarioConfig
+    p = _problem()
+    sols = _run([(1, 1), (2, 3), (3, 6)])
+    p.run = sols
+    p.scenario_config = ScenarioConfig(enabled=True, scenarios=[Scenario(name="s1")])
+    p.scenario_run = ScenarioRun(scenario_runs={"s1": _run([(1, 1), (2, 3)])})
+    p.options.append(Option(name="NEW"))
+    with pytest.raises(ValueError, match="unscored.*NEW|NEW.*unscored"):
+        get_scenario_results(p)
+
+
+def test_slate_scorer_matches_score_slate():
+    # The batch scorer is score_slate with the context build hoisted — same numbers.
+    from engine.optimizer import make_slate_scorer, score_slate
+    from engine.models import ScoreAdjustment as SA
+    p = _problem()
+    sc = Scenario(name="s", score_adjustments=[SA(objective="Value", multiply=0.5)])
+    scorer = make_slate_scorer(p, sc)
+    for slate in (["A"], ["A", "C"], []):
+        assert scorer(slate, None) == score_slate(p, slate, None, sc)
+
+
 def test_build_scenario_problem_strips_run_history():
     # A scenario evaluation needs the model, not the history: carrying runs/curation into
     # the per-slate deep copy made scenario regret minutes-slow on run-heavy problems.

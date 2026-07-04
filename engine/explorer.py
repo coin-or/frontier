@@ -627,10 +627,13 @@ def scenario_regret(problem: Problem) -> dict:
         return {"available": False}
     if problem.run is None or not problem.run.solutions:
         return {"available": False}
-    from .optimizer import score_slate
+    from .optimizer import make_slate_scorer
 
     scenarios = {s.name: s for s in (problem.scenario_config.scenarios if problem.scenario_config else [])}
     scen_runs = problem.scenario_run.scenario_runs
+    # One scoring context per scenario (overrides applied, matrices built), reused across
+    # every base solution — the per-slate rebuild was this loop's dominant cost.
+    scorers = {name: make_slate_scorer(problem, scenarios.get(name)) for name in scen_runs}
     objs = problem.objectives
     ideal: dict[tuple, float] = {}
     span: dict[tuple, float] = {}
@@ -666,7 +669,7 @@ def scenario_regret(problem: Problem) -> dict:
         for name in scen_runs:
             ck = (s.content_signature, name)
             if ck not in cache:
-                cache[ck] = score_slate(problem, s.selected_options, s.allocations, scenarios.get(name))
+                cache[ck] = scorers[name](s.selected_options, s.allocations)
             if not cache[ck]["feasible"]:
                 feasible_all = False
         by_scen = {name: round(max((regret_for(s, name, ob) for ob in objs), default=0.0), 3) for name in scen_runs}

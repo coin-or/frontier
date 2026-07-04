@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 # Reject non-finite floats (inf / nan) on user-supplied numeric fields. A NaN score
 # silently passes validation, serializes to JSON `null` on save, then raises an
@@ -197,6 +197,10 @@ class ScoreAdjustment(BaseModel):
 
 
 class Scenario(BaseModel):
+    # A typoed or unknown field must error, not silently drop — scenario dicts arrive over
+    # the wire, and a silently-ignored "motivatedby" is indistinguishable from working.
+    model_config = ConfigDict(extra="forbid")
+
     name: str
     probability: FiniteFloat | None = None  # optional; only needed for expected-value weighting
     description: str = ""
