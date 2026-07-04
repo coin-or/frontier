@@ -524,6 +524,7 @@ def _model_update(params: dict) -> dict:
                     name=s["name"],
                     probability=s.get("probability"),  # optional
                     description=s.get("description", ""),
+                    motivated_by=s.get("motivated_by", ""),
                     score_overrides=overrides,
                     score_adjustments=adjustments,
                     constraint_overrides=constraint_ov,

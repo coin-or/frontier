@@ -2570,7 +2570,10 @@ def _binding_group_limit(c, solutions, objectives) -> dict | None:
             })
 
     return {
-        "constraint": f"group_limit({', '.join(c.options)}) ≤ {c.max}",
+        # Name a handful of members, count the rest — at real problem scale a group can hold
+        # hundreds of options, and the full roster would swamp every payload citing this label.
+        "constraint": (f"group_limit({', '.join(c.options)}) ≤ {c.max}" if len(c.options) <= 6
+                       else f"group_limit({', '.join(c.options[:5])}, +{len(c.options) - 5} more) ≤ {c.max}"),
         "constraint_type": "group_limit",
         "binding_fraction": binding_fraction,
         "near_binding_count": int(mask_binding.sum()),
