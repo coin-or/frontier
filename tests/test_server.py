@@ -708,6 +708,20 @@ class TestScenarios:
         assert p["scenario_config"]["enabled"] is True
         assert len(p["scenario_config"]["scenarios"]) == 2
 
+    def test_scenario_motivated_by_survives_update(self):
+        # The sensitivity→scenario handoff provenance must survive the wire: the update
+        # path constructs Scenario field-by-field, so a missing kwarg silently drops it.
+        pid = _build_solvable_problem()
+        srv.model(action="update", problem_id=pid, scenario_config={
+            "enabled": True,
+            "scenarios": [
+                {"name": "stress", "motivated_by": "shadow_price:Rev",
+                 "score_adjustments": [{"objective": "Rev", "multiply": 0.9}]},
+            ],
+        })
+        p = srv.model(action="get", problem_id=pid, section="full")
+        assert p["scenario_config"]["scenarios"][0]["motivated_by"] == "shadow_price:Rev"
+
     def test_run_scenarios(self):
         import json as _json
         from pathlib import Path

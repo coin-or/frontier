@@ -17,10 +17,12 @@ import sys
 import tempfile
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 pytest.importorskip("highspy")
 
+import solvers.highs_backend as hb
 from engine import explorer
 from engine.models import (
     CardinalityConstraint,
@@ -35,7 +37,7 @@ from engine.models import (
     Problem,
     Score,
 )
-from engine.optimizer import audit
+from engine.optimizer import audit, diagnose_conflicts
 
 _HAS_MCP_CLIENT = importlib.util.find_spec("mcp.client.stdio") is not None
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -233,6 +235,196 @@ def test_conjunction_empty_list_rejected():
 def test_unknown_option_raises():
     with pytest.raises(ValueError, match="unknown option"):
         audit(_problem(), ForceIncludeConstraint(option="ZZ"))
+
+
+def test_incomplete_scores_declined_clearly():
+    # Auditing before SCORE used to surface a raw KeyError ('A', 'Value'); the gate now
+    # declines in words, matching the shape/backend gates.
+    p = _problem()
+    p.scores = [s for s in p.scores if s.option != "A"]
+    with pytest.raises(ValueError, match="complete score matrix"):
+        audit(p)
+
+
+# ─── Verdict hardening: every non-proof status maps to inconclusive, never to holds ───
+#
+# `holds` requires a solver-proven Infeasible on the negation; anything else the solver can return
+# (time limit, iteration limit, error statuses) must land on `inconclusive` with the raw status and
+# a reason attached, and never surface a witness. Real-path check first (HiGHS at a zero time limit
+# reliably returns 'Time limit reached' with no incumbent — verified empirically), then injected
+# statuses for paths a real solve can't force deterministically.
+
+def test_time_limit_real_solver_probe_maps_to_inconclusive(monkeypatch):
+    # A stopped probe is not evidence of infeasibility. (Presolve fully resolves this tiny
+    # model's *property* negations even at a zero limit — correctly — so the probe is the one
+    # path a real zero-limit solve stalls deterministically; property-audit stops are covered
+    # below via injected statuses.)
+    monkeypatch.setattr(hb, "_MILP_TIME_LIMIT", 0.0)
+    r = audit(_problem(constraints=[CardinalityConstraint(min=1, max=2)]))
+    assert r["verdict"] == "inconclusive"
+    assert r["witness"] is None                       # witnesses are verdict-gated
+    assert "Time limit reached" in r["solver_status"]
+    assert "Time limit reached" in r["reason"] and "INCONCLUSIVE" in r["reason"]
+
+
+def test_time_limit_property_audit_maps_to_inconclusive(monkeypatch):
+    _inject(monkeypatch, lambda eps, mc, n: ("Time limit reached", np.zeros(n)))
+    r = audit(_problem(constraints=[CardinalityConstraint(min=2, max=2)]),
+              CardinalityConstraint(min=1, max=4))
+    assert r["verdict"] == "inconclusive"
+    assert r["witness"] is None
+    assert r["solver_status"] == ["Time limit reached"]
+    assert "INCONCLUSIVE" in r["reason"]
+
+
+def _inject(monkeypatch, inner):
+    """Route audit()'s inner feasibility solve through a fake, for statuses a real solve
+    can't force deterministically. audit() imports `_audit_milp_highs` at call time, so
+    patching the backend module attribute reaches it."""
+    monkeypatch.setattr(hb, "_audit_milp_highs", inner)
+
+
+def test_error_status_maps_to_inconclusive_never_holds(monkeypatch):
+    # A solver error on the negation is not a proof of infeasibility.
+    _inject(monkeypatch, lambda eps, mc, n: ("Solve error", np.zeros(n)))
+    r = audit(_problem(constraints=[CardinalityConstraint(min=2, max=2)]),
+              CardinalityConstraint(min=1, max=4))
+    assert r["verdict"] == "inconclusive"
+    assert r["solver_status"] == ["Solve error"]
+    assert r["witness"] is None
+
+
+def test_mixed_statuses_map_to_inconclusive(monkeypatch):
+    # Cardinality negates to two disjuncts; one proven Infeasible + one stopped ≠ holds.
+    calls = iter(["Infeasible", "Time limit reached"])
+    _inject(monkeypatch, lambda eps, mc, n: (next(calls), np.zeros(n)))
+    r = audit(_problem(constraints=[CardinalityConstraint(min=2, max=2)]),
+              CardinalityConstraint(min=2, max=3))
+    assert r["verdict"] == "inconclusive"
+    assert r["solver_status"] == ["Time limit reached"]
+
+
+def test_vacuity_probe_timeout_does_not_claim_empty_region(monkeypatch):
+    # Negation proven infeasible, but the non-emptiness re-probe stops early: the guarantee
+    # stands (holds), while "the region is empty" (holds_vacuously) would be an overclaim.
+    _inject(monkeypatch, lambda eps, mc, n:
+            (("Time limit reached", np.zeros(n)) if not eps else ("Infeasible", np.zeros(n))))
+    r = audit(_problem(constraints=[CardinalityConstraint(min=2, max=2)]),
+              CardinalityConstraint(min=1, max=4))
+    assert r["verdict"] == "holds"
+    assert "unconfirmed" in r["note"] and "Time limit reached" in r["note"]
+
+
+def test_solver_exception_propagates_as_error_not_verdict(monkeypatch):
+    # A crash inside the solve is a hard tool error (the same convention as unfit shapes),
+    # never converted into any verdict.
+    def boom(eps, mc, n):
+        raise RuntimeError("solver crashed")
+    _inject(monkeypatch, boom)
+    with pytest.raises(RuntimeError, match="solver crashed"):
+        audit(_problem(constraints=[CardinalityConstraint(min=2, max=2)]),
+              CardinalityConstraint(min=1, max=4))
+
+
+# ─── Infeasibility diagnosis: minimal conflict sets on the user's named constraints ───
+#
+# When no plan is feasible, the audit attaches `conflicts`: a minimal set of the user's own
+# constraints that cannot all hold together (deletion filtering). Members are leads, never
+# auto-relaxed; one conflict at a time — clearing it re-probes for the next.
+
+def _ckeys(conflicts):
+    return {(c["type"], c.get("option"), c.get("objective"), c.get("value"))
+            for c in conflicts["constraints"]}
+
+
+def test_planted_budget_vs_forced_include_conflict():
+    # A costs 8, "Cost ≤ 5" — together contradictory; the cardinality distractor is satisfiable.
+    r = audit(_problem(constraints=[
+        ObjectiveBoundConstraint(objective="Cost", operator="max", value=5),
+        ForceIncludeConstraint(option="A"),
+        CardinalityConstraint(min=1, max=3),
+    ]))
+    assert r["verdict"] == "no_feasible_plan"
+    assert _ckeys(r["conflicts"]) == {
+        ("objective_bound", None, "Cost", 5.0),
+        ("force_include", "A", None, None),
+    }
+    assert r["conflicts"]["minimal"] is True
+    assert "leads" in r["conflicts"]["caveat"]
+
+
+def test_relaxing_a_conflict_member_restores_feasibility():
+    r = audit(_problem(constraints=[ForceIncludeConstraint(option="A"),
+                                    ObjectiveBoundConstraint(objective="Cost", operator="max", value=5)]))
+    assert r["verdict"] == "no_feasible_plan"
+    # Repair loop: drop one named member (the budget), re-probe — feasible again.
+    r2 = audit(_problem(constraints=[ForceIncludeConstraint(option="A")]))
+    assert r2["verdict"] == "feasible"
+
+
+def test_two_independent_conflicts_surface_one_at_a_time():
+    # Two non-interacting contradictions: A forced in AND out; "select exactly 3" vs "≤ 2 from
+    # everything". No cross-subset is minimally infeasible, so the diagnosis must be exactly one
+    # of the planted pairs — never a blend.
+    conflict_1 = [ForceIncludeConstraint(option="A"), ForceExcludeConstraint(option="A")]
+    conflict_2 = [CardinalityConstraint(min=3, max=3),
+                  GroupLimitConstraint(options=["A", "B", "C", "D"], max=2)]
+    r = audit(_problem(constraints=conflict_1 + conflict_2))
+    assert r["verdict"] == "no_feasible_plan"
+    found = _ckeys(r["conflicts"])
+    planted = [_ckeys({"constraints": [c.model_dump(mode="json") for c in cs]})
+               for cs in (conflict_1, conflict_2)]
+    assert found in planted
+    # Clear the reported conflict; the audit now reports the other one.
+    cleared_first = found == planted[0]
+    r2 = audit(_problem(constraints=conflict_2 if cleared_first else conflict_1))
+    assert r2["verdict"] == "no_feasible_plan"
+    assert _ckeys(r2["conflicts"]) == (planted[1] if cleared_first else planted[0])
+
+
+def test_single_constraint_conflict_is_reported_alone():
+    # min > n options: contradictory on its own.
+    r = audit(_problem(constraints=[CardinalityConstraint(min=5, max=5)]))
+    assert r["verdict"] == "no_feasible_plan"
+    assert [c["type"] for c in r["conflicts"]["constraints"]] == ["cardinality"]
+
+
+def test_vacuous_property_audit_carries_conflicts():
+    r = audit(_problem(constraints=[ForceIncludeConstraint(option="A"),
+                                    ForceExcludeConstraint(option="A")]),
+              ForceIncludeConstraint(option="B"))
+    assert r["verdict"] == "holds_vacuously"
+    assert {c["type"] for c in r["conflicts"]["constraints"]} == {"force_include", "force_exclude"}
+
+
+def test_diagnosis_on_satisfiable_set_claims_no_conflict():
+    # Precondition guard: on a satisfiable set the filter must not present the whole model
+    # as a "conflict" — it reports satisfiable instead.
+    d = diagnose_conflicts(_problem(constraints=[CardinalityConstraint(min=1, max=2)]))
+    assert d["satisfiable"] is True
+    assert "constraints" not in d
+
+
+def test_solve_path_infeasibility_analysis_carries_exact_conflicts():
+    # The empty-frontier solve path (analyze_infeasibility) attaches the same solver-proven
+    # conflict set on shapes the exact backend fits.
+    from engine.optimizer import analyze_infeasibility
+    out = analyze_infeasibility(_problem(constraints=[
+        ForceIncludeConstraint(option="A"),
+        ObjectiveBoundConstraint(objective="Cost", operator="max", value=5)]))
+    assert _ckeys(out["conflicts"]) == {
+        ("force_include", "A", None, None),
+        ("objective_bound", None, "Cost", 5.0),
+    }
+
+
+def test_stopped_filter_solve_yields_inconclusive_diagnosis(monkeypatch):
+    # A deletion-filter solve that stops without a verdict must never produce a guessed conflict.
+    _inject(monkeypatch, lambda eps, mc, n: ("Time limit reached", np.zeros(n)))
+    d = diagnose_conflicts(_problem(constraints=[ForceIncludeConstraint(option="A"),
+                                                 ForceExcludeConstraint(option="A")]))
+    assert d["inconclusive"] is True
+    assert "constraints" not in d
 
 
 # ─── Explorer payload (the MCP shape) ───
