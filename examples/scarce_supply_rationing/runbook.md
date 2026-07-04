@@ -9,8 +9,8 @@ script — and the pricing showcase: step 4 reads what every promise in the mode
 straight from the solver's duals.
 
 1. **Load and understand what's already promised**
-   Prompt: *"Load the supply rationing example. What am I deciding here, and what promises are
-   already baked in before I start?"*
+   Prompt: *"Load the supply rationing example. What am I deciding, and what promises are
+   already baked in?"*
    Tools: `model` (action=load, then get/summary) → `solve` (action=validate).
    Expect: a `problem_id`; 3 objectives (Revenue↑, StrategicValue↑, DemandFragility↓), 36
    customers, proportional approach; the echo should read the constraints as *commitments* —
@@ -28,9 +28,9 @@ straight from the solver's duals.
    `fab_outage` scenario restates the whole constraint set with *raised* floors (6/5/4/4/3 →
    8/7/5/5/4) — same absolute commitments, less supply — and the narration should say so.
 
-3. **Shortlist, then check these are actually optimal**
-   Prompt: *"Keep the balanced split and the one that maximizes revenue. Are those genuinely
-   the best versions of themselves, or just plausible?"*
+3. **Shortlist, then check these are optimal**
+   Prompt: *"Keep the balanced split and the one that maximizes revenue. Are these optimal, or
+   just plausible?"*
    Tools: `explore` (action=curate, per pick) → `solve` (solver="highs") → `explore`
    (action=certify).
    Expect: `curated: true` per pick with the proportional `quality` checks live (the floored
@@ -39,8 +39,8 @@ straight from the solver's duals.
    `invariant`, and `quality_gates`. Every overlay point honors the floors and the mandate.
 
 4. **What are our promises costing us?**
-   Prompt: *"At the revenue-max split, what is each of our commitments actually costing —
-   the board's mandate and every contract floor? Which one would I renegotiate first?"*
+   Prompt: *"At the revenue-max split, what is each of our commitments costing — the board's
+   mandate and every contract floor? Which would I renegotiate first?"*
    Tool: `explore` (action=sensitivity, solution_id=the revenue corner, source="exact").
    Expect: `source: solver_exact` with the reads in decision language — `where_to_invest`
    including a role-`model_bound` lever (the mandate, priced: relaxing it one unit buys ~that
@@ -50,11 +50,11 @@ straight from the solver's duals.
    real renegotiation with a re-solve before quoting it.
 
 5. **Who takes the hit, and the write-up**
-   Prompt: *"If the fab outage happens, who absorbs the cut? Then write up the recommendation
-   for the allocation committee."*
+   Prompt: *"If the fab outage happens, who absorbs the cut? Write up the recommendation for
+   the allocation committee."*
    Tools: `explore` (action=scenario_results) → `explore` (action=curated, format="markdown").
    Expect: `option_robustness` tiers, `scenario_risk`, and per-scenario `varies` + `held_fixed`
    lines restating exactly what each shock changed — the distributor segment's share shrinks
    under the outage; name who, not just how much. Then the handoff table with per-finalist
    `quality` and the stakeholder-writeup pointer — lead with the floor prices: the mandate and
-   the contracts are the levers management can actually renegotiate.
+   the contracts are the levers management can renegotiate.

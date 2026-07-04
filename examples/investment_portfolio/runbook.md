@@ -25,9 +25,9 @@ the paste-and-drive script.
    `rationale`); a per-scenario frontier per macro regime; tradeoffs flags
    `scenarios_available` so the narration layers in robustness.
 
-3. **Shortlist, then check these are actually optimal**
-   Prompt: *"Keep the balanced portfolio and the calmest one. Are those genuinely optimal, or
-   just decent?"*
+3. **Shortlist, then check these are optimal**
+   Prompt: *"Keep the balanced portfolio and the calmest one. Are these optimal, or just
+   decent?"*
    Tools: `explore` (action=curate, per pick) → `solve` (solver="highs") → `explore`
    (action=certify).
    Expect: `curated: true` per pick plus a `quality` gate — on this proportional shape the

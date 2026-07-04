@@ -7,8 +7,8 @@ SCORE are pre-baked in `problem.json` / `scores.json`, so step 1 loads them. The
 the narrative overview; this is the paste-and-drive script.
 
 1. **Load and sanity-check the decision**
-   Prompt: *"Load the capital project selection example. What decision does it frame, and does
-   the setup even have room to work with?"*
+   Prompt: *"Load the capital project selection example. What am I deciding, and is it feasible
+   as set up?"*
    Tools: `model` (action=load, then get/summary) → `solve` (action=validate) → `explore`
    (action=audit, no property).
    Expect: a `problem_id`; 4 objectives (NPV↑, Cost↓, Risk↓, StrategicFit↑), 120 projects, the
@@ -20,7 +20,7 @@ the narrative overview; this is the paste-and-drive script.
 
 2. **See the real funding options**
    Prompt: *"Which projects should we fund? Show me the real choices — where we can push value,
-   where risk bites, and where the budget actually pinches."*
+   where risk bites, and where the budget pinches."*
    Tools: `solve` (action=run) → `explore` (action=tradeoffs).
    Expect: a frontier `run`; tradeoffs with `objective_ranges`, `extreme_solutions`,
    `balanced_solution`, `inflection_point_candidates` (each with a `jump_factor` and one-line
@@ -28,8 +28,8 @@ the narrative overview; this is the paste-and-drive script.
    consensus stats.
 
 3. **Shortlist, then check the numbers are real**
-   Prompt: *"Keep the balanced plan and the safest one as finalists. And how much should I
-   trust these — are they actually the best versions of themselves?"*
+   Prompt: *"Keep the balanced plan and the safest one as finalists. How much should I trust
+   these?"*
    Tools: `explore` (action=curate, per pick) → `solve` (solver="highs") → `explore`
    (action=certify).
    Expect: `curated: true` per pick plus a `quality` gate (GOOD / WARNING / DEGENERATE, with
@@ -38,9 +38,9 @@ the narrative overview; this is the paste-and-drive script.
    points exact strictly beats — the headline at 120 binary options), `coverage`, the
    `invariant`, `corner_sharpening`, and `quality_gates`.
 
-4. **The sign-off questions**
-   Prompt: *"What's the tightest lever on this portfolio, what should we stress-test, and can
-   you guarantee we never blow the risk ceiling no matter which feasible plan we land on?"*
+4. **The tightest lever, and the guarantee**
+   Prompt: *"What's the tightest lever, what should we stress-test, and can you guarantee we
+   never blow the risk ceiling, whichever feasible plan we land on?"*
    Tools: `explore` (action=sensitivity) → `explore` (action=audit, with a property).
    Expect: integer selections carry no solver duals, so sensitivity returns the
    `frontier_inferred` binding analysis plus `suggested_scenarios` seeded from the most binding

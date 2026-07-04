@@ -8,8 +8,7 @@ the narrative overview; this is the paste-and-drive script — and the governanc
 step 4 proves guarantees over the *whole feasible space*, not just the frontier.
 
 1. **Load and sanity-check the decision**
-   Prompt: *"Load the claims triage example. What decision am I actually making here, and is it
-   even workable as set up?"*
+   Prompt: *"Load the claims triage example. What am I deciding, and is it workable as set up?"*
    Tools: `model` (action=load, then get/summary) → `solve` (action=validate) → `explore`
    (action=audit, no property).
    Expect: a `problem_id`; 3 objectives (ExpectedRecovery↑, Hours↓, Friction↓), 180 claims, the
@@ -29,8 +28,8 @@ step 4 proves guarantees over the *whole feasible space*, not just the frontier.
    recovery-per-hour ranking can't see.
 
 3. **Shortlist, then check the numbers are real**
-   Prompt: *"Keep the balanced plan and the gentlest one that still hits the target. And before
-   I take this anywhere — how much should I trust these plans?"*
+   Prompt: *"Keep the balanced plan and the gentlest one that still hits the target. How much
+   should I trust these?"*
    Tools: `explore` (action=curate, per pick) → `solve` (solver="highs") → `explore`
    (action=certify).
    Expect: `curated: true` per pick with a `quality` gate; the exact-MILP overlay in
@@ -38,9 +37,9 @@ step 4 proves guarantees over the *whole feasible space*, not just the frontier.
    options the exact overlay dominates a large fraction of the heuristic points — plus
    `coverage`, the `invariant`, and `quality_gates`.
 
-4. **The sign-off question — what's guaranteed, no matter what we pick**
-   Prompt: *"Before I sign off: is there any legal plan that skips the regulator referrals or
-   any of the four big-ticket claims? And what about LIA-1002 — is that one covered too?"*
+4. **What's guaranteed, no matter what we pick**
+   Prompt: *"Is there any legal plan that skips the regulator referrals or any of the four
+   big-ticket claims? And is LIA-1002 covered too?"*
    Tools: `explore` (action=audit, audit_property=a LIST of ten force_include dicts) →
    `explore` (action=audit, one force_include dict for LIA-1002).
    Expect: first call verdict `holds` with a per-`properties` breakdown (ten × `holds`) — a
@@ -51,8 +50,8 @@ step 4 proves guarantees over the *whole feasible space*, not just the frontier.
    with a concrete `witness` plan that skips LIA-1002 — the guarantee has a sharp edge.
 
 5. **What's limiting us, and the write-up**
-   Prompt: *"What's actually holding us back, what should we stress-test next quarter, and
-   write this up for the claims committee."*
+   Prompt: *"What's holding us back, what should we stress-test next quarter, and write this
+   up for the claims committee."*
    Tools: `explore` (action=sensitivity) → `explore` (action=curated, format="markdown").
    Expect: integer selections carry no solver duals, so sensitivity returns the
    `frontier_inferred` binding analysis plus `suggested_scenarios` seeded from the most binding
