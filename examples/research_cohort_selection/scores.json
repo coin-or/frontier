@@ -1,0 +1,1146 @@
+{
+  "options": [
+    {
+      "name": "V-101",
+      "description": "Stratum A (high expression) \u2014 Lakeside Clinical"
+    },
+    {
+      "name": "V-102",
+      "description": "Stratum A (high expression) \u2014 Foxhill Research"
+    },
+    {
+      "name": "V-103",
+      "description": "Stratum A (high expression) \u2014 Meridian Health"
+    },
+    {
+      "name": "V-104",
+      "description": "Stratum A (high expression) \u2014 Lakeside Clinical"
+    },
+    {
+      "name": "V-105",
+      "description": "Stratum A (high expression) \u2014 Foxhill Research"
+    },
+    {
+      "name": "V-106",
+      "description": "Stratum A (high expression) \u2014 Meridian Health"
+    },
+    {
+      "name": "V-107",
+      "description": "Stratum A (high expression) \u2014 Lakeside Clinical"
+    },
+    {
+      "name": "V-108",
+      "description": "Stratum A (high expression) \u2014 Foxhill Research"
+    },
+    {
+      "name": "V-109",
+      "description": "Stratum A (high expression) \u2014 Meridian Health"
+    },
+    {
+      "name": "V-110",
+      "description": "Stratum A (high expression) \u2014 Lakeside Clinical"
+    },
+    {
+      "name": "V-111",
+      "description": "Stratum A (high expression) \u2014 Foxhill Research"
+    },
+    {
+      "name": "V-112",
+      "description": "Stratum A (high expression) \u2014 Meridian Health"
+    },
+    {
+      "name": "V-113",
+      "description": "Stratum A (high expression) \u2014 Lakeside Clinical"
+    },
+    {
+      "name": "V-114",
+      "description": "Stratum A (high expression) \u2014 Foxhill Research"
+    },
+    {
+      "name": "V-115",
+      "description": "Stratum A (high expression) \u2014 Meridian Health"
+    },
+    {
+      "name": "V-116",
+      "description": "Stratum A (high expression) \u2014 Lakeside Clinical"
+    },
+    {
+      "name": "V-117",
+      "description": "Stratum A (high expression) \u2014 Foxhill Research"
+    },
+    {
+      "name": "V-118",
+      "description": "Stratum A (high expression) \u2014 Meridian Health"
+    },
+    {
+      "name": "V-119",
+      "description": "Stratum B (moderate expression) \u2014 Lakeside Clinical"
+    },
+    {
+      "name": "V-120",
+      "description": "Stratum B (moderate expression) \u2014 Foxhill Research"
+    },
+    {
+      "name": "V-121",
+      "description": "Stratum B (moderate expression) \u2014 Dockside Medical"
+    },
+    {
+      "name": "V-122",
+      "description": "Stratum B (moderate expression) \u2014 Aurora Trials"
+    },
+    {
+      "name": "V-123",
+      "description": "Stratum B (moderate expression) \u2014 Lakeside Clinical"
+    },
+    {
+      "name": "V-124",
+      "description": "Stratum B (moderate expression) \u2014 Foxhill Research"
+    },
+    {
+      "name": "V-125",
+      "description": "Stratum B (moderate expression) \u2014 Dockside Medical"
+    },
+    {
+      "name": "V-126",
+      "description": "Stratum B (moderate expression) \u2014 Aurora Trials"
+    },
+    {
+      "name": "V-127",
+      "description": "Stratum B (moderate expression) \u2014 Lakeside Clinical"
+    },
+    {
+      "name": "V-128",
+      "description": "Stratum B (moderate expression) \u2014 Foxhill Research"
+    },
+    {
+      "name": "V-129",
+      "description": "Stratum B (moderate expression) \u2014 Dockside Medical"
+    },
+    {
+      "name": "V-130",
+      "description": "Stratum B (moderate expression) \u2014 Aurora Trials"
+    },
+    {
+      "name": "V-131",
+      "description": "Stratum B (moderate expression) \u2014 Lakeside Clinical"
+    },
+    {
+      "name": "V-132",
+      "description": "Stratum B (moderate expression) \u2014 Foxhill Research"
+    },
+    {
+      "name": "V-133",
+      "description": "Stratum B (moderate expression) \u2014 Dockside Medical"
+    },
+    {
+      "name": "V-134",
+      "description": "Stratum B (moderate expression) \u2014 Aurora Trials"
+    },
+    {
+      "name": "V-135",
+      "description": "Stratum C (early stage) \u2014 Meridian Health"
+    },
+    {
+      "name": "V-136",
+      "description": "Stratum C (early stage) \u2014 Dockside Medical"
+    },
+    {
+      "name": "V-137",
+      "description": "Stratum C (early stage) \u2014 Aurora Trials"
+    },
+    {
+      "name": "V-138",
+      "description": "Stratum C (early stage) \u2014 Summit Care"
+    },
+    {
+      "name": "V-139",
+      "description": "Stratum C (early stage) \u2014 Meridian Health"
+    },
+    {
+      "name": "V-140",
+      "description": "Stratum C (early stage) \u2014 Dockside Medical"
+    },
+    {
+      "name": "V-141",
+      "description": "Stratum C (early stage) \u2014 Aurora Trials"
+    },
+    {
+      "name": "V-142",
+      "description": "Stratum C (early stage) \u2014 Summit Care"
+    },
+    {
+      "name": "V-143",
+      "description": "Stratum C (early stage) \u2014 Meridian Health"
+    },
+    {
+      "name": "V-144",
+      "description": "Stratum C (early stage) \u2014 Dockside Medical"
+    },
+    {
+      "name": "V-145",
+      "description": "Stratum C (early stage) \u2014 Aurora Trials"
+    },
+    {
+      "name": "V-146",
+      "description": "Stratum C (early stage) \u2014 Summit Care"
+    },
+    {
+      "name": "V-147",
+      "description": "Stratum C (early stage) \u2014 Meridian Health"
+    },
+    {
+      "name": "V-148",
+      "description": "Stratum C (early stage) \u2014 Dockside Medical"
+    },
+    {
+      "name": "V-149",
+      "description": "Stratum D (comorbid) \u2014 Dockside Medical"
+    },
+    {
+      "name": "V-150",
+      "description": "Stratum D (comorbid) \u2014 Aurora Trials"
+    },
+    {
+      "name": "V-151",
+      "description": "Stratum D (comorbid) \u2014 Summit Care"
+    },
+    {
+      "name": "V-152",
+      "description": "Stratum D (comorbid) \u2014 Dockside Medical"
+    },
+    {
+      "name": "V-153",
+      "description": "Stratum D (comorbid) \u2014 Aurora Trials"
+    },
+    {
+      "name": "V-154",
+      "description": "Stratum D (comorbid) \u2014 Summit Care"
+    },
+    {
+      "name": "V-155",
+      "description": "Stratum D (comorbid) \u2014 Dockside Medical"
+    },
+    {
+      "name": "V-156",
+      "description": "Stratum D (comorbid) \u2014 Aurora Trials"
+    },
+    {
+      "name": "V-157",
+      "description": "Stratum D (comorbid) \u2014 Summit Care"
+    },
+    {
+      "name": "V-158",
+      "description": "Stratum D (comorbid) \u2014 Dockside Medical"
+    },
+    {
+      "name": "V-159",
+      "description": "Stratum D (comorbid) \u2014 Aurora Trials"
+    },
+    {
+      "name": "V-160",
+      "description": "Stratum D (comorbid) \u2014 Summit Care"
+    }
+  ],
+  "scores": [
+    {
+      "option": "V-101",
+      "objective": "SignalStrength",
+      "value": 87.5
+    },
+    {
+      "option": "V-101",
+      "objective": "RetentionRisk",
+      "value": 36.8
+    },
+    {
+      "option": "V-101",
+      "objective": "CostPerParticipant",
+      "value": 11.6
+    },
+    {
+      "option": "V-102",
+      "objective": "SignalStrength",
+      "value": 85.9
+    },
+    {
+      "option": "V-102",
+      "objective": "RetentionRisk",
+      "value": 31.4
+    },
+    {
+      "option": "V-102",
+      "objective": "CostPerParticipant",
+      "value": 10.9
+    },
+    {
+      "option": "V-103",
+      "objective": "SignalStrength",
+      "value": 87.2
+    },
+    {
+      "option": "V-103",
+      "objective": "RetentionRisk",
+      "value": 41.5
+    },
+    {
+      "option": "V-103",
+      "objective": "CostPerParticipant",
+      "value": 5.8
+    },
+    {
+      "option": "V-104",
+      "objective": "SignalStrength",
+      "value": 81.0
+    },
+    {
+      "option": "V-104",
+      "objective": "RetentionRisk",
+      "value": 33.5
+    },
+    {
+      "option": "V-104",
+      "objective": "CostPerParticipant",
+      "value": 11.8
+    },
+    {
+      "option": "V-105",
+      "objective": "SignalStrength",
+      "value": 84.9
+    },
+    {
+      "option": "V-105",
+      "objective": "RetentionRisk",
+      "value": 41.2
+    },
+    {
+      "option": "V-105",
+      "objective": "CostPerParticipant",
+      "value": 9.3
+    },
+    {
+      "option": "V-106",
+      "objective": "SignalStrength",
+      "value": 76.5
+    },
+    {
+      "option": "V-106",
+      "objective": "RetentionRisk",
+      "value": 34.6
+    },
+    {
+      "option": "V-106",
+      "objective": "CostPerParticipant",
+      "value": 5.7
+    },
+    {
+      "option": "V-107",
+      "objective": "SignalStrength",
+      "value": 88.6
+    },
+    {
+      "option": "V-107",
+      "objective": "RetentionRisk",
+      "value": 39.8
+    },
+    {
+      "option": "V-107",
+      "objective": "CostPerParticipant",
+      "value": 11.3
+    },
+    {
+      "option": "V-108",
+      "objective": "SignalStrength",
+      "value": 79.1
+    },
+    {
+      "option": "V-108",
+      "objective": "RetentionRisk",
+      "value": 41.3
+    },
+    {
+      "option": "V-108",
+      "objective": "CostPerParticipant",
+      "value": 10.7
+    },
+    {
+      "option": "V-109",
+      "objective": "SignalStrength",
+      "value": 87.6
+    },
+    {
+      "option": "V-109",
+      "objective": "RetentionRisk",
+      "value": 33.4
+    },
+    {
+      "option": "V-109",
+      "objective": "CostPerParticipant",
+      "value": 6.7
+    },
+    {
+      "option": "V-110",
+      "objective": "SignalStrength",
+      "value": 72.9
+    },
+    {
+      "option": "V-110",
+      "objective": "RetentionRisk",
+      "value": 27.7
+    },
+    {
+      "option": "V-110",
+      "objective": "CostPerParticipant",
+      "value": 11.0
+    },
+    {
+      "option": "V-111",
+      "objective": "SignalStrength",
+      "value": 86.9
+    },
+    {
+      "option": "V-111",
+      "objective": "RetentionRisk",
+      "value": 44.0
+    },
+    {
+      "option": "V-111",
+      "objective": "CostPerParticipant",
+      "value": 9.0
+    },
+    {
+      "option": "V-112",
+      "objective": "SignalStrength",
+      "value": 79.4
+    },
+    {
+      "option": "V-112",
+      "objective": "RetentionRisk",
+      "value": 34.4
+    },
+    {
+      "option": "V-112",
+      "objective": "CostPerParticipant",
+      "value": 6.0
+    },
+    {
+      "option": "V-113",
+      "objective": "SignalStrength",
+      "value": 74.6
+    },
+    {
+      "option": "V-113",
+      "objective": "RetentionRisk",
+      "value": 32.8
+    },
+    {
+      "option": "V-113",
+      "objective": "CostPerParticipant",
+      "value": 9.7
+    },
+    {
+      "option": "V-114",
+      "objective": "SignalStrength",
+      "value": 85.4
+    },
+    {
+      "option": "V-114",
+      "objective": "RetentionRisk",
+      "value": 36.0
+    },
+    {
+      "option": "V-114",
+      "objective": "CostPerParticipant",
+      "value": 10.5
+    },
+    {
+      "option": "V-115",
+      "objective": "SignalStrength",
+      "value": 86.0
+    },
+    {
+      "option": "V-115",
+      "objective": "RetentionRisk",
+      "value": 34.5
+    },
+    {
+      "option": "V-115",
+      "objective": "CostPerParticipant",
+      "value": 7.6
+    },
+    {
+      "option": "V-116",
+      "objective": "SignalStrength",
+      "value": 88.1
+    },
+    {
+      "option": "V-116",
+      "objective": "RetentionRisk",
+      "value": 36.3
+    },
+    {
+      "option": "V-116",
+      "objective": "CostPerParticipant",
+      "value": 9.9
+    },
+    {
+      "option": "V-117",
+      "objective": "SignalStrength",
+      "value": 85.6
+    },
+    {
+      "option": "V-117",
+      "objective": "RetentionRisk",
+      "value": 31.9
+    },
+    {
+      "option": "V-117",
+      "objective": "CostPerParticipant",
+      "value": 8.6
+    },
+    {
+      "option": "V-118",
+      "objective": "SignalStrength",
+      "value": 72.1
+    },
+    {
+      "option": "V-118",
+      "objective": "RetentionRisk",
+      "value": 36.3
+    },
+    {
+      "option": "V-118",
+      "objective": "CostPerParticipant",
+      "value": 7.2
+    },
+    {
+      "option": "V-119",
+      "objective": "SignalStrength",
+      "value": 74.1
+    },
+    {
+      "option": "V-119",
+      "objective": "RetentionRisk",
+      "value": 36.9
+    },
+    {
+      "option": "V-119",
+      "objective": "CostPerParticipant",
+      "value": 10.4
+    },
+    {
+      "option": "V-120",
+      "objective": "SignalStrength",
+      "value": 71.4
+    },
+    {
+      "option": "V-120",
+      "objective": "RetentionRisk",
+      "value": 26.9
+    },
+    {
+      "option": "V-120",
+      "objective": "CostPerParticipant",
+      "value": 8.3
+    },
+    {
+      "option": "V-121",
+      "objective": "SignalStrength",
+      "value": 73.4
+    },
+    {
+      "option": "V-121",
+      "objective": "RetentionRisk",
+      "value": 32.3
+    },
+    {
+      "option": "V-121",
+      "objective": "CostPerParticipant",
+      "value": 5.9
+    },
+    {
+      "option": "V-122",
+      "objective": "SignalStrength",
+      "value": 75.3
+    },
+    {
+      "option": "V-122",
+      "objective": "RetentionRisk",
+      "value": 35.2
+    },
+    {
+      "option": "V-122",
+      "objective": "CostPerParticipant",
+      "value": 4.9
+    },
+    {
+      "option": "V-123",
+      "objective": "SignalStrength",
+      "value": 71.2
+    },
+    {
+      "option": "V-123",
+      "objective": "RetentionRisk",
+      "value": 29.2
+    },
+    {
+      "option": "V-123",
+      "objective": "CostPerParticipant",
+      "value": 9.1
+    },
+    {
+      "option": "V-124",
+      "objective": "SignalStrength",
+      "value": 68.7
+    },
+    {
+      "option": "V-124",
+      "objective": "RetentionRisk",
+      "value": 27.1
+    },
+    {
+      "option": "V-124",
+      "objective": "CostPerParticipant",
+      "value": 9.2
+    },
+    {
+      "option": "V-125",
+      "objective": "SignalStrength",
+      "value": 77.1
+    },
+    {
+      "option": "V-125",
+      "objective": "RetentionRisk",
+      "value": 30.2
+    },
+    {
+      "option": "V-125",
+      "objective": "CostPerParticipant",
+      "value": 4.6
+    },
+    {
+      "option": "V-126",
+      "objective": "SignalStrength",
+      "value": 65.6
+    },
+    {
+      "option": "V-126",
+      "objective": "RetentionRisk",
+      "value": 27.1
+    },
+    {
+      "option": "V-126",
+      "objective": "CostPerParticipant",
+      "value": 5.2
+    },
+    {
+      "option": "V-127",
+      "objective": "SignalStrength",
+      "value": 71.1
+    },
+    {
+      "option": "V-127",
+      "objective": "RetentionRisk",
+      "value": 35.9
+    },
+    {
+      "option": "V-127",
+      "objective": "CostPerParticipant",
+      "value": 11.0
+    },
+    {
+      "option": "V-128",
+      "objective": "SignalStrength",
+      "value": 68.1
+    },
+    {
+      "option": "V-128",
+      "objective": "RetentionRisk",
+      "value": 35.2
+    },
+    {
+      "option": "V-128",
+      "objective": "CostPerParticipant",
+      "value": 8.5
+    },
+    {
+      "option": "V-129",
+      "objective": "SignalStrength",
+      "value": 60.5
+    },
+    {
+      "option": "V-129",
+      "objective": "RetentionRisk",
+      "value": 22.4
+    },
+    {
+      "option": "V-129",
+      "objective": "CostPerParticipant",
+      "value": 6.3
+    },
+    {
+      "option": "V-130",
+      "objective": "SignalStrength",
+      "value": 69.2
+    },
+    {
+      "option": "V-130",
+      "objective": "RetentionRisk",
+      "value": 26.5
+    },
+    {
+      "option": "V-130",
+      "objective": "CostPerParticipant",
+      "value": 4.8
+    },
+    {
+      "option": "V-131",
+      "objective": "SignalStrength",
+      "value": 63.0
+    },
+    {
+      "option": "V-131",
+      "objective": "RetentionRisk",
+      "value": 31.8
+    },
+    {
+      "option": "V-131",
+      "objective": "CostPerParticipant",
+      "value": 10.3
+    },
+    {
+      "option": "V-132",
+      "objective": "SignalStrength",
+      "value": 67.6
+    },
+    {
+      "option": "V-132",
+      "objective": "RetentionRisk",
+      "value": 27.9
+    },
+    {
+      "option": "V-132",
+      "objective": "CostPerParticipant",
+      "value": 9.9
+    },
+    {
+      "option": "V-133",
+      "objective": "SignalStrength",
+      "value": 67.2
+    },
+    {
+      "option": "V-133",
+      "objective": "RetentionRisk",
+      "value": 24.8
+    },
+    {
+      "option": "V-133",
+      "objective": "CostPerParticipant",
+      "value": 4.8
+    },
+    {
+      "option": "V-134",
+      "objective": "SignalStrength",
+      "value": 79.2
+    },
+    {
+      "option": "V-134",
+      "objective": "RetentionRisk",
+      "value": 40.5
+    },
+    {
+      "option": "V-134",
+      "objective": "CostPerParticipant",
+      "value": 5.2
+    },
+    {
+      "option": "V-135",
+      "objective": "SignalStrength",
+      "value": 53.3
+    },
+    {
+      "option": "V-135",
+      "objective": "RetentionRisk",
+      "value": 32.2
+    },
+    {
+      "option": "V-135",
+      "objective": "CostPerParticipant",
+      "value": 7.4
+    },
+    {
+      "option": "V-136",
+      "objective": "SignalStrength",
+      "value": 62.3
+    },
+    {
+      "option": "V-136",
+      "objective": "RetentionRisk",
+      "value": 28.1
+    },
+    {
+      "option": "V-136",
+      "objective": "CostPerParticipant",
+      "value": 5.2
+    },
+    {
+      "option": "V-137",
+      "objective": "SignalStrength",
+      "value": 49.9
+    },
+    {
+      "option": "V-137",
+      "objective": "RetentionRisk",
+      "value": 30.1
+    },
+    {
+      "option": "V-137",
+      "objective": "CostPerParticipant",
+      "value": 4.6
+    },
+    {
+      "option": "V-138",
+      "objective": "SignalStrength",
+      "value": 52.0
+    },
+    {
+      "option": "V-138",
+      "objective": "RetentionRisk",
+      "value": 22.5
+    },
+    {
+      "option": "V-138",
+      "objective": "CostPerParticipant",
+      "value": 4.4
+    },
+    {
+      "option": "V-139",
+      "objective": "SignalStrength",
+      "value": 51.5
+    },
+    {
+      "option": "V-139",
+      "objective": "RetentionRisk",
+      "value": 30.0
+    },
+    {
+      "option": "V-139",
+      "objective": "CostPerParticipant",
+      "value": 7.4
+    },
+    {
+      "option": "V-140",
+      "objective": "SignalStrength",
+      "value": 62.4
+    },
+    {
+      "option": "V-140",
+      "objective": "RetentionRisk",
+      "value": 27.9
+    },
+    {
+      "option": "V-140",
+      "objective": "CostPerParticipant",
+      "value": 6.1
+    },
+    {
+      "option": "V-141",
+      "objective": "SignalStrength",
+      "value": 59.7
+    },
+    {
+      "option": "V-141",
+      "objective": "RetentionRisk",
+      "value": 30.0
+    },
+    {
+      "option": "V-141",
+      "objective": "CostPerParticipant",
+      "value": 3.7
+    },
+    {
+      "option": "V-142",
+      "objective": "SignalStrength",
+      "value": 56.3
+    },
+    {
+      "option": "V-142",
+      "objective": "RetentionRisk",
+      "value": 20.3
+    },
+    {
+      "option": "V-142",
+      "objective": "CostPerParticipant",
+      "value": 4.2
+    },
+    {
+      "option": "V-143",
+      "objective": "SignalStrength",
+      "value": 54.6
+    },
+    {
+      "option": "V-143",
+      "objective": "RetentionRisk",
+      "value": 21.1
+    },
+    {
+      "option": "V-143",
+      "objective": "CostPerParticipant",
+      "value": 5.8
+    },
+    {
+      "option": "V-144",
+      "objective": "SignalStrength",
+      "value": 59.8
+    },
+    {
+      "option": "V-144",
+      "objective": "RetentionRisk",
+      "value": 23.3
+    },
+    {
+      "option": "V-144",
+      "objective": "CostPerParticipant",
+      "value": 6.8
+    },
+    {
+      "option": "V-145",
+      "objective": "SignalStrength",
+      "value": 59.6
+    },
+    {
+      "option": "V-145",
+      "objective": "RetentionRisk",
+      "value": 25.7
+    },
+    {
+      "option": "V-145",
+      "objective": "CostPerParticipant",
+      "value": 5.0
+    },
+    {
+      "option": "V-146",
+      "objective": "SignalStrength",
+      "value": 48.5
+    },
+    {
+      "option": "V-146",
+      "objective": "RetentionRisk",
+      "value": 30.4
+    },
+    {
+      "option": "V-146",
+      "objective": "CostPerParticipant",
+      "value": 4.2
+    },
+    {
+      "option": "V-147",
+      "objective": "SignalStrength",
+      "value": 63.7
+    },
+    {
+      "option": "V-147",
+      "objective": "RetentionRisk",
+      "value": 23.4
+    },
+    {
+      "option": "V-147",
+      "objective": "CostPerParticipant",
+      "value": 6.7
+    },
+    {
+      "option": "V-148",
+      "objective": "SignalStrength",
+      "value": 57.8
+    },
+    {
+      "option": "V-148",
+      "objective": "RetentionRisk",
+      "value": 33.4
+    },
+    {
+      "option": "V-148",
+      "objective": "CostPerParticipant",
+      "value": 5.9
+    },
+    {
+      "option": "V-149",
+      "objective": "SignalStrength",
+      "value": 49.5
+    },
+    {
+      "option": "V-149",
+      "objective": "RetentionRisk",
+      "value": 21.1
+    },
+    {
+      "option": "V-149",
+      "objective": "CostPerParticipant",
+      "value": 5.3
+    },
+    {
+      "option": "V-150",
+      "objective": "SignalStrength",
+      "value": 50.4
+    },
+    {
+      "option": "V-150",
+      "objective": "RetentionRisk",
+      "value": 23.8
+    },
+    {
+      "option": "V-150",
+      "objective": "CostPerParticipant",
+      "value": 3.6
+    },
+    {
+      "option": "V-151",
+      "objective": "SignalStrength",
+      "value": 56.5
+    },
+    {
+      "option": "V-151",
+      "objective": "RetentionRisk",
+      "value": 32.3
+    },
+    {
+      "option": "V-151",
+      "objective": "CostPerParticipant",
+      "value": 3.4
+    },
+    {
+      "option": "V-152",
+      "objective": "SignalStrength",
+      "value": 51.1
+    },
+    {
+      "option": "V-152",
+      "objective": "RetentionRisk",
+      "value": 19.4
+    },
+    {
+      "option": "V-152",
+      "objective": "CostPerParticipant",
+      "value": 6.2
+    },
+    {
+      "option": "V-153",
+      "objective": "SignalStrength",
+      "value": 45.6
+    },
+    {
+      "option": "V-153",
+      "objective": "RetentionRisk",
+      "value": 25.2
+    },
+    {
+      "option": "V-153",
+      "objective": "CostPerParticipant",
+      "value": 5.3
+    },
+    {
+      "option": "V-154",
+      "objective": "SignalStrength",
+      "value": 55.4
+    },
+    {
+      "option": "V-154",
+      "objective": "RetentionRisk",
+      "value": 20.9
+    },
+    {
+      "option": "V-154",
+      "objective": "CostPerParticipant",
+      "value": 5.3
+    },
+    {
+      "option": "V-155",
+      "objective": "SignalStrength",
+      "value": 44.6
+    },
+    {
+      "option": "V-155",
+      "objective": "RetentionRisk",
+      "value": 16.1
+    },
+    {
+      "option": "V-155",
+      "objective": "CostPerParticipant",
+      "value": 5.9
+    },
+    {
+      "option": "V-156",
+      "objective": "SignalStrength",
+      "value": 47.4
+    },
+    {
+      "option": "V-156",
+      "objective": "RetentionRisk",
+      "value": 28.2
+    },
+    {
+      "option": "V-156",
+      "objective": "CostPerParticipant",
+      "value": 5.5
+    },
+    {
+      "option": "V-157",
+      "objective": "SignalStrength",
+      "value": 46.3
+    },
+    {
+      "option": "V-157",
+      "objective": "RetentionRisk",
+      "value": 29.6
+    },
+    {
+      "option": "V-157",
+      "objective": "CostPerParticipant",
+      "value": 3.7
+    },
+    {
+      "option": "V-158",
+      "objective": "SignalStrength",
+      "value": 50.3
+    },
+    {
+      "option": "V-158",
+      "objective": "RetentionRisk",
+      "value": 21.2
+    },
+    {
+      "option": "V-158",
+      "objective": "CostPerParticipant",
+      "value": 6.8
+    },
+    {
+      "option": "V-159",
+      "objective": "SignalStrength",
+      "value": 43.3
+    },
+    {
+      "option": "V-159",
+      "objective": "RetentionRisk",
+      "value": 15.8
+    },
+    {
+      "option": "V-159",
+      "objective": "CostPerParticipant",
+      "value": 4.6
+    },
+    {
+      "option": "V-160",
+      "objective": "SignalStrength",
+      "value": 59.8
+    },
+    {
+      "option": "V-160",
+      "objective": "RetentionRisk",
+      "value": 33.4
+    },
+    {
+      "option": "V-160",
+      "objective": "CostPerParticipant",
+      "value": 4.9
+    }
+  ]
+}

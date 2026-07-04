@@ -1,0 +1,2083 @@
+{
+  "run": {
+    "run_id": "a337483e-ab86-47fc-bbd9-d8716718d14d",
+    "created_at": "2026-07-04T02:28:09.788657Z",
+    "mode": "thorough",
+    "solutions": [
+      {
+        "solution_id": 1,
+        "selected_options": [
+          "V-101",
+          "V-107",
+          "V-109",
+          "V-116",
+          "V-122",
+          "V-125",
+          "V-134",
+          "V-136",
+          "V-140",
+          "V-147",
+          "V-151",
+          "V-160"
+        ],
+        "objective_values": {
+          "SignalStrength": 888.1,
+          "RetentionRisk": 397.3,
+          "CostPerParticipant": 80.5
+        },
+        "allocations": null,
+        "content_signature": "66c1b5e71d3a",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 2,
+        "selected_options": [
+          "V-103",
+          "V-107",
+          "V-109",
+          "V-116",
+          "V-122",
+          "V-125",
+          "V-134",
+          "V-136",
+          "V-140",
+          "V-147",
+          "V-151",
+          "V-154"
+        ],
+        "objective_values": {
+          "SignalStrength": 883.4,
+          "RetentionRisk": 389.5,
+          "CostPerParticipant": 75.1
+        },
+        "allocations": null,
+        "content_signature": "96fd3666bd7b",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 3,
+        "selected_options": [
+          "V-101",
+          "V-103",
+          "V-109",
+          "V-117",
+          "V-122",
+          "V-125",
+          "V-134",
+          "V-136",
+          "V-141",
+          "V-147",
+          "V-151",
+          "V-160"
+        ],
+        "objective_values": {
+          "SignalStrength": 881.5,
+          "RetentionRisk": 396.7,
+          "CostPerParticipant": 71.3
+        },
+        "allocations": null,
+        "content_signature": "e5f06a96311c",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 4,
+        "selected_options": [
+          "V-102",
+          "V-107",
+          "V-109",
+          "V-117",
+          "V-122",
+          "V-125",
+          "V-134",
+          "V-136",
+          "V-140",
+          "V-147",
+          "V-151",
+          "V-154"
+        ],
+        "objective_values": {
+          "SignalStrength": 879.6,
+          "RetentionRisk": 375.0,
+          "CostPerParticipant": 78.9
+        },
+        "allocations": null,
+        "content_signature": "eca0dcc24a7e",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 5,
+        "selected_options": [
+          "V-102",
+          "V-103",
+          "V-109",
+          "V-116",
+          "V-122",
+          "V-125",
+          "V-134",
+          "V-136",
+          "V-142",
+          "V-147",
+          "V-151",
+          "V-154"
+        ],
+        "objective_values": {
+          "SignalStrength": 874.6,
+          "RetentionRisk": 373.5,
+          "CostPerParticipant": 72.8
+        },
+        "allocations": null,
+        "content_signature": "2164d3f53710",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 6,
+        "selected_options": [
+          "V-103",
+          "V-109",
+          "V-115",
+          "V-117",
+          "V-122",
+          "V-125",
+          "V-134",
+          "V-136",
+          "V-140",
+          "V-142",
+          "V-151",
+          "V-154"
+        ],
+        "objective_values": {
+          "SignalStrength": 870.9,
+          "RetentionRisk": 376.7,
+          "CostPerParticipant": 67.6
+        },
+        "allocations": null,
+        "content_signature": "745dc30ea237",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 7,
+        "selected_options": [
+          "V-102",
+          "V-107",
+          "V-109",
+          "V-117",
+          "V-122",
+          "V-125",
+          "V-130",
+          "V-136",
+          "V-140",
+          "V-147",
+          "V-151",
+          "V-154"
+        ],
+        "objective_values": {
+          "SignalStrength": 869.6,
+          "RetentionRisk": 361.0,
+          "CostPerParticipant": 78.5
+        },
+        "allocations": null,
+        "content_signature": "69c1e2b5d956",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 8,
+        "selected_options": [
+          "V-102",
+          "V-107",
+          "V-109",
+          "V-117",
+          "V-123",
+          "V-125",
+          "V-130",
+          "V-136",
+          "V-140",
+          "V-147",
+          "V-151",
+          "V-154"
+        ],
+        "objective_values": {
+          "SignalStrength": 865.5,
+          "RetentionRisk": 355.0,
+          "CostPerParticipant": 82.7
+        },
+        "allocations": null,
+        "content_signature": "8450dd7ce8c0",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 9,
+        "selected_options": [
+          "V-102",
+          "V-107",
+          "V-109",
+          "V-117",
+          "V-122",
+          "V-125",
+          "V-133",
+          "V-136",
+          "V-142",
+          "V-147",
+          "V-151",
+          "V-154"
+        ],
+        "objective_values": {
+          "SignalStrength": 861.5,
+          "RetentionRisk": 351.7,
+          "CostPerParticipant": 76.6
+        },
+        "allocations": null,
+        "content_signature": "c2d2034beb78",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 10,
+        "selected_options": [
+          "V-102",
+          "V-103",
+          "V-109",
+          "V-117",
+          "V-122",
+          "V-125",
+          "V-133",
+          "V-141",
+          "V-142",
+          "V-147",
+          "V-151",
+          "V-154"
+        ],
+        "objective_values": {
+          "SignalStrength": 857.5,
+          "RetentionRisk": 355.3,
+          "CostPerParticipant": 69.6
+        },
+        "allocations": null,
+        "content_signature": "bb245710e348",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 11,
+        "selected_options": [
+          "V-102",
+          "V-107",
+          "V-109",
+          "V-117",
+          "V-123",
+          "V-125",
+          "V-133",
+          "V-136",
+          "V-142",
+          "V-147",
+          "V-151",
+          "V-154"
+        ],
+        "objective_values": {
+          "SignalStrength": 857.4,
+          "RetentionRisk": 345.7,
+          "CostPerParticipant": 80.8
+        },
+        "allocations": null,
+        "content_signature": "5dbaa6d6fddf",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 12,
+        "selected_options": [
+          "V-102",
+          "V-109",
+          "V-115",
+          "V-117",
+          "V-125",
+          "V-130",
+          "V-133",
+          "V-136",
+          "V-142",
+          "V-147",
+          "V-151",
+          "V-154"
+        ],
+        "objective_values": {
+          "SignalStrength": 852.8,
+          "RetentionRisk": 337.7,
+          "CostPerParticipant": 72.8
+        },
+        "allocations": null,
+        "content_signature": "dbfa92b5f19f",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 13,
+        "selected_options": [
+          "V-103",
+          "V-109",
+          "V-115",
+          "V-117",
+          "V-122",
+          "V-125",
+          "V-134",
+          "V-136",
+          "V-142",
+          "V-146",
+          "V-150",
+          "V-151"
+        ],
+        "objective_values": {
+          "SignalStrength": 852.0,
+          "RetentionRisk": 382.1,
+          "CostPerParticipant": 64.0
+        },
+        "allocations": null,
+        "content_signature": "ca91e8b7a1db",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 14,
+        "selected_options": [
+          "V-103",
+          "V-109",
+          "V-117",
+          "V-121",
+          "V-122",
+          "V-125",
+          "V-134",
+          "V-136",
+          "V-142",
+          "V-143",
+          "V-151",
+          "V-154"
+        ],
+        "objective_values": {
+          "SignalStrength": 850.5,
+          "RetentionRisk": 367.7,
+          "CostPerParticipant": 65.6
+        },
+        "allocations": null,
+        "content_signature": "6ba7ef7b56e7",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 15,
+        "selected_options": [
+          "V-102",
+          "V-107",
+          "V-109",
+          "V-117",
+          "V-125",
+          "V-130",
+          "V-133",
+          "V-142",
+          "V-143",
+          "V-147",
+          "V-151",
+          "V-154"
+        ],
+        "objective_values": {
+          "SignalStrength": 847.7,
+          "RetentionRisk": 336.0,
+          "CostPerParticipant": 77.1
+        },
+        "allocations": null,
+        "content_signature": "81f2978fe210",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 16,
+        "selected_options": [
+          "V-102",
+          "V-109",
+          "V-110",
+          "V-117",
+          "V-123",
+          "V-125",
+          "V-133",
+          "V-136",
+          "V-142",
+          "V-147",
+          "V-151",
+          "V-154"
+        ],
+        "objective_values": {
+          "SignalStrength": 841.7,
+          "RetentionRisk": 333.6,
+          "CostPerParticipant": 80.5
+        },
+        "allocations": null,
+        "content_signature": "0ef8551af1fc",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 17,
+        "selected_options": [
+          "V-103",
+          "V-106",
+          "V-109",
+          "V-117",
+          "V-125",
+          "V-130",
+          "V-133",
+          "V-136",
+          "V-141",
+          "V-142",
+          "V-151",
+          "V-154"
+        ],
+        "objective_values": {
+          "SignalStrength": 840.6,
+          "RetentionRisk": 354.5,
+          "CostPerParticipant": 62.8
+        },
+        "allocations": null,
+        "content_signature": "e50c640ab011",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 18,
+        "selected_options": [
+          "V-102",
+          "V-109",
+          "V-110",
+          "V-117",
+          "V-125",
+          "V-130",
+          "V-133",
+          "V-136",
+          "V-142",
+          "V-143",
+          "V-151",
+          "V-154"
+        ],
+        "objective_values": {
+          "SignalStrength": 830.6,
+          "RetentionRisk": 328.6,
+          "CostPerParticipant": 75.3
+        },
+        "allocations": null,
+        "content_signature": "003a1909df1a",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 19,
+        "selected_options": [
+          "V-102",
+          "V-106",
+          "V-109",
+          "V-117",
+          "V-125",
+          "V-130",
+          "V-133",
+          "V-141",
+          "V-142",
+          "V-147",
+          "V-151",
+          "V-159"
+        ],
+        "objective_values": {
+          "SignalStrength": 828.6,
+          "RetentionRisk": 334.6,
+          "CostPerParticipant": 68.7
+        },
+        "allocations": null,
+        "content_signature": "fbef7ee6f907",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 20,
+        "selected_options": [
+          "V-102",
+          "V-109",
+          "V-110",
+          "V-117",
+          "V-125",
+          "V-129",
+          "V-130",
+          "V-142",
+          "V-143",
+          "V-147",
+          "V-151",
+          "V-154"
+        ],
+        "objective_values": {
+          "SignalStrength": 825.3,
+          "RetentionRisk": 321.5,
+          "CostPerParticipant": 78.3
+        },
+        "allocations": null,
+        "content_signature": "3087802c1fa4",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 21,
+        "selected_options": [
+          "V-103",
+          "V-109",
+          "V-117",
+          "V-125",
+          "V-130",
+          "V-133",
+          "V-136",
+          "V-141",
+          "V-142",
+          "V-147",
+          "V-150",
+          "V-151"
+        ],
+        "objective_values": {
+          "SignalStrength": 822.8,
+          "RetentionRisk": 346.2,
+          "CostPerParticipant": 62.1
+        },
+        "allocations": null,
+        "content_signature": "f7929e75a383",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 22,
+        "selected_options": [
+          "V-103",
+          "V-106",
+          "V-109",
+          "V-122",
+          "V-125",
+          "V-134",
+          "V-136",
+          "V-140",
+          "V-142",
+          "V-146",
+          "V-150",
+          "V-151"
+        ],
+        "objective_values": {
+          "SignalStrength": 819.3,
+          "RetentionRisk": 378.2,
+          "CostPerParticipant": 59.6
+        },
+        "allocations": null,
+        "content_signature": "a57ffd83a95b",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 23,
+        "selected_options": [
+          "V-102",
+          "V-109",
+          "V-117",
+          "V-124",
+          "V-129",
+          "V-130",
+          "V-133",
+          "V-142",
+          "V-143",
+          "V-147",
+          "V-151",
+          "V-154"
+        ],
+        "objective_values": {
+          "SignalStrength": 811.2,
+          "RetentionRisk": 315.5,
+          "CostPerParticipant": 76.7
+        },
+        "allocations": null,
+        "content_signature": "20e2d84a595c",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 24,
+        "selected_options": [
+          "V-103",
+          "V-109",
+          "V-116",
+          "V-125",
+          "V-130",
+          "V-133",
+          "V-136",
+          "V-141",
+          "V-142",
+          "V-146",
+          "V-150",
+          "V-151"
+        ],
+        "objective_values": {
+          "SignalStrength": 810.1,
+          "RetentionRisk": 357.6,
+          "CostPerParticipant": 60.9
+        },
+        "allocations": null,
+        "content_signature": "69d1b6375245",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 25,
+        "selected_options": [
+          "V-112",
+          "V-115",
+          "V-117",
+          "V-125",
+          "V-130",
+          "V-133",
+          "V-136",
+          "V-141",
+          "V-142",
+          "V-143",
+          "V-151",
+          "V-154"
+        ],
+        "objective_values": {
+          "SignalStrength": 809.3,
+          "RetentionRisk": 335.0,
+          "CostPerParticipant": 64.0
+        },
+        "allocations": null,
+        "content_signature": "beb76fcb5ffa",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 26,
+        "selected_options": [
+          "V-103",
+          "V-106",
+          "V-109",
+          "V-125",
+          "V-130",
+          "V-133",
+          "V-136",
+          "V-141",
+          "V-142",
+          "V-151",
+          "V-154",
+          "V-159"
+        ],
+        "objective_values": {
+          "SignalStrength": 798.3,
+          "RetentionRisk": 338.4,
+          "CostPerParticipant": 58.8
+        },
+        "allocations": null,
+        "content_signature": "603573b04739",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 27,
+        "selected_options": [
+          "V-102",
+          "V-109",
+          "V-117",
+          "V-125",
+          "V-130",
+          "V-133",
+          "V-138",
+          "V-140",
+          "V-142",
+          "V-143",
+          "V-151",
+          "V-159"
+        ],
+        "objective_values": {
+          "SignalStrength": 797.7,
+          "RetentionRisk": 318.1,
+          "CostPerParticipant": 68.9
+        },
+        "allocations": null,
+        "content_signature": "ccff952d57fa",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 28,
+        "selected_options": [
+          "V-102",
+          "V-110",
+          "V-117",
+          "V-124",
+          "V-129",
+          "V-130",
+          "V-133",
+          "V-142",
+          "V-143",
+          "V-147",
+          "V-151",
+          "V-154"
+        ],
+        "objective_values": {
+          "SignalStrength": 796.5,
+          "RetentionRisk": 309.8,
+          "CostPerParticipant": 81.0
+        },
+        "allocations": null,
+        "content_signature": "5a35f7607b44",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 29,
+        "selected_options": [
+          "V-103",
+          "V-106",
+          "V-112",
+          "V-125",
+          "V-130",
+          "V-133",
+          "V-136",
+          "V-141",
+          "V-142",
+          "V-146",
+          "V-150",
+          "V-151"
+        ],
+        "objective_values": {
+          "SignalStrength": 790.3,
+          "RetentionRisk": 356.9,
+          "CostPerParticipant": 56.0
+        },
+        "allocations": null,
+        "content_signature": "3dd994cf9f89",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 30,
+        "selected_options": [
+          "V-102",
+          "V-110",
+          "V-117",
+          "V-125",
+          "V-130",
+          "V-133",
+          "V-142",
+          "V-143",
+          "V-147",
+          "V-151",
+          "V-154",
+          "V-159"
+        ],
+        "objective_values": {
+          "SignalStrength": 787.7,
+          "RetentionRisk": 306.3,
+          "CostPerParticipant": 74.7
+        },
+        "allocations": null,
+        "content_signature": "17b0a264362c",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 31,
+        "selected_options": [
+          "V-103",
+          "V-109",
+          "V-117",
+          "V-125",
+          "V-130",
+          "V-133",
+          "V-138",
+          "V-142",
+          "V-143",
+          "V-150",
+          "V-151",
+          "V-159"
+        ],
+        "objective_values": {
+          "SignalStrength": 787.0,
+          "RetentionRisk": 324.1,
+          "CostPerParticipant": 61.3
+        },
+        "allocations": null,
+        "content_signature": "744af97883d0",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 32,
+        "selected_options": [
+          "V-102",
+          "V-112",
+          "V-117",
+          "V-125",
+          "V-130",
+          "V-133",
+          "V-138",
+          "V-142",
+          "V-143",
+          "V-150",
+          "V-151",
+          "V-159"
+        ],
+        "objective_values": {
+          "SignalStrength": 777.5,
+          "RetentionRisk": 315.0,
+          "CostPerParticipant": 65.7
+        },
+        "allocations": null,
+        "content_signature": "32cf2ae78db7",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 33,
+        "selected_options": [
+          "V-102",
+          "V-112",
+          "V-117",
+          "V-129",
+          "V-130",
+          "V-133",
+          "V-138",
+          "V-142",
+          "V-143",
+          "V-147",
+          "V-151",
+          "V-159"
+        ],
+        "objective_values": {
+          "SignalStrength": 774.2,
+          "RetentionRisk": 306.8,
+          "CostPerParticipant": 70.5
+        },
+        "allocations": null,
+        "content_signature": "ba6d806934b7",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 34,
+        "selected_options": [
+          "V-103",
+          "V-106",
+          "V-112",
+          "V-125",
+          "V-130",
+          "V-133",
+          "V-136",
+          "V-142",
+          "V-146",
+          "V-150",
+          "V-151",
+          "V-159"
+        ],
+        "objective_values": {
+          "SignalStrength": 773.9,
+          "RetentionRisk": 342.7,
+          "CostPerParticipant": 56.9
+        },
+        "allocations": null,
+        "content_signature": "e950fd8a0326",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 35,
+        "selected_options": [
+          "V-102",
+          "V-110",
+          "V-117",
+          "V-124",
+          "V-129",
+          "V-130",
+          "V-142",
+          "V-143",
+          "V-147",
+          "V-151",
+          "V-154",
+          "V-159"
+        ],
+        "objective_values": {
+          "SignalStrength": 772.6,
+          "RetentionRisk": 300.8,
+          "CostPerParticipant": 80.8
+        },
+        "allocations": null,
+        "content_signature": "9ed2e45bb200",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 36,
+        "selected_options": [
+          "V-102",
+          "V-110",
+          "V-117",
+          "V-129",
+          "V-130",
+          "V-133",
+          "V-138",
+          "V-142",
+          "V-143",
+          "V-147",
+          "V-151",
+          "V-159"
+        ],
+        "objective_values": {
+          "SignalStrength": 767.7,
+          "RetentionRisk": 300.1,
+          "CostPerParticipant": 75.5
+        },
+        "allocations": null,
+        "content_signature": "deec5dd0671d",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 37,
+        "selected_options": [
+          "V-102",
+          "V-112",
+          "V-117",
+          "V-129",
+          "V-130",
+          "V-133",
+          "V-138",
+          "V-142",
+          "V-143",
+          "V-150",
+          "V-151",
+          "V-159"
+        ],
+        "objective_values": {
+          "SignalStrength": 760.9,
+          "RetentionRisk": 307.2,
+          "CostPerParticipant": 67.4
+        },
+        "allocations": null,
+        "content_signature": "e41cfd91b307",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 38,
+        "selected_options": [
+          "V-103",
+          "V-106",
+          "V-117",
+          "V-129",
+          "V-130",
+          "V-133",
+          "V-138",
+          "V-142",
+          "V-143",
+          "V-150",
+          "V-151",
+          "V-159"
+        ],
+        "objective_values": {
+          "SignalStrength": 759.3,
+          "RetentionRisk": 317.5,
+          "CostPerParticipant": 62.0
+        },
+        "allocations": null,
+        "content_signature": "56c92be14882",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 39,
+        "selected_options": [
+          "V-103",
+          "V-106",
+          "V-110",
+          "V-129",
+          "V-130",
+          "V-133",
+          "V-138",
+          "V-142",
+          "V-143",
+          "V-150",
+          "V-151",
+          "V-159"
+        ],
+        "objective_values": {
+          "SignalStrength": 746.6,
+          "RetentionRisk": 313.3,
+          "CostPerParticipant": 64.4
+        },
+        "allocations": null,
+        "content_signature": "73e1ed886840",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 40,
+        "selected_options": [
+          "V-102",
+          "V-106",
+          "V-110",
+          "V-129",
+          "V-130",
+          "V-133",
+          "V-138",
+          "V-142",
+          "V-143",
+          "V-150",
+          "V-151",
+          "V-159"
+        ],
+        "objective_values": {
+          "SignalStrength": 745.3,
+          "RetentionRisk": 303.2,
+          "CostPerParticipant": 69.5
+        },
+        "allocations": null,
+        "content_signature": "2bb3de818e9b",
+        "sensitivity": null
+      }
+    ],
+    "total_pareto_found": 181,
+    "quality": {
+      "hypervolume_normalized": 0.6188,
+      "spacing_cv": 0.5144
+    },
+    "constraints_snapshot": [
+      {
+        "type": "cardinality",
+        "min": 12,
+        "max": 12
+      },
+      {
+        "type": "group_limit",
+        "options": [
+          "V-101",
+          "V-102",
+          "V-103",
+          "V-104",
+          "V-105",
+          "V-106",
+          "V-107",
+          "V-108",
+          "V-109",
+          "V-110",
+          "V-111",
+          "V-112",
+          "V-113",
+          "V-114",
+          "V-115",
+          "V-116",
+          "V-117",
+          "V-118"
+        ],
+        "min": 3,
+        "max": 6
+      },
+      {
+        "type": "group_limit",
+        "options": [
+          "V-119",
+          "V-120",
+          "V-121",
+          "V-122",
+          "V-123",
+          "V-124",
+          "V-125",
+          "V-126",
+          "V-127",
+          "V-128",
+          "V-129",
+          "V-130",
+          "V-131",
+          "V-132",
+          "V-133",
+          "V-134"
+        ],
+        "min": 3,
+        "max": 6
+      },
+      {
+        "type": "group_limit",
+        "options": [
+          "V-135",
+          "V-136",
+          "V-137",
+          "V-138",
+          "V-139",
+          "V-140",
+          "V-141",
+          "V-142",
+          "V-143",
+          "V-144",
+          "V-145",
+          "V-146",
+          "V-147",
+          "V-148"
+        ],
+        "min": 3,
+        "max": 6
+      },
+      {
+        "type": "group_limit",
+        "options": [
+          "V-149",
+          "V-150",
+          "V-151",
+          "V-152",
+          "V-153",
+          "V-154",
+          "V-155",
+          "V-156",
+          "V-157",
+          "V-158",
+          "V-159",
+          "V-160"
+        ],
+        "min": 2,
+        "max": 6
+      },
+      {
+        "type": "group_limit",
+        "options": [
+          "V-101",
+          "V-104",
+          "V-107",
+          "V-110",
+          "V-113",
+          "V-116",
+          "V-119",
+          "V-123",
+          "V-127",
+          "V-131"
+        ],
+        "min": 0,
+        "max": 3
+      },
+      {
+        "type": "group_limit",
+        "options": [
+          "V-102",
+          "V-105",
+          "V-108",
+          "V-111",
+          "V-114",
+          "V-117",
+          "V-120",
+          "V-124",
+          "V-128",
+          "V-132"
+        ],
+        "min": 0,
+        "max": 3
+      },
+      {
+        "type": "group_limit",
+        "options": [
+          "V-103",
+          "V-106",
+          "V-109",
+          "V-112",
+          "V-115",
+          "V-118",
+          "V-135",
+          "V-139",
+          "V-143",
+          "V-147"
+        ],
+        "min": 0,
+        "max": 3
+      },
+      {
+        "type": "group_limit",
+        "options": [
+          "V-121",
+          "V-125",
+          "V-129",
+          "V-133",
+          "V-136",
+          "V-140",
+          "V-144",
+          "V-148",
+          "V-149",
+          "V-152",
+          "V-155",
+          "V-158"
+        ],
+        "min": 0,
+        "max": 3
+      },
+      {
+        "type": "group_limit",
+        "options": [
+          "V-122",
+          "V-126",
+          "V-130",
+          "V-134",
+          "V-137",
+          "V-141",
+          "V-145",
+          "V-150",
+          "V-153",
+          "V-156",
+          "V-159"
+        ],
+        "min": 0,
+        "max": 3
+      },
+      {
+        "type": "group_limit",
+        "options": [
+          "V-138",
+          "V-142",
+          "V-146",
+          "V-151",
+          "V-154",
+          "V-157",
+          "V-160"
+        ],
+        "min": 0,
+        "max": 3
+      },
+      {
+        "type": "exclusion_pair",
+        "option_a": "V-104",
+        "option_b": "V-131"
+      },
+      {
+        "type": "exclusion_pair",
+        "option_a": "V-142",
+        "option_b": "V-155"
+      },
+      {
+        "type": "force_exclude",
+        "option": "V-118"
+      }
+    ],
+    "seed_used": 42,
+    "solver": "nsga-ii",
+    "exact": false,
+    "time_limit": null,
+    "time_limited": false
+  },
+  "exact_run": {
+    "run_id": "540e13f8-b2b0-4faf-93e6-9fb15af620b9",
+    "created_at": "2026-07-04T02:28:15.227415Z",
+    "mode": "fast",
+    "solutions": [
+      {
+        "solution_id": 1,
+        "selected_options": [
+          "V-101",
+          "V-107",
+          "V-109",
+          "V-116",
+          "V-122",
+          "V-125",
+          "V-134",
+          "V-136",
+          "V-140",
+          "V-147",
+          "V-151",
+          "V-160"
+        ],
+        "objective_values": {
+          "SignalStrength": 888.1,
+          "RetentionRisk": 397.3,
+          "CostPerParticipant": 80.5
+        },
+        "allocations": null,
+        "content_signature": "66c1b5e71d3a",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 2,
+        "selected_options": [
+          "V-103",
+          "V-107",
+          "V-109",
+          "V-111",
+          "V-122",
+          "V-125",
+          "V-134",
+          "V-136",
+          "V-141",
+          "V-147",
+          "V-151",
+          "V-160"
+        ],
+        "objective_values": {
+          "SignalStrength": 883.9,
+          "RetentionRisk": 411.8,
+          "CostPerParticipant": 71.4
+        },
+        "allocations": null,
+        "content_signature": "ccd45f1193f8",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 3,
+        "selected_options": [
+          "V-103",
+          "V-109",
+          "V-111",
+          "V-117",
+          "V-122",
+          "V-125",
+          "V-134",
+          "V-136",
+          "V-140",
+          "V-147",
+          "V-151",
+          "V-160"
+        ],
+        "objective_values": {
+          "SignalStrength": 883.6,
+          "RetentionRisk": 401.8,
+          "CostPerParticipant": 71.1
+        },
+        "allocations": null,
+        "content_signature": "a709e177d041",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 4,
+        "selected_options": [
+          "V-109",
+          "V-115",
+          "V-116",
+          "V-117",
+          "V-122",
+          "V-125",
+          "V-134",
+          "V-140",
+          "V-142",
+          "V-147",
+          "V-151",
+          "V-154"
+        ],
+        "objective_values": {
+          "SignalStrength": 873.2,
+          "RetentionRisk": 366.8,
+          "CostPerParticipant": 73.2
+        },
+        "allocations": null,
+        "content_signature": "2222373f476b",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 5,
+        "selected_options": [
+          "V-102",
+          "V-109",
+          "V-115",
+          "V-117",
+          "V-122",
+          "V-125",
+          "V-134",
+          "V-142",
+          "V-145",
+          "V-147",
+          "V-154",
+          "V-160"
+        ],
+        "objective_values": {
+          "SignalStrength": 871.5,
+          "RetentionRisk": 360.8,
+          "CostPerParticipant": 74.6
+        },
+        "allocations": null,
+        "content_signature": "0f16d5cc114f",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 6,
+        "selected_options": [
+          "V-102",
+          "V-109",
+          "V-116",
+          "V-117",
+          "V-120",
+          "V-123",
+          "V-125",
+          "V-140",
+          "V-144",
+          "V-147",
+          "V-154",
+          "V-160"
+        ],
+        "objective_values": {
+          "SignalStrength": 868.0,
+          "RetentionRisk": 348.2,
+          "CostPerParticipant": 87.9
+        },
+        "allocations": null,
+        "content_signature": "83542f10304d",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 7,
+        "selected_options": [
+          "V-103",
+          "V-109",
+          "V-115",
+          "V-117",
+          "V-122",
+          "V-125",
+          "V-130",
+          "V-136",
+          "V-140",
+          "V-142",
+          "V-154",
+          "V-160"
+        ],
+        "objective_values": {
+          "SignalStrength": 864.2,
+          "RetentionRisk": 363.8,
+          "CostPerParticipant": 68.7
+        },
+        "allocations": null,
+        "content_signature": "ca8b313f03d0",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 8,
+        "selected_options": [
+          "V-103",
+          "V-109",
+          "V-115",
+          "V-121",
+          "V-122",
+          "V-125",
+          "V-134",
+          "V-136",
+          "V-141",
+          "V-142",
+          "V-151",
+          "V-160"
+        ],
+        "objective_values": {
+          "SignalStrength": 860.4,
+          "RetentionRisk": 391.7,
+          "CostPerParticipant": 62.1
+        },
+        "allocations": null,
+        "content_signature": "47173b2b673d",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 9,
+        "selected_options": [
+          "V-103",
+          "V-109",
+          "V-115",
+          "V-117",
+          "V-122",
+          "V-125",
+          "V-130",
+          "V-136",
+          "V-141",
+          "V-142",
+          "V-151",
+          "V-154"
+        ],
+        "objective_values": {
+          "SignalStrength": 858.2,
+          "RetentionRisk": 364.8,
+          "CostPerParticipant": 64.8
+        },
+        "allocations": null,
+        "content_signature": "0e0ffdd3d6b0",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 10,
+        "selected_options": [
+          "V-102",
+          "V-109",
+          "V-116",
+          "V-117",
+          "V-120",
+          "V-125",
+          "V-130",
+          "V-142",
+          "V-143",
+          "V-147",
+          "V-152",
+          "V-154"
+        ],
+        "objective_values": {
+          "SignalStrength": 846.0,
+          "RetentionRisk": 321.7,
+          "CostPerParticipant": 82.0
+        },
+        "allocations": null,
+        "content_signature": "3e909f112665",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 11,
+        "selected_options": [
+          "V-103",
+          "V-109",
+          "V-115",
+          "V-117",
+          "V-125",
+          "V-130",
+          "V-133",
+          "V-136",
+          "V-141",
+          "V-142",
+          "V-150",
+          "V-151"
+        ],
+        "objective_values": {
+          "SignalStrength": 845.1,
+          "RetentionRisk": 357.3,
+          "CostPerParticipant": 63.0
+        },
+        "allocations": null,
+        "content_signature": "da723e509600",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 12,
+        "selected_options": [
+          "V-103",
+          "V-109",
+          "V-115",
+          "V-117",
+          "V-125",
+          "V-130",
+          "V-133",
+          "V-141",
+          "V-142",
+          "V-145",
+          "V-152",
+          "V-154"
+        ],
+        "objective_values": {
+          "SignalStrength": 842.0,
+          "RetentionRisk": 339.1,
+          "CostPerParticipant": 67.3
+        },
+        "allocations": null,
+        "content_signature": "bf182ea00568",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 13,
+        "selected_options": [
+          "V-103",
+          "V-109",
+          "V-115",
+          "V-117",
+          "V-125",
+          "V-130",
+          "V-133",
+          "V-136",
+          "V-142",
+          "V-145",
+          "V-154",
+          "V-159"
+        ],
+        "objective_values": {
+          "SignalStrength": 836.8,
+          "RetentionRisk": 333.6,
+          "CostPerParticipant": 67.2
+        },
+        "allocations": null,
+        "content_signature": "465f19425eac",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 14,
+        "selected_options": [
+          "V-103",
+          "V-106",
+          "V-109",
+          "V-122",
+          "V-125",
+          "V-133",
+          "V-134",
+          "V-136",
+          "V-141",
+          "V-142",
+          "V-151",
+          "V-157"
+        ],
+        "objective_values": {
+          "SignalStrength": 831.2,
+          "RetentionRisk": 380.5,
+          "CostPerParticipant": 57.9
+        },
+        "allocations": null,
+        "content_signature": "d0a64ffced39",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 15,
+        "selected_options": [
+          "V-103",
+          "V-106",
+          "V-109",
+          "V-125",
+          "V-130",
+          "V-133",
+          "V-134",
+          "V-136",
+          "V-141",
+          "V-142",
+          "V-151",
+          "V-157"
+        ],
+        "objective_values": {
+          "SignalStrength": 825.1,
+          "RetentionRisk": 371.8,
+          "CostPerParticipant": 57.8
+        },
+        "allocations": null,
+        "content_signature": "7cde6c861c00",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 16,
+        "selected_options": [
+          "V-109",
+          "V-112",
+          "V-117",
+          "V-125",
+          "V-126",
+          "V-130",
+          "V-133",
+          "V-136",
+          "V-142",
+          "V-147",
+          "V-150",
+          "V-154"
+        ],
+        "objective_values": {
+          "SignalStrength": 819.8,
+          "RetentionRisk": 324.8,
+          "CostPerParticipant": 65.7
+        },
+        "allocations": null,
+        "content_signature": "eef50872da27",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 17,
+        "selected_options": [
+          "V-102",
+          "V-109",
+          "V-110",
+          "V-117",
+          "V-120",
+          "V-130",
+          "V-133",
+          "V-142",
+          "V-144",
+          "V-147",
+          "V-152",
+          "V-159"
+        ],
+        "objective_values": {
+          "SignalStrength": 814.0,
+          "RetentionRisk": 304.8,
+          "CostPerParticipant": 83.6
+        },
+        "allocations": null,
+        "content_signature": "08cd635b21e0",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 18,
+        "selected_options": [
+          "V-102",
+          "V-109",
+          "V-110",
+          "V-117",
+          "V-120",
+          "V-129",
+          "V-133",
+          "V-142",
+          "V-143",
+          "V-147",
+          "V-152",
+          "V-154"
+        ],
+        "objective_values": {
+          "SignalStrength": 812.2,
+          "RetentionRisk": 303.6,
+          "CostPerParticipant": 84.8
+        },
+        "allocations": null,
+        "content_signature": "3c90e48c12ce",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 19,
+        "selected_options": [
+          "V-103",
+          "V-106",
+          "V-109",
+          "V-125",
+          "V-130",
+          "V-133",
+          "V-136",
+          "V-142",
+          "V-145",
+          "V-150",
+          "V-151",
+          "V-154"
+        ],
+        "objective_values": {
+          "SignalStrength": 805.3,
+          "RetentionRisk": 342.1,
+          "CostPerParticipant": 59.1
+        },
+        "allocations": null,
+        "content_signature": "534a4f117f63",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 20,
+        "selected_options": [
+          "V-102",
+          "V-109",
+          "V-117",
+          "V-120",
+          "V-129",
+          "V-130",
+          "V-133",
+          "V-142",
+          "V-143",
+          "V-147",
+          "V-154",
+          "V-159"
+        ],
+        "objective_values": {
+          "SignalStrength": 800.7,
+          "RetentionRisk": 298.8,
+          "CostPerParticipant": 77.0
+        },
+        "allocations": null,
+        "content_signature": "499d6bd8d59d",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 21,
+        "selected_options": [
+          "V-103",
+          "V-106",
+          "V-112",
+          "V-125",
+          "V-130",
+          "V-133",
+          "V-136",
+          "V-141",
+          "V-142",
+          "V-150",
+          "V-151",
+          "V-157"
+        ],
+        "objective_values": {
+          "SignalStrength": 788.1,
+          "RetentionRisk": 356.1,
+          "CostPerParticipant": 55.5
+        },
+        "allocations": null,
+        "content_signature": "b9e44a25fb1a",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 22,
+        "selected_options": [
+          "V-102",
+          "V-109",
+          "V-117",
+          "V-129",
+          "V-130",
+          "V-133",
+          "V-142",
+          "V-143",
+          "V-147",
+          "V-152",
+          "V-154",
+          "V-159"
+        ],
+        "objective_values": {
+          "SignalStrength": 780.4,
+          "RetentionRisk": 291.3,
+          "CostPerParticipant": 74.9
+        },
+        "allocations": null,
+        "content_signature": "087a69495dba",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 23,
+        "selected_options": [
+          "V-109",
+          "V-110",
+          "V-117",
+          "V-129",
+          "V-130",
+          "V-133",
+          "V-142",
+          "V-143",
+          "V-147",
+          "V-152",
+          "V-154",
+          "V-159"
+        ],
+        "objective_values": {
+          "SignalStrength": 767.4,
+          "RetentionRisk": 287.6,
+          "CostPerParticipant": 75.0
+        },
+        "allocations": null,
+        "content_signature": "b57b650ef27f",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 24,
+        "selected_options": [
+          "V-106",
+          "V-109",
+          "V-112",
+          "V-125",
+          "V-129",
+          "V-133",
+          "V-138",
+          "V-141",
+          "V-142",
+          "V-150",
+          "V-154",
+          "V-159"
+        ],
+        "objective_values": {
+          "SignalStrength": 765.4,
+          "RetentionRisk": 313.1,
+          "CostPerParticipant": 59.9
+        },
+        "allocations": null,
+        "content_signature": "acf8ee436a5b",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 25,
+        "selected_options": [
+          "V-102",
+          "V-110",
+          "V-117",
+          "V-129",
+          "V-130",
+          "V-133",
+          "V-138",
+          "V-143",
+          "V-147",
+          "V-154",
+          "V-155",
+          "V-159"
+        ],
+        "objective_values": {
+          "SignalStrength": 754.9,
+          "RetentionRisk": 284.5,
+          "CostPerParticipant": 79.1
+        },
+        "allocations": null,
+        "content_signature": "3e22dfb79a13",
+        "sensitivity": null
+      }
+    ],
+    "total_pareto_found": 25,
+    "quality": {
+      "hypervolume_normalized": 0.559,
+      "spacing_cv": 0.738
+    },
+    "constraints_snapshot": [
+      {
+        "type": "cardinality",
+        "min": 12,
+        "max": 12
+      },
+      {
+        "type": "group_limit",
+        "options": [
+          "V-101",
+          "V-102",
+          "V-103",
+          "V-104",
+          "V-105",
+          "V-106",
+          "V-107",
+          "V-108",
+          "V-109",
+          "V-110",
+          "V-111",
+          "V-112",
+          "V-113",
+          "V-114",
+          "V-115",
+          "V-116",
+          "V-117",
+          "V-118"
+        ],
+        "min": 3,
+        "max": 6
+      },
+      {
+        "type": "group_limit",
+        "options": [
+          "V-119",
+          "V-120",
+          "V-121",
+          "V-122",
+          "V-123",
+          "V-124",
+          "V-125",
+          "V-126",
+          "V-127",
+          "V-128",
+          "V-129",
+          "V-130",
+          "V-131",
+          "V-132",
+          "V-133",
+          "V-134"
+        ],
+        "min": 3,
+        "max": 6
+      },
+      {
+        "type": "group_limit",
+        "options": [
+          "V-135",
+          "V-136",
+          "V-137",
+          "V-138",
+          "V-139",
+          "V-140",
+          "V-141",
+          "V-142",
+          "V-143",
+          "V-144",
+          "V-145",
+          "V-146",
+          "V-147",
+          "V-148"
+        ],
+        "min": 3,
+        "max": 6
+      },
+      {
+        "type": "group_limit",
+        "options": [
+          "V-149",
+          "V-150",
+          "V-151",
+          "V-152",
+          "V-153",
+          "V-154",
+          "V-155",
+          "V-156",
+          "V-157",
+          "V-158",
+          "V-159",
+          "V-160"
+        ],
+        "min": 2,
+        "max": 6
+      },
+      {
+        "type": "group_limit",
+        "options": [
+          "V-101",
+          "V-104",
+          "V-107",
+          "V-110",
+          "V-113",
+          "V-116",
+          "V-119",
+          "V-123",
+          "V-127",
+          "V-131"
+        ],
+        "min": 0,
+        "max": 3
+      },
+      {
+        "type": "group_limit",
+        "options": [
+          "V-102",
+          "V-105",
+          "V-108",
+          "V-111",
+          "V-114",
+          "V-117",
+          "V-120",
+          "V-124",
+          "V-128",
+          "V-132"
+        ],
+        "min": 0,
+        "max": 3
+      },
+      {
+        "type": "group_limit",
+        "options": [
+          "V-103",
+          "V-106",
+          "V-109",
+          "V-112",
+          "V-115",
+          "V-118",
+          "V-135",
+          "V-139",
+          "V-143",
+          "V-147"
+        ],
+        "min": 0,
+        "max": 3
+      },
+      {
+        "type": "group_limit",
+        "options": [
+          "V-121",
+          "V-125",
+          "V-129",
+          "V-133",
+          "V-136",
+          "V-140",
+          "V-144",
+          "V-148",
+          "V-149",
+          "V-152",
+          "V-155",
+          "V-158"
+        ],
+        "min": 0,
+        "max": 3
+      },
+      {
+        "type": "group_limit",
+        "options": [
+          "V-122",
+          "V-126",
+          "V-130",
+          "V-134",
+          "V-137",
+          "V-141",
+          "V-145",
+          "V-150",
+          "V-153",
+          "V-156",
+          "V-159"
+        ],
+        "min": 0,
+        "max": 3
+      },
+      {
+        "type": "group_limit",
+        "options": [
+          "V-138",
+          "V-142",
+          "V-146",
+          "V-151",
+          "V-154",
+          "V-157",
+          "V-160"
+        ],
+        "min": 0,
+        "max": 3
+      },
+      {
+        "type": "exclusion_pair",
+        "option_a": "V-104",
+        "option_b": "V-131"
+      },
+      {
+        "type": "exclusion_pair",
+        "option_a": "V-142",
+        "option_b": "V-155"
+      },
+      {
+        "type": "force_exclude",
+        "option": "V-118"
+      }
+    ],
+    "seed_used": 42,
+    "solver": "highs",
+    "exact": false,
+    "time_limit": null,
+    "time_limited": false
+  }
+}
