@@ -1,0 +1,576 @@
+{
+  "options": [
+    {
+      "name": "R01",
+      "description": "420 MW data campus \u2014 Northern zone"
+    },
+    {
+      "name": "R02",
+      "description": "120 MW battery gigafactory \u2014 Central zone"
+    },
+    {
+      "name": "R03",
+      "description": "130 MW green-hydrogen electrolyzer \u2014 Coastal zone"
+    },
+    {
+      "name": "R04",
+      "description": "360 MW industrial electrification retrofit \u2014 Northern zone"
+    },
+    {
+      "name": "R05",
+      "description": "320 MW semiconductor fab expansion \u2014 Central zone"
+    },
+    {
+      "name": "R06",
+      "description": "410 MW intermodal rail electrification \u2014 Coastal zone"
+    },
+    {
+      "name": "R07",
+      "description": "420 MW cold-storage logistics hub \u2014 Northern zone"
+    },
+    {
+      "name": "R08",
+      "description": "140 MW data campus \u2014 Central zone"
+    },
+    {
+      "name": "R09",
+      "description": "220 MW battery gigafactory \u2014 Coastal zone"
+    },
+    {
+      "name": "R10",
+      "description": "130 MW green-hydrogen electrolyzer \u2014 Northern zone"
+    },
+    {
+      "name": "R11",
+      "description": "270 MW industrial electrification retrofit \u2014 Central zone"
+    },
+    {
+      "name": "R12",
+      "description": "440 MW semiconductor fab expansion \u2014 Coastal zone"
+    },
+    {
+      "name": "R13",
+      "description": "380 MW intermodal rail electrification \u2014 Northern zone"
+    },
+    {
+      "name": "R14",
+      "description": "420 MW cold-storage logistics hub \u2014 Central zone"
+    },
+    {
+      "name": "R15",
+      "description": "280 MW data campus \u2014 Coastal zone"
+    },
+    {
+      "name": "R16",
+      "description": "370 MW battery gigafactory \u2014 Northern zone"
+    },
+    {
+      "name": "R17",
+      "description": "350 MW green-hydrogen electrolyzer \u2014 Central zone"
+    },
+    {
+      "name": "R18",
+      "description": "90 MW industrial electrification retrofit \u2014 Coastal zone"
+    },
+    {
+      "name": "R19",
+      "description": "450 MW semiconductor fab expansion \u2014 Northern zone"
+    },
+    {
+      "name": "R20",
+      "description": "200 MW intermodal rail electrification \u2014 Central zone"
+    },
+    {
+      "name": "R21",
+      "description": "370 MW cold-storage logistics hub \u2014 Coastal zone"
+    },
+    {
+      "name": "R22",
+      "description": "80 MW data campus \u2014 Northern zone"
+    },
+    {
+      "name": "U1",
+      "description": "Northern zone substation transformer bank addition (enabler \u2014 no standalone revenue)"
+    },
+    {
+      "name": "U2",
+      "description": "Central zone line reconductoring (enabler \u2014 no standalone revenue)"
+    },
+    {
+      "name": "U3",
+      "description": "Coastal zone new 230kV bay (enabler \u2014 no standalone revenue)"
+    },
+    {
+      "name": "U4",
+      "description": "Northern zone static VAR compensator install (enabler \u2014 no standalone revenue)"
+    },
+    {
+      "name": "U5",
+      "description": "Central zone substation transformer bank addition (enabler \u2014 no standalone revenue)"
+    },
+    {
+      "name": "U6",
+      "description": "Coastal zone line reconductoring (enabler \u2014 no standalone revenue)"
+    },
+    {
+      "name": "U7",
+      "description": "Northern zone new 230kV bay (speculative \u2014 no committed load)"
+    },
+    {
+      "name": "U8",
+      "description": "Central zone static VAR compensator install (speculative \u2014 no committed load)"
+    }
+  ],
+  "scores": [
+    {
+      "option": "R01",
+      "objective": "NetValue",
+      "value": 60.6
+    },
+    {
+      "option": "R01",
+      "objective": "Cost",
+      "value": 37.2
+    },
+    {
+      "option": "R01",
+      "objective": "ReliabilityRisk",
+      "value": 14.7
+    },
+    {
+      "option": "R02",
+      "objective": "NetValue",
+      "value": 112.6
+    },
+    {
+      "option": "R02",
+      "objective": "Cost",
+      "value": 33.9
+    },
+    {
+      "option": "R02",
+      "objective": "ReliabilityRisk",
+      "value": 7.7
+    },
+    {
+      "option": "R03",
+      "objective": "NetValue",
+      "value": 61.7
+    },
+    {
+      "option": "R03",
+      "objective": "Cost",
+      "value": 20.6
+    },
+    {
+      "option": "R03",
+      "objective": "ReliabilityRisk",
+      "value": 8.8
+    },
+    {
+      "option": "R04",
+      "objective": "NetValue",
+      "value": 97.8
+    },
+    {
+      "option": "R04",
+      "objective": "Cost",
+      "value": 23.1
+    },
+    {
+      "option": "R04",
+      "objective": "ReliabilityRisk",
+      "value": 10.4
+    },
+    {
+      "option": "R05",
+      "objective": "NetValue",
+      "value": 24.2
+    },
+    {
+      "option": "R05",
+      "objective": "Cost",
+      "value": 36.1
+    },
+    {
+      "option": "R05",
+      "objective": "ReliabilityRisk",
+      "value": 11.8
+    },
+    {
+      "option": "R06",
+      "objective": "NetValue",
+      "value": 52.4
+    },
+    {
+      "option": "R06",
+      "objective": "Cost",
+      "value": 41.0
+    },
+    {
+      "option": "R06",
+      "objective": "ReliabilityRisk",
+      "value": 15.6
+    },
+    {
+      "option": "R07",
+      "objective": "NetValue",
+      "value": 36.9
+    },
+    {
+      "option": "R07",
+      "objective": "Cost",
+      "value": 23.9
+    },
+    {
+      "option": "R07",
+      "objective": "ReliabilityRisk",
+      "value": 10.8
+    },
+    {
+      "option": "R08",
+      "objective": "NetValue",
+      "value": 84.3
+    },
+    {
+      "option": "R08",
+      "objective": "Cost",
+      "value": 33.3
+    },
+    {
+      "option": "R08",
+      "objective": "ReliabilityRisk",
+      "value": 9.3
+    },
+    {
+      "option": "R09",
+      "objective": "NetValue",
+      "value": 53.9
+    },
+    {
+      "option": "R09",
+      "objective": "Cost",
+      "value": 24.0
+    },
+    {
+      "option": "R09",
+      "objective": "ReliabilityRisk",
+      "value": 6.6
+    },
+    {
+      "option": "R10",
+      "objective": "NetValue",
+      "value": 64.1
+    },
+    {
+      "option": "R10",
+      "objective": "Cost",
+      "value": 15.7
+    },
+    {
+      "option": "R10",
+      "objective": "ReliabilityRisk",
+      "value": 7.3
+    },
+    {
+      "option": "R11",
+      "objective": "NetValue",
+      "value": 98.8
+    },
+    {
+      "option": "R11",
+      "objective": "Cost",
+      "value": 31.8
+    },
+    {
+      "option": "R11",
+      "objective": "ReliabilityRisk",
+      "value": 8.6
+    },
+    {
+      "option": "R12",
+      "objective": "NetValue",
+      "value": 96.1
+    },
+    {
+      "option": "R12",
+      "objective": "Cost",
+      "value": 21.2
+    },
+    {
+      "option": "R12",
+      "objective": "ReliabilityRisk",
+      "value": 12.7
+    },
+    {
+      "option": "R13",
+      "objective": "NetValue",
+      "value": 31.6
+    },
+    {
+      "option": "R13",
+      "objective": "Cost",
+      "value": 14.8
+    },
+    {
+      "option": "R13",
+      "objective": "ReliabilityRisk",
+      "value": 9.5
+    },
+    {
+      "option": "R14",
+      "objective": "NetValue",
+      "value": 82.5
+    },
+    {
+      "option": "R14",
+      "objective": "Cost",
+      "value": 32.0
+    },
+    {
+      "option": "R14",
+      "objective": "ReliabilityRisk",
+      "value": 15.2
+    },
+    {
+      "option": "R15",
+      "objective": "NetValue",
+      "value": 73.2
+    },
+    {
+      "option": "R15",
+      "objective": "Cost",
+      "value": 12.8
+    },
+    {
+      "option": "R15",
+      "objective": "ReliabilityRisk",
+      "value": 7.7
+    },
+    {
+      "option": "R16",
+      "objective": "NetValue",
+      "value": 63.7
+    },
+    {
+      "option": "R16",
+      "objective": "Cost",
+      "value": 27.2
+    },
+    {
+      "option": "R16",
+      "objective": "ReliabilityRisk",
+      "value": 13.8
+    },
+    {
+      "option": "R17",
+      "objective": "NetValue",
+      "value": 71.7
+    },
+    {
+      "option": "R17",
+      "objective": "Cost",
+      "value": 27.0
+    },
+    {
+      "option": "R17",
+      "objective": "ReliabilityRisk",
+      "value": 10.6
+    },
+    {
+      "option": "R18",
+      "objective": "NetValue",
+      "value": 60.4
+    },
+    {
+      "option": "R18",
+      "objective": "Cost",
+      "value": 15.3
+    },
+    {
+      "option": "R18",
+      "objective": "ReliabilityRisk",
+      "value": 4.7
+    },
+    {
+      "option": "R19",
+      "objective": "NetValue",
+      "value": 40.7
+    },
+    {
+      "option": "R19",
+      "objective": "Cost",
+      "value": 10.0
+    },
+    {
+      "option": "R19",
+      "objective": "ReliabilityRisk",
+      "value": 12.9
+    },
+    {
+      "option": "R20",
+      "objective": "NetValue",
+      "value": 82.2
+    },
+    {
+      "option": "R20",
+      "objective": "Cost",
+      "value": 26.9
+    },
+    {
+      "option": "R20",
+      "objective": "ReliabilityRisk",
+      "value": 9.7
+    },
+    {
+      "option": "R21",
+      "objective": "NetValue",
+      "value": 57.4
+    },
+    {
+      "option": "R21",
+      "objective": "Cost",
+      "value": 35.7
+    },
+    {
+      "option": "R21",
+      "objective": "ReliabilityRisk",
+      "value": 10.3
+    },
+    {
+      "option": "R22",
+      "objective": "NetValue",
+      "value": 26.7
+    },
+    {
+      "option": "R22",
+      "objective": "Cost",
+      "value": 32.6
+    },
+    {
+      "option": "R22",
+      "objective": "ReliabilityRisk",
+      "value": 4.8
+    },
+    {
+      "option": "U1",
+      "objective": "NetValue",
+      "value": 0.0
+    },
+    {
+      "option": "U1",
+      "objective": "Cost",
+      "value": 22.3
+    },
+    {
+      "option": "U1",
+      "objective": "ReliabilityRisk",
+      "value": -9.0
+    },
+    {
+      "option": "U2",
+      "objective": "NetValue",
+      "value": 0.0
+    },
+    {
+      "option": "U2",
+      "objective": "Cost",
+      "value": 21.9
+    },
+    {
+      "option": "U2",
+      "objective": "ReliabilityRisk",
+      "value": -11.0
+    },
+    {
+      "option": "U3",
+      "objective": "NetValue",
+      "value": 0.0
+    },
+    {
+      "option": "U3",
+      "objective": "Cost",
+      "value": 33.4
+    },
+    {
+      "option": "U3",
+      "objective": "ReliabilityRisk",
+      "value": -7.8
+    },
+    {
+      "option": "U4",
+      "objective": "NetValue",
+      "value": 0.0
+    },
+    {
+      "option": "U4",
+      "objective": "Cost",
+      "value": 27.8
+    },
+    {
+      "option": "U4",
+      "objective": "ReliabilityRisk",
+      "value": -10.3
+    },
+    {
+      "option": "U5",
+      "objective": "NetValue",
+      "value": 0.0
+    },
+    {
+      "option": "U5",
+      "objective": "Cost",
+      "value": 30.1
+    },
+    {
+      "option": "U5",
+      "objective": "ReliabilityRisk",
+      "value": -4.9
+    },
+    {
+      "option": "U6",
+      "objective": "NetValue",
+      "value": 0.0
+    },
+    {
+      "option": "U6",
+      "objective": "Cost",
+      "value": 20.6
+    },
+    {
+      "option": "U6",
+      "objective": "ReliabilityRisk",
+      "value": -13.6
+    },
+    {
+      "option": "U7",
+      "objective": "NetValue",
+      "value": 0.0
+    },
+    {
+      "option": "U7",
+      "objective": "Cost",
+      "value": 51.4
+    },
+    {
+      "option": "U7",
+      "objective": "ReliabilityRisk",
+      "value": 0.0
+    },
+    {
+      "option": "U8",
+      "objective": "NetValue",
+      "value": 0.0
+    },
+    {
+      "option": "U8",
+      "objective": "Cost",
+      "value": 43.3
+    },
+    {
+      "option": "U8",
+      "objective": "ReliabilityRisk",
+      "value": 0.0
+    }
+  ]
+}

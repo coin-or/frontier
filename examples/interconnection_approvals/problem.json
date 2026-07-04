@@ -1,0 +1,556 @@
+{
+  "name": "Interconnection Approvals",
+  "domain": "grid planning",
+  "context": "A regional grid operator decides which of 22 large-load interconnection requests to approve this cycle, alongside 8 enabling substation upgrades. Upgrades have zero standalone value \u2014 they pay only through the requests they unlock \u2014 and several requests share one enabler, so the worth of an upgrade depends on the whole approval set. Three capex levels ($180M / $240M / $300M) are modeled as scenarios: the question is not just which portfolio, but which approvals survive every budget and what the next $60M actually buys.",
+  "approach": "binary",
+  "objectives": [
+    {
+      "name": "NetValue",
+      "direction": "maximize",
+      "unit": "$M",
+      "aggregation": "sum"
+    },
+    {
+      "name": "Cost",
+      "direction": "minimize",
+      "unit": "$M",
+      "aggregation": "sum"
+    },
+    {
+      "name": "ReliabilityRisk",
+      "direction": "minimize",
+      "unit": "score",
+      "aggregation": "sum"
+    }
+  ],
+  "constraints": [
+    {
+      "type": "objective_bound",
+      "objective": "Cost",
+      "operator": "max",
+      "value": 240.0
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "R01",
+        "R04",
+        "R07",
+        "R10",
+        "R13",
+        "R16",
+        "R19",
+        "R22"
+      ],
+      "min": 0,
+      "max": 6
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "R02",
+        "R05",
+        "R08",
+        "R11",
+        "R14",
+        "R17",
+        "R20"
+      ],
+      "min": 0,
+      "max": 6
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "R03",
+        "R06",
+        "R09",
+        "R12",
+        "R15",
+        "R18",
+        "R21"
+      ],
+      "min": 0,
+      "max": 6
+    },
+    {
+      "type": "dependency",
+      "if_option": "R01",
+      "then_option": "U1"
+    },
+    {
+      "type": "dependency",
+      "if_option": "R04",
+      "then_option": "U1"
+    },
+    {
+      "type": "dependency",
+      "if_option": "R07",
+      "then_option": "U1"
+    },
+    {
+      "type": "dependency",
+      "if_option": "R02",
+      "then_option": "U2"
+    },
+    {
+      "type": "dependency",
+      "if_option": "R05",
+      "then_option": "U2"
+    },
+    {
+      "type": "dependency",
+      "if_option": "R08",
+      "then_option": "U2"
+    },
+    {
+      "type": "dependency",
+      "if_option": "R11",
+      "then_option": "U2"
+    },
+    {
+      "type": "dependency",
+      "if_option": "R03",
+      "then_option": "U3"
+    },
+    {
+      "type": "dependency",
+      "if_option": "R06",
+      "then_option": "U3"
+    },
+    {
+      "type": "dependency",
+      "if_option": "R09",
+      "then_option": "U4"
+    },
+    {
+      "type": "dependency",
+      "if_option": "R10",
+      "then_option": "U5"
+    },
+    {
+      "type": "dependency",
+      "if_option": "R12",
+      "then_option": "U6"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "R13",
+      "option_b": "R14"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "R15",
+      "option_b": "R16"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "R17",
+      "option_b": "R18"
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "capex_low",
+      "probability": null,
+      "description": "Approval cycle at a $180M capex envelope.",
+      "score_overrides": [],
+      "score_adjustments": [],
+      "constraint_overrides": [
+        {
+          "type": "objective_bound",
+          "objective": "Cost",
+          "operator": "max",
+          "value": 180.0
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "R01",
+            "R04",
+            "R07",
+            "R10",
+            "R13",
+            "R16",
+            "R19",
+            "R22"
+          ],
+          "min": 0,
+          "max": 6
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "R02",
+            "R05",
+            "R08",
+            "R11",
+            "R14",
+            "R17",
+            "R20"
+          ],
+          "min": 0,
+          "max": 6
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "R03",
+            "R06",
+            "R09",
+            "R12",
+            "R15",
+            "R18",
+            "R21"
+          ],
+          "min": 0,
+          "max": 6
+        },
+        {
+          "type": "dependency",
+          "if_option": "R01",
+          "then_option": "U1"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R04",
+          "then_option": "U1"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R07",
+          "then_option": "U1"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R02",
+          "then_option": "U2"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R05",
+          "then_option": "U2"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R08",
+          "then_option": "U2"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R11",
+          "then_option": "U2"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R03",
+          "then_option": "U3"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R06",
+          "then_option": "U3"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R09",
+          "then_option": "U4"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R10",
+          "then_option": "U5"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R12",
+          "then_option": "U6"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "R13",
+          "option_b": "R14"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "R15",
+          "option_b": "R16"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "R17",
+          "option_b": "R18"
+        }
+      ],
+      "interaction_matrix_overrides": []
+    },
+    {
+      "name": "capex_base",
+      "probability": null,
+      "description": "Approval cycle at a $240M capex envelope.",
+      "score_overrides": [],
+      "score_adjustments": [],
+      "constraint_overrides": [
+        {
+          "type": "objective_bound",
+          "objective": "Cost",
+          "operator": "max",
+          "value": 240.0
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "R01",
+            "R04",
+            "R07",
+            "R10",
+            "R13",
+            "R16",
+            "R19",
+            "R22"
+          ],
+          "min": 0,
+          "max": 6
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "R02",
+            "R05",
+            "R08",
+            "R11",
+            "R14",
+            "R17",
+            "R20"
+          ],
+          "min": 0,
+          "max": 6
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "R03",
+            "R06",
+            "R09",
+            "R12",
+            "R15",
+            "R18",
+            "R21"
+          ],
+          "min": 0,
+          "max": 6
+        },
+        {
+          "type": "dependency",
+          "if_option": "R01",
+          "then_option": "U1"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R04",
+          "then_option": "U1"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R07",
+          "then_option": "U1"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R02",
+          "then_option": "U2"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R05",
+          "then_option": "U2"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R08",
+          "then_option": "U2"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R11",
+          "then_option": "U2"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R03",
+          "then_option": "U3"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R06",
+          "then_option": "U3"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R09",
+          "then_option": "U4"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R10",
+          "then_option": "U5"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R12",
+          "then_option": "U6"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "R13",
+          "option_b": "R14"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "R15",
+          "option_b": "R16"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "R17",
+          "option_b": "R18"
+        }
+      ],
+      "interaction_matrix_overrides": []
+    },
+    {
+      "name": "capex_high",
+      "probability": null,
+      "description": "Approval cycle at a $300M capex envelope.",
+      "score_overrides": [],
+      "score_adjustments": [],
+      "constraint_overrides": [
+        {
+          "type": "objective_bound",
+          "objective": "Cost",
+          "operator": "max",
+          "value": 300.0
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "R01",
+            "R04",
+            "R07",
+            "R10",
+            "R13",
+            "R16",
+            "R19",
+            "R22"
+          ],
+          "min": 0,
+          "max": 6
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "R02",
+            "R05",
+            "R08",
+            "R11",
+            "R14",
+            "R17",
+            "R20"
+          ],
+          "min": 0,
+          "max": 6
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "R03",
+            "R06",
+            "R09",
+            "R12",
+            "R15",
+            "R18",
+            "R21"
+          ],
+          "min": 0,
+          "max": 6
+        },
+        {
+          "type": "dependency",
+          "if_option": "R01",
+          "then_option": "U1"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R04",
+          "then_option": "U1"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R07",
+          "then_option": "U1"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R02",
+          "then_option": "U2"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R05",
+          "then_option": "U2"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R08",
+          "then_option": "U2"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R11",
+          "then_option": "U2"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R03",
+          "then_option": "U3"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R06",
+          "then_option": "U3"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R09",
+          "then_option": "U4"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R10",
+          "then_option": "U5"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R12",
+          "then_option": "U6"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "R13",
+          "option_b": "R14"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "R15",
+          "option_b": "R16"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "R17",
+          "option_b": "R18"
+        }
+      ],
+      "interaction_matrix_overrides": []
+    }
+  ]
+}
