@@ -150,41 +150,9 @@ def _build_milp_data(problem: Problem):
 # --------------------------------------------------------------------------- #
 # Numeric helpers (pure)
 # --------------------------------------------------------------------------- #
-def _round_weights_to_pct(w_frac: np.ndarray, n_options: int, max_allocation: int | None,
-                          bounds_pct: "tuple[np.ndarray, np.ndarray] | None" = None) -> np.ndarray:
-    """Round continuous fractional weights → integer percentages summing to 100, matching the
-    NSGA proportional path's exact representation. ``bounds_pct`` = per-option integer
-    ``(lo, hi)`` vectors (allocation_bound constraints); rounding must not break a floor."""
-    x = np.asarray(w_frac, dtype=float) * 100.0
-    x = np.where(np.isfinite(x), x, 0.0)  # NaN/inf → 0 before the int cast
-    raw = np.maximum(np.round(x), 0).astype(int)
-    if max_allocation is not None:
-        raw = np.minimum(raw, max_allocation)
-    lo = hi = None
-    if bounds_pct is not None:
-        lo, hi = (np.asarray(v, dtype=int) for v in bounds_pct)
-        raw = np.clip(raw, lo, hi)
-    diff = 100 - int(raw.sum())
-    if diff != 0:
-        cap = np.full(n_options, max_allocation or 100, dtype=int)
-        if hi is not None:
-            cap = np.minimum(cap, hi)
-        floor = lo if lo is not None else np.zeros(n_options, dtype=int)
-        if diff > 0:
-            for _ in range(abs(diff)):
-                headroom = cap - raw
-                headroom[(raw == 0) & (floor == 0)] = 0  # don't create new holdings here
-                if headroom.max() <= 0:
-                    break
-                raw[np.argmax(headroom)] += 1
-        else:
-            for _ in range(abs(diff)):
-                slack = raw - floor
-                if slack.max() <= 0:
-                    break
-                raw[np.argmax(slack)] -= 1
-    return raw
-
+# _round_weights_to_pct lives in engine.optimizer (shared with the NSGA
+# proportional path); re-exported here for the backends.
+_round_weights_to_pct = _opt._round_weights_to_pct
 
 def _nearest_psd(M: np.ndarray, rel_floor: float = 1e-8) -> np.ndarray:
     """Project a symmetric matrix onto the PSD cone by clipping eigenvalues up to a small
@@ -329,6 +297,23 @@ def _allocation_bound_vectors(problem: Problem, cp: dict):
     return lo, hi
 
 
+def _model_bound_rows(problem: Problem, score_matrix) -> list:
+    """Model-level ``objective_bound`` constraints as permanent linear rows for the proportional
+    inner solves — ``(coef, target, floor_bool)`` in the extra_linears/eps_list tuple shape
+    (floor_bool True → coef·w ≥ target). NSGA enforces these as G rows and the binary MILP as
+    matrix rows; without this the exact proportional overlay could return points outside the
+    model's own bounds. Valid for sum and avg aggregation alike (Σw=1 makes them equal);
+    min/max/quadratic bounds never reach here — the gate declines those shapes."""
+    ocol = {o.name: j for j, o in enumerate(problem.objectives)}
+    rows = []
+    for c in (problem.constraints or []):
+        if getattr(c, "type", "") == "objective_bound":
+            j = ocol[c.objective]
+            rows.append((score_matrix[:, j].astype(float), float(c.value),
+                         getattr(c.operator, "value", c.operator) == "min"))
+    return rows
+
+
 def _prop_anchor_rows(linear_coefs, linear_maximize, max_weight, include_primary_eps,
                       min_weight=None) -> list:
     """Anchor epsilon-rows for the proportional exact paths. One all-loose row — every floor
@@ -392,7 +377,7 @@ def _milp_anchor_sels(S, dirs, mc, n, inner_milp, exact, first_stage=None) -> li
 # QP genome (proportional mean-variance)
 # --------------------------------------------------------------------------- #
 def _solve_individual(cov, linear_coefs, linear_maximize, max_weight, eps, support, inner_qp,
-                      min_weight=None):
+                      min_weight=None, model_rows=()):
     """Inner QP for one EA individual: minimize variance subject to every linear objective k
     meeting its epsilon target ``eps[k]``, restricted to ``support``. Shared by the genome's
     ``_evaluate`` and the marshaling re-solve so the two can never disagree on what an
@@ -400,21 +385,23 @@ def _solve_individual(cov, linear_coefs, linear_maximize, max_weight, eps, suppo
     extra = [(linear_coefs[t], float(eps[t]), linear_maximize[t])
              for t in range(1, len(linear_coefs))]
     return inner_qp(cov, linear_coefs[0], float(eps[0]), linear_maximize[0],
-                    max_weight, support, extra, min_weight=min_weight)
+                    max_weight, support, extra + list(model_rows), min_weight=min_weight)
 
 
 def _solve_individual_sensitivity(cov, linear_coefs, linear_maximize, max_weight, eps,
-                                  support, inner_qp_sensitivity, min_weight=None):
+                                  support, inner_qp_sensitivity, min_weight=None,
+                                  model_rows=()):
     """Dual-returning sibling of ``_solve_individual`` — same scalarization, but the inner
     solve also returns the exact duals. Returns ``(weights_frac, ok, raw_sensitivity)``."""
     extra = [(linear_coefs[t], float(eps[t]), linear_maximize[t])
              for t in range(1, len(linear_coefs))]
     return inner_qp_sensitivity(cov, linear_coefs[0], float(eps[0]), linear_maximize[0],
-                                max_weight, support, extra, min_weight=min_weight)
+                                max_weight, support, extra + list(model_rows),
+                                min_weight=min_weight)
 
 
 def _solve_individual_lp(linear_coefs, linear_maximize, max_weight, eps, support, inner_lp,
-                         min_weight=None):
+                         min_weight=None, model_rows=()):
     """Inner LP for one EA individual (proportional allocation, purely linear objectives): optimize
     the **primary** linear objective (``linear_coefs[0]``) subject to every NON-primary objective
     meeting its epsilon target ``eps[t]``, restricted to ``support``. The continuous-allocation
@@ -422,16 +409,18 @@ def _solve_individual_lp(linear_coefs, linear_maximize, max_weight, eps, support
     quadratic, so the genome carries one fewer target (the primary isn't epsilon-constrained)."""
     eps_list = [(linear_coefs[t + 1], float(eps[t]), linear_maximize[t + 1])
                 for t in range(len(eps))]
-    return inner_lp(linear_coefs[0], linear_maximize[0], eps_list, max_weight, support,
-                    min_weight=min_weight)
+    return inner_lp(linear_coefs[0], linear_maximize[0], eps_list + list(model_rows),
+                    max_weight, support, min_weight=min_weight)
 
 
 def _solve_individual_lp_sensitivity(linear_coefs, linear_maximize, max_weight, eps,
-                                     support, inner_lp_sensitivity, min_weight=None):
+                                     support, inner_lp_sensitivity, min_weight=None,
+                                     model_rows=()):
     """Dual-returning sibling of ``_solve_individual_lp``: ``(weights_frac, ok, raw_sensitivity)``."""
     eps_list = [(linear_coefs[t + 1], float(eps[t]), linear_maximize[t + 1])
                 for t in range(len(eps))]
-    return inner_lp_sensitivity(linear_coefs[0], linear_maximize[0], eps_list, max_weight, support,
+    return inner_lp_sensitivity(linear_coefs[0], linear_maximize[0],
+                                eps_list + list(model_rows), max_weight, support,
                                 min_weight=min_weight)
 
 
@@ -498,6 +487,12 @@ def _build_solution_sensitivity(raw, opt_names, alloc_row, linear_idxs, obj_list
     shadow = []
     for sp in raw["shadow_prices"]:
         li = sp.get("linear_index")
+        if li is not None and li >= len(linear_idxs):
+            # A model-level objective_bound row appended after the genome's epsilon rows
+            # (see ``_model_bound_rows``) — priced, but not one of the walked objectives.
+            shadow.append(ShadowPrice(name="objective_bound", role="model_bound",
+                                      shadow_price=round(float(sp["value"]), 6)))
+            continue
         name = "budget" if li is None else obj_list[linear_idxs[li]].name
         shadow.append(ShadowPrice(name=name, role=sp["role"],
                                   shadow_price=round(float(sp["value"]), 6)))
@@ -522,13 +517,15 @@ class _QpFrontierProblem(PymooProblem):
     with NSGA)."""
 
     def __init__(self, prop_problem, cov, linear_coefs, linear_maximize, max_weight,
-                 eps_bounds, cardinality_k=None, groups=None, *, inner_qp, min_weight=None):
+                 eps_bounds, cardinality_k=None, groups=None, *, inner_qp, min_weight=None,
+                 model_rows=()):
         self.prop = prop_problem
         self.cov = cov
         self.linear_coefs = linear_coefs
         self.linear_maximize = linear_maximize
         self.max_weight = max_weight
         self.min_weight = min_weight
+        self.model_rows = tuple(model_rows)
         self.cardinality_k = cardinality_k
         self.groups = groups or []
         self.inner_qp = inner_qp
@@ -560,7 +557,7 @@ class _QpFrontierProblem(PymooProblem):
             w_frac, ok = _solve_individual(
                 self.cov, self.linear_coefs, self.linear_maximize,
                 self.max_weight, X[k, :n_lin], self._support_from_row(X[k]), self.inner_qp,
-                min_weight=self.min_weight,
+                min_weight=self.min_weight, model_rows=self.model_rows,
             )
             if ok:
                 W_pct[k] = w_frac * 100.0
@@ -602,6 +599,7 @@ def optimize_qp(problem, mode, *, inner_qp, inner_qp_sensitivity=None, pop, gen,
     linear_maximize = [obj_list[j].direction.value == "maximize" for j in linear_idxs]
 
     cov = _nearest_psd(im[risk_idx])
+    model_rows = _model_bound_rows(problem, score_matrix)
     max_weight = (cp["max_allocation"] / 100.0) if cp.get("max_allocation") else None
     min_weight, _hi_vec = _allocation_bound_vectors(problem, cp)
     if _hi_vec is not None:
@@ -619,8 +617,8 @@ def optimize_qp(problem, mode, *, inner_qp, inner_qp_sensitivity=None, pop, gen,
 
     # Epsilon range per linear objective = [value at the global min-variance portfolio, best
     # single-asset value]. Lower bound from one unconstrained inner solve; upper bound max(coef).
-    w_mv, ok_mv = inner_qp(cov, linear_coefs[0], None, linear_maximize[0], max_weight, None, [],
-                           min_weight=min_weight)
+    w_mv, ok_mv = inner_qp(cov, linear_coefs[0], None, linear_maximize[0], max_weight, None,
+                           list(model_rows), min_weight=min_weight)
     eps_bounds: list[tuple[float, float]] = []
     for coef in linear_coefs:
         lo = float(coef @ w_mv) if ok_mv else float(coef.min())
@@ -632,6 +630,7 @@ def optimize_qp(problem, mode, *, inner_qp, inner_qp_sensitivity=None, pop, gen,
     pymoo_problem = _QpFrontierProblem(
         prop, cov, linear_coefs, linear_maximize, max_weight, eps_bounds,
         cardinality_k, groups, inner_qp=inner_qp, min_weight=min_weight,
+        model_rows=model_rows,
     )
     if cardinality_k is not None:
         seed_X = _seed_cardinality_population(linear_coefs, cov, eps_bounds, cardinality_k, pop, seed)
@@ -660,11 +659,13 @@ def optimize_qp(problem, mode, *, inner_qp, inner_qp_sensitivity=None, pop, gen,
                 w_frac, ok, raw_sens = _solve_individual_sensitivity(
                     cov, linear_coefs, linear_maximize, max_weight,
                     row[:n_lin], support, inner_qp_sensitivity, min_weight=min_weight,
+                    model_rows=model_rows,
                 )
             else:
                 w_frac, ok = _solve_individual(
                     cov, linear_coefs, linear_maximize, max_weight,
                     row[:n_lin], support, inner_qp, min_weight=min_weight,
+                    model_rows=model_rows,
                 )
                 raw_sens = None
             if not ok:
@@ -711,12 +712,14 @@ class _LpFrontierProblem(PymooProblem):
     aggregator scores the resulting weights apples-to-apples with the NSGA paths."""
 
     def __init__(self, prop, linear_coefs, linear_maximize, max_weight, eps_bounds,
-                 cardinality_k=None, groups=None, *, inner_lp, min_weight=None):
+                 cardinality_k=None, groups=None, *, inner_lp, min_weight=None,
+                 model_rows=()):
         self.prop = prop
         self.linear_coefs = linear_coefs
         self.linear_maximize = linear_maximize
         self.max_weight = max_weight
         self.min_weight = min_weight
+        self.model_rows = tuple(model_rows)
         self.cardinality_k = cardinality_k
         self.groups = groups or []
         self.inner_lp = inner_lp
@@ -745,7 +748,7 @@ class _LpFrontierProblem(PymooProblem):
             w_frac, ok = _solve_individual_lp(
                 self.linear_coefs, self.linear_maximize, self.max_weight,
                 X[k, :self.n_eps], self._support_from_row(X[k]), self.inner_lp,
-                min_weight=self.min_weight,
+                min_weight=self.min_weight, model_rows=self.model_rows,
             )
             if ok:
                 W_pct[k] = w_frac * 100.0
@@ -778,6 +781,7 @@ def optimize_lp(problem, mode, *, inner_lp, inner_lp_sensitivity=None, pop, gen,
     linear_coefs = [score_matrix[:, j] for j in linear_idxs]
     linear_maximize = [obj_list[j].direction.value == "maximize" for j in linear_idxs]
 
+    model_rows = _model_bound_rows(problem, score_matrix)
     max_weight = (cp["max_allocation"] / 100.0) if cp.get("max_allocation") else None
     min_weight, _hi_vec = _allocation_bound_vectors(problem, cp)
     if _hi_vec is not None:
@@ -798,9 +802,9 @@ def optimize_lp(problem, mode, *, inner_lp, inner_lp_sensitivity=None, pop, gen,
     eps_bounds: list[tuple[float, float]] = []
     for t in range(1, len(linear_coefs)):
         coef, maximize = linear_coefs[t], linear_maximize[t]
-        w_hi, ok_hi = inner_lp(coef, maximize, [], max_weight, None,
+        w_hi, ok_hi = inner_lp(coef, maximize, list(model_rows), max_weight, None,
                                min_weight=min_weight)      # best for this objective
-        w_lo, ok_lo = inner_lp(coef, not maximize, [], max_weight, None,
+        w_lo, ok_lo = inner_lp(coef, not maximize, list(model_rows), max_weight, None,
                                min_weight=min_weight)      # worst for this objective
         vals = [float(coef @ w) for w, ok in ((w_hi, ok_hi), (w_lo, ok_lo)) if ok]
         lo, hi = (min(vals), max(vals)) if vals else (float(coef.min()), float(coef.max()))
@@ -809,6 +813,7 @@ def optimize_lp(problem, mode, *, inner_lp, inner_lp_sensitivity=None, pop, gen,
     pymoo_problem = _LpFrontierProblem(
         prop, linear_coefs, linear_maximize, max_weight, eps_bounds,
         cardinality_k, groups, inner_lp=inner_lp, min_weight=min_weight,
+        model_rows=model_rows,
     )
     _t0 = time.monotonic()
     result = pymoo_minimize(pymoo_problem, NSGA2(pop_size=pop),
@@ -838,11 +843,11 @@ def optimize_lp(problem, mode, *, inner_lp, inner_lp_sensitivity=None, pop, gen,
             if inner_lp_sensitivity is not None:
                 w_frac, ok, raw_sens = _solve_individual_lp_sensitivity(
                     linear_coefs, linear_maximize, max_weight, row[:n_eps], support,
-                    inner_lp_sensitivity, min_weight=min_weight)
+                    inner_lp_sensitivity, min_weight=min_weight, model_rows=model_rows)
             else:
                 w_frac, ok = _solve_individual_lp(
                     linear_coefs, linear_maximize, max_weight, row[:n_eps], support, inner_lp,
-                    min_weight=min_weight)
+                    min_weight=min_weight, model_rows=model_rows)
                 raw_sens = None
             if not ok:
                 continue
@@ -929,6 +934,7 @@ def certify_curated_frontier(problem, source_run, *, inner=None, inner_sensitivi
         linear_idxs = _resolve_linear_objectives(problem)
         linear_coefs = [score_matrix[:, j] for j in linear_idxs]
         linear_maximize = [obj_list[j].direction.value == "maximize" for j in linear_idxs]
+        model_rows = _model_bound_rows(problem, score_matrix)
         max_weight = (cp["max_allocation"] / 100.0) if cp.get("max_allocation") else None
         min_weight, _hi_vec = _allocation_bound_vectors(problem, cp)
         if _hi_vec is not None:
@@ -967,18 +973,20 @@ def certify_curated_frontier(problem, source_run, *, inner=None, inner_sensitivi
             if is_qp and inner_sensitivity is not None:
                 w_frac, ok, raw_sens = _solve_individual_sensitivity(
                     cov, linear_coefs, linear_maximize, max_weight, eps, support, inner_sensitivity,
-                    min_weight=min_weight)
+                    min_weight=min_weight, model_rows=model_rows)
             elif is_qp:
                 w_frac, ok = _solve_individual(cov, linear_coefs, linear_maximize, max_weight,
-                                               eps, support, inner, min_weight=min_weight)
+                                               eps, support, inner, min_weight=min_weight,
+                                               model_rows=model_rows)
                 raw_sens = None
             elif inner_sensitivity is not None:
                 w_frac, ok, raw_sens = _solve_individual_lp_sensitivity(
                     linear_coefs, linear_maximize, max_weight, eps, support, inner_sensitivity,
-                    min_weight=min_weight)
+                    min_weight=min_weight, model_rows=model_rows)
             else:
                 w_frac, ok = _solve_individual_lp(linear_coefs, linear_maximize, max_weight,
-                                                  eps, support, inner, min_weight=min_weight)
+                                                  eps, support, inner, min_weight=min_weight,
+                                                  model_rows=model_rows)
                 raw_sens = None
             if not ok:
                 continue

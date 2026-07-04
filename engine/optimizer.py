@@ -718,6 +718,41 @@ def _parse_constraints(problem: Problem) -> dict:
     }
 
 
+def _round_weights_to_pct(w_frac: np.ndarray, n_options: int, max_allocation: int | None,
+                          bounds_pct: "tuple[np.ndarray, np.ndarray] | None" = None) -> np.ndarray:
+    """Round continuous fractional weights → integer percentages summing to 100, matching the
+    NSGA proportional path's exact representation. ``bounds_pct`` = per-option integer
+    ``(lo, hi)`` vectors (allocation_bound constraints); rounding must not break a floor."""
+    x = np.asarray(w_frac, dtype=float) * 100.0
+    x = np.where(np.isfinite(x), x, 0.0)  # NaN/inf → 0 before the int cast
+    raw = np.maximum(np.round(x), 0).astype(int)
+    if max_allocation is not None:
+        raw = np.minimum(raw, max_allocation)
+    lo = hi = None
+    if bounds_pct is not None:
+        lo, hi = (np.asarray(v, dtype=int) for v in bounds_pct)
+        raw = np.clip(raw, lo, hi)
+    diff = 100 - int(raw.sum())
+    if diff != 0:
+        cap = np.full(n_options, max_allocation or 100, dtype=int)
+        if hi is not None:
+            cap = np.minimum(cap, hi)
+        floor = lo if lo is not None else np.zeros(n_options, dtype=int)
+        if diff > 0:
+            for _ in range(abs(diff)):
+                headroom = cap - raw
+                headroom[(raw == 0) & (floor == 0)] = 0  # don't create new holdings here
+                if headroom.max() <= 0:
+                    break
+                raw[np.argmax(headroom)] += 1
+        else:
+            for _ in range(abs(diff)):
+                slack = raw - floor
+                if slack.max() <= 0:
+                    break
+                raw[np.argmax(slack)] -= 1
+    return raw
+
 def _build_score_matrix(problem: Problem) -> np.ndarray:
     """Build score_matrix[opt_idx][obj_idx] from problem scores."""
     opt_names = [o.name for o in problem.options]
@@ -1676,32 +1711,21 @@ def _optimize_proportional(
     # Elite preservation: union extreme-point seeds with result, keep Pareto front.
     union_X, union_F = _union_with_elites(result, pymoo_problem, seeds if len(seeds) > 0 else None)
 
+    ab = cp.get("allocation_bounds") or {}
+    bounds_pct = None
+    if ab:
+        lo = np.zeros(n_options, dtype=int)
+        hi = np.full(n_options, int(cp.get("max_allocation") or 100), dtype=int)
+        for i, (l, h) in ab.items():
+            lo[i], hi[i] = int(l), min(int(hi[i]), int(h))
+        bounds_pct = (lo, hi)
     solutions: list[Solution] = []
     if union_F is not None and len(union_F) > 0:
         for idx, (x, f) in enumerate(zip(union_X, union_F)):
-            # Round to integers and normalize to sum to 100
-            raw = np.maximum(np.round(x), 0).astype(int)
-            # Clamp to max_allocation before redistributing
-            if cp.get("max_allocation") is not None:
-                raw = np.minimum(raw, cp["max_allocation"])
-            # Redistribute rounding error across eligible variables
-            diff = 100 - raw.sum()
-            if diff != 0:
-                cap = cp.get("max_allocation") or 100
-                if diff > 0:
-                    # Need to add: distribute to variables with most headroom
-                    for _ in range(abs(diff)):
-                        headroom = cap - raw
-                        headroom[raw == 0] = 0  # don't create new holdings here
-                        if headroom.max() <= 0:
-                            break
-                        raw[np.argmax(headroom)] += 1
-                else:
-                    # Need to remove: take from largest allocations
-                    for _ in range(abs(diff)):
-                        if raw.max() <= 0:
-                            break
-                        raw[np.argmax(raw)] -= 1
+            # Round to integer percents summing to 100 via the shared helper (also used by
+            # the exact overlay), so per-option allocation bounds survive the rounding.
+            raw = _round_weights_to_pct(np.asarray(x, dtype=float) / 100.0, n_options,
+                                        cp.get("max_allocation"), bounds_pct)
 
             allocs = {opt_names[i]: int(raw[i]) for i in range(n_options)}
             selected = [opt_names[i] for i in range(n_options) if raw[i] > 0]
