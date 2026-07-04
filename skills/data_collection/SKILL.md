@@ -52,6 +52,7 @@ Choose the grouping that matches how the user thinks about the data.
 - Pricing, market size, public benchmarks → researchable. Offer to look it up.
 - "How much will my team like this" → not researchable. Ask the user.
 - When in doubt, ask — but offer a starting point if you have domain knowledge.
+- Prioritize by value of information: a score is worth deeper research only if a plausible value could change which options survive — flip a dominance relationship, bind a constraint, or reorder a curated pick. A score that can't change the decision isn't worth chasing, however uncertain it is.
 
 ### Evaluating Sources (When Researching)
 When you're looking up scores rather than asking the user, prioritize in order:
