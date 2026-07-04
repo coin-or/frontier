@@ -456,7 +456,8 @@ def _model_update(params: dict) -> dict:
             p.scores = [s for s in p.scores if s.option not in removed]
 
             def _constraint_references_removed(c, removed_opts):
-                if c.type in ("force_include", "force_exclude") and c.option in removed_opts:
+                if (c.type in ("force_include", "force_exclude", "allocation_bound")
+                        and c.option in removed_opts):
                     return True
                 if c.type == "exclusion_pair" and (c.option_a in removed_opts or c.option_b in removed_opts):
                     return True
@@ -1576,7 +1577,10 @@ def explore(
                    over the WHOLE feasible space, not just the frontier. No params → feasibility
                    probe ("is any plan feasible under the current constraints?" — the exact form of
                    validate's pre-solve check; verdict feasible / no_feasible_plan). With
-                   audit_property (a constraint-shaped dict, same vocabulary as model constraints) →
+                   audit_property (a constraint-shaped dict, same vocabulary as model
+                   constraints — e.g. {"type": "force_include", "option": "A"} or
+                   {"type": "objective_bound", "objective": "Cost", "operator": "max",
+                   "value": 100}) →
                    prove a guarantee: does the property hold for EVERY feasible plan (verdict
                    "holds") or here is a concrete counterexample (verdict "violated" + witness).
                    A LIST of constraint dicts proves the conjunction — a compound guarantee holds
@@ -1601,10 +1605,12 @@ def explore(
                    Default: summary per pair (inflection, stats, top-5 steepest, truncated viz).
                    Pass detail=true for full rates array + untruncated visualization.
                    Optional: detail, scenario.
-      sensitivity — Solver-exact duals: where_to_invest (shadow prices, ranked), near_misses
-                   (reduced costs), capped_options, frontier_shadow_price_trend — anchored on a
-                   reference solution (default balanced; solution_id overrides) and naming the
-                   optimized_objective. Needs an exact continuous run (LP/QP); falls back to the
+      sensitivity — Solver-exact duals: where_to_invest (shadow prices, ranked; model-level
+                   objective_bound levers carry role `model_bound`), near_misses (reduced
+                   costs), capped_options, floored_options (options held at an
+                   allocation_bound floor — the commitment's price per point), and
+                   frontier_shadow_price_trend — anchored on a reference solution (default
+                   balanced; solution_id overrides) and naming the optimized_objective. Needs an exact continuous run (LP/QP); falls back to the
                    frontier-inferred binding analysis (tagged) on heuristic/MILP runs.
                    Optional: solution_id, scenario, source.
       composition — Mine the solution set: option selection rates (consensus vs distinctive),

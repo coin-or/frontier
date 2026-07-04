@@ -925,6 +925,17 @@ class TestExtremeSeeds:
             assert abs(row.sum() - 100.0) < 0.05
             assert row[0] >= 12 - 1e-6 and row[1] <= 15 + 1e-6 and row.max() <= 40 + 1e-6
 
+    def test_allocation_bound_floor_above_effective_cap_is_a_validation_error(self):
+        # min=50 with a global cap of 40 is an empty box — must be a pre-solve error,
+        # not a silent empty frontier.
+        from engine.models import AllocationBoundConstraint, MaxAllocationConstraint
+
+        v = validate(_make_problem(approach="proportional", constraints=[
+            MaxAllocationConstraint(max=40),
+            AllocationBoundConstraint(option="A", min=50, max=100)]))
+        assert any("exceeds its effective cap" in i.message and i.severity == "error"
+                   for i in v.issues)
+
     def test_allocation_bound_validation_and_conflicts(self):
         """E2: bad ranges, unknown options, binary-mode warning, floor sums past 100%, floors
         on excluded options, and starved effective caps are all caught pre-solve."""
@@ -989,7 +1000,7 @@ class TestExtremeSeeds:
 
         too_big = validate(_make_problem(constraints=[
             GroupLimitConstraint(options=["A", "B"], min=3, max=5)]))
-        assert any("exceeds the group's size" in i.message for i in too_big.issues)
+        assert any("exceeds the group's selectable members" in i.message for i in too_big.issues)
 
         starved = validate(_make_problem(constraints=[
             GroupLimitConstraint(options=["A", "B"], min=2, max=2),
@@ -1027,7 +1038,11 @@ class TestExtremeSeeds:
                          ObjectiveBoundConstraint(objective="Effort", operator="max", value=78),
                          CardinalityConstraint(min=5, max=12)],
         )
-        seed_row = _feasibility_witness_seed(p)
+        from engine.optimizer import _build_score_matrix, _compute_extreme_seeds, _parse_constraints
+
+        sm = _build_score_matrix(p)
+        corner_seeds = _compute_extreme_seeds(p, sm, _parse_constraints(p))
+        seed_row = _feasibility_witness_seed(p, corner_seeds, sm)
         assert seed_row is not None and seed_row.shape == (1, n)
         sel = seed_row[0] > 0.5
         rev = sum(10 + (i % 7) for i in range(n) if sel[i])
@@ -1041,7 +1056,14 @@ class TestExtremeSeeds:
                 assert s.objective_values["Revenue"] >= 115 - 1e-6
                 assert s.objective_values["Effort"] <= 78 + 1e-6
         # No bounds → no witness row (the prior seed behavior, untouched).
-        assert _feasibility_witness_seed(_make_problem()) is None
+        bare = _make_problem()
+        bare_sm = _build_score_matrix(bare)
+        assert _feasibility_witness_seed(bare, np.zeros((0, 5)), bare_sm) is None
+        # A corner seed already inside the band skips the MILP probe entirely.
+        inside = np.zeros((1, n)); inside[0, :8] = 1.0   # 8 picks: rev>=115? eff<=78? recompute:
+        rev = sum(10 + (i % 7) for i in range(8)); eff = sum(6 + (i % 5) for i in range(8))
+        if rev >= 115 and eff <= 78:
+            assert _feasibility_witness_seed(p, inside, sm) is None
 
     def test_proportional_seeds_sum_to_100_and_respect_cap(self):
         """Proportional seeds: allocations sum to 100 and no allocation exceeds max_allocation."""

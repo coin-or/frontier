@@ -1,7 +1,7 @@
 {
   "run": {
-    "run_id": "e4d76278-e6fe-498a-8744-1da0aec07064",
-    "created_at": "2026-07-04T03:17:13.105823Z",
+    "run_id": "67723d80-f903-41e6-9b95-aa238bd29deb",
+    "created_at": "2026-07-04T04:24:58.840857Z",
     "mode": "thorough",
     "solutions": [
       {
@@ -3649,8 +3649,8 @@
     "time_limited": false
   },
   "exact_run": {
-    "run_id": "cc4cdb37-607c-4cc0-8bf5-60e0b7aa8787",
-    "created_at": "2026-07-04T03:17:54.950089Z",
+    "run_id": "97e17fb7-8579-456b-94b2-a69aa7801e5c",
+    "created_at": "2026-07-04T04:25:42.446471Z",
     "mode": "fast",
     "solutions": [
       {
@@ -7336,8 +7336,8 @@
   "scenario_run": {
     "scenario_runs": {
       "capacity_cut": {
-        "run_id": "a708a3dd-5936-4f1e-b98d-bc362856171b",
-        "created_at": "2026-07-04T03:18:04.753633Z",
+        "run_id": "81748d61-cc45-4d79-926e-b36dda031b4a",
+        "created_at": "2026-07-04T04:25:52.918375Z",
         "mode": "thorough",
         "solutions": [
           {
@@ -10708,6 +10708,6 @@
         "time_limited": false
       }
     },
-    "created_at": "2026-07-04T03:18:04.754594Z"
+    "created_at": "2026-07-04T04:25:52.919577Z"
   }
 }

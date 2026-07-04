@@ -1,7 +1,7 @@
 {
   "name": "Research Cohort Selection",
   "domain": "clinical research operations",
-  "context": "A research team picks exactly 24 of 144 screened volunteers for a biomarker study. Signal strength, retention risk, and per-participant cost pull apart by construction: the highest-expression volunteers screen at the expensive academic centers and carry the most dropout risk. Stratum floors (the cohort must span all six profiles) and per-site caps (no site may dominate) force the spread a top-12-by-signal list ignores.",
+  "context": "A research team picks exactly 24 of 144 screened volunteers for a biomarker study. Signal strength, retention risk, and per-participant cost pull apart by construction: the highest-expression volunteers screen at the expensive academic centers and carry the most dropout risk. Stratum floors (the cohort must span all six profiles) and per-site caps (no site may dominate) force the spread a top-24-by-signal list ignores.",
   "approach": "binary",
   "objectives": [
     {

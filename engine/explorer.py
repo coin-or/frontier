@@ -2443,7 +2443,7 @@ def _binding_analysis(problem: Problem, solutions: list) -> list[dict]:
         else:
             entry = None
         if entry is not None:
-            out.append(entry)
+            out.extend(entry) if isinstance(entry, list) else out.append(entry)
     return out
 
 
@@ -2555,7 +2555,7 @@ def _binding_cardinality(c, solutions, objectives) -> dict | None:
     }
 
 
-def _binding_group_limit(c, solutions, objectives) -> dict | None:
+def _binding_group_limit(c, solutions, objectives) -> list[dict] | None:
     """A group can bind at its cap (frontier plans pinned at max) or — with a floor set —
     at its min (plans held up at the floor); report whichever side binds, cap first."""
     group_set = set(c.options)
@@ -2596,12 +2596,15 @@ def _binding_group_limit(c, solutions, objectives) -> dict | None:
     # hundreds of options, and the full roster would swamp every payload citing this label.
     opts = (", ".join(c.options) if len(c.options) <= 6
             else f"{', '.join(c.options[:5])}, +{len(c.options) - 5} more")
-    entry = _entry(c.max, c.max - 1, f"group_limit({opts}) ≤ {c.max}",
-                   "gain_per_additional_slot", cap_side=True)
-    if entry is None and g_min > 0:
-        entry = _entry(g_min, g_min + 1, f"group_limit({opts}) ≥ {g_min}",
-                       "gain_per_extra_member", cap_side=False)
-    return entry
+    entries = [_entry(c.max, c.max - 1, f"group_limit({opts}) ≤ {c.max}",
+                      "gain_per_additional_slot", cap_side=True)]
+    if g_min > 0:
+        # Both sides can bind across one frontier (some plans pinned at the cap, others held
+        # up at the floor — or min == max pins every plan at both). Report each side that
+        # binds; metrics' binding check reports both, and the two surfaces must agree.
+        entries.append(_entry(g_min, g_min + 1, f"group_limit({opts}) ≥ {g_min}",
+                              "gain_per_extra_member", cap_side=False))
+    return [e for e in entries if e is not None] or None
 
 
 def _suggested_scenarios_from_binding(binding: list[dict]) -> list[dict]:
@@ -2807,7 +2810,9 @@ def _format_solution_sensitivity(s, objective: str | None = None, floors: dict |
                            f"what it would earn; the floor costs ~{abs(rc.reduced_cost):.4g} per "
                            "unit of allocation (the price of the commitment)"),
     } for rc in sorted((r for r in sens.reduced_costs
-                        if r.option in floors and r.allocation <= floors[r.option]
+                        # +1 tolerance: integer rounding can park a floor-pinned option one
+                        # percent above its floor without changing what binds.
+                        if r.option in floors and r.allocation <= floors[r.option] + 1
                         and r.reduced_cost > 1e-9),
                        key=lambda x: -x.reduced_cost)]
     return where, near, capped, floored

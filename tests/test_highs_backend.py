@@ -117,6 +117,25 @@ class TestGate:
         p = _qp_problem(constraints=[GroupLimitConstraint(options=["A", "B"], max=1)])
         assert exact_solver_fits(p)[0] is True
 
+    def test_quadratic_bound_cap_filtered_floor_declined(self):
+        # A MAX cap on the quadratic minimand rides the exact path via post-filtering (the
+        # inner solve minimizes it, so violation proves the targets infeasible); a MIN floor
+        # on it is non-convex and declines.
+        from engine.models import ObjectiveBoundConstraint
+
+        capped = _qp_problem(constraints=[
+            MaxAllocationConstraint(max=50),
+            ObjectiveBoundConstraint(objective="Risk", operator="max", value=0.30)])
+        assert exact_solver_fits(capped)[0] is True
+        run = optimize(capped, solver="highs", seed=5)
+        assert len(run.solutions) > 0
+        for s in run.solutions:   # every certified point honors the model's own risk cap
+            assert s.objective_values["Risk"] <= 0.30 + 1e-6
+        floored = _qp_problem(constraints=[
+            ObjectiveBoundConstraint(objective="Risk", operator="min", value=0.05)])
+        fits, why = exact_solver_fits(floored)
+        assert fits is False and "non-convex" in why
+
     def test_group_floor_declined_on_proportional_but_fits_on_binary(self):
         # A floor counts *active* options — combinatorial on the continuous QP/LP path,
         # a plain MILP row on the binary path.

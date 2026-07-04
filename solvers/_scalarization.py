@@ -179,11 +179,13 @@ def _weight_box(n, max_weight, min_weight, support):
     if support is None:
         return [float(u) for u in ub_vec], [float(l) for l in lb_vec]
     supp = {int(i) for i in support}
+    # Off-support: ub pins to 0; the lb keeps its floor so a floored asset dropped from
+    # support is infeasible AT THE SOLVER (lb>ub), not merely rejected by the post-gate.
     return ([float(ub_vec[i]) if i in supp else 0.0 for i in range(n)],
-            [float(lb_vec[i]) if i in supp else 0.0 for i in range(n)])
+            [float(lb_vec[i]) for i in range(n)])
 
 
-def _qp_weights_ok(weights: "np.ndarray | None", ub, lb=None, tol: float = 1e-3) -> bool:
+def _qp_weights_ok(weights: "np.ndarray | None", ub, lb=None, *, tol: float = 1e-3) -> bool:
     """Feasibility gate on a QP solver's *returned* weights — not just its status. First-order
     QP solvers can terminate 'solved' on a degenerate point whose weights are non-finite or
     violate Σw=1 / the [lb, ub] box; the downstream aggregation then explodes one point and
@@ -297,21 +299,49 @@ def _allocation_bound_vectors(problem: Problem, cp: dict):
     return lo, hi
 
 
-def _model_bound_rows(problem: Problem, score_matrix) -> list:
+def _model_bound_rows(problem: Problem, score_matrix) -> tuple[list, list[str]]:
     """Model-level ``objective_bound`` constraints as permanent linear rows for the proportional
-    inner solves — ``(coef, target, floor_bool)`` in the extra_linears/eps_list tuple shape
-    (floor_bool True → coef·w ≥ target). NSGA enforces these as G rows and the binary MILP as
-    matrix rows; without this the exact proportional overlay could return points outside the
-    model's own bounds. Valid for sum and avg aggregation alike (Σw=1 makes them equal);
-    min/max/quadratic bounds never reach here — the gate declines those shapes."""
+    inner solves — ``(rows, bounded_objective_names)`` with each row ``(coef, target, floor_bool)``
+    in the extra_linears/eps_list tuple shape (floor_bool True → coef·w ≥ target). NSGA enforces
+    these as G rows and the binary MILP as matrix rows; without this the exact proportional
+    overlay could return points outside the model's own bounds. Linear rows are exact for sum
+    and avg aggregation alike (Σw=1 makes them equal); bounds on min/max/quadratic objectives
+    never reach here — ``exact_solver_fits`` declines those shapes. The names list mirrors row
+    order (constraint order), the contract ``_build_solution_sensitivity`` uses to label each
+    model-bound dual."""
     ocol = {o.name: j for j, o in enumerate(problem.objectives)}
-    rows = []
+    agg = {o.name: getattr(o.aggregation, "value", o.aggregation) for o in problem.objectives}
+    rows, names = [], []
     for c in (problem.constraints or []):
-        if getattr(c, "type", "") == "objective_bound":
+        if getattr(c, "type", "") == "objective_bound" and agg.get(c.objective) in ("sum", "avg"):
             j = ocol[c.objective]
             rows.append((score_matrix[:, j].astype(float), float(c.value),
                          getattr(c.operator, "value", c.operator) == "min"))
-    return rows
+            names.append(c.objective)
+    return rows, names
+
+
+def _prop_bound_context(problem: Problem, cp: dict, score_matrix):
+    """The proportional exact paths' shared bound context, built once per path:
+    ``(model_rows, bound_names, max_weight, min_weight, bounds_pct, quad_caps)``. One
+    construction site keeps the row/name order coupling, the cap folding, and the rounding box
+    in lockstep across optimize_qp / optimize_lp / certify_curated_frontier. ``quad_caps`` are
+    the model's MAX bounds on quadratic objectives — not encodable as rows; the assemblies
+    filter returned points against them (exact, because each inner solve minimizes the
+    quadratic: a violating point proves its epsilon-targets infeasible)."""
+    model_rows, bound_names = _model_bound_rows(problem, score_matrix)
+    max_weight = (cp["max_allocation"] / 100.0) if cp.get("max_allocation") else None
+    min_weight, _hi_vec = _allocation_bound_vectors(problem, cp)
+    if _hi_vec is not None:
+        max_weight = _hi_vec
+    bounds_pct = ((np.round(min_weight * 100).astype(int), np.round(_hi_vec * 100).astype(int))
+                  if min_weight is not None else None)
+    quad = {o.name for o in problem.objectives
+            if getattr(o.aggregation, "value", o.aggregation) == "quadratic"}
+    quad_caps = [(c.objective, float(c.value)) for c in (problem.constraints or [])
+                 if getattr(c, "type", "") == "objective_bound" and c.objective in quad
+                 and getattr(c.operator, "value", c.operator) == "max"]
+    return model_rows, bound_names, max_weight, min_weight, bounds_pct, quad_caps
 
 
 def _prop_anchor_rows(linear_coefs, linear_maximize, max_weight, include_primary_eps,
@@ -605,15 +635,8 @@ def optimize_qp(problem, mode, *, inner_qp, inner_qp_sensitivity=None, pop, gen,
     linear_maximize = [obj_list[j].direction.value == "maximize" for j in linear_idxs]
 
     cov = _nearest_psd(im[risk_idx])
-    model_rows = _model_bound_rows(problem, score_matrix)
-    bound_names = [c.objective for c in (problem.constraints or [])
-                   if getattr(c, "type", "") == "objective_bound"]
-    max_weight = (cp["max_allocation"] / 100.0) if cp.get("max_allocation") else None
-    min_weight, _hi_vec = _allocation_bound_vectors(problem, cp)
-    if _hi_vec is not None:
-        max_weight = _hi_vec
-    bounds_pct = ((np.round(min_weight * 100).astype(int), np.round(_hi_vec * 100).astype(int))
-                  if min_weight is not None else None)
+    model_rows, bound_names, max_weight, min_weight, bounds_pct, quad_caps = \
+        _prop_bound_context(problem, cp, score_matrix)
     cardinality_k = _cardinality_k(problem)
     # Caps only — the exact gate declines proportional problems with group floors.
     groups = [(g, mx) for g, _mn, mx in _group_limits(problem)]
@@ -691,6 +714,10 @@ def optimize_qp(problem, mode, *, inner_qp, inner_qp_sensitivity=None, pop, gen,
                 obj.name: round(float(prop._aggregate_objective(W_pct, j)[0]), 4)
                 for j, obj in enumerate(obj_list)
             }
+            # Model MAX caps on the quadratic objective: the inner solve minimized it, so a
+            # violating point means these epsilon-targets are infeasible under the model.
+            if any(obj_values.get(nm, 0.0) > v + 1e-9 for nm, v in quad_caps):
+                continue
             sensitivity = (_build_solution_sensitivity(raw_sens, opt_names, raw, linear_idxs,
                                                        obj_list, bound_names=bound_names)
                            if raw_sens else None)
@@ -790,15 +817,8 @@ def optimize_lp(problem, mode, *, inner_lp, inner_lp_sensitivity=None, pop, gen,
     linear_coefs = [score_matrix[:, j] for j in linear_idxs]
     linear_maximize = [obj_list[j].direction.value == "maximize" for j in linear_idxs]
 
-    model_rows = _model_bound_rows(problem, score_matrix)
-    bound_names = [c.objective for c in (problem.constraints or [])
-                   if getattr(c, "type", "") == "objective_bound"]
-    max_weight = (cp["max_allocation"] / 100.0) if cp.get("max_allocation") else None
-    min_weight, _hi_vec = _allocation_bound_vectors(problem, cp)
-    if _hi_vec is not None:
-        max_weight = _hi_vec
-    bounds_pct = ((np.round(min_weight * 100).astype(int), np.round(_hi_vec * 100).astype(int))
-                  if min_weight is not None else None)
+    model_rows, bound_names, max_weight, min_weight, bounds_pct, _quad_caps = \
+        _prop_bound_context(problem, cp, score_matrix)
     cardinality_k = _cardinality_k(problem)
     # Caps only — the exact gate declines proportional problems with group floors.
     groups = [(g, mx) for g, _mn, mx in _group_limits(problem)]
@@ -946,15 +966,8 @@ def certify_curated_frontier(problem, source_run, *, inner=None, inner_sensitivi
         linear_idxs = _resolve_linear_objectives(problem)
         linear_coefs = [score_matrix[:, j] for j in linear_idxs]
         linear_maximize = [obj_list[j].direction.value == "maximize" for j in linear_idxs]
-        model_rows = _model_bound_rows(problem, score_matrix)
-        bound_names = [c.objective for c in (problem.constraints or [])
-                       if getattr(c, "type", "") == "objective_bound"]
-        max_weight = (cp["max_allocation"] / 100.0) if cp.get("max_allocation") else None
-        min_weight, _hi_vec = _allocation_bound_vectors(problem, cp)
-        if _hi_vec is not None:
-                max_weight = _hi_vec
-        bounds_pct = ((np.round(min_weight * 100).astype(int), np.round(_hi_vec * 100).astype(int))
-                      if min_weight is not None else None)
+        model_rows, bound_names, max_weight, min_weight, bounds_pct, quad_caps = \
+            _prop_bound_context(problem, cp, score_matrix)
         prop = _opt._ProportionalProblem(n_options=n_options, score_matrix=score_matrix,
                                          objectives=obj_list, interaction_matrices=im, **cp)
         is_qp = bool(im)
@@ -1014,6 +1027,8 @@ def certify_curated_frontier(problem, source_run, *, inner=None, inner_sensitivi
             W_pct = raw.astype(float).reshape(1, -1)
             obj_values = {obj.name: round(float(prop._aggregate_objective(W_pct, j)[0]), 4)
                           for j, obj in enumerate(obj_list)}
+            if is_qp and any(obj_values.get(nm, 0.0) > v + 1e-9 for nm, v in quad_caps):
+                continue
             sensitivity = (_build_solution_sensitivity(raw_sens, opt_names, raw, linear_idxs,
                                                        obj_list, bound_names=bound_names)
                            if raw_sens else None)

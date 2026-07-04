@@ -115,6 +115,21 @@ def exact_solver_fits(problem: "Problem") -> tuple[bool, str]:
             "with the NSGA heuristic."
         )
     quad = [o for o in problem.objectives if o.aggregation == Aggregation.quadratic]
+    # A model objective_bound on the quadratic objective can't be a linear row
+    # (``_model_bound_rows`` skips it). A MAX cap on the quadratic minimand is still exactly
+    # servable: each inner solve MINIMIZES the quadratic, so any returned point above the cap
+    # proves those epsilon-targets infeasible and the QP paths filter it out post-solve. A MIN
+    # floor on the quadratic is non-convex — decline that direction.
+    quad_names = {o.name for o in quad}
+    quad_floors = sorted({c.objective for c in (problem.constraints or [])
+                          if c.type == "objective_bound" and c.objective in quad_names
+                          and getattr(c.operator, "value", c.operator) == "min"})
+    if quad_floors:
+        return False, (
+            f"an objective_bound floor on the quadratic objective ({', '.join(quad_floors)}) is "
+            "non-convex — the exact QP can cap it (max) but not floor it. Drop the floor to "
+            "certify, or explore with the NSGA heuristic (which enforces it)."
+        )
     if not quad:
         # No quadratic term → purely linear proportional allocation is an exact multi-objective LP
         # (one linear objective optimized, the rest epsilon-constrained), carrying shadow prices +

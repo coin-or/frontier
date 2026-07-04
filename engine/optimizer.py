@@ -360,12 +360,8 @@ def validate(problem: Problem) -> ValidationResult:
                     severity="error",
                     message=f"group_limit min ({c.min}) must be between 0 and max ({c.max}).",
                 ))
-            elif c.min > len(c.options):
-                issues.append(ValidationIssue(
-                    severity="error",
-                    message=(f"group_limit min ({c.min}) exceeds the group's size "
-                             f"({len(c.options)} options) — the floor can never be met."),
-                ))
+            # min vs the group's selectable size is checked in _check_constraint_conflicts
+            # (it accounts for force_excludes), so it isn't duplicated here.
         elif c.type == "allocation_bound":
             if c.option not in opt_names:
                 issues.append(ValidationIssue(
@@ -640,6 +636,17 @@ def _check_constraint_conflicts(
                     message=(f"allocation_bound floors sum to {floor_sum}% > 100% — "
                              "the floors cannot all be met."),
                 ))
+            global_cap_for_floors = next(
+                (c.max for c in problem.constraints if c.type == "max_allocation"), 100)
+            for c in ab:
+                eff_cap = min(global_cap_for_floors, c.max)
+                if c.min > eff_cap:
+                    issues.append(ValidationIssue(
+                        severity="error",
+                        message=(f"allocation_bound floor ({c.min}%) on '{c.option}' exceeds its "
+                                 f"effective cap ({eff_cap}% = min of the global max_allocation "
+                                 "and its own max) — the bound box is empty."),
+                    ))
             for c in ab:
                 if c.min > 0 and c.option in forced_out:
                     issues.append(ValidationIssue(
@@ -790,29 +797,50 @@ def _build_interaction_matrices(problem: Problem) -> dict[int, np.ndarray]:
     return result
 
 
-def _feasibility_witness_seed(problem: Problem) -> np.ndarray | None:
+def _feasibility_witness_seed(problem: Problem, seeds: np.ndarray,
+                              score_matrix: np.ndarray) -> np.ndarray | None:
     """One exact feasibility witness as a seed row — the audit probe seeding the explorer.
 
     When objective_bound constraints couple the region (a budget cap plus a target floor), the
     greedy per-objective corner seeds can all be infeasible — they respect forced/cardinality/
     group constraints but not bounds — and the EA can then terminate with an empty feasible
     front on a *provably feasible* problem (seed-dependent). One MILP feasibility witness
-    plants the population inside the band; NSGA expands the frontier from there. Binary
-    problems with HiGHS present only; silently absent otherwise (the prior behavior)."""
+    plants the population inside the band; NSGA expands the frontier from there.
+
+    Skipped when any existing corner seed already satisfies every objective bound (the common
+    case — the band only needs planting when the greedy corners all miss it), and served by
+    the engine-layer ``audit_milp`` probe directly, not ``audit()`` (whose presentation path
+    would run a full conflict diagnosis on an infeasible model, only for this helper to
+    discard it). Binary problems with HiGHS present only; silently absent otherwise (note:
+    this makes the seeded population — and thus the same-seed frontier — depend on whether
+    ``highspy`` is installed)."""
     if problem.approach != Approach.binary:
         return None
-    if not any(c.type == "objective_bound" for c in (problem.constraints or [])):
+    bounds = [(c.objective, getattr(c.operator, "value", c.operator), float(c.value))
+              for c in (problem.constraints or []) if c.type == "objective_bound"]
+    if not bounds:
         return None
+    ocol = {o.name: j for j, o in enumerate(problem.objectives)}
+    if len(seeds) > 0:
+        vals = np.asarray(seeds, dtype=float) @ score_matrix   # (n_seeds, n_obj) sums
+        for row in vals:
+            if all((row[ocol[nm]] <= v + 1e-9) if op == "max" else (row[ocol[nm]] >= v - 1e-9)
+                   for nm, op, v in bounds if nm in ocol):
+                return None   # a corner seed is already inside the band
     from solvers import available_solvers
     if not available_solvers().get("highs"):
         return None
-    try:
-        probe = audit(problem)
-    except ValueError:
-        return None   # e.g. a bound on a non-sum objective — the audit gate declines
-    if probe.get("verdict") != "feasible":
+    # Same bound-encodability condition as audit's gate: bounds enter as linear sum rows.
+    if any(o.name in {nm for nm, _, _ in bounds} and o.aggregation != Aggregation.sum
+           for o in problem.objectives):
         return None
-    selected = set(probe["witness"]["selected_options"])
+    from solvers._scalarization import audit_milp
+    from solvers.highs_backend import _audit_milp_highs
+
+    raw = audit_milp(problem, [[]], inner_audit=_audit_milp_highs)
+    if not raw["feasible"]:
+        return None
+    selected = set(raw["witness_options"])
     return np.array([[1.0 if o.name in selected else 0.0 for o in problem.options]])
 
 
@@ -873,7 +901,7 @@ def _compute_extreme_seeds(problem: Problem, score_matrix: np.ndarray, cp: dict)
         # extended to group floors.
         for g_idx, (g_indices, g_min, _g_max) in enumerate(group_limits):
             for idx in order:
-                if group_counts[g_idx] >= g_min:
+                if group_counts[g_idx] >= g_min or len(selected) >= card_max:
                     break
                 if idx not in g_indices or idx in forced_out or idx in selected:
                     continue
@@ -1373,9 +1401,9 @@ def _negate_property(problem: Problem, prop) -> list[list[tuple]]:
             raise ValueError(f"audit property references unknown objective '{prop.objective}'.")
         obj = problem.objectives[ocol[prop.objective]]
         if obj.aggregation != Aggregation.sum:
-            # The witness row J = col·x equals the objective ONLY under sum aggregation. The audit
-            # gate (exact_solver_fits) already forces sum on binary, so this guards against a future
-            # gate change silently making the bound linear-but-wrong (avg/min/max/quadratic ≠ col·x).
+            # The witness row J = col·x equals the objective ONLY under sum aggregation. The
+            # audit gate covers bounds in the MODEL's constraints; bound PROPERTIES arrive here
+            # directly, so this guard is load-bearing — not redundant with the gate.
             raise ValueError(
                 f"audit objective_bound needs a sum-aggregated objective; '{prop.objective}' uses "
                 f"'{obj.aggregation.value}'.")
@@ -1569,13 +1597,17 @@ def audit(problem: Problem, prop=None, solver: str = "highs") -> dict:
         per_prop.append({"property": p.model_dump(mode="json"), "verdict": verdict})
     conj = {"properties": per_prop} if len(props) > 1 else {}
 
+    stopped = sorted(stopped_all)
+    status_note = ({"solver_status": stopped} if stopped else {})
     if witness is not None:
-        out = {**base, "verdict": "violated", "witness": witness, **conj}
+        # A violation is a definitive verdict, but a sibling conjunct whose solve stopped
+        # still surfaces its stop cause — its breakdown entry says `inconclusive`, and the
+        # caller needs the raw status to tell solver-stop from model complexity.
+        out = {**base, "verdict": "violated", "witness": witness, **conj, **status_note}
         if len(props) > 1:
             out["violated_property"] = violated_prop
         return out
     if any(r["verdict"] == "inconclusive" for r in per_prop):
-        stopped = sorted(stopped_all)
         return {**base, "verdict": "inconclusive", "witness": None, **conj,
                 "solver_status": stopped,
                 "reason": f"the feasibility solve stopped without a verdict (HiGHS: {', '.join(stopped)}) — "
@@ -1731,7 +1763,7 @@ def _optimize_binary(
     )
 
     seeds = _compute_extreme_seeds(problem, score_matrix, cp)
-    witness = _feasibility_witness_seed(problem)
+    witness = _feasibility_witness_seed(problem, seeds, score_matrix)
     if witness is not None:
         seeds = np.vstack([seeds, witness]) if len(seeds) > 0 else witness
     algorithm, n_gen = _tune_parameters(problem, mode, seed_population=seeds if len(seeds) > 0 else None)
@@ -2140,6 +2172,8 @@ class _ProportionalProblem(PymooProblem):
         for i, (lo, hi) in self.allocation_bounds.items():
             self.alloc_lo[i] = float(lo)
             self.alloc_hi[i] = min(eff_cap, float(hi))
+        self._bound_idx = (np.fromiter(self.allocation_bounds, dtype=int)
+                           if self.allocation_bounds else None)
         self.interaction_matrices = interaction_matrices or {}
 
     def _aggregate_objective(self, X: np.ndarray, j: int) -> np.ndarray:
@@ -2245,9 +2279,10 @@ class _ProportionalProblem(PymooProblem):
                 G.append(min_count - group_sum)
 
         # Per-option allocation bounds: lo <= x[i] <= hi (allocation_bound constraints)
-        for i, (lo, hi) in (self.allocation_bounds or {}).items():
-            G.append(lo - X[:, i])
-            G.append(X[:, i] - hi)
+        if self._bound_idx is not None:
+            Xb = X[:, self._bound_idx]
+            G.append(self.alloc_lo[self._bound_idx] - Xb)
+            G.append(Xb - self.alloc_hi[self._bound_idx])
 
         # Max position: each allocation <= max_allocation
         if self.max_allocation is not None:
