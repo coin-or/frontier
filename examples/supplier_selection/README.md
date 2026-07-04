@@ -6,18 +6,17 @@ Split a production order across 25 global suppliers balancing cost, reliability,
 - **`scores.json`**: 25 suppliers across 6 regions with per-objective scores, plus the `ConcentrationRisk` interaction matrix (high within-region correlation, ~0 across regions).
 - **`solutions.json`**: the exploratory NSGA `run` plus the per-scenario `scenario_run`.
 
-Load with `model load source="supplier_selection"`, then drive the workflow the way a user would — one ask per phase:
-
-> 1. *“How should we split the order across these 25 suppliers, keeping regional concentration in check? Show me the real cost/reliability/lead-time/ESG choices — and how they hold up if China goes offline or demand surges.”*
-> 2. *“Keep the balanced mix and the most reliable one. Are these actually optimal?”*
-> 3. *“Which of our rules costs us the most, and which supplier just missed the cut?”*
-> 4. *“Write it up for the sourcing review.”*
+Load with `model load source="supplier_selection"`, then drive it the way a user would — one ask per phase, with the tools that fire and what to expect:
 
 ## The workflow
 
-1. **Solve** (`solve run`, plus `solve run_scenarios` for the disruption scenarios): the optimizer produces the multi-sourcing frontier across the five objectives and a per-scenario frontier for `china_disruption` (those suppliers offline) and `demand_surge` (per-supplier capacity tightens to 10%).
-2. **Explore the tradeoffs** (`explore tradeoffs`): the extremes, a balanced plan, the knees, and how resilient each mix is across the scenarios.
-3. **Certify and examine** (`solve solver="highs"` → `explore certify` → `explore sensitivity`): the exact mean-variance QP overlay audits the heuristic frontier and sharpens the minimum-concentration-risk corner; the duals show which constraint (a region cap, the reliability floor) is the binding lever, which supplier is the closest near-miss, and which sit pinned at a cap.
-4. **Decide** (`explore curate`): pin a few sourcing plans and commit on the tradeoffs.
+1. *“How should we split the order across these 25 suppliers, keeping regional concentration in check? Show me the real cost/reliability/lead-time/ESG choices — and how they hold up if China goes offline or demand surges.”*
+   `solve run` + `solve run_scenarios` → `explore tradeoffs`: the five-objective sourcing frontier plus per-scenario frontiers for `china_disruption` (those suppliers offline) and `demand_surge` (per-supplier capacity tightens to 10%).
+2. *“Keep the balanced mix and the most reliable one. Are these actually optimal?”*
+   `explore curate` per pick → `solve solver="highs"` → `explore certify`: the exact mean-variance QP overlay, sharpest at the minimum-concentration-risk corner.
+3. *“Which of our rules costs us the most, and which supplier just missed the cut?”*
+   `explore sensitivity`: solver-exact duals — whether a region cap or the reliability floor is the binding lever, the closest near-miss supplier, and which sit pinned at a cap.
+4. *“Write it up for the sourcing review.”*
+   `explore curated format="markdown"`: the handoff table.
 
 For the same QP shape in finance, see [`investment_portfolio`](../investment_portfolio/); for the energy version, [`capacity_planning`](../capacity_planning/).

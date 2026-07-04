@@ -6,19 +6,17 @@ Pick exactly 24 of 144 screened volunteers for a biomarker study, maximizing sig
 - **`scores.json`**: the 144 volunteers scored per objective, signal clustering at the costly high-dropout sites by construction.
 - **`solutions.json`**: the exploratory NSGA `run` plus the exact-MILP `exact_run` overlay — every point exactly 24 volunteers, floors held.
 
-Load with `model load source="research_cohort_selection"`, then drive the workflow the way a user would — one ask per phase:
-
-> 1. *“Help me pick the strongest 24-person cohort from these 144 volunteers — signal against dropout risk against cost.”*
-> 2. *“Keep the balanced cohort and the max-signal one. Are these actually optimal?”*
-> 3. *“Tell me something the protocol doesn't say: how many rare-variant (F) volunteers can any legal cohort carry — does "at most 6" hold across every one, and does "at most 5"?”*
-> 4. *“Write the shortlist up for the steering committee.”*
+Load with `model load source="research_cohort_selection"`, then drive it the way a user would — one ask per phase, with the tools that fire and what to expect:
 
 ## The workflow
 
-1. **Solve** (`solve run`): the optimizer produces the signal/risk/cost frontier of exact-24 cohorts.
-2. **Explore the tradeoffs** (`explore tradeoffs`): the extremes, a balanced cohort, and the knees — the frontier reaches ~99% of the ranking's signal at lower risk *and* lower cost, because the floors leave real choice inside each stratum.
-3. **Certify** (`solve solver="highs"` → `explore certify`): the exact MILP overlay proves each cohort optimal for its tradeoff; integer selections carry no duals, so the examine falls back to the frontier-inferred binding read (the site caps and stratum floors bind — the floor read reports what one extra member above the floor buys).
-4. **Audit the emergent guarantee** (`explore audit`): the model states stratum F may hold up to 8 — but audit "at most 6 from F" and the verdict is `holds`, across every feasible cohort. Nobody wrote 6 anywhere: the floors on A–E (4+4+4+3+3) against K=24 *imply* it. Audit "at most 5" and it flips to `violated`, with a witness cohort carrying exactly 6. A constraint set has consequences its authors didn't state; audit is how you discover and prove them.
-5. **Decide** (`explore curate`): pin the cohorts you'd take to the steering committee.
+1. *“Help me pick the strongest 24-person cohort from these 144 volunteers — signal against dropout risk against cost.”*
+   `solve run` → `explore tradeoffs`: the frontier of exact-24 cohorts — it reaches ~99% of a top-24-by-signal ranking's signal at lower risk *and* cost, because the floors leave real choice inside each stratum.
+2. *“Keep the balanced cohort and the max-signal one. Are these actually optimal?”*
+   `explore curate` per pick → `solve solver="highs"` → `explore certify`: the exact MILP overlay; the binding read reports the site caps and stratum floors (the floor read prices one extra member above the floor).
+3. *“Tell me something the protocol doesn't say: how many rare-variant (F) volunteers can any legal cohort carry — does "at most 6" hold across every one, and does "at most 5"?”*
+   `explore audit`: "at most 6 from F" `holds` across every feasible cohort — nobody wrote 6 anywhere; the floors on A–E (4+4+4+3+3) against K=24 *imply* it. "At most 5" flips to `violated`, with a witness cohort carrying exactly 6.
+4. *“Write the shortlist up for the steering committee.”*
+   `explore curated format="markdown"`: the handoff table.
 
 **Emergence note.** This is the audit flavor [`claims_investigation_triage`](../claims_investigation_triage/) doesn't show: triage proves a *stated-policy* guarantee (mandated claims always investigated); here the guarantee is *unstated arithmetic* — the interplay of exact-K and floors tightening a loose cap from 8 to a provable 6. Same tool, different epistemics: one verifies the model encodes the policy, the other reveals what the policy entails. For the same exact-K + floors mechanics at selection-with-budget scale, see [`capital_project_selection_120`](../capital_project_selection_120/).

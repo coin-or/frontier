@@ -6,18 +6,17 @@ Choose a generation capacity mix (share %) across 22 candidate projects to balan
 - **`scores.json`**: 22 projects across 9 technologies with LCOE/CO2/Firmness/LandUse/VariabilityRisk scores, plus the VariabilityRisk covariance matrix (stacking correlated renewables raises portfolio risk super-linearly).
 - **`solutions.json`**: the exploratory NSGA `run` plus the per-scenario `scenario_run`.
 
-Load with `model load source="capacity_planning"`, then drive the workflow the way a user would — one ask per phase:
-
-> 1. *“Help me build the generation mix from these 22 projects. Show me the real tradeoffs between cost, carbon, firmness, variability, and land use — and how they shift in a low-renewables year.”*
-> 2. *“Keep the balanced mix and the firmest one. Are these actually optimal?”*
-> 3. *“Which limit binds hardest — the CO2 cap or the firmness floor — and what would relaxing it buy?”*
-> 4. *“Write it up for the planning board.”*
+Load with `model load source="capacity_planning"`, then drive it the way a user would — one ask per phase, with the tools that fire and what to expect:
 
 ## The workflow
 
-1. **Solve** (`solve run`, plus `solve run_scenarios` for the scenarios): the optimizer produces the capacity-mix frontier across the five objectives and a per-scenario frontier for `carbon_price` and `low_renewables_year` (solar and wind correlations rise).
-2. **Explore the tradeoffs** (`explore tradeoffs`): the extremes, a balanced mix, the knees, and how robust each mix is across the scenarios.
-3. **Certify and examine** (`solve solver="highs"` → `explore certify` → `explore sensitivity`): the exact mean-variance QP overlay audits the heuristic frontier and sharpens the minimum-variability-risk corner; the duals show which constraint (the CO2 cap, the Firmness floor) is the binding lever, which project is the closest near-miss, and which sit pinned at a cap.
-4. **Decide** (`explore curate`): pin a few capacity mixes and commit on the tradeoffs.
+1. *“Help me build the generation mix from these 22 projects. Show me the real tradeoffs between cost, carbon, firmness, variability, and land use — and how they shift in a low-renewables year.”*
+   `solve run` + `solve run_scenarios` → `explore tradeoffs`: the five-objective capacity frontier plus per-scenario frontiers for `carbon_price` and `low_renewables_year`.
+2. *“Keep the balanced mix and the firmest one. Are these actually optimal?”*
+   `explore curate` per pick → `solve solver="highs"` → `explore certify`: the exact mean-variance QP overlay, sharpest at the minimum-variability-risk corner.
+3. *“Which limit binds hardest — the CO2 cap or the firmness floor — and what would relaxing it buy?”*
+   `explore sensitivity`: solver-exact duals naming the binding lever, the closest near-miss project, and which sit pinned at a cap.
+4. *“Write it up for the planning board.”*
+   `explore curated format="markdown"`: the handoff table.
 
 For the same QP shape, see [`supplier_selection`](../supplier_selection/) and [`investment_portfolio`](../investment_portfolio/).
