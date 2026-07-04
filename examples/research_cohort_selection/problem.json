@@ -1,7 +1,7 @@
 {
   "name": "Research Cohort Selection",
   "domain": "clinical research operations",
-  "context": "A research team picks exactly 12 of 60 screened volunteers for a biomarker study. Signal strength, retention risk, and per-participant cost pull apart by construction: the highest-expression volunteers screen at the expensive academic centers and carry the most dropout risk. Stratum floors (the cohort must span all four profiles) and per-site caps (no site may dominate) force the spread a top-12-by-signal list ignores.",
+  "context": "A research team picks exactly 24 of 144 screened volunteers for a biomarker study. Signal strength, retention risk, and per-participant cost pull apart by construction: the highest-expression volunteers screen at the expensive academic centers and carry the most dropout risk. Stratum floors (the cohort must span all six profiles) and per-site caps (no site may dominate) force the spread a top-12-by-signal list ignores.",
   "approach": "binary",
   "objectives": [
     {
@@ -26,8 +26,8 @@
   "constraints": [
     {
       "type": "cardinality",
-      "min": 12,
-      "max": 12
+      "min": 24,
+      "max": 24
     },
     {
       "type": "group_limit",
@@ -49,14 +49,7 @@
         "V-115",
         "V-116",
         "V-117",
-        "V-118"
-      ],
-      "min": 3,
-      "max": 6
-    },
-    {
-      "type": "group_limit",
-      "options": [
+        "V-118",
         "V-119",
         "V-120",
         "V-121",
@@ -72,20 +65,20 @@
         "V-131",
         "V-132",
         "V-133",
-        "V-134"
-      ],
-      "min": 3,
-      "max": 6
-    },
-    {
-      "type": "group_limit",
-      "options": [
+        "V-134",
         "V-135",
         "V-136",
         "V-137",
         "V-138",
         "V-139",
-        "V-140",
+        "V-140"
+      ],
+      "min": 4,
+      "max": 8
+    },
+    {
+      "type": "group_limit",
+      "options": [
         "V-141",
         "V-142",
         "V-143",
@@ -93,14 +86,7 @@
         "V-145",
         "V-146",
         "V-147",
-        "V-148"
-      ],
-      "min": 3,
-      "max": 6
-    },
-    {
-      "type": "group_limit",
-      "options": [
+        "V-148",
         "V-149",
         "V-150",
         "V-151",
@@ -112,10 +98,122 @@
         "V-157",
         "V-158",
         "V-159",
-        "V-160"
+        "V-160",
+        "V-161",
+        "V-162",
+        "V-163",
+        "V-164",
+        "V-165",
+        "V-166",
+        "V-167",
+        "V-168",
+        "V-169",
+        "V-170",
+        "V-171",
+        "V-172"
+      ],
+      "min": 4,
+      "max": 8
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "V-173",
+        "V-174",
+        "V-175",
+        "V-176",
+        "V-177",
+        "V-178",
+        "V-179",
+        "V-180",
+        "V-181",
+        "V-182",
+        "V-183",
+        "V-184",
+        "V-185",
+        "V-186",
+        "V-187",
+        "V-188",
+        "V-189",
+        "V-190",
+        "V-191",
+        "V-192",
+        "V-193",
+        "V-194",
+        "V-195",
+        "V-196",
+        "V-197",
+        "V-198",
+        "V-199",
+        "V-200"
+      ],
+      "min": 4,
+      "max": 8
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "V-201",
+        "V-202",
+        "V-203",
+        "V-204",
+        "V-205",
+        "V-206",
+        "V-207",
+        "V-208",
+        "V-209",
+        "V-210",
+        "V-211",
+        "V-212",
+        "V-213",
+        "V-214",
+        "V-215",
+        "V-216"
+      ],
+      "min": 3,
+      "max": 8
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "V-217",
+        "V-218",
+        "V-219",
+        "V-220",
+        "V-221",
+        "V-222",
+        "V-223",
+        "V-224",
+        "V-225",
+        "V-226",
+        "V-227",
+        "V-228",
+        "V-229",
+        "V-230",
+        "V-231",
+        "V-232"
+      ],
+      "min": 3,
+      "max": 8
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "V-233",
+        "V-234",
+        "V-235",
+        "V-236",
+        "V-237",
+        "V-238",
+        "V-239",
+        "V-240",
+        "V-241",
+        "V-242",
+        "V-243",
+        "V-244"
       ],
       "min": 2,
-      "max": 6
+      "max": 8
     },
     {
       "type": "group_limit",
@@ -127,12 +225,24 @@
         "V-113",
         "V-116",
         "V-119",
-        "V-123",
-        "V-127",
-        "V-131"
+        "V-122",
+        "V-125",
+        "V-128",
+        "V-131",
+        "V-134",
+        "V-137",
+        "V-140",
+        "V-141",
+        "V-145",
+        "V-149",
+        "V-153",
+        "V-157",
+        "V-161",
+        "V-165",
+        "V-169"
       ],
       "min": 0,
-      "max": 3
+      "max": 4
     },
     {
       "type": "group_limit",
@@ -144,12 +254,23 @@
         "V-114",
         "V-117",
         "V-120",
-        "V-124",
-        "V-128",
-        "V-132"
+        "V-123",
+        "V-126",
+        "V-129",
+        "V-132",
+        "V-135",
+        "V-138",
+        "V-142",
+        "V-146",
+        "V-150",
+        "V-154",
+        "V-158",
+        "V-162",
+        "V-166",
+        "V-170"
       ],
       "min": 0,
-      "max": 3
+      "max": 4
     },
     {
       "type": "group_limit",
@@ -160,64 +281,139 @@
         "V-112",
         "V-115",
         "V-118",
-        "V-135",
-        "V-139",
-        "V-143",
-        "V-147"
-      ],
-      "min": 0,
-      "max": 3
-    },
-    {
-      "type": "group_limit",
-      "options": [
         "V-121",
-        "V-125",
-        "V-129",
+        "V-124",
+        "V-127",
+        "V-130",
         "V-133",
         "V-136",
-        "V-140",
+        "V-139",
+        "V-173",
+        "V-177",
+        "V-181",
+        "V-185",
+        "V-189",
+        "V-193",
+        "V-197",
+        "V-219",
+        "V-222",
+        "V-225",
+        "V-228",
+        "V-231"
+      ],
+      "min": 0,
+      "max": 4
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "V-143",
+        "V-147",
+        "V-151",
+        "V-155",
+        "V-159",
+        "V-163",
+        "V-167",
+        "V-171",
+        "V-174",
+        "V-178",
+        "V-182",
+        "V-186",
+        "V-190",
+        "V-194",
+        "V-198",
+        "V-201",
+        "V-204",
+        "V-207",
+        "V-210",
+        "V-213",
+        "V-216"
+      ],
+      "min": 0,
+      "max": 4
+    },
+    {
+      "type": "group_limit",
+      "options": [
         "V-144",
         "V-148",
-        "V-149",
         "V-152",
-        "V-155",
-        "V-158"
-      ],
-      "min": 0,
-      "max": 3
-    },
-    {
-      "type": "group_limit",
-      "options": [
-        "V-122",
-        "V-126",
-        "V-130",
-        "V-134",
-        "V-137",
-        "V-141",
-        "V-145",
-        "V-150",
-        "V-153",
         "V-156",
-        "V-159"
+        "V-160",
+        "V-164",
+        "V-168",
+        "V-172",
+        "V-175",
+        "V-179",
+        "V-183",
+        "V-187",
+        "V-191",
+        "V-195",
+        "V-199",
+        "V-202",
+        "V-205",
+        "V-208",
+        "V-211",
+        "V-214"
       ],
       "min": 0,
-      "max": 3
+      "max": 4
     },
     {
       "type": "group_limit",
       "options": [
-        "V-138",
-        "V-142",
-        "V-146",
-        "V-151",
-        "V-154",
-        "V-157",
-        "V-160"
+        "V-176",
+        "V-180",
+        "V-184",
+        "V-188",
+        "V-192",
+        "V-196",
+        "V-200",
+        "V-203",
+        "V-206",
+        "V-209",
+        "V-212",
+        "V-215",
+        "V-235",
+        "V-238",
+        "V-241",
+        "V-244"
       ],
       "min": 0,
-      "max": 3
+      "max": 4
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "V-217",
+        "V-220",
+        "V-223",
+        "V-226",
+        "V-229",
+        "V-232",
+        "V-233",
+        "V-236",
+        "V-239",
+        "V-242"
+      ],
+      "min": 0,
+      "max": 4
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "V-218",
+        "V-221",
+        "V-224",
+        "V-227",
+        "V-230",
+        "V-234",
+        "V-237",
+        "V-240",
+        "V-243"
+      ],
+      "min": 0,
+      "max": 4
     },
     {
       "type": "exclusion_pair",
@@ -228,6 +424,11 @@
       "type": "exclusion_pair",
       "option_a": "V-142",
       "option_b": "V-155"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "V-190",
+      "option_b": "V-214"
     },
     {
       "type": "force_exclude",

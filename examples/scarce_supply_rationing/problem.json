@@ -1,7 +1,7 @@
 {
   "name": "Scarce Supply Rationing",
   "domain": "semiconductor supply allocation",
-  "context": "One quarter's constrained memory-chip supply, split across 18 customers whose committed demand runs ~1.8x what the fabs will deliver \u2014 every plan cuts someone. Distributors pay spot prices; hyperscale and tier-1 contracts pay less but carry the strategic relationships (and contractual minimum shares) the board protects. The question is not who to serve \u2014 it's what protecting each account costs, and who absorbs the cut when a fab outage shrinks supply under the same commitments.",
+  "context": "One quarter's constrained memory-chip supply, split across 36 customers whose committed demand runs ~1.8x what the fabs will deliver \u2014 every plan cuts someone. Distributors pay spot prices; hyperscale and tier-1 contracts pay less but carry the strategic relationships (and contractual minimum shares) the board protects. The question is not who to serve \u2014 it's what protecting each account costs, and who absorbs the cut when a fab outage shrinks supply under the same commitments.",
   "approach": "proportional",
   "objectives": [
     {
@@ -26,80 +26,117 @@
   "constraints": [
     {
       "type": "max_allocation",
-      "max": 12
+      "max": 8
     },
     {
       "type": "objective_bound",
       "objective": "StrategicValue",
       "operator": "min",
-      "value": 5.0
+      "value": 4.8
     },
     {
       "type": "allocation_bound",
       "option": "HYP-01",
-      "min": 8,
+      "min": 6,
       "max": 100
     },
     {
       "type": "allocation_bound",
       "option": "HYP-02",
-      "min": 7,
+      "min": 5,
+      "max": 100
+    },
+    {
+      "type": "allocation_bound",
+      "option": "HYP-03",
+      "min": 4,
       "max": 100
     },
     {
       "type": "allocation_bound",
       "option": "IND-01",
-      "min": 6,
+      "min": 4,
+      "max": 100
+    },
+    {
+      "type": "allocation_bound",
+      "option": "IND-02",
+      "min": 3,
       "max": 100
     },
     {
       "type": "allocation_bound",
       "option": "DST-01",
       "min": 0,
-      "max": 6
+      "max": 4
+    },
+    {
+      "type": "allocation_bound",
+      "option": "DST-02",
+      "min": 0,
+      "max": 5
     }
   ],
   "scenarios": [
     {
       "name": "fab_outage",
       "probability": null,
-      "description": "A fab excursion cuts the quarter's supply ~20%. The absolute contractual commitments don't move, so the platinum floors RISE as shares: 8/7/6 \u2192 10/9/8. Who absorbs it?",
+      "description": "A fab excursion cuts the quarter's supply ~25%. The absolute contractual commitments don't move, so the five contractual floors RISE as shares: 6/5/4/4/3 \u2192 8/7/5/5/4. Who absorbs it?",
+      "motivated_by": "",
       "score_overrides": [],
       "score_adjustments": [],
       "constraint_overrides": [
         {
           "type": "max_allocation",
-          "max": 12
+          "max": 8
         },
         {
           "type": "objective_bound",
           "objective": "StrategicValue",
           "operator": "min",
-          "value": 5.0
+          "value": 4.8
         },
         {
           "type": "allocation_bound",
           "option": "HYP-01",
-          "min": 10,
+          "min": 8,
           "max": 100
         },
         {
           "type": "allocation_bound",
           "option": "HYP-02",
-          "min": 9,
+          "min": 7,
+          "max": 100
+        },
+        {
+          "type": "allocation_bound",
+          "option": "HYP-03",
+          "min": 5,
           "max": 100
         },
         {
           "type": "allocation_bound",
           "option": "IND-01",
-          "min": 8,
+          "min": 5,
+          "max": 100
+        },
+        {
+          "type": "allocation_bound",
+          "option": "IND-02",
+          "min": 4,
           "max": 100
         },
         {
           "type": "allocation_bound",
           "option": "DST-01",
           "min": 0,
-          "max": 6
+          "max": 4
+        },
+        {
+          "type": "allocation_bound",
+          "option": "DST-02",
+          "min": 0,
+          "max": 5
         }
       ],
       "interaction_matrix_overrides": []
@@ -108,31 +145,57 @@
       "name": "spot_surge",
       "probability": null,
       "description": "Spot pricing spikes ~35% on the distributor channel; contracts hold. Does the mandate still bind, and what does it cost now?",
+      "motivated_by": "",
       "score_overrides": [
         {
           "option": "DST-01",
           "objective": "Revenue",
-          "value": 6.48
+          "value": 6.39
         },
         {
           "option": "DST-02",
           "objective": "Revenue",
-          "value": 6.08
+          "value": 6.49
         },
         {
           "option": "DST-03",
           "objective": "Revenue",
-          "value": 5.8
+          "value": 6.28
         },
         {
           "option": "DST-04",
           "objective": "Revenue",
-          "value": 6.4
+          "value": 6.14
         },
         {
           "option": "DST-05",
           "objective": "Revenue",
-          "value": 6.43
+          "value": 6.59
+        },
+        {
+          "option": "DST-06",
+          "objective": "Revenue",
+          "value": 5.98
+        },
+        {
+          "option": "DST-07",
+          "objective": "Revenue",
+          "value": 6.28
+        },
+        {
+          "option": "DST-08",
+          "objective": "Revenue",
+          "value": 6.12
+        },
+        {
+          "option": "DST-09",
+          "objective": "Revenue",
+          "value": 5.7
+        },
+        {
+          "option": "DST-10",
+          "objective": "Revenue",
+          "value": 6.17
         }
       ],
       "score_adjustments": [],

@@ -1,7 +1,7 @@
 {
   "name": "Charging Network Siting",
   "domain": "EV infrastructure planning",
-  "context": "A charging operator picks which of 44 candidate fast-charging sites to build across five metros and two highway corridors. Linear reach numbers overstate coverage where catchments overlap \u2014 two downtown garages share the same drivers \u2014 so an overlap interaction matrix carries the correction (pairwise approximation). A public commitment says every metro gets at least one site; a $22M budget, per-metro interconnection-queue caps, competing-lot exclusions, and a committed corridor flagship do the rest.",
+  "context": "A charging operator picks which of 72 candidate fast-charging sites to build across seven metros and three highway corridors. Linear reach numbers overstate coverage where catchments overlap \u2014 two downtown garages share the same drivers \u2014 so an overlap interaction matrix carries the correction (pairwise approximation). A public commitment says every metro gets at least one site; a $34M budget, per-metro interconnection-queue caps, competing-lot exclusions, and a committed corridor flagship do the rest.",
   "approach": "binary",
   "objectives": [
     {
@@ -28,12 +28,12 @@
       "type": "objective_bound",
       "objective": "Cost",
       "operator": "max",
-      "value": 22.0
+      "value": 34.0
     },
     {
       "type": "cardinality",
-      "min": 10,
-      "max": 16
+      "min": 16,
+      "max": 24
     },
     {
       "type": "force_include",
@@ -48,7 +48,8 @@
         "HAR-04",
         "HAR-05",
         "HAR-06",
-        "HAR-07"
+        "HAR-07",
+        "HAR-08"
       ],
       "min": 1,
       "max": 4
@@ -61,7 +62,8 @@
         "CED-03",
         "CED-04",
         "CED-05",
-        "CED-06"
+        "CED-06",
+        "CED-07"
       ],
       "min": 1,
       "max": 4
@@ -74,7 +76,8 @@
         "EAS-03",
         "EAS-04",
         "EAS-05",
-        "EAS-06"
+        "EAS-06",
+        "EAS-07"
       ],
       "min": 1,
       "max": 4
@@ -86,7 +89,8 @@
         "BRK-02",
         "BRK-03",
         "BRK-04",
-        "BRK-05"
+        "BRK-05",
+        "BRK-06"
       ],
       "min": 1,
       "max": 4
@@ -97,7 +101,33 @@
         "KNG-01",
         "KNG-02",
         "KNG-03",
-        "KNG-04"
+        "KNG-04",
+        "KNG-05",
+        "KNG-06"
+      ],
+      "min": 1,
+      "max": 4
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "NOR-01",
+        "NOR-02",
+        "NOR-03",
+        "NOR-04",
+        "NOR-05"
+      ],
+      "min": 1,
+      "max": 4
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "WES-01",
+        "WES-02",
+        "WES-03",
+        "WES-04",
+        "WES-05"
       ],
       "min": 1,
       "max": 4
@@ -112,7 +142,9 @@
         "NCR-05",
         "NCR-06",
         "NCR-07",
-        "NCR-08"
+        "NCR-08",
+        "NCR-09",
+        "NCR-10"
       ],
       "min": 0,
       "max": 5
@@ -127,7 +159,24 @@
         "CCR-05",
         "CCR-06",
         "CCR-07",
-        "CCR-08"
+        "CCR-08",
+        "CCR-09"
+      ],
+      "min": 0,
+      "max": 5
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "VCR-01",
+        "VCR-02",
+        "VCR-03",
+        "VCR-04",
+        "VCR-05",
+        "VCR-06",
+        "VCR-07",
+        "VCR-08",
+        "VCR-09"
       ],
       "min": 0,
       "max": 5
@@ -146,6 +195,16 @@
       "type": "exclusion_pair",
       "option_a": "NCR-03",
       "option_b": "NCR-04"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "EAS-01",
+      "option_b": "EAS-02"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "VCR-05",
+      "option_b": "VCR-06"
     }
   ],
   "scenarios": [
@@ -153,46 +212,57 @@
       "name": "adoption_surge",
       "probability": null,
       "description": "EV adoption on the North corridor runs two years ahead of forecast; corridor reach jumps ~40%. Constraints unchanged.",
+      "motivated_by": "",
       "score_overrides": [
         {
           "option": "NCR-01",
           "objective": "DriversServed",
-          "value": 5.5
+          "value": 3.9
         },
         {
           "option": "NCR-02",
           "objective": "DriversServed",
-          "value": 3.8
+          "value": 3.9
         },
         {
           "option": "NCR-03",
           "objective": "DriversServed",
-          "value": 6.6
+          "value": 5.5
         },
         {
           "option": "NCR-04",
           "objective": "DriversServed",
-          "value": 6.0
+          "value": 4.6
         },
         {
           "option": "NCR-05",
           "objective": "DriversServed",
-          "value": 6.4
+          "value": 5.0
         },
         {
           "option": "NCR-06",
           "objective": "DriversServed",
-          "value": 6.0
+          "value": 3.6
         },
         {
           "option": "NCR-07",
           "objective": "DriversServed",
-          "value": 3.2
+          "value": 8.0
         },
         {
           "option": "NCR-08",
           "objective": "DriversServed",
-          "value": 4.2
+          "value": 4.5
+        },
+        {
+          "option": "NCR-09",
+          "objective": "DriversServed",
+          "value": 7.3
+        },
+        {
+          "option": "NCR-10",
+          "objective": "DriversServed",
+          "value": 5.5
         }
       ],
       "score_adjustments": [],
@@ -203,6 +273,7 @@
       "name": "grid_cost_inflation",
       "probability": null,
       "description": "Utility interconnection quotes on dense-metro sites come back ~30% over estimate. Constraints unchanged.",
+      "motivated_by": "",
       "score_overrides": [
         {
           "option": "HAR-01",
@@ -238,6 +309,11 @@
           "option": "HAR-07",
           "objective": "Cost",
           "value": 3.84
+        },
+        {
+          "option": "HAR-08",
+          "objective": "Cost",
+          "value": 2.76
         }
       ],
       "score_adjustments": [],
