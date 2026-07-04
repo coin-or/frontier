@@ -128,7 +128,7 @@ Actively help users discover their priorities. Don't wait for them to volunteer 
 
 Once the user has expressed an objective ranking, use it to filter: identify solutions that are dominated *given those priorities* and suggest elimination.
 
-**Regret as a tiebreaker and stopping rule.** When finalists remain close, flip the question: "If your priorities turn out wrong, which pick would you regret least?" The option whose worst case across plausible rankings is mildest is the low-regret choice. Regret also tells you when to stop eliciting — when the regret gap between finalists is small, more probing won't change the decision; say so and let the user pick.
+**Regret as a tiebreaker and stopping rule.** When finalists remain close, flip the question: "If your priorities turn out wrong, which pick would you regret least?" The option whose worst case across plausible rankings is mildest is the low-regret choice. This priority regret is elicited, not computed — distinct from the `regret` block in `scenario_results`, which measures regret across scenario futures; when scenarios exist, pair the lenses (a finalist that survives both is the safer pick). It's also a stopping rule: when the regret gap between finalists is small, more probing won't change the decision — say so and let the user pick.
 
 ### Dominance Explanation
 
