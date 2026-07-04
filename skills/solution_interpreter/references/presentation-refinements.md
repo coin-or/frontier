@@ -283,6 +283,8 @@ When scenarios are defined and optimized, use `explore scenario_results` to pres
 2. **Scenario-specific opportunities** — options in `scenario_specific` that excel in particular futures (grouped by scenario name → list of options). Frame: "If you believe [scenario] is likely, [option] becomes attractive."
 3. **Frame around risk tolerance** — "The core options protect your downside across all futures. The marginal options offer upside in specific scenarios. Which matters more?"
 
+Each `per_scenario` entry restates what that scenario `varies` and a `held_fixed` line (everything else inherits the base model) — read them back so the user knows exactly what the comparison isolates, and flag it if a scenario varies more than its name implies (a replace-all `constraint_overrides` is the classic case). When a scenario carries `motivated_by`, cite it: *"this scenario quantifies the [lever] that sensitivity ranked highest."* And when one scenario flips feasibility or steps an objective sharply where its neighbors don't, treat the break as a finding about the modeling assumptions until verified — name the choice creating it, and if a plausible alternative reading removes it, present both readings.
+
 Present the top 5-8 from `option_robustness` with their tier, frequency, and avg weight. Don't list every option — the tail is noise. Start with core vs scenario-specific, then drill down if the user asks. If the tiers are flat — options appear at similar frequency across every scenario — the scenarios aren't differentiating the decision; say so and suggest simplifying the scenario set rather than reading false signal into it.
 
 **Expected values caveat**: The `expected_values` in scenario_results are ideal-point values (best-per-objective across scenarios, probability-weighted). No single solution achieves all simultaneously. Present them as "theoretical ceiling" when useful, but always caveat.
@@ -366,6 +368,8 @@ Curation is how users build a decision set from the raw frontier. Use `explore c
 
 **Curation belongs to the user.** Surface interesting candidates — extremes, balanced, inflection points — then ask which ones resonate and what the user would name them. Present candidates, then pause for the user to decide.
 
+**Relay quality flags verbatim.** Curate/list/export responses carry a `quality` gate per finalist (`GOOD` / `WARNING` / `DEGENERATE`, with the triggering check named in the user's terms — empty plan, single-option concentration, allocations pinned at bounds), and `explore certify` flags degenerate exact points under `quality_gates`. Optimal ≠ actionable: pass the flag and its message to the user; the finalist stays in the set and the keep-or-fix call is theirs.
+
 **Guide users from frontier to shortlist:**
 1. After first solve: present the extremes + balanced with ASCII visualizations, then **stop and ask** which ones the user wants to curate and what they'd name them
 2. After objective ranking: identify 3-5 candidate solutions that span the user's priority space, present them, **ask the user to pick and name** — don't curate automatically
@@ -400,9 +404,9 @@ When the user has **decided** — a solution chosen, or a curated set locked —
 1. **Decision Question** — open with the user's original question (the problem `context`). *"We needed to choose how to allocate across these markets."*
 2. **What Was Decided** — the chosen plan(s): name the selected options/allocations and their objective values. Frame it as a *chosen tradeoff among efficient options*, not "the best": *"We chose [name]: [objective values] — it trades [X] for [Y]."*
 3. **Why These Choices** — the key drivers, read from the frontier: which options are consensus picks (`composition` always/consensus), which constraints bind and at what rate (`binding_analysis` / exact shadow prices), why this point over its neighbors (dominance, marginal rates).
-4. **Confidence** — how we know it's sound: the **certificate** if an exact overlay exists ("every point optimal, not heuristic"), the frontier quality signals, and scenario robustness / CVaR if scenarios were run. This is the multi-objective replacement for a single optimality gap — *don't* report a lone "gap %". Where a governance guarantee matters, an `explore audit` "holds" result belongs here.
+4. **Confidence** — how we know it's sound: the **certificate** if an exact overlay exists ("every point optimal, not heuristic"), the frontier quality signals, and scenario robustness / CVaR if scenarios were run. This is the multi-objective replacement for a single optimality gap — *don't* report a lone "gap %". Where a governance guarantee matters, an `explore audit` "holds" result belongs here — with its epistemic basis stated (proven over every feasible plan vs. inconclusive-is-not-a-pass). Each finalist's `quality` gate belongs here too: relay a WARNING/DEGENERATE flag and its message verbatim rather than smoothing it over — optimal ≠ actionable.
 5. **Impact** — the objective values in business terms, against a baseline or target when a reference point exists: *"$X cost — a Y% reduction vs the current allocation."*
-6. **Next Steps** — validate-with-experts / implement / stress-test / re-audit, as fits the decision.
+6. **Next Steps** — validate-with-experts / implement / stress-test / re-audit, as fits the decision. When `explore sensitivity` returned `suggested_scenarios`, carry the top one here as the named stress-test ("duals rank, scenarios quantify"); any unresolved quality flag becomes an explicit follow-up rather than a silent omission.
 
 **The why-triplet** — the three questions every decision-maker asks. Answer each from returned data, in the user's entities, never from solver internals:
 
