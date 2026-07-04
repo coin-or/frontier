@@ -22,7 +22,7 @@ Not all scores require the same rigor. Prioritize based on what's available:
 
 **The key insight**: you don't need perfect data to start. Get to a complete-enough matrix that the optimizer can run, then refine based on what the results reveal. Early runs with rough data show which scores actually matter — a +-20% error on an objective that doesn't drive differentiation is irrelevant, while a +-5% error on a binding constraint changes everything.
 
-Focus precision where it matters: high-variance objectives that drive tradeoffs deserve better data. Low-variance objectives (all options score similarly) don't.
+Focus precision where it matters: high-variance objectives that drive tradeoffs deserve better data. Low-variance objectives (all options score similarly) don't. The underlying test is value of information: deeper research on a score pays off only if a plausible value could change which options survive — flip a dominance relationship, bind a constraint, or reorder a curated pick. A score that can't change the decision isn't worth chasing, however uncertain it is.
 
 ## Core Judgment
 
@@ -52,7 +52,6 @@ Choose the grouping that matches how the user thinks about the data.
 - Pricing, market size, public benchmarks → researchable. Offer to look it up.
 - "How much will my team like this" → not researchable. Ask the user.
 - When in doubt, ask — but offer a starting point if you have domain knowledge.
-- Prioritize by value of information: a score is worth deeper research only if a plausible value could change which options survive — flip a dominance relationship, bind a constraint, or reorder a curated pick. A score that can't change the decision isn't worth chasing, however uncertain it is.
 
 ### Evaluating Sources (When Researching)
 When you're looking up scores rather than asking the user, prioritize in order:

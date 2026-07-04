@@ -40,7 +40,7 @@ A vague question ("help me decide") needs sharpening before objectives make sens
 
 ## Fit and Value Check
 
-Before framing, confirm the decision is the right shape for Frontier. Two questions:
+Before framing, confirm the decision is the right shape for Frontier. Three questions:
 
 - **Fit** — does the decision have at least two genuinely conflicting objectives, three or more real options, and actual tradeoffs? A ranking task, a single-objective problem, or a decision with a dominant option doesn't need optimization; say so and suggest weighted scoring or direct comparison instead.
 - **Value** — will the answer change what the user does? If the decision is already made, if the stakes are too small to justify iteration, or if the answer will be overridden by a non-modeled factor, the work is decorative. Surface that before investing in framing.
