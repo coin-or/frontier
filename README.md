@@ -15,7 +15,7 @@ Under the hood it maps the **Pareto frontier** (every outcome where improving on
 
 ## Examples
 
-[Worked examples](examples/) you can load and adapt: each ships a paste-ready prompt that reproduces the result. Two shown:
+[Worked examples](examples/) you can load and adapt: each ships a paste-ready prompt journey that reproduces the result. Two shown:
 
 <table>
 <tr>
@@ -55,7 +55,7 @@ Spreadsheets hit a complexity wall once options and constraints in a decision mu
 **What it adds beyond an LLM alone** (its design principles):
 - **The full frontier**: every Pareto-optimal plan, yours to weigh.
 - **Explore broadly, certify selectively**: the heuristic maps the whole space; an exact solver then proves the finalists you'd commit to on supported shapes, catching dominated points the heuristic showed as efficient. It can only confirm or improve them.
-- **Constraints enforced**: eight hard types (cardinality, force include, force exclude, objective bounds, exclusion pairs, dependencies, group limits, allocation caps), respected by every plan the search returns.
+- **Constraints enforced**: nine hard types (cardinality, force include, force exclude, objective bounds, exclusion pairs, dependencies, group limits with per-group floors and caps, a global allocation cap, per-option allocation floors/caps), respected by every plan the search returns.
 - **Governance guarantees**: on selection problems, a proof that a guardrail holds for *every* feasible plan, or a concrete counterexample.
 - **Grounded and reproducible**: every number traces to a score, an objective value, a dual, or a binding constraint, and the same inputs + seed reproduce the exact frontier.
 - **Scenarios & risk**: independent frontiers per scenario, plus CVaR / worst-case / expected / minimax-regret per objective.
@@ -74,7 +74,7 @@ For full schemas, action parameters, data model, persistence layout, and the ski
 
 Full action lists and parameters in [`architecture.md`](architecture.md):
 
-- **`model`**: define and edit the problem (objectives, options, scores, 8 constraint types, interaction matrices, scenarios): `create` / `update` / `get`, plus `save` / `load` for named problems.
+- **`model`**: define and edit the problem (objectives, options, scores, 9 constraint types, interaction matrices, scenarios): `create` / `update` / `get`, plus `save` / `load` for named problems.
 - **`solve`**: validate and optimize (NSGA-II/III, fast/thorough, seeded): `run`, `run_scenarios`, and `status` to poll background runs; opt-in `solver="highs"|"cuopt"` exact backends on supported shapes.
 - **`explore`**: navigate results, or probe the feasible region before a solve: `tradeoffs`, `certify` (audit the exact overlay), `audit` (selection problems: prove a guardrail holds across the *whole* feasible space, or return a counterexample), `sensitivity` (solver-exact shadow prices + near-misses), `composition` (mine selection rates, principles, strategy families), plus `compare` / `solutions` / `scenario_results` / `curate`.
 - **`get_skill`**: fetch the workflow guidance below.

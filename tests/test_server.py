@@ -2358,3 +2358,23 @@ class TestHttpTransportAction:
         for host in ("0.0.0.0", "10.0.0.5", "192.168.1.10", "example.com", ""):
             assert srv._http_transport_action(None, host) == "refuse"
             assert srv._http_transport_action("", host) == "refuse"
+
+
+def test_option_removal_prunes_allocation_bound():
+    """Removing an option drops its allocation_bound like every other option-referencing
+    constraint — a survivor would wedge validate/solve on a dangling reference."""
+    import mcp_server.server as srv
+
+    r = srv.model(action="create", name="prune", approach="proportional",
+                  domain="t", context="t")
+    pid = r["problem_id"]
+    srv.model(action="update", problem_id=pid,
+              objectives=[{"name": "V", "direction": "maximize"},
+                          {"name": "C", "direction": "minimize"}],
+              options=[{"name": n} for n in ("A", "B", "C", "D")],
+              scores=[{"option": n, "objective": o, "value": 1}
+                      for n in ("A", "B", "C", "D") for o in ("V", "C")],
+              constraints=[{"type": "allocation_bound", "option": "D", "min": 10, "max": 50}])
+    srv.model(action="update", problem_id=pid, options=[{"name": n} for n in ("A", "B", "C")])
+    g = srv.model(action="get", problem_id=pid, section="constraints")
+    assert all(c.get("option") != "D" for c in g["constraints"])

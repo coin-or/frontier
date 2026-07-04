@@ -1,0 +1,1354 @@
+{
+  "name": "Interconnection Approvals",
+  "domain": "grid planning",
+  "context": "A regional grid operator decides which of 42 large-load interconnection requests to approve this cycle, alongside 16 enabling substation upgrades. Upgrades have zero standalone value \u2014 they pay only through the requests they unlock \u2014 and several requests share one enabler, one upgrade is the staged second phase of another, and the worth of an upgrade depends on the whole approval set. Four capex levels ($320M / $400M / $480M / $560M) are modeled as scenarios: the question is not just which portfolio, but which approvals survive every budget and what each next $80M actually buys.",
+  "approach": "binary",
+  "objectives": [
+    {
+      "name": "NetValue",
+      "direction": "maximize",
+      "unit": "$M",
+      "aggregation": "sum"
+    },
+    {
+      "name": "Cost",
+      "direction": "minimize",
+      "unit": "$M",
+      "aggregation": "sum"
+    },
+    {
+      "name": "ReliabilityRisk",
+      "direction": "minimize",
+      "unit": "score",
+      "aggregation": "sum"
+    }
+  ],
+  "constraints": [
+    {
+      "type": "objective_bound",
+      "objective": "Cost",
+      "operator": "max",
+      "value": 400.0
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "R01",
+        "R05",
+        "R09",
+        "R13",
+        "R17",
+        "R21",
+        "R25",
+        "R29",
+        "R33",
+        "R37",
+        "R41"
+      ],
+      "min": 0,
+      "max": 9
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "R02",
+        "R06",
+        "R10",
+        "R14",
+        "R18",
+        "R22",
+        "R26",
+        "R30",
+        "R34",
+        "R38",
+        "R42"
+      ],
+      "min": 0,
+      "max": 9
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "R03",
+        "R07",
+        "R11",
+        "R15",
+        "R19",
+        "R23",
+        "R27",
+        "R31",
+        "R35",
+        "R39"
+      ],
+      "min": 0,
+      "max": 9
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "R04",
+        "R08",
+        "R12",
+        "R16",
+        "R20",
+        "R24",
+        "R28",
+        "R32",
+        "R36",
+        "R40"
+      ],
+      "min": 0,
+      "max": 9
+    },
+    {
+      "type": "dependency",
+      "if_option": "R01",
+      "then_option": "U1"
+    },
+    {
+      "type": "dependency",
+      "if_option": "R05",
+      "then_option": "U1"
+    },
+    {
+      "type": "dependency",
+      "if_option": "R09",
+      "then_option": "U1"
+    },
+    {
+      "type": "dependency",
+      "if_option": "R13",
+      "then_option": "U1"
+    },
+    {
+      "type": "dependency",
+      "if_option": "R02",
+      "then_option": "U2"
+    },
+    {
+      "type": "dependency",
+      "if_option": "R06",
+      "then_option": "U2"
+    },
+    {
+      "type": "dependency",
+      "if_option": "R10",
+      "then_option": "U2"
+    },
+    {
+      "type": "dependency",
+      "if_option": "R14",
+      "then_option": "U2"
+    },
+    {
+      "type": "dependency",
+      "if_option": "R18",
+      "then_option": "U2"
+    },
+    {
+      "type": "dependency",
+      "if_option": "R03",
+      "then_option": "U3"
+    },
+    {
+      "type": "dependency",
+      "if_option": "R07",
+      "then_option": "U3"
+    },
+    {
+      "type": "dependency",
+      "if_option": "R11",
+      "then_option": "U3"
+    },
+    {
+      "type": "dependency",
+      "if_option": "R15",
+      "then_option": "U3"
+    },
+    {
+      "type": "dependency",
+      "if_option": "R04",
+      "then_option": "U4"
+    },
+    {
+      "type": "dependency",
+      "if_option": "R08",
+      "then_option": "U4"
+    },
+    {
+      "type": "dependency",
+      "if_option": "R12",
+      "then_option": "U4"
+    },
+    {
+      "type": "dependency",
+      "if_option": "R16",
+      "then_option": "U5"
+    },
+    {
+      "type": "dependency",
+      "if_option": "R20",
+      "then_option": "U5"
+    },
+    {
+      "type": "dependency",
+      "if_option": "R17",
+      "then_option": "U6"
+    },
+    {
+      "type": "dependency",
+      "if_option": "R19",
+      "then_option": "U7"
+    },
+    {
+      "type": "dependency",
+      "if_option": "R21",
+      "then_option": "U8"
+    },
+    {
+      "type": "dependency",
+      "if_option": "R22",
+      "then_option": "U9"
+    },
+    {
+      "type": "dependency",
+      "if_option": "R23",
+      "then_option": "U10"
+    },
+    {
+      "type": "dependency",
+      "if_option": "R24",
+      "then_option": "U11"
+    },
+    {
+      "type": "dependency",
+      "if_option": "R25",
+      "then_option": "U11"
+    },
+    {
+      "type": "dependency",
+      "if_option": "R26",
+      "then_option": "U11"
+    },
+    {
+      "type": "dependency",
+      "if_option": "R27",
+      "then_option": "U12"
+    },
+    {
+      "type": "dependency",
+      "if_option": "R28",
+      "then_option": "U12"
+    },
+    {
+      "type": "dependency",
+      "if_option": "R29",
+      "then_option": "U13"
+    },
+    {
+      "type": "dependency",
+      "if_option": "R30",
+      "then_option": "U14"
+    },
+    {
+      "type": "dependency",
+      "if_option": "U12",
+      "then_option": "U11"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "R31",
+      "option_b": "R32"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "R33",
+      "option_b": "R34"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "R35",
+      "option_b": "R36"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "R37",
+      "option_b": "R38"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "R39",
+      "option_b": "R40"
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "capex_low",
+      "probability": null,
+      "description": "Approval cycle at a $320M capex envelope.",
+      "motivated_by": "",
+      "score_overrides": [],
+      "score_adjustments": [],
+      "constraint_overrides": [
+        {
+          "type": "objective_bound",
+          "objective": "Cost",
+          "operator": "max",
+          "value": 320.0
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "R01",
+            "R05",
+            "R09",
+            "R13",
+            "R17",
+            "R21",
+            "R25",
+            "R29",
+            "R33",
+            "R37",
+            "R41"
+          ],
+          "min": 0,
+          "max": 9
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "R02",
+            "R06",
+            "R10",
+            "R14",
+            "R18",
+            "R22",
+            "R26",
+            "R30",
+            "R34",
+            "R38",
+            "R42"
+          ],
+          "min": 0,
+          "max": 9
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "R03",
+            "R07",
+            "R11",
+            "R15",
+            "R19",
+            "R23",
+            "R27",
+            "R31",
+            "R35",
+            "R39"
+          ],
+          "min": 0,
+          "max": 9
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "R04",
+            "R08",
+            "R12",
+            "R16",
+            "R20",
+            "R24",
+            "R28",
+            "R32",
+            "R36",
+            "R40"
+          ],
+          "min": 0,
+          "max": 9
+        },
+        {
+          "type": "dependency",
+          "if_option": "R01",
+          "then_option": "U1"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R05",
+          "then_option": "U1"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R09",
+          "then_option": "U1"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R13",
+          "then_option": "U1"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R02",
+          "then_option": "U2"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R06",
+          "then_option": "U2"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R10",
+          "then_option": "U2"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R14",
+          "then_option": "U2"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R18",
+          "then_option": "U2"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R03",
+          "then_option": "U3"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R07",
+          "then_option": "U3"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R11",
+          "then_option": "U3"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R15",
+          "then_option": "U3"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R04",
+          "then_option": "U4"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R08",
+          "then_option": "U4"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R12",
+          "then_option": "U4"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R16",
+          "then_option": "U5"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R20",
+          "then_option": "U5"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R17",
+          "then_option": "U6"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R19",
+          "then_option": "U7"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R21",
+          "then_option": "U8"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R22",
+          "then_option": "U9"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R23",
+          "then_option": "U10"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R24",
+          "then_option": "U11"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R25",
+          "then_option": "U11"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R26",
+          "then_option": "U11"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R27",
+          "then_option": "U12"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R28",
+          "then_option": "U12"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R29",
+          "then_option": "U13"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R30",
+          "then_option": "U14"
+        },
+        {
+          "type": "dependency",
+          "if_option": "U12",
+          "then_option": "U11"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "R31",
+          "option_b": "R32"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "R33",
+          "option_b": "R34"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "R35",
+          "option_b": "R36"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "R37",
+          "option_b": "R38"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "R39",
+          "option_b": "R40"
+        }
+      ],
+      "interaction_matrix_overrides": []
+    },
+    {
+      "name": "capex_base",
+      "probability": null,
+      "description": "Approval cycle at a $400M capex envelope.",
+      "motivated_by": "",
+      "score_overrides": [],
+      "score_adjustments": [],
+      "constraint_overrides": [
+        {
+          "type": "objective_bound",
+          "objective": "Cost",
+          "operator": "max",
+          "value": 400.0
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "R01",
+            "R05",
+            "R09",
+            "R13",
+            "R17",
+            "R21",
+            "R25",
+            "R29",
+            "R33",
+            "R37",
+            "R41"
+          ],
+          "min": 0,
+          "max": 9
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "R02",
+            "R06",
+            "R10",
+            "R14",
+            "R18",
+            "R22",
+            "R26",
+            "R30",
+            "R34",
+            "R38",
+            "R42"
+          ],
+          "min": 0,
+          "max": 9
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "R03",
+            "R07",
+            "R11",
+            "R15",
+            "R19",
+            "R23",
+            "R27",
+            "R31",
+            "R35",
+            "R39"
+          ],
+          "min": 0,
+          "max": 9
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "R04",
+            "R08",
+            "R12",
+            "R16",
+            "R20",
+            "R24",
+            "R28",
+            "R32",
+            "R36",
+            "R40"
+          ],
+          "min": 0,
+          "max": 9
+        },
+        {
+          "type": "dependency",
+          "if_option": "R01",
+          "then_option": "U1"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R05",
+          "then_option": "U1"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R09",
+          "then_option": "U1"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R13",
+          "then_option": "U1"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R02",
+          "then_option": "U2"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R06",
+          "then_option": "U2"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R10",
+          "then_option": "U2"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R14",
+          "then_option": "U2"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R18",
+          "then_option": "U2"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R03",
+          "then_option": "U3"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R07",
+          "then_option": "U3"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R11",
+          "then_option": "U3"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R15",
+          "then_option": "U3"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R04",
+          "then_option": "U4"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R08",
+          "then_option": "U4"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R12",
+          "then_option": "U4"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R16",
+          "then_option": "U5"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R20",
+          "then_option": "U5"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R17",
+          "then_option": "U6"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R19",
+          "then_option": "U7"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R21",
+          "then_option": "U8"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R22",
+          "then_option": "U9"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R23",
+          "then_option": "U10"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R24",
+          "then_option": "U11"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R25",
+          "then_option": "U11"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R26",
+          "then_option": "U11"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R27",
+          "then_option": "U12"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R28",
+          "then_option": "U12"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R29",
+          "then_option": "U13"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R30",
+          "then_option": "U14"
+        },
+        {
+          "type": "dependency",
+          "if_option": "U12",
+          "then_option": "U11"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "R31",
+          "option_b": "R32"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "R33",
+          "option_b": "R34"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "R35",
+          "option_b": "R36"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "R37",
+          "option_b": "R38"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "R39",
+          "option_b": "R40"
+        }
+      ],
+      "interaction_matrix_overrides": []
+    },
+    {
+      "name": "capex_high",
+      "probability": null,
+      "description": "Approval cycle at a $480M capex envelope.",
+      "motivated_by": "",
+      "score_overrides": [],
+      "score_adjustments": [],
+      "constraint_overrides": [
+        {
+          "type": "objective_bound",
+          "objective": "Cost",
+          "operator": "max",
+          "value": 480.0
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "R01",
+            "R05",
+            "R09",
+            "R13",
+            "R17",
+            "R21",
+            "R25",
+            "R29",
+            "R33",
+            "R37",
+            "R41"
+          ],
+          "min": 0,
+          "max": 9
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "R02",
+            "R06",
+            "R10",
+            "R14",
+            "R18",
+            "R22",
+            "R26",
+            "R30",
+            "R34",
+            "R38",
+            "R42"
+          ],
+          "min": 0,
+          "max": 9
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "R03",
+            "R07",
+            "R11",
+            "R15",
+            "R19",
+            "R23",
+            "R27",
+            "R31",
+            "R35",
+            "R39"
+          ],
+          "min": 0,
+          "max": 9
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "R04",
+            "R08",
+            "R12",
+            "R16",
+            "R20",
+            "R24",
+            "R28",
+            "R32",
+            "R36",
+            "R40"
+          ],
+          "min": 0,
+          "max": 9
+        },
+        {
+          "type": "dependency",
+          "if_option": "R01",
+          "then_option": "U1"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R05",
+          "then_option": "U1"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R09",
+          "then_option": "U1"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R13",
+          "then_option": "U1"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R02",
+          "then_option": "U2"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R06",
+          "then_option": "U2"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R10",
+          "then_option": "U2"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R14",
+          "then_option": "U2"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R18",
+          "then_option": "U2"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R03",
+          "then_option": "U3"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R07",
+          "then_option": "U3"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R11",
+          "then_option": "U3"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R15",
+          "then_option": "U3"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R04",
+          "then_option": "U4"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R08",
+          "then_option": "U4"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R12",
+          "then_option": "U4"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R16",
+          "then_option": "U5"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R20",
+          "then_option": "U5"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R17",
+          "then_option": "U6"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R19",
+          "then_option": "U7"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R21",
+          "then_option": "U8"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R22",
+          "then_option": "U9"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R23",
+          "then_option": "U10"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R24",
+          "then_option": "U11"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R25",
+          "then_option": "U11"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R26",
+          "then_option": "U11"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R27",
+          "then_option": "U12"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R28",
+          "then_option": "U12"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R29",
+          "then_option": "U13"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R30",
+          "then_option": "U14"
+        },
+        {
+          "type": "dependency",
+          "if_option": "U12",
+          "then_option": "U11"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "R31",
+          "option_b": "R32"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "R33",
+          "option_b": "R34"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "R35",
+          "option_b": "R36"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "R37",
+          "option_b": "R38"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "R39",
+          "option_b": "R40"
+        }
+      ],
+      "interaction_matrix_overrides": []
+    },
+    {
+      "name": "capex_stretch",
+      "probability": null,
+      "description": "Approval cycle at a $560M capex envelope.",
+      "motivated_by": "",
+      "score_overrides": [],
+      "score_adjustments": [],
+      "constraint_overrides": [
+        {
+          "type": "objective_bound",
+          "objective": "Cost",
+          "operator": "max",
+          "value": 560.0
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "R01",
+            "R05",
+            "R09",
+            "R13",
+            "R17",
+            "R21",
+            "R25",
+            "R29",
+            "R33",
+            "R37",
+            "R41"
+          ],
+          "min": 0,
+          "max": 9
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "R02",
+            "R06",
+            "R10",
+            "R14",
+            "R18",
+            "R22",
+            "R26",
+            "R30",
+            "R34",
+            "R38",
+            "R42"
+          ],
+          "min": 0,
+          "max": 9
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "R03",
+            "R07",
+            "R11",
+            "R15",
+            "R19",
+            "R23",
+            "R27",
+            "R31",
+            "R35",
+            "R39"
+          ],
+          "min": 0,
+          "max": 9
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "R04",
+            "R08",
+            "R12",
+            "R16",
+            "R20",
+            "R24",
+            "R28",
+            "R32",
+            "R36",
+            "R40"
+          ],
+          "min": 0,
+          "max": 9
+        },
+        {
+          "type": "dependency",
+          "if_option": "R01",
+          "then_option": "U1"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R05",
+          "then_option": "U1"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R09",
+          "then_option": "U1"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R13",
+          "then_option": "U1"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R02",
+          "then_option": "U2"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R06",
+          "then_option": "U2"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R10",
+          "then_option": "U2"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R14",
+          "then_option": "U2"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R18",
+          "then_option": "U2"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R03",
+          "then_option": "U3"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R07",
+          "then_option": "U3"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R11",
+          "then_option": "U3"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R15",
+          "then_option": "U3"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R04",
+          "then_option": "U4"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R08",
+          "then_option": "U4"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R12",
+          "then_option": "U4"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R16",
+          "then_option": "U5"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R20",
+          "then_option": "U5"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R17",
+          "then_option": "U6"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R19",
+          "then_option": "U7"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R21",
+          "then_option": "U8"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R22",
+          "then_option": "U9"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R23",
+          "then_option": "U10"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R24",
+          "then_option": "U11"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R25",
+          "then_option": "U11"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R26",
+          "then_option": "U11"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R27",
+          "then_option": "U12"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R28",
+          "then_option": "U12"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R29",
+          "then_option": "U13"
+        },
+        {
+          "type": "dependency",
+          "if_option": "R30",
+          "then_option": "U14"
+        },
+        {
+          "type": "dependency",
+          "if_option": "U12",
+          "then_option": "U11"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "R31",
+          "option_b": "R32"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "R33",
+          "option_b": "R34"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "R35",
+          "option_b": "R36"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "R37",
+          "option_b": "R38"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "R39",
+          "option_b": "R40"
+        }
+      ],
+      "interaction_matrix_overrides": []
+    }
+  ]
+}

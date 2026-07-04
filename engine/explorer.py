@@ -1058,30 +1058,40 @@ def _audit_framing(verdict: str) -> dict:
     return {"recommendation": text.get(verdict, ""), "next_steps": read}
 
 
-def audit_property(problem: Problem, property_dict: dict | None) -> dict:
+def audit_property(problem: Problem, property_dict: dict | list | None) -> dict:
     """MCP payload for `explore audit` — the witness / feasibility auditor (sibling of certify).
 
-    Parses the optional property (a ``Constraint`` dict — same vocabulary as model constraints),
-    runs the engine audit over the whole feasible space, and frames the verdict for presentation.
-    No prior solve required: audit reasons about the model's feasible region directly, so it can
-    feasibility-probe *before* spending a solve."""
+    Parses the optional property (a ``Constraint`` dict, or a *list* of them for a compound
+    guarantee — the conjunction holds iff every conjunct holds — same vocabulary as model
+    constraints), runs the engine audit over the whole feasible space, and frames the verdict for
+    presentation. No prior solve required: audit reasons about the model's feasible region
+    directly, so it can feasibility-probe *before* spending a solve."""
     from engine import optimizer
 
-    prop = None
-    if property_dict is not None:
-        if not isinstance(property_dict, dict):
+    def _parse_one(d) -> "Constraint":
+        if not isinstance(d, dict):
             raise ValueError(
-                "audit `property` must be a constraint object, e.g. "
+                "audit `property` must be a constraint object (or a list of them), e.g. "
                 '{"type": "objective_bound", "objective": "Cost", "operator": "max", "value": 100}.')
         from pydantic import TypeAdapter, ValidationError
 
         from engine.models import Constraint
         try:
-            prop = TypeAdapter(Constraint).validate_python(property_dict)
+            return TypeAdapter(Constraint).validate_python(d)
         except ValidationError as e:
             errs = e.errors()
             raise ValueError(
                 f"audit `property` isn't a valid constraint: {errs[0].get('msg', e) if errs else e}")
+
+    prop = None
+    if isinstance(property_dict, (list, tuple)):
+        if not property_dict:
+            raise ValueError(
+                "audit `property` list is empty — pass one or more constraint objects, or omit "
+                "the property to probe feasibility.")
+        prop = [_parse_one(d) for d in property_dict]
+    elif property_dict is not None:
+        prop = _parse_one(property_dict)
 
     result = optimizer.audit(problem, prop=prop, solver="highs")
     result["audited"] = ("feasibility of the current constraint set" if prop is None else property_dict)
@@ -1103,7 +1113,7 @@ def _constraint_key(c: dict) -> str:
     elif ctype == "dependency":
         return f"dependency:{c.get('if_option')}:{c.get('then_option')}"
     elif ctype == "group_limit":
-        return f"group_limit:{','.join(c.get('options', []))}:{c.get('max')}"
+        return f"group_limit:{','.join(c.get('options', []))}:{c.get('min', 0)}:{c.get('max')}"
     return str(c)
 
 
@@ -2436,7 +2446,7 @@ def _binding_analysis(problem: Problem, solutions: list) -> list[dict]:
         else:
             entry = None
         if entry is not None:
-            out.append(entry)
+            out.extend(entry) if isinstance(entry, list) else out.append(entry)
     return out
 
 
@@ -2548,41 +2558,56 @@ def _binding_cardinality(c, solutions, objectives) -> dict | None:
     }
 
 
-def _binding_group_limit(c, solutions, objectives) -> dict | None:
+def _binding_group_limit(c, solutions, objectives) -> list[dict] | None:
+    """A group can bind at its cap (frontier plans pinned at max) or — with a floor set —
+    at its min (plans held up at the floor); report whichever side binds, cap first."""
     group_set = set(c.options)
     counts = np.array([len(group_set.intersection(s.selected_options)) for s in solutions])
-    mask_binding = counts == c.max
-    if mask_binding.sum() == 0:
-        return None
-    mask_adjacent = counts == c.max - 1
-    binding_fraction = round(float(mask_binding.sum() / len(counts)), 3)
+    g_min = int(getattr(c, "min", 0) or 0)
 
-    shadow_prices: list[dict] = []
-    if mask_adjacent.sum() > 0:
-        for obj in objectives:
-            vals = np.array([s.objective_values.get(obj.name, 0.0) for s in solutions], dtype=float)
-            is_max = obj.direction.value == "maximize"
-            best_binding = vals[mask_binding].max() if is_max else vals[mask_binding].min()
-            best_adjacent = vals[mask_adjacent].max() if is_max else vals[mask_adjacent].min()
-            delta = best_binding - best_adjacent
-            if not is_max:
-                delta = -delta
-            shadow_prices.append({
-                "objective": obj.name,
-                "gain_per_additional_slot": round(float(delta), 4),
-            })
+    def _entry(bound: int, adjacent: int, label: str, gain_key: str, cap_side: bool) -> dict | None:
+        mask_binding = counts == bound
+        if mask_binding.sum() == 0:
+            return None
+        mask_adjacent = counts == adjacent
+        shadow_prices: list[dict] = []
+        if mask_adjacent.sum() > 0:
+            for obj in objectives:
+                vals = np.array([s.objective_values.get(obj.name, 0.0) for s in solutions], dtype=float)
+                is_max = obj.direction.value == "maximize"
+                best_binding = vals[mask_binding].max() if is_max else vals[mask_binding].min()
+                best_adjacent = vals[mask_adjacent].max() if is_max else vals[mask_adjacent].min()
+                # Cap side: what the last allowed slot bought (binding vs one-below) — the
+                # existing "+1 slot" estimate. Floor side: what one member above the floor
+                # achieves vs pinned-at-floor — positive means the floor isn't pinching.
+                delta = best_binding - best_adjacent if cap_side else best_adjacent - best_binding
+                if not is_max:
+                    delta = -delta
+                shadow_prices.append({"objective": obj.name, gain_key: round(float(delta), 4)})
+        return {
+            "constraint": label,
+            "constraint_type": "group_limit",
+            "binding_fraction": round(float(mask_binding.sum() / len(counts)), 3),
+            "near_binding_count": int(mask_binding.sum()),
+            "shadow_prices": shadow_prices,
+            "note": None if shadow_prices else (
+                "no adjacent-count solutions on frontier — cannot estimate the gain from "
+                "relaxing this bound by one"),
+        }
 
-    return {
-        # Name a handful of members, count the rest — at real problem scale a group can hold
-        # hundreds of options, and the full roster would swamp every payload citing this label.
-        "constraint": (f"group_limit({', '.join(c.options)}) ≤ {c.max}" if len(c.options) <= 6
-                       else f"group_limit({', '.join(c.options[:5])}, +{len(c.options) - 5} more) ≤ {c.max}"),
-        "constraint_type": "group_limit",
-        "binding_fraction": binding_fraction,
-        "near_binding_count": int(mask_binding.sum()),
-        "shadow_prices": shadow_prices,
-        "note": None if shadow_prices else "no adjacent-count solutions on frontier — cannot estimate gain from +1 slot",
-    }
+    # Name a handful of members, count the rest — at real problem scale a group can hold
+    # hundreds of options, and the full roster would swamp every payload citing this label.
+    opts = (", ".join(c.options) if len(c.options) <= 6
+            else f"{', '.join(c.options[:5])}, +{len(c.options) - 5} more")
+    entries = [_entry(c.max, c.max - 1, f"group_limit({opts}) ≤ {c.max}",
+                      "gain_per_additional_slot", cap_side=True)]
+    if g_min > 0:
+        # Both sides can bind across one frontier (some plans pinned at the cap, others held
+        # up at the floor — or min == max pins every plan at both). Report each side that
+        # binds; metrics' binding check reports both, and the two surfaces must agree.
+        entries.append(_entry(g_min, g_min + 1, f"group_limit({opts}) ≥ {g_min}",
+                              "gain_per_extra_member", cap_side=False))
+    return [e for e in entries if e is not None] or None
 
 
 def _suggested_scenarios_from_binding(binding: list[dict]) -> list[dict]:
@@ -2655,7 +2680,9 @@ def sensitivity_analysis(problem: Problem, solution_id: int | None = None,
         ref = _find_balanced(exact, problem.objectives)
 
     optimized = _optimized_objective(problem, ref.sensitivity)
-    where, near, capped = _format_solution_sensitivity(ref, optimized)
+    floors = {c.option: int(c.min) for c in (problem.constraints or [])
+              if getattr(c, "type", "") == "allocation_bound" and int(getattr(c, "min", 0)) > 0}
+    where, near, capped, floored = _format_solution_sensitivity(ref, optimized, floors)
     scope = ("Exact LP/QP duals (continuous path). Shadow price = marginal change in the "
              "optimized objective per unit a binding constraint is relaxed (that constraint's "
              "own unit — rates on different levers aren't directly comparable); reduced cost = "
@@ -2706,6 +2733,7 @@ def sensitivity_analysis(problem: Problem, solution_id: int | None = None,
         "where_to_invest": where,
         "near_misses": near,
         "capped_options": capped,
+        **({"floored_options": floored} if floored else {}),
         "frontier_shadow_price_trend": _shadow_price_trend(exact),
         "note": ("Shadow prices and reduced costs are reported at the reference solution; the "
                  "trend shows how the swept-constraint shadow price changes along the frontier "
@@ -2744,9 +2772,12 @@ def _shadow_interpretation(sp, objective: str | None) -> str:
     return f"marginal change in {target} per unit this constraint is relaxed"
 
 
-def _format_solution_sensitivity(s, objective: str | None = None):
-    """(where_to_invest, near_misses, capped) for one solution's solver-exact duals."""
+def _format_solution_sensitivity(s, objective: str | None = None, floors: dict | None = None):
+    """(where_to_invest, near_misses, capped, floored) for one solution's solver-exact duals.
+    ``floors`` maps option → allocation_bound minimum; an option held AT its floor with a
+    positive reduced cost is being carried above what it would earn — the floor's price."""
     sens = s.sensitivity
+    floors = floors or {}
     target = f"'{objective}'" if objective else "the optimal mix"
     where = [{
         "lever": sp.name,
@@ -2772,7 +2803,22 @@ def _format_solution_sensitivity(s, objective: str | None = None):
     } for rc in sorted((r for r in sens.reduced_costs
                         if r.allocation > 0 and r.reduced_cost < -1e-9),
                        key=lambda x: x.reduced_cost)]
-    return where, near, capped
+
+    floored = [{
+        "option": rc.option,
+        "allocation": rc.allocation,
+        "floor": floors[rc.option],
+        "reduced_cost": rc.reduced_cost,
+        "interpretation": (f"pinned at its {floors[rc.option]}% contractual floor — held above "
+                           f"what it would earn; the floor costs ~{abs(rc.reduced_cost):.4g} per "
+                           "unit of allocation (the price of the commitment)"),
+    } for rc in sorted((r for r in sens.reduced_costs
+                        # +1 tolerance: integer rounding can park a floor-pinned option one
+                        # percent above its floor without changing what binds.
+                        if r.option in floors and r.allocation <= floors[r.option] + 1
+                        and r.reduced_cost > 1e-9),
+                       key=lambda x: -x.reduced_cost)]
+    return where, near, capped, floored
 
 
 def _shadow_price_trend(solutions) -> list[dict]:

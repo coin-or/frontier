@@ -450,15 +450,27 @@ def _check_binding_cardinality(constraint, solutions, results):
 
 def _check_binding_group_limit(constraint, solutions, results):
     group_set = set(constraint.options)
+    g_min = int(getattr(constraint, "min", 0) or 0)
+    cap_hit = floor_hit = False
     for sol in solutions:
         count = len(group_set.intersection(sol.selected_options))
-        if count == constraint.max:
+        if count == constraint.max and not cap_hit:
+            cap_hit = True
             results.append({
                 "pattern": "binding_constraint",
                 "severity": "info",
                 "constraint": f"group_limit({', '.join(constraint.options)}) ≤ {constraint.max}",
                 "actual_value": count,
             })
+        if g_min > 0 and count == g_min and not floor_hit:
+            floor_hit = True
+            results.append({
+                "pattern": "binding_constraint",
+                "severity": "info",
+                "constraint": f"group_limit({', '.join(constraint.options)}) ≥ {g_min}",
+                "actual_value": count,
+            })
+        if cap_hit and (floor_hit or g_min == 0):
             return
 
 

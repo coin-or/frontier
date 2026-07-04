@@ -92,6 +92,37 @@ def test_round_trip_preserves_definition():
     ]
 
 
+def test_group_floor_round_trips_and_legacy_bundles_default_to_zero():
+    """E1: a group_limit `min` survives save/load; a legacy bundle without one parses to 0."""
+    from engine.models import GroupLimitConstraint
+
+    p = _rich_problem()
+    p.constraints = list(p.constraints) + [
+        GroupLimitConstraint(options=[p.options[0].name, p.options[1].name], min=1, max=2)]
+    problem, scores, _ = problem_io.to_portable(p)
+    assert problem["constraints"][-1]["min"] == 1
+    p2 = problem_io.from_portable(problem, scores)
+    assert p2.constraints[-1].min == 1 and p2.constraints[-1].max == 2
+
+    # Legacy shape: no `min` key at all (every pre-E1 bundle).
+    problem["constraints"][-1].pop("min")
+    p3 = problem_io.from_portable(problem, scores)
+    assert p3.constraints[-1].min == 0
+
+
+def test_allocation_bound_round_trips():
+    """E2: per-option allocation bounds survive save/load."""
+    from engine.models import AllocationBoundConstraint
+
+    p = _rich_problem()
+    p.constraints = list(p.constraints) + [
+        AllocationBoundConstraint(option=p.options[0].name, min=10, max=35)]
+    problem, scores, _ = problem_io.to_portable(p)
+    p2 = problem_io.from_portable(problem, scores)
+    c = p2.constraints[-1]
+    assert (c.type, c.option, c.min, c.max) == ("allocation_bound", p.options[0].name, 10, 35)
+
+
 def test_scenarios_survive_round_trip():
     """Regression: scenarios live under scenario_config, but the portable format
     stores them as a top-level `scenarios` list. A naive Problem(**problem_json)

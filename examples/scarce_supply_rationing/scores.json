@@ -1,0 +1,690 @@
+{
+  "options": [
+    {
+      "name": "HYP-01",
+      "description": "hyperscale cloud, multi-year LTA"
+    },
+    {
+      "name": "HYP-02",
+      "description": "hyperscale cloud, multi-year LTA"
+    },
+    {
+      "name": "HYP-03",
+      "description": "hyperscale cloud, multi-year LTA"
+    },
+    {
+      "name": "HYP-04",
+      "description": "hyperscale cloud, multi-year LTA"
+    },
+    {
+      "name": "HYP-05",
+      "description": "hyperscale cloud, multi-year LTA"
+    },
+    {
+      "name": "HYP-06",
+      "description": "hyperscale cloud, multi-year LTA"
+    },
+    {
+      "name": "HYP-07",
+      "description": "hyperscale cloud, multi-year LTA"
+    },
+    {
+      "name": "HYP-08",
+      "description": "hyperscale cloud, multi-year LTA"
+    },
+    {
+      "name": "IND-01",
+      "description": "industrial tier-1, JIT line commitment"
+    },
+    {
+      "name": "IND-02",
+      "description": "industrial tier-1, JIT line commitment"
+    },
+    {
+      "name": "IND-03",
+      "description": "industrial tier-1, JIT line commitment"
+    },
+    {
+      "name": "IND-04",
+      "description": "industrial tier-1, JIT line commitment"
+    },
+    {
+      "name": "IND-05",
+      "description": "industrial tier-1, JIT line commitment"
+    },
+    {
+      "name": "IND-06",
+      "description": "industrial tier-1, JIT line commitment"
+    },
+    {
+      "name": "IND-07",
+      "description": "industrial tier-1, JIT line commitment"
+    },
+    {
+      "name": "IND-08",
+      "description": "industrial tier-1, JIT line commitment"
+    },
+    {
+      "name": "IND-09",
+      "description": "industrial tier-1, JIT line commitment"
+    },
+    {
+      "name": "IND-10",
+      "description": "industrial tier-1, JIT line commitment"
+    },
+    {
+      "name": "IND-11",
+      "description": "industrial tier-1, JIT line commitment"
+    },
+    {
+      "name": "IND-12",
+      "description": "industrial tier-1, JIT line commitment"
+    },
+    {
+      "name": "DST-01",
+      "description": "broadline distributor, spot allocation"
+    },
+    {
+      "name": "DST-02",
+      "description": "broadline distributor, spot allocation"
+    },
+    {
+      "name": "DST-03",
+      "description": "broadline distributor, spot allocation"
+    },
+    {
+      "name": "DST-04",
+      "description": "broadline distributor, spot allocation"
+    },
+    {
+      "name": "DST-05",
+      "description": "broadline distributor, spot allocation"
+    },
+    {
+      "name": "DST-06",
+      "description": "broadline distributor, spot allocation"
+    },
+    {
+      "name": "DST-07",
+      "description": "broadline distributor, spot allocation"
+    },
+    {
+      "name": "DST-08",
+      "description": "broadline distributor, spot allocation"
+    },
+    {
+      "name": "DST-09",
+      "description": "broadline distributor, spot allocation"
+    },
+    {
+      "name": "DST-10",
+      "description": "broadline distributor, spot allocation"
+    },
+    {
+      "name": "EMG-01",
+      "description": "emerging AI design win, ramp phase"
+    },
+    {
+      "name": "EMG-02",
+      "description": "emerging AI design win, ramp phase"
+    },
+    {
+      "name": "EMG-03",
+      "description": "emerging AI design win, ramp phase"
+    },
+    {
+      "name": "EMG-04",
+      "description": "emerging AI design win, ramp phase"
+    },
+    {
+      "name": "EMG-05",
+      "description": "emerging AI design win, ramp phase"
+    },
+    {
+      "name": "EMG-06",
+      "description": "emerging AI design win, ramp phase"
+    }
+  ],
+  "scores": [
+    {
+      "option": "HYP-01",
+      "objective": "Revenue",
+      "value": 2.86
+    },
+    {
+      "option": "HYP-01",
+      "objective": "StrategicValue",
+      "value": 8.9
+    },
+    {
+      "option": "HYP-01",
+      "objective": "DemandFragility",
+      "value": 1.9
+    },
+    {
+      "option": "HYP-02",
+      "objective": "Revenue",
+      "value": 2.82
+    },
+    {
+      "option": "HYP-02",
+      "objective": "StrategicValue",
+      "value": 8.2
+    },
+    {
+      "option": "HYP-02",
+      "objective": "DemandFragility",
+      "value": 2.0
+    },
+    {
+      "option": "HYP-03",
+      "objective": "Revenue",
+      "value": 2.86
+    },
+    {
+      "option": "HYP-03",
+      "objective": "StrategicValue",
+      "value": 9.6
+    },
+    {
+      "option": "HYP-03",
+      "objective": "DemandFragility",
+      "value": 1.1
+    },
+    {
+      "option": "HYP-04",
+      "objective": "Revenue",
+      "value": 2.67
+    },
+    {
+      "option": "HYP-04",
+      "objective": "StrategicValue",
+      "value": 8.7
+    },
+    {
+      "option": "HYP-04",
+      "objective": "DemandFragility",
+      "value": 1.9
+    },
+    {
+      "option": "HYP-05",
+      "objective": "Revenue",
+      "value": 2.79
+    },
+    {
+      "option": "HYP-05",
+      "objective": "StrategicValue",
+      "value": 9.6
+    },
+    {
+      "option": "HYP-05",
+      "objective": "DemandFragility",
+      "value": 1.4
+    },
+    {
+      "option": "HYP-06",
+      "objective": "Revenue",
+      "value": 2.54
+    },
+    {
+      "option": "HYP-06",
+      "objective": "StrategicValue",
+      "value": 9.1
+    },
+    {
+      "option": "HYP-06",
+      "objective": "DemandFragility",
+      "value": 1.1
+    },
+    {
+      "option": "HYP-07",
+      "objective": "Revenue",
+      "value": 2.9
+    },
+    {
+      "option": "HYP-07",
+      "objective": "StrategicValue",
+      "value": 9.3
+    },
+    {
+      "option": "HYP-07",
+      "objective": "DemandFragility",
+      "value": 1.8
+    },
+    {
+      "option": "HYP-08",
+      "objective": "Revenue",
+      "value": 2.61
+    },
+    {
+      "option": "HYP-08",
+      "objective": "StrategicValue",
+      "value": 9.9
+    },
+    {
+      "option": "HYP-08",
+      "objective": "DemandFragility",
+      "value": 1.9
+    },
+    {
+      "option": "IND-01",
+      "objective": "Revenue",
+      "value": 3.62
+    },
+    {
+      "option": "IND-01",
+      "objective": "StrategicValue",
+      "value": 4.6
+    },
+    {
+      "option": "IND-01",
+      "objective": "DemandFragility",
+      "value": 3.4
+    },
+    {
+      "option": "IND-02",
+      "objective": "Revenue",
+      "value": 3.04
+    },
+    {
+      "option": "IND-02",
+      "objective": "StrategicValue",
+      "value": 4.5
+    },
+    {
+      "option": "IND-02",
+      "objective": "DemandFragility",
+      "value": 4.0
+    },
+    {
+      "option": "IND-03",
+      "objective": "Revenue",
+      "value": 3.6
+    },
+    {
+      "option": "IND-03",
+      "objective": "StrategicValue",
+      "value": 6.9
+    },
+    {
+      "option": "IND-03",
+      "objective": "DemandFragility",
+      "value": 3.0
+    },
+    {
+      "option": "IND-04",
+      "objective": "Revenue",
+      "value": 3.3
+    },
+    {
+      "option": "IND-04",
+      "objective": "StrategicValue",
+      "value": 5.4
+    },
+    {
+      "option": "IND-04",
+      "objective": "DemandFragility",
+      "value": 2.6
+    },
+    {
+      "option": "IND-05",
+      "objective": "Revenue",
+      "value": 3.1
+    },
+    {
+      "option": "IND-05",
+      "objective": "StrategicValue",
+      "value": 5.4
+    },
+    {
+      "option": "IND-05",
+      "objective": "DemandFragility",
+      "value": 2.7
+    },
+    {
+      "option": "IND-06",
+      "objective": "Revenue",
+      "value": 3.54
+    },
+    {
+      "option": "IND-06",
+      "objective": "StrategicValue",
+      "value": 5.3
+    },
+    {
+      "option": "IND-06",
+      "objective": "DemandFragility",
+      "value": 4.5
+    },
+    {
+      "option": "IND-07",
+      "objective": "Revenue",
+      "value": 3.56
+    },
+    {
+      "option": "IND-07",
+      "objective": "StrategicValue",
+      "value": 4.9
+    },
+    {
+      "option": "IND-07",
+      "objective": "DemandFragility",
+      "value": 4.5
+    },
+    {
+      "option": "IND-08",
+      "objective": "Revenue",
+      "value": 3.64
+    },
+    {
+      "option": "IND-08",
+      "objective": "StrategicValue",
+      "value": 5.2
+    },
+    {
+      "option": "IND-08",
+      "objective": "DemandFragility",
+      "value": 2.9
+    },
+    {
+      "option": "IND-09",
+      "objective": "Revenue",
+      "value": 3.55
+    },
+    {
+      "option": "IND-09",
+      "objective": "StrategicValue",
+      "value": 4.4
+    },
+    {
+      "option": "IND-09",
+      "objective": "DemandFragility",
+      "value": 2.6
+    },
+    {
+      "option": "IND-10",
+      "objective": "Revenue",
+      "value": 3.01
+    },
+    {
+      "option": "IND-10",
+      "objective": "StrategicValue",
+      "value": 6.4
+    },
+    {
+      "option": "IND-10",
+      "objective": "DemandFragility",
+      "value": 4.0
+    },
+    {
+      "option": "IND-11",
+      "objective": "Revenue",
+      "value": 3.56
+    },
+    {
+      "option": "IND-11",
+      "objective": "StrategicValue",
+      "value": 6.3
+    },
+    {
+      "option": "IND-11",
+      "objective": "DemandFragility",
+      "value": 3.4
+    },
+    {
+      "option": "IND-12",
+      "objective": "Revenue",
+      "value": 3.45
+    },
+    {
+      "option": "IND-12",
+      "objective": "StrategicValue",
+      "value": 4.4
+    },
+    {
+      "option": "IND-12",
+      "objective": "DemandFragility",
+      "value": 2.3
+    },
+    {
+      "option": "DST-01",
+      "objective": "Revenue",
+      "value": 4.73
+    },
+    {
+      "option": "DST-01",
+      "objective": "StrategicValue",
+      "value": 1.2
+    },
+    {
+      "option": "DST-01",
+      "objective": "DemandFragility",
+      "value": 7.7
+    },
+    {
+      "option": "DST-02",
+      "objective": "Revenue",
+      "value": 4.81
+    },
+    {
+      "option": "DST-02",
+      "objective": "StrategicValue",
+      "value": 1.5
+    },
+    {
+      "option": "DST-02",
+      "objective": "DemandFragility",
+      "value": 7.7
+    },
+    {
+      "option": "DST-03",
+      "objective": "Revenue",
+      "value": 4.65
+    },
+    {
+      "option": "DST-03",
+      "objective": "StrategicValue",
+      "value": 1.0
+    },
+    {
+      "option": "DST-03",
+      "objective": "DemandFragility",
+      "value": 6.1
+    },
+    {
+      "option": "DST-04",
+      "objective": "Revenue",
+      "value": 4.55
+    },
+    {
+      "option": "DST-04",
+      "objective": "StrategicValue",
+      "value": 0.8
+    },
+    {
+      "option": "DST-04",
+      "objective": "DemandFragility",
+      "value": 7.2
+    },
+    {
+      "option": "DST-05",
+      "objective": "Revenue",
+      "value": 4.88
+    },
+    {
+      "option": "DST-05",
+      "objective": "StrategicValue",
+      "value": 0.9
+    },
+    {
+      "option": "DST-05",
+      "objective": "DemandFragility",
+      "value": 6.2
+    },
+    {
+      "option": "DST-06",
+      "objective": "Revenue",
+      "value": 4.43
+    },
+    {
+      "option": "DST-06",
+      "objective": "StrategicValue",
+      "value": 0.9
+    },
+    {
+      "option": "DST-06",
+      "objective": "DemandFragility",
+      "value": 8.0
+    },
+    {
+      "option": "DST-07",
+      "objective": "Revenue",
+      "value": 4.65
+    },
+    {
+      "option": "DST-07",
+      "objective": "StrategicValue",
+      "value": 1.7
+    },
+    {
+      "option": "DST-07",
+      "objective": "DemandFragility",
+      "value": 8.0
+    },
+    {
+      "option": "DST-08",
+      "objective": "Revenue",
+      "value": 4.53
+    },
+    {
+      "option": "DST-08",
+      "objective": "StrategicValue",
+      "value": 1.7
+    },
+    {
+      "option": "DST-08",
+      "objective": "DemandFragility",
+      "value": 6.5
+    },
+    {
+      "option": "DST-09",
+      "objective": "Revenue",
+      "value": 4.22
+    },
+    {
+      "option": "DST-09",
+      "objective": "StrategicValue",
+      "value": 0.6
+    },
+    {
+      "option": "DST-09",
+      "objective": "DemandFragility",
+      "value": 8.2
+    },
+    {
+      "option": "DST-10",
+      "objective": "Revenue",
+      "value": 4.57
+    },
+    {
+      "option": "DST-10",
+      "objective": "StrategicValue",
+      "value": 0.7
+    },
+    {
+      "option": "DST-10",
+      "objective": "DemandFragility",
+      "value": 7.5
+    },
+    {
+      "option": "EMG-01",
+      "objective": "Revenue",
+      "value": 3.72
+    },
+    {
+      "option": "EMG-01",
+      "objective": "StrategicValue",
+      "value": 5.1
+    },
+    {
+      "option": "EMG-01",
+      "objective": "DemandFragility",
+      "value": 6.3
+    },
+    {
+      "option": "EMG-02",
+      "objective": "Revenue",
+      "value": 3.9
+    },
+    {
+      "option": "EMG-02",
+      "objective": "StrategicValue",
+      "value": 3.9
+    },
+    {
+      "option": "EMG-02",
+      "objective": "DemandFragility",
+      "value": 6.9
+    },
+    {
+      "option": "EMG-03",
+      "objective": "Revenue",
+      "value": 3.89
+    },
+    {
+      "option": "EMG-03",
+      "objective": "StrategicValue",
+      "value": 3.3
+    },
+    {
+      "option": "EMG-03",
+      "objective": "DemandFragility",
+      "value": 5.4
+    },
+    {
+      "option": "EMG-04",
+      "objective": "Revenue",
+      "value": 4.37
+    },
+    {
+      "option": "EMG-04",
+      "objective": "StrategicValue",
+      "value": 5.7
+    },
+    {
+      "option": "EMG-04",
+      "objective": "DemandFragility",
+      "value": 7.1
+    },
+    {
+      "option": "EMG-05",
+      "objective": "Revenue",
+      "value": 3.81
+    },
+    {
+      "option": "EMG-05",
+      "objective": "StrategicValue",
+      "value": 5.9
+    },
+    {
+      "option": "EMG-05",
+      "objective": "DemandFragility",
+      "value": 7.3
+    },
+    {
+      "option": "EMG-06",
+      "objective": "Revenue",
+      "value": 4.17
+    },
+    {
+      "option": "EMG-06",
+      "objective": "StrategicValue",
+      "value": 4.3
+    },
+    {
+      "option": "EMG-06",
+      "objective": "DemandFragility",
+      "value": 5.8
+    }
+  ]
+}

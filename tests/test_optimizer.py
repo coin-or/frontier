@@ -891,6 +891,180 @@ class TestExtremeSeeds:
             count = int(seed.sum())
             assert 2 <= count <= 3
 
+    def test_allocation_bounds_respected_by_nsga_and_repair(self):
+        """E2: per-option allocation floors/caps hold in every returned plan, including under
+        an adversarial global cap, and the repair operator projects arbitrary rows into the
+        box without breaking the 100% budget."""
+        import numpy as np
+
+        from engine.models import AllocationBoundConstraint, MaxAllocationConstraint
+        from engine.optimizer import _SimplexRepair, _build_score_matrix, _parse_constraints
+
+        p = _make_problem(
+            approach="proportional",
+            constraints=[MaxAllocationConstraint(max=40),
+                         AllocationBoundConstraint(option="A", min=12, max=100),
+                         AllocationBoundConstraint(option="B", min=0, max=15)],
+        )
+        run = optimize(p, mode="fast", seed=5)
+        assert len(run.solutions) > 0
+        for s in run.solutions:
+            assert s.allocations.get("A", 0) >= 12
+            assert s.allocations.get("B", 0) <= 15
+            assert max(s.allocations.values()) <= 40
+            assert sum(s.allocations.values()) == 100
+
+        # Direct repair check on adversarial rows (all-zero, one-hot, uniform).
+        from engine.optimizer import _ProportionalProblem
+        cp = _parse_constraints(p)
+        prob = _ProportionalProblem(n_options=5, score_matrix=_build_score_matrix(p),
+                                    objectives=p.objectives, interaction_matrices={}, **cp)
+        X = np.array([[0, 0, 0, 0, 0], [100, 0, 0, 0, 0], [20, 20, 20, 20, 20]], dtype=float)
+        Y = _SimplexRepair()._do(prob, X)
+        for row in Y:
+            assert abs(row.sum() - 100.0) < 0.05
+            assert row[0] >= 12 - 1e-6 and row[1] <= 15 + 1e-6 and row.max() <= 40 + 1e-6
+
+    def test_allocation_bound_floor_above_effective_cap_is_a_validation_error(self):
+        # min=50 with a global cap of 40 is an empty box — must be a pre-solve error,
+        # not a silent empty frontier.
+        from engine.models import AllocationBoundConstraint, MaxAllocationConstraint
+
+        v = validate(_make_problem(approach="proportional", constraints=[
+            MaxAllocationConstraint(max=40),
+            AllocationBoundConstraint(option="A", min=50, max=100)]))
+        assert any("exceeds its effective cap" in i.message and i.severity == "error"
+                   for i in v.issues)
+
+    def test_allocation_bound_validation_and_conflicts(self):
+        """E2: bad ranges, unknown options, binary-mode warning, floor sums past 100%, floors
+        on excluded options, and starved effective caps are all caught pre-solve."""
+        from engine.models import AllocationBoundConstraint, ForceExcludeConstraint, MaxAllocationConstraint
+
+        bad = validate(_make_problem(approach="proportional", constraints=[
+            AllocationBoundConstraint(option="A", min=50, max=30)]))
+        assert any("0 <= min <= max <= 100" in i.message for i in bad.issues)
+
+        unknown = validate(_make_problem(approach="proportional", constraints=[
+            AllocationBoundConstraint(option="ZZ", min=0, max=50)]))
+        assert any("unknown option 'ZZ'" in i.message for i in unknown.issues)
+
+        warned = validate(_make_problem(constraints=[   # binary problem
+            AllocationBoundConstraint(option="A", min=0, max=50)]))
+        assert any("proportional mode" in i.message and i.severity == "warning"
+                   for i in warned.issues)
+
+        oversum = validate(_make_problem(approach="proportional", constraints=[
+            AllocationBoundConstraint(option="A", min=60, max=100),
+            AllocationBoundConstraint(option="B", min=50, max=100)]))
+        assert any("floors sum to 110%" in i.message for i in oversum.issues)
+
+        excluded = validate(_make_problem(approach="proportional", constraints=[
+            AllocationBoundConstraint(option="A", min=10, max=100),
+            ForceExcludeConstraint(option="A")]))
+        assert any("conflicts" in i.message and "force_exclude" in i.message
+                   for i in excluded.issues)
+
+        starved = validate(_make_problem(approach="proportional", constraints=[
+            MaxAllocationConstraint(max=30),
+            AllocationBoundConstraint(option="A", min=0, max=5),
+            ForceExcludeConstraint(option="B")]))
+        # caps: A 5 + C/D/E 30 each = 95 < 100
+        assert any("caps sum to 95%" in i.message for i in starved.issues)
+
+    def test_group_floor_respected_by_nsga_and_prefilled_in_seeds(self):
+        """E1: a group_limit floor pulls its members into every plan (NSGA) and into the
+        greedy corner seeds (pre-fill), even when the floored group scores worst."""
+        from engine.models import GroupLimitConstraint
+        from engine.optimizer import _build_score_matrix, _compute_extreme_seeds, _parse_constraints
+
+        p = _make_problem(constraints=[
+            CardinalityConstraint(min=2, max=3),
+            GroupLimitConstraint(options=["D"], min=1, max=1),  # worst Revenue option, floored in
+        ])
+        seeds = _compute_extreme_seeds(p, _build_score_matrix(p), _parse_constraints(p))
+        d_idx = [o.name for o in p.options].index("D")
+        assert len(seeds) > 0 and all(seed[d_idx] == 1.0 for seed in seeds)
+        run = optimize(p, mode="fast", seed=3)
+        assert len(run.solutions) > 0
+        assert all("D" in s.selected_options for s in run.solutions)
+
+    def test_group_floor_validation_and_conflicts(self):
+        """E1: min>max and min>group-size are validation errors; disjoint floors summing past
+        the cardinality max, and floors starved by force_exclude, are conflict errors."""
+        from engine.models import ForceExcludeConstraint, GroupLimitConstraint
+
+        bad_range = validate(_make_problem(constraints=[
+            GroupLimitConstraint(options=["A", "B"], min=3, max=2)]))
+        assert any("min (3) must be between 0 and max (2)" in i.message for i in bad_range.issues)
+
+        too_big = validate(_make_problem(constraints=[
+            GroupLimitConstraint(options=["A", "B"], min=3, max=5)]))
+        assert any("exceeds the group's selectable members" in i.message for i in too_big.issues)
+
+        starved = validate(_make_problem(constraints=[
+            GroupLimitConstraint(options=["A", "B"], min=2, max=2),
+            ForceExcludeConstraint(option="A")]))
+        assert any("selectable members" in i.message for i in starved.issues)
+
+        oversum = validate(_make_problem(constraints=[
+            CardinalityConstraint(min=2, max=3),
+            GroupLimitConstraint(options=["A", "B"], min=2, max=2),
+            GroupLimitConstraint(options=["C", "D"], min=2, max=2)]))
+        assert any("floors sum to 4" in i.message for i in oversum.issues)
+
+    def test_witness_seed_plants_population_inside_a_tight_bound_band(self):
+        """objective_bound floor + cap couple the region into a band the greedy corner seeds
+        miss entirely; the audit-witness seed keeps the EA from terminating with an empty
+        feasible front on a provably feasible problem."""
+        pytest.importorskip("highspy")
+        import numpy as np
+
+        from engine.optimizer import _feasibility_witness_seed
+
+        # 20 options; Revenue floor + Effort cap leave a knife-edge feasible band.
+        n = 20
+        opts = [f"O{i:02d}" for i in range(n)]
+        scores = []
+        for i, o in enumerate(opts):
+            scores.append(Score(option=o, objective="Revenue", value=10 + (i % 7)))
+            scores.append(Score(option=o, objective="Effort", value=6 + (i % 5)))
+        p = Problem(
+            name="band", approach="binary",
+            objectives=[Objective(name="Revenue", direction="maximize", aggregation="sum"),
+                        Objective(name="Effort", direction="minimize", aggregation="sum")],
+            options=[Option(name=o) for o in opts], scores=scores,
+            constraints=[ObjectiveBoundConstraint(objective="Revenue", operator="min", value=115),
+                         ObjectiveBoundConstraint(objective="Effort", operator="max", value=78),
+                         CardinalityConstraint(min=5, max=12)],
+        )
+        from engine.optimizer import _build_score_matrix, _compute_extreme_seeds, _parse_constraints
+
+        sm = _build_score_matrix(p)
+        corner_seeds = _compute_extreme_seeds(p, sm, _parse_constraints(p))
+        seed_row = _feasibility_witness_seed(p, corner_seeds, sm)
+        assert seed_row is not None and seed_row.shape == (1, n)
+        sel = seed_row[0] > 0.5
+        rev = sum(10 + (i % 7) for i in range(n) if sel[i])
+        eff = sum(6 + (i % 5) for i in range(n) if sel[i])
+        assert rev >= 115 and eff <= 78 and 5 <= sel.sum() <= 12   # genuinely in the band
+        # And the full solve returns a non-empty feasible frontier across seeds/modes.
+        for sd in (1, 7, 42):
+            run = optimize(p, mode="fast", seed=sd)
+            assert len(run.solutions) > 0, f"empty frontier at seed {sd}"
+            for s in run.solutions:
+                assert s.objective_values["Revenue"] >= 115 - 1e-6
+                assert s.objective_values["Effort"] <= 78 + 1e-6
+        # No bounds → no witness row (the prior seed behavior, untouched).
+        bare = _make_problem()
+        bare_sm = _build_score_matrix(bare)
+        assert _feasibility_witness_seed(bare, np.zeros((0, 5)), bare_sm) is None
+        # A corner seed already inside the band skips the MILP probe entirely.
+        inside = np.zeros((1, n)); inside[0, :8] = 1.0   # 8 picks: rev>=115? eff<=78? recompute:
+        rev = sum(10 + (i % 7) for i in range(8)); eff = sum(6 + (i % 5) for i in range(8))
+        if rev >= 115 and eff <= 78:
+            assert _feasibility_witness_seed(p, inside, sm) is None
+
     def test_proportional_seeds_sum_to_100_and_respect_cap(self):
         """Proportional seeds: allocations sum to 100 and no allocation exceeds max_allocation."""
         from engine.models import MaxAllocationConstraint

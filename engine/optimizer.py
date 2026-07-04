@@ -147,8 +147,11 @@ class _SeededBinarySampling(Sampling):
 class _SimplexRepair(Repair):
     """After crossover/mutation, project solutions back onto the simplex (sum=100, non-negative).
 
-    When the pymoo problem has a max_allocation attribute, iteratively clamp
-    and redistribute so no variable exceeds the cap while preserving sum=100.
+    When the pymoo problem carries a max_allocation cap and/or per-option allocation bounds
+    (``alloc_lo``/``alloc_hi`` percent vectors), iteratively clamp to the box and redistribute
+    so the row still sums to 100. If the iteration doesn't converge (tight boxes), fall back
+    to the deterministic feasible point lo + slack ∝ (hi − lo), which satisfies the box and
+    the budget whenever the bounds are jointly feasible (Σlo ≤ 100 ≤ Σhi — validate enforces).
     """
 
     def _do(self, problem, X, **kwargs):
@@ -159,23 +162,47 @@ class _SimplexRepair(Repair):
         row_sums = np.maximum(row_sums, 1e-9)  # avoid div by zero
         X = X / row_sums * 100.0
 
-        # Enforce max_allocation: clamp and redistribute excess
+        lo = getattr(problem, "alloc_lo", None)
+        hi = getattr(problem, "alloc_hi", None)
         cap = getattr(problem, "max_allocation", None)
-        if cap is not None:
-            for _ in range(5):  # iterate until stable (typically 1-2 passes)
-                excess = np.maximum(X - cap, 0.0)
-                total_excess = excess.sum(axis=1, keepdims=True)
-                if np.all(total_excess < 0.01):
-                    break
-                X = np.minimum(X, cap)
-                # Redistribute excess proportionally to under-cap variables
-                under_cap = X < cap - 0.01
-                under_cap_sum = np.where(under_cap, X, 0.0).sum(axis=1, keepdims=True)
-                under_cap_sum = np.maximum(under_cap_sum, 1e-9)
-                redistribution = np.where(under_cap, X / under_cap_sum * total_excess, 0.0)
-                X = X + redistribution
+        if lo is None or hi is None or not getattr(problem, "allocation_bounds", None):
+            # Global-cap-only path (the pre-allocation_bound behavior, unchanged).
+            if cap is not None:
+                for _ in range(5):  # iterate until stable (typically 1-2 passes)
+                    excess = np.maximum(X - cap, 0.0)
+                    total_excess = excess.sum(axis=1, keepdims=True)
+                    if np.all(total_excess < 0.01):
+                        break
+                    X = np.minimum(X, cap)
+                    # Redistribute excess proportionally to under-cap variables
+                    under_cap = X < cap - 0.01
+                    under_cap_sum = np.where(under_cap, X, 0.0).sum(axis=1, keepdims=True)
+                    under_cap_sum = np.maximum(under_cap_sum, 1e-9)
+                    redistribution = np.where(under_cap, X / under_cap_sum * total_excess, 0.0)
+                    X = X + redistribution
+            return X
 
-        return X
+        # Box-constrained path: clamp to [lo, hi] and redistribute the budget residual onto
+        # options with slack, both directions (floors pull mass in, caps push it out).
+        for _ in range(8):
+            X = np.clip(X, lo, hi)
+            resid = 100.0 - X.sum(axis=1, keepdims=True)     # >0: need to add; <0: remove
+            if np.all(np.abs(resid) < 0.01):
+                return X
+            up_slack = np.maximum(hi - X, 0.0)
+            dn_slack = np.maximum(X - lo, 0.0)
+            up_total = np.maximum(up_slack.sum(axis=1, keepdims=True), 1e-9)
+            dn_total = np.maximum(dn_slack.sum(axis=1, keepdims=True), 1e-9)
+            add = np.where(resid > 0, up_slack / up_total * resid, 0.0)
+            sub = np.where(resid < 0, dn_slack / dn_total * (-resid), 0.0)
+            X = X + add - sub
+        # Deterministic feasible fallback for rows that didn't converge.
+        bad = np.abs(100.0 - np.clip(X, lo, hi).sum(axis=1)) >= 0.01
+        if bad.any():
+            span = np.maximum((hi - lo).sum(), 1e-9)
+            fallback = lo + (hi - lo) * ((100.0 - lo.sum()) / span)
+            X[bad] = fallback
+        return np.clip(X, lo, hi)
 
 from .models import (
     Aggregation,
@@ -328,6 +355,31 @@ def validate(problem: Problem) -> ValidationResult:
                     severity="error",
                     message=f"group_limit max ({c.max}) must be non-negative.",
                 ))
+            if c.min < 0 or c.min > c.max:
+                issues.append(ValidationIssue(
+                    severity="error",
+                    message=f"group_limit min ({c.min}) must be between 0 and max ({c.max}).",
+                ))
+            # min vs the group's selectable size is checked in _check_constraint_conflicts
+            # (it accounts for force_excludes), so it isn't duplicated here.
+        elif c.type == "allocation_bound":
+            if c.option not in opt_names:
+                issues.append(ValidationIssue(
+                    severity="error",
+                    message=f"allocation_bound references unknown option '{c.option}'.",
+                ))
+            if not (0 <= c.min <= c.max <= 100):
+                issues.append(ValidationIssue(
+                    severity="error",
+                    message=(f"allocation_bound for '{c.option}' needs 0 <= min <= max <= 100, "
+                             f"got min={c.min}, max={c.max}."),
+                ))
+            if problem.approach != Approach.proportional:
+                issues.append(ValidationIssue(
+                    severity="warning",
+                    message=("allocation_bound constraint only applies to proportional mode; "
+                             "ignored in binary mode."),
+                ))
         elif c.type == "max_allocation":
             if not (1 <= c.max <= 100):
                 issues.append(ValidationIssue(
@@ -448,7 +500,9 @@ def _check_constraint_conflicts(
     layer only checks consistency among the constraint set itself.
 
     Issues caught:
-      A. GroupLimit vs force_include — |force_in ∩ group| > group.max
+      A. GroupLimit vs force_include — |force_in ∩ group| > group.max; and floor arithmetic —
+         min > selectable members after force_excludes, or disjoint floors summing past the
+         cardinality max
       B. ExclusionPair vs force_include — both members force-included
       C. Dependency cycles — A→B→…→A in the dependency graph
       D. Dependency vs force_exclude — if-option forced in but then-option forced out
@@ -456,7 +510,8 @@ def _check_constraint_conflicts(
     """
     issues: list[ValidationIssue] = []
 
-    # A. GroupLimit vs force_include
+    # A. GroupLimit vs force_include — and floor arithmetic (min vs force_exclude / cardinality)
+    group_floors: list = []
     for c in problem.constraints:
         if c.type == "group_limit":
             forced_in_group = forced_in.intersection(c.options)
@@ -466,6 +521,35 @@ def _check_constraint_conflicts(
                     message=(
                         f"group_limit max ({c.max}) is below the number of force_included options "
                         f"in the group ({len(forced_in_group)}): {sorted(forced_in_group)}."
+                    ),
+                ))
+            if c.min > 0:
+                group_floors.append(c)
+                selectable = [o for o in c.options if o not in forced_out]
+                if c.min > len(selectable):
+                    issues.append(ValidationIssue(
+                        severity="error",
+                        message=(
+                            f"group_limit min ({c.min}) exceeds the group's selectable members "
+                            f"({len(selectable)} after force_excludes) — the floor can never be met."
+                        ),
+                    ))
+    # Floors vs the cardinality cap: sound only over pairwise-disjoint floored groups
+    # (overlapping groups would double-count), so overlapping floors are left to the solver.
+    if group_floors:
+        card_max = next((c.max for c in problem.constraints if c.type == "cardinality"), None)
+        all_disjoint = all(
+            not set(a.options) & set(b.options)
+            for i, a in enumerate(group_floors) for b in group_floors[i + 1:]
+        )
+        if card_max is not None and all_disjoint:
+            floor_sum = sum(c.min for c in group_floors)
+            if floor_sum > card_max:
+                issues.append(ValidationIssue(
+                    severity="error",
+                    message=(
+                        f"group_limit floors sum to {floor_sum}, above the cardinality max "
+                        f"({card_max}) — the floors cannot all be met."
                     ),
                 ))
 
@@ -531,7 +615,7 @@ def _check_constraint_conflicts(
             if color[node] == WHITE:
                 _dfs(node, [])
 
-    # E. MaxAllocation arithmetic (proportional mode only)
+    # E. MaxAllocation / allocation_bound arithmetic (proportional mode only)
     if problem.approach == Approach.proportional:
         for c in problem.constraints:
             if c.type == "max_allocation":
@@ -543,6 +627,46 @@ def _check_constraint_conflicts(
                             f"{c.max * available}% < 100% required. Allocation cannot sum to 100."
                         ),
                     ))
+        ab = [c for c in problem.constraints if c.type == "allocation_bound"]
+        if ab:
+            floor_sum = sum(c.min for c in ab)
+            if floor_sum > 100:
+                issues.append(ValidationIssue(
+                    severity="error",
+                    message=(f"allocation_bound floors sum to {floor_sum}% > 100% — "
+                             "the floors cannot all be met."),
+                ))
+            global_cap_for_floors = next(
+                (c.max for c in problem.constraints if c.type == "max_allocation"), 100)
+            for c in ab:
+                eff_cap = min(global_cap_for_floors, c.max)
+                if c.min > eff_cap:
+                    issues.append(ValidationIssue(
+                        severity="error",
+                        message=(f"allocation_bound floor ({c.min}%) on '{c.option}' exceeds its "
+                                 f"effective cap ({eff_cap}% = min of the global max_allocation "
+                                 "and its own max) — the bound box is empty."),
+                    ))
+            for c in ab:
+                if c.min > 0 and c.option in forced_out:
+                    issues.append(ValidationIssue(
+                        severity="error",
+                        message=(f"allocation_bound floor ({c.min}%) on '{c.option}' conflicts "
+                                 "with force_exclude on the same option."),
+                    ))
+            global_cap = next((c.max for c in problem.constraints if c.type == "max_allocation"),
+                              None)
+            bounded = {c.option: c for c in ab}
+            cap_sum = sum(
+                min(global_cap or 100, bounded[o].max) if o in bounded else (global_cap or 100)
+                for o in (opt.name for opt in problem.options) if o not in forced_out
+            )
+            if cap_sum < 100:
+                issues.append(ValidationIssue(
+                    severity="error",
+                    message=(f"effective per-option caps sum to {cap_sum}% < 100% — "
+                             "allocation cannot sum to 100."),
+                ))
 
     return issues
 
@@ -560,8 +684,9 @@ def _parse_constraints(problem: Problem) -> dict:
     obj_bounds: list[tuple[int, BoundOperator, float]] = []
     exclusion_pairs: list[tuple[int, int]] = []
     dependencies: list[tuple[int, int]] = []  # (if_idx, then_idx)
-    group_limits: list[tuple[list[int], int]] = []  # (group_indices, max)
+    group_limits: list[tuple[list[int], int, int]] = []  # (group_indices, min, max)
     max_allocation: int | None = None  # max allocation % per option (proportional only)
+    allocation_bounds: dict[int, tuple[int, int]] = {}  # idx -> (min%, max%) (proportional only)
 
     for c in problem.constraints:
         if c.type == "force_include":
@@ -580,9 +705,11 @@ def _parse_constraints(problem: Problem) -> dict:
             dependencies.append((opt_index[c.if_option], opt_index[c.then_option]))
         elif c.type == "group_limit":
             group_indices = [opt_index[o] for o in c.options]
-            group_limits.append((group_indices, c.max))
+            group_limits.append((group_indices, int(c.min), int(c.max)))
         elif c.type == "max_allocation":
             max_allocation = c.max
+        elif c.type == "allocation_bound":
+            allocation_bounds[opt_index[c.option]] = (int(c.min), int(c.max))
 
     return {
         "forced_in": forced_in_idx,
@@ -594,8 +721,44 @@ def _parse_constraints(problem: Problem) -> dict:
         "dependencies": dependencies,
         "group_limits": group_limits,
         "max_allocation": max_allocation,
+        "allocation_bounds": allocation_bounds,
     }
 
+
+def _round_weights_to_pct(w_frac: np.ndarray, n_options: int, max_allocation: int | None,
+                          bounds_pct: "tuple[np.ndarray, np.ndarray] | None" = None) -> np.ndarray:
+    """Round continuous fractional weights → integer percentages summing to 100, matching the
+    NSGA proportional path's exact representation. ``bounds_pct`` = per-option integer
+    ``(lo, hi)`` vectors (allocation_bound constraints); rounding must not break a floor."""
+    x = np.asarray(w_frac, dtype=float) * 100.0
+    x = np.where(np.isfinite(x), x, 0.0)  # NaN/inf → 0 before the int cast
+    raw = np.maximum(np.round(x), 0).astype(int)
+    if max_allocation is not None:
+        raw = np.minimum(raw, max_allocation)
+    lo = hi = None
+    if bounds_pct is not None:
+        lo, hi = (np.asarray(v, dtype=int) for v in bounds_pct)
+        raw = np.clip(raw, lo, hi)
+    diff = 100 - int(raw.sum())
+    if diff != 0:
+        cap = np.full(n_options, max_allocation or 100, dtype=int)
+        if hi is not None:
+            cap = np.minimum(cap, hi)
+        floor = lo if lo is not None else np.zeros(n_options, dtype=int)
+        if diff > 0:
+            for _ in range(abs(diff)):
+                headroom = cap - raw
+                headroom[(raw == 0) & (floor == 0)] = 0  # don't create new holdings here
+                if headroom.max() <= 0:
+                    break
+                raw[np.argmax(headroom)] += 1
+        else:
+            for _ in range(abs(diff)):
+                slack = raw - floor
+                if slack.max() <= 0:
+                    break
+                raw[np.argmax(slack)] -= 1
+    return raw
 
 def _build_score_matrix(problem: Problem) -> np.ndarray:
     """Build score_matrix[opt_idx][obj_idx] from problem scores.
@@ -644,6 +807,53 @@ def _build_interaction_matrices(problem: Problem) -> dict[int, np.ndarray]:
                             M[opt_index[a], opt_index[b]] = val
             result[j] = M
     return result
+
+
+def _feasibility_witness_seed(problem: Problem, seeds: np.ndarray,
+                              score_matrix: np.ndarray) -> np.ndarray | None:
+    """One exact feasibility witness as a seed row — the audit probe seeding the explorer.
+
+    When objective_bound constraints couple the region (a budget cap plus a target floor), the
+    greedy per-objective corner seeds can all be infeasible — they respect forced/cardinality/
+    group constraints but not bounds — and the EA can then terminate with an empty feasible
+    front on a *provably feasible* problem (seed-dependent). One MILP feasibility witness
+    plants the population inside the band; NSGA expands the frontier from there.
+
+    Skipped when any existing corner seed already satisfies every objective bound (the common
+    case — the band only needs planting when the greedy corners all miss it), and served by
+    the engine-layer ``audit_milp`` probe directly, not ``audit()`` (whose presentation path
+    would run a full conflict diagnosis on an infeasible model, only for this helper to
+    discard it). Binary problems with HiGHS present only; silently absent otherwise (note:
+    this makes the seeded population — and thus the same-seed frontier — depend on whether
+    ``highspy`` is installed)."""
+    if problem.approach != Approach.binary:
+        return None
+    bounds = [(c.objective, getattr(c.operator, "value", c.operator), float(c.value))
+              for c in (problem.constraints or []) if c.type == "objective_bound"]
+    if not bounds:
+        return None
+    ocol = {o.name: j for j, o in enumerate(problem.objectives)}
+    if len(seeds) > 0:
+        vals = np.asarray(seeds, dtype=float) @ score_matrix   # (n_seeds, n_obj) sums
+        for row in vals:
+            if all((row[ocol[nm]] <= v + 1e-9) if op == "max" else (row[ocol[nm]] >= v - 1e-9)
+                   for nm, op, v in bounds if nm in ocol):
+                return None   # a corner seed is already inside the band
+    from solvers import available_solvers
+    if not available_solvers().get("highs"):
+        return None
+    # Same bound-encodability condition as audit's gate: bounds enter as linear sum rows.
+    if any(o.name in {nm for nm, _, _ in bounds} and o.aggregation != Aggregation.sum
+           for o in problem.objectives):
+        return None
+    from solvers._scalarization import audit_milp
+    from solvers.highs_backend import _audit_milp_highs
+
+    raw = audit_milp(problem, [[]], inner_audit=_audit_milp_highs)
+    if not raw["feasible"]:
+        return None
+    selected = set(raw["witness_options"])
+    return np.array([[1.0 if o.name in selected else 0.0 for o in problem.options]])
 
 
 def _compute_extreme_seeds(problem: Problem, score_matrix: np.ndarray, cp: dict) -> np.ndarray:
@@ -695,8 +905,25 @@ def _compute_extreme_seeds(problem: Problem, score_matrix: np.ndarray, cp: dict)
         selected = list(forced_in)
         group_counts = [0 for _ in group_limits]
         # Pre-count forced-ins against group caps
-        for g_idx, (g_indices, _g_max) in enumerate(group_limits):
+        for g_idx, (g_indices, _g_min, _g_max) in enumerate(group_limits):
             group_counts[g_idx] = sum(1 for idx in selected if idx in g_indices)
+
+        # Pre-fill floored groups to their minimum (best-ranked members first) before the
+        # greedy fill, so seeds start inside the floor region — the forced_in treatment,
+        # extended to group floors.
+        for g_idx, (g_indices, g_min, _g_max) in enumerate(group_limits):
+            for idx in order:
+                if group_counts[g_idx] >= g_min or len(selected) >= card_max:
+                    break
+                if idx not in g_indices or idx in forced_out or idx in selected:
+                    continue
+                if any(idx in gi and group_counts[gj] >= gm
+                       for gj, (gi, _gn, gm) in enumerate(group_limits) if gj != g_idx):
+                    continue
+                selected.append(int(idx))
+                for gj, (gi, _gn, _gm) in enumerate(group_limits):
+                    if idx in gi:
+                        group_counts[gj] += 1
 
         for idx in order:
             if len(selected) >= target_k:
@@ -705,14 +932,14 @@ def _compute_extreme_seeds(problem: Problem, score_matrix: np.ndarray, cp: dict)
                 continue
             # Check group caps
             ok = True
-            for g_idx, (g_indices, g_max) in enumerate(group_limits):
+            for g_idx, (g_indices, _g_min, g_max) in enumerate(group_limits):
                 if idx in g_indices and group_counts[g_idx] >= g_max:
                     ok = False
                     break
             if not ok:
                 continue
             selected.append(int(idx))
-            for g_idx, (g_indices, _g_max) in enumerate(group_limits):
+            for g_idx, (g_indices, _g_min, _g_max) in enumerate(group_limits):
                 if idx in g_indices:
                     group_counts[g_idx] += 1
 
@@ -1174,11 +1401,15 @@ def _negate_property(problem: Problem, prop) -> list[list[tuple]]:
         return [[(coef, "ge", 2.0)]]
     if t == "dependency":          # holds: if_option ⇒ then_option → witness: if ∧ ¬then
         return [[(unit(prop.if_option), "ge", 1.0), (unit(prop.then_option), "le", 0.0)]]
-    if t == "group_limit":         # holds: ≤max from group → witness: ≥max+1 from it
+    if t == "group_limit":   # holds: min ≤ group count ≤ max → witness: ≤min-1 OR ≥max+1
         coef = [0.0] * n
         for o in prop.options:
             coef[idx(o)] = 1.0
-        return [[(coef, "ge", prop.max + 1)]]
+        disjuncts = []
+        if int(prop.min) > 0:
+            disjuncts.append([(coef, "le", prop.min - 1)])
+        disjuncts.append([(coef, "ge", prop.max + 1)])
+        return disjuncts
     if t == "cardinality":         # holds: min ≤ count ≤ max → witness: count≤min-1 OR count≥max+1
         ones = [1.0] * n
         disjuncts = []
@@ -1192,9 +1423,9 @@ def _negate_property(problem: Problem, prop) -> list[list[tuple]]:
             raise ValueError(f"audit property references unknown objective '{prop.objective}'.")
         obj = problem.objectives[ocol[prop.objective]]
         if obj.aggregation != Aggregation.sum:
-            # The witness row J = col·x equals the objective ONLY under sum aggregation. The audit
-            # gate (exact_solver_fits) already forces sum on binary, so this guards against a future
-            # gate change silently making the bound linear-but-wrong (avg/min/max/quadratic ≠ col·x).
+            # The witness row J = col·x equals the objective ONLY under sum aggregation. The
+            # audit gate covers bounds in the MODEL's constraints; bound PROPERTIES arrive here
+            # directly, so this guard is load-bearing — not redundant with the gate.
             raise ValueError(
                 f"audit objective_bound needs a sum-aggregated objective; '{prop.objective}' uses "
                 f"'{obj.aggregation.value}'.")
@@ -1277,15 +1508,17 @@ def audit(problem: Problem, prop=None, solver: str = "highs") -> dict:
     With ``prop=None`` it *probes feasibility* — "is any plan feasible under the current
     constraints?". With ``prop`` (a ``Constraint``) it *proves a guarantee* — does the property hold
     for EVERY feasible plan (the negation is infeasible across the whole region, not a sample), or is
-    there a concrete counterexample witness? Binary selection only in v1 (the exact MILP feasibility
-    path).
+    there a concrete counterexample witness? With a *list* of constraints it proves the conjunction —
+    a compound guarantee holds iff every conjunct holds, so each gets its own feasibility solve and
+    the payload carries a per-property breakdown. Binary selection only in v1 (the exact MILP
+    feasibility path).
 
     Returns a structured verdict dict (``verdict`` ∈ feasible / no_feasible_plan / violated / holds /
     holds_vacuously / inconclusive). **Raises ``ValueError`` when the shape or backend can't serve an
-    audit** (non-binary, non-sum aggregation, or HiGHS not installed) — the same hard-decline
-    convention as ``solve``'s exact gate and ``certify``'s precondition, never a silent or structured
-    degradation."""
-    from solvers import available_solvers, exact_solver_fits
+    audit** (non-binary, an objective_bound on a non-sum objective, or HiGHS not installed) — the
+    same hard-decline convention as ``solve``'s exact gate and ``certify``'s precondition, never a
+    silent or structured degradation."""
+    from solvers import available_solvers
     from solvers._scalarization import audit_milp
 
     if solver != "highs":
@@ -1294,9 +1527,21 @@ def audit(problem: Problem, prop=None, solver: str = "highs") -> dict:
         raise ValueError(
             "audit v1 supports binary selection problems; a proportional/continuous feasibility "
             "audit is not yet implemented — explore the allocation frontier with the EA instead.")
-    fits, why = exact_solver_fits(problem)
-    if not fits:
-        raise ValueError(f"audit reuses the exact MILP encoding, which declines this shape: {why}")
+    # Audit is a *feasibility* solve over the constraint region: objectives enter the encoding only
+    # through objective_bound rows (linear in the score matrix — exact under sum aggregation only).
+    # Gate on exactly that rather than the full exact-solve shape: an avg/min/max/quadratic
+    # objective that no bound touches doesn't shape the region, so e.g. a binary problem with a
+    # quadratic interaction objective still audits. ``_negate_property`` re-guards bound
+    # *properties* the same way.
+    bound_objs = {c.objective for c in (problem.constraints or []) if c.type == "objective_bound"}
+    by_name = {o.name: o for o in problem.objectives}
+    nonsum = sorted(n for n in bound_objs
+                    if n in by_name and by_name[n].aggregation != Aggregation.sum)
+    if nonsum:
+        raise ValueError(
+            "audit encodes objective_bound constraints as linear (sum) rows; "
+            f"{', '.join(nonsum)} use a non-sum aggregation, so the bounded region can't be "
+            "encoded exactly. Drop or re-aggregate those bounds to audit.")
     if not available_solvers().get("highs"):
         raise ValueError("audit needs the HiGHS exact backend — `pip install highspy`.")
     # Score completeness is enforced at the root by _build_score_matrix (a worded decline,
@@ -1304,14 +1549,20 @@ def audit(problem: Problem, prop=None, solver: str = "highs") -> dict:
 
     from solvers.highs_backend import _audit_milp_highs
 
-    disjuncts = _negate_property(problem, prop)   # raises ValueError on unknown option/objective
-    raw = audit_milp(problem, disjuncts, inner_audit=_audit_milp_highs)
-    statuses = raw["statuses"]                    # raw solver statuses drive the verdict; surfaced only on inconclusive
-    is_probe = prop is None
+    # Normalize: None (probe), one property, or a conjunction (list — holds iff every conjunct holds).
+    if isinstance(prop, (list, tuple)):
+        if not prop:
+            raise ValueError(
+                "audit property list is empty — pass one or more constraint-shaped properties, "
+                "or omit the property to probe feasibility.")
+        props = list(prop)
+    else:
+        props = None if prop is None else [prop]
+
     # Pin the audited region so a `holds` is self-certifying — the guarantee is conditional on
     # exactly these constraints, the traceable-claims convention the explore analytics follow.
     base = {
-        "audit_kind": "feasibility_probe" if is_probe else "property_audit",
+        "audit_kind": "feasibility_probe" if props is None else "property_audit",
         "solver": "highs",
         "feasible_region": {
             "approach": problem.approach.value,
@@ -1320,44 +1571,84 @@ def audit(problem: Problem, prop=None, solver: str = "highs") -> dict:
         },
     }
 
-    if raw["feasible"]:
-        names = raw["witness_options"]
+    def _witness(names: list[str]) -> dict:
         sl = score_slate(problem, names)
-        return {**base, "verdict": "feasible" if is_probe else "violated",
-                "witness": {"selected_options": names,
-                            "objective_values": sl["values"], "feasible": sl["feasible"]}}
+        return {"selected_options": names,
+                "objective_values": sl["values"], "feasible": sl["feasible"]}
 
-    if all(s == "Infeasible" for s in statuses):
-        if is_probe:
+    def _stopped(statuses) -> list[str]:
+        # Any status besides Optimal / Infeasible (time limit, iteration limit, solver error, …)
+        # proves nothing in either direction; keep the raw statuses so the stop cause is traceable.
+        return sorted({s for s in statuses if s != "Infeasible"})
+
+    if props is None:
+        raw = audit_milp(problem, [[]], inner_audit=_audit_milp_highs)
+        if raw["feasible"]:
+            return {**base, "verdict": "feasible", "witness": _witness(raw["witness_options"])}
+        if all(s == "Infeasible" for s in raw["statuses"]):
             return {**base, "verdict": "no_feasible_plan", "witness": None,
                     "conflicts": diagnose_conflicts(problem)}
-        # Negation infeasible — but confirm the feasible region isn't itself empty, else "holds" is
-        # only vacuously true (the classic "num_points==0 ≠ PASS" trap from feasibility auditing).
-        nonempty = audit_milp(problem, [[]], inner_audit=_audit_milp_highs)
-        if not nonempty["feasible"]:
-            # "Empty region" is itself a claim needing a solver-proven Infeasible; a probe that
-            # stopped early (time limit / error) is not evidence of emptiness.
-            if all(s == "Infeasible" for s in nonempty["statuses"]):
-                return {**base, "verdict": "holds_vacuously", "witness": None,
-                        "note": "the feasible region is empty — the property holds only vacuously; "
-                                "probe feasibility first (audit with no property).",
-                        "conflicts": diagnose_conflicts(problem)}
-            return {**base, "verdict": "holds", "witness": None,
-                    "note": "the negation is proven infeasible, so the property holds for every "
-                            "feasible plan — but the non-emptiness probe stopped without a verdict "
-                            f"(HiGHS: {', '.join(sorted(set(nonempty['statuses'])))}), so whether any "
-                            "feasible plan exists is unconfirmed; probe feasibility (audit with no "
-                            "property) to check."}
-        return {**base, "verdict": "holds", "witness": None}
+        stopped = _stopped(raw["statuses"])
+        return {**base, "verdict": "inconclusive", "witness": None, "solver_status": stopped,
+                "reason": f"the feasibility solve stopped without a verdict (HiGHS: {', '.join(stopped)}) — "
+                          "INCONCLUSIVE, not evidence either way; simplify the model and re-probe."}
 
-    # Any status besides Optimal / Infeasible (time limit, iteration limit, solver error, …) proves
-    # nothing in either direction. Attach the raw statuses so the stop cause is traceable.
-    stopped = sorted({s for s in statuses if s != "Infeasible"})
-    return {**base, "verdict": "inconclusive", "witness": None,
-            "solver_status": stopped,
-            "reason": f"the feasibility solve stopped without a verdict (HiGHS: {', '.join(stopped)}) — "
-                      "INCONCLUSIVE, not evidence either way; " + ("simplify the model and re-probe."
-                      if is_probe else "narrow the property or simplify the model.")}
+    # Property audit — every conjunct gets its own feasibility solve of its negation. All conjuncts
+    # are evaluated even after a violation, so the breakdown names each guarantee's own verdict.
+    per_prop: list[dict] = []
+    witness = None
+    violated_prop: dict | None = None
+    stopped_all: set[str] = set()
+    for p in props:
+        disjuncts = _negate_property(problem, p)   # raises ValueError on unknown option/objective
+        raw = audit_milp(problem, disjuncts, inner_audit=_audit_milp_highs)
+        if raw["feasible"]:
+            verdict = "violated"
+            if witness is None:
+                witness = _witness(raw["witness_options"])
+                violated_prop = p.model_dump(mode="json")
+        elif all(s == "Infeasible" for s in raw["statuses"]):
+            verdict = "holds"
+        else:
+            verdict = "inconclusive"
+            stopped_all.update(_stopped(raw["statuses"]))
+        per_prop.append({"property": p.model_dump(mode="json"), "verdict": verdict})
+    conj = {"properties": per_prop} if len(props) > 1 else {}
+
+    stopped = sorted(stopped_all)
+    status_note = ({"solver_status": stopped} if stopped else {})
+    if witness is not None:
+        # A violation is a definitive verdict, but a sibling conjunct whose solve stopped
+        # still surfaces its stop cause — its breakdown entry says `inconclusive`, and the
+        # caller needs the raw status to tell solver-stop from model complexity.
+        out = {**base, "verdict": "violated", "witness": witness, **conj, **status_note}
+        if len(props) > 1:
+            out["violated_property"] = violated_prop
+        return out
+    if any(r["verdict"] == "inconclusive" for r in per_prop):
+        return {**base, "verdict": "inconclusive", "witness": None, **conj,
+                "solver_status": stopped,
+                "reason": f"the feasibility solve stopped without a verdict (HiGHS: {', '.join(stopped)}) — "
+                          "INCONCLUSIVE, not evidence either way; narrow the property or simplify "
+                          "the model."}
+    # Every conjunct's negation is proven infeasible — but confirm the feasible region isn't itself
+    # empty, else "holds" is only vacuously true (the classic "num_points==0 ≠ PASS" trap). "Empty
+    # region" is itself a claim needing a solver-proven Infeasible; a probe that stopped early
+    # (time limit / error) is not evidence of emptiness.
+    nonempty = audit_milp(problem, [[]], inner_audit=_audit_milp_highs)
+    if not nonempty["feasible"]:
+        if all(s == "Infeasible" for s in nonempty["statuses"]):
+            return {**base, "verdict": "holds_vacuously", "witness": None, **conj,
+                    "note": "the feasible region is empty — the property holds only vacuously; "
+                            "probe feasibility first (audit with no property).",
+                    "conflicts": diagnose_conflicts(problem)}
+        return {**base, "verdict": "holds", "witness": None, **conj,
+                "note": "the negation is proven infeasible, so the property holds for every "
+                        "feasible plan — but the non-emptiness probe stopped without a verdict "
+                        f"(HiGHS: {', '.join(sorted(set(nonempty['statuses'])))}), so whether any "
+                        "feasible plan exists is unconfirmed; probe feasibility (audit with no "
+                        "property) to check."}
+    return {**base, "verdict": "holds", "witness": None, **conj}
 
 
 def optimize_scenarios(
@@ -1490,6 +1781,9 @@ def _optimize_binary(
     )
 
     seeds = _compute_extreme_seeds(problem, score_matrix, cp)
+    witness = _feasibility_witness_seed(problem, seeds, score_matrix)
+    if witness is not None:
+        seeds = np.vstack([seeds, witness]) if len(seeds) > 0 else witness
     algorithm, n_gen = _tune_parameters(problem, mode, seed_population=seeds if len(seeds) > 0 else None)
 
     with _seeded_rng_fallback(seed):  # make pymoo's unseeded survival/selection RNG deterministic
@@ -1561,32 +1855,21 @@ def _optimize_proportional(
     # Elite preservation: union extreme-point seeds with result, keep Pareto front.
     union_X, union_F = _union_with_elites(result, pymoo_problem, seeds if len(seeds) > 0 else None)
 
+    ab = cp.get("allocation_bounds") or {}
+    bounds_pct = None
+    if ab:
+        lo = np.zeros(n_options, dtype=int)
+        hi = np.full(n_options, int(cp.get("max_allocation") or 100), dtype=int)
+        for i, (l, h) in ab.items():
+            lo[i], hi[i] = int(l), min(int(hi[i]), int(h))
+        bounds_pct = (lo, hi)
     solutions: list[Solution] = []
     if union_F is not None and len(union_F) > 0:
         for idx, (x, f) in enumerate(zip(union_X, union_F)):
-            # Round to integers and normalize to sum to 100
-            raw = np.maximum(np.round(x), 0).astype(int)
-            # Clamp to max_allocation before redistributing
-            if cp.get("max_allocation") is not None:
-                raw = np.minimum(raw, cp["max_allocation"])
-            # Redistribute rounding error across eligible variables
-            diff = 100 - raw.sum()
-            if diff != 0:
-                cap = cp.get("max_allocation") or 100
-                if diff > 0:
-                    # Need to add: distribute to variables with most headroom
-                    for _ in range(abs(diff)):
-                        headroom = cap - raw
-                        headroom[raw == 0] = 0  # don't create new holdings here
-                        if headroom.max() <= 0:
-                            break
-                        raw[np.argmax(headroom)] += 1
-                else:
-                    # Need to remove: take from largest allocations
-                    for _ in range(abs(diff)):
-                        if raw.max() <= 0:
-                            break
-                        raw[np.argmax(raw)] -= 1
+            # Round to integer percents summing to 100 via the shared helper (also used by
+            # the exact overlay), so per-option allocation bounds survive the rounding.
+            raw = _round_weights_to_pct(np.asarray(x, dtype=float) / 100.0, n_options,
+                                        cp.get("max_allocation"), bounds_pct)
 
             allocs = {opt_names[i]: int(raw[i]) for i in range(n_options)}
             selected = [opt_names[i] for i in range(n_options) if raw[i] > 0]
@@ -1707,8 +1990,9 @@ class _FrontierProblem(PymooProblem):
         obj_bounds: list[tuple[int, BoundOperator, float]],
         exclusion_pairs: list[tuple[int, int]] | None = None,
         dependencies: list[tuple[int, int]] | None = None,
-        group_limits: list[tuple[list[int], int]] | None = None,
+        group_limits: list[tuple[list[int], int, int]] | None = None,  # (indices, min, max)
         max_allocation: int | None = None,  # ignored for binary mode
+        allocation_bounds: dict | None = None,  # ignored for binary mode (proportional-only)
         interaction_matrices: dict[int, np.ndarray] | None = None,
     ):
         exclusion_pairs = exclusion_pairs or []
@@ -1723,6 +2007,7 @@ class _FrontierProblem(PymooProblem):
         n_ieq += len(exclusion_pairs)  # x[a] + x[b] <= 1
         n_ieq += len(dependencies)     # x[a] - x[b] <= 0
         n_ieq += len(group_limits)     # sum(group) <= max
+        n_ieq += sum(1 for _, g_min, _ in group_limits if g_min > 0)  # sum(group) >= min
 
         super().__init__(
             n_var=n_options,
@@ -1836,10 +2121,12 @@ class _FrontierProblem(PymooProblem):
         for if_idx, then_idx in self.dependencies:
             G.append(X_bin[:, if_idx] - X_bin[:, then_idx])
 
-        # Group limits: sum(x[i] for i in group) <= max
-        for group_indices, max_count in self.group_limits:
+        # Group limits: min <= sum(x[i] for i in group) <= max
+        for group_indices, min_count, max_count in self.group_limits:
             group_sum = sum(X_bin[:, i] for i in group_indices)
             G.append(group_sum - max_count)
+            if min_count > 0:
+                G.append(min_count - group_sum)
 
         out["G"] = np.column_stack(G) if G else np.zeros((n_pop, 0))
 
@@ -1859,8 +2146,9 @@ class _ProportionalProblem(PymooProblem):
         obj_bounds: list[tuple[int, BoundOperator, float]],
         exclusion_pairs: list[tuple[int, int]] | None = None,
         dependencies: list[tuple[int, int]] | None = None,
-        group_limits: list[tuple[list[int], int]] | None = None,
+        group_limits: list[tuple[list[int], int, int]] | None = None,  # (indices, min, max)
         max_allocation: int | None = None,
+        allocation_bounds: dict | None = None,  # idx -> (min%, max%)
         interaction_matrices: dict[int, np.ndarray] | None = None,
     ):
         exclusion_pairs = exclusion_pairs or []
@@ -1869,8 +2157,10 @@ class _ProportionalProblem(PymooProblem):
 
         n_ieq = 2 + 2 + len(forced_in) + len(forced_out) + len(obj_bounds)
         n_ieq += len(exclusion_pairs) + len(dependencies) + len(group_limits)
+        n_ieq += sum(1 for _, g_min, _ in group_limits if g_min > 0)  # active-count >= min
         if max_allocation is not None:
             n_ieq += n_options  # one constraint per option
+        n_ieq += 2 * len(allocation_bounds or {})   # per-option lo/hi rows
 
         xu = max_allocation if max_allocation is not None else 100
 
@@ -1892,6 +2182,16 @@ class _ProportionalProblem(PymooProblem):
         self.dependencies = dependencies
         self.group_limits = group_limits
         self.max_allocation = max_allocation
+        self.allocation_bounds = allocation_bounds or {}
+        # Box vectors in percent for the repair operator (0 / effective cap where unbounded).
+        eff_cap = float(max_allocation) if max_allocation is not None else 100.0
+        self.alloc_lo = np.zeros(n_options)
+        self.alloc_hi = np.full(n_options, eff_cap)
+        for i, (lo, hi) in self.allocation_bounds.items():
+            self.alloc_lo[i] = float(lo)
+            self.alloc_hi[i] = min(eff_cap, float(hi))
+        self._bound_idx = (np.fromiter(self.allocation_bounds, dtype=int)
+                           if self.allocation_bounds else None)
         self.interaction_matrices = interaction_matrices or {}
 
     def _aggregate_objective(self, X: np.ndarray, j: int) -> np.ndarray:
@@ -1989,10 +2289,18 @@ class _ProportionalProblem(PymooProblem):
         for if_idx, then_idx in self.dependencies:
             G.append(allocated[:, if_idx] - allocated[:, then_idx])
 
-        # Group limits: count of allocated in group <= max
-        for group_indices, max_count in self.group_limits:
+        # Group limits: min <= count of allocated in group <= max
+        for group_indices, min_count, max_count in self.group_limits:
             group_sum = sum(allocated[:, i] for i in group_indices)
             G.append(group_sum - max_count)
+            if min_count > 0:
+                G.append(min_count - group_sum)
+
+        # Per-option allocation bounds: lo <= x[i] <= hi (allocation_bound constraints)
+        if self._bound_idx is not None:
+            Xb = X[:, self._bound_idx]
+            G.append(self.alloc_lo[self._bound_idx] - Xb)
+            G.append(Xb - self.alloc_hi[self._bound_idx])
 
         # Max position: each allocation <= max_allocation
         if self.max_allocation is not None:
@@ -2027,7 +2335,7 @@ def analyze_infeasibility(problem: Problem) -> dict:
     forced_out = {c.option for c in problem.constraints if c.type == "force_exclude"}
     exclusion_pairs = [(c.option_a, c.option_b) for c in problem.constraints if c.type == "exclusion_pair"]
     dependencies = [(c.if_option, c.then_option) for c in problem.constraints if c.type == "dependency"]
-    group_limits = [(c.options, c.max) for c in problem.constraints if c.type == "group_limit"]
+    group_limits = [(c.options, int(c.min), c.max) for c in problem.constraints if c.type == "group_limit"]
     card_min, card_max = 1, n_options
     obj_bounds = []
     for c in problem.constraints:
@@ -2107,10 +2415,11 @@ def analyze_infeasibility(problem: Problem) -> dict:
             if if_opt in selected and then_opt not in selected:
                 return False
         # Group limits
-        for group_opts, max_count in group_limits:
-            if skip_constraint == f"group_limit:{','.join(group_opts)}:{max_count}":
+        for group_opts, min_count, max_count in group_limits:
+            if skip_constraint == f"group_limit:{','.join(group_opts)}:{min_count}:{max_count}":
                 continue
-            if sum(1 for o in group_opts if o in selected) > max_count:
+            in_group = sum(1 for o in group_opts if o in selected)
+            if in_group > max_count or in_group < min_count:
                 return False
         return True
 
@@ -2156,7 +2465,7 @@ def analyze_infeasibility(problem: Problem) -> dict:
             )
         elif c.type == "group_limit":
             constraint_labels.append(
-                (f"group_limit:{','.join(c.options)}:{c.max}", c.model_dump())
+                (f"group_limit:{','.join(c.options)}:{int(c.min)}:{c.max}", c.model_dump())
             )
         elif c.type == "max_allocation":
             # max_allocation is proportional-only; skip in binary feasibility analysis

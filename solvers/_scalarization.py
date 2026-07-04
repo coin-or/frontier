@@ -108,11 +108,13 @@ def _cardinality_k(problem: Problem) -> int | None:
     return int(k) if (k is not None and k < n) else None
 
 
-def _group_limits(problem: Problem) -> list[tuple[list[int], int]]:
-    """Per-group caps from ``group_limit`` constraints → ``[(option-index-list, max), …]``,
-    driving group-aware support selection (e.g. ≤3 active per region)."""
+def _group_limits(problem: Problem) -> list[tuple[list[int], int, int]]:
+    """Per-group bounds from ``group_limit`` constraints → ``[(option-index-list, min, max), …]``.
+    Caps drive group-aware support selection (e.g. ≤3 active per region); floors are MILP rows
+    on the binary path (the proportional exact gate declines them — a count of active options
+    is combinatorial, outside the QP/LP scope)."""
     ix = {o.name: i for i, o in enumerate(problem.options)}
-    return [([ix[o] for o in c.options], int(c.max))
+    return [([ix[o] for o in c.options], int(getattr(c, "min", 0) or 0), int(c.max))
             for c in (problem.constraints or []) if getattr(c, "type", "") == "group_limit"]
 
 
@@ -141,38 +143,16 @@ def _build_milp_data(problem: Problem):
         elif t == "exclusion_pair":
             mc["excl"].append((ix[c.option_a], ix[c.option_b]))
         elif t == "group_limit":
-            mc["groups"].append(([ix[o] for o in c.options], int(c.max)))
+            mc["groups"].append(([ix[o] for o in c.options], int(getattr(c, "min", 0) or 0), int(c.max)))
     return n, names, S, dirs, mc
 
 
 # --------------------------------------------------------------------------- #
 # Numeric helpers (pure)
 # --------------------------------------------------------------------------- #
-def _round_weights_to_pct(w_frac: np.ndarray, n_options: int, max_allocation: int | None) -> np.ndarray:
-    """Round continuous fractional weights → integer percentages summing to 100, matching the
-    NSGA proportional path's exact representation."""
-    x = np.asarray(w_frac, dtype=float) * 100.0
-    x = np.where(np.isfinite(x), x, 0.0)  # NaN/inf → 0 before the int cast
-    raw = np.maximum(np.round(x), 0).astype(int)
-    if max_allocation is not None:
-        raw = np.minimum(raw, max_allocation)
-    diff = 100 - int(raw.sum())
-    if diff != 0:
-        cap = max_allocation or 100
-        if diff > 0:
-            for _ in range(abs(diff)):
-                headroom = cap - raw
-                headroom[raw == 0] = 0  # don't create new holdings here
-                if headroom.max() <= 0:
-                    break
-                raw[np.argmax(headroom)] += 1
-        else:
-            for _ in range(abs(diff)):
-                if raw.max() <= 0:
-                    break
-                raw[np.argmax(raw)] -= 1
-    return raw
-
+# _round_weights_to_pct lives in engine.optimizer (shared with the NSGA
+# proportional path); re-exported here for the backends.
+_round_weights_to_pct = _opt._round_weights_to_pct
 
 def _nearest_psd(M: np.ndarray, rel_floor: float = 1e-8) -> np.ndarray:
     """Project a symmetric matrix onto the PSD cone by clipping eigenvalues up to a small
@@ -187,16 +167,37 @@ def _nearest_psd(M: np.ndarray, rel_floor: float = 1e-8) -> np.ndarray:
     return 0.5 * (A_psd + A_psd.T)  # re-symmetrize away float asymmetry
 
 
-def _qp_weights_ok(weights: "np.ndarray | None", ub: float, tol: float = 1e-3) -> bool:
+def _weight_box(n, max_weight, min_weight, support):
+    """Per-variable ``(ubs, lbs)`` lists from scalar-or-vector bounds; off-``support`` assets
+    pin to a zero box. A floored asset dropped from support makes the box infeasible
+    (lb>ub=0) — the inner solver reports infeasible and the EA discards that support choice,
+    which is correct. Shared by the HiGHS and cuOpt inner solves."""
+    ub_vec = np.broadcast_to(np.asarray(max_weight if max_weight is not None else 1.0,
+                                        dtype=float), (n,))
+    lb_vec = np.broadcast_to(np.asarray(min_weight if min_weight is not None else 0.0,
+                                        dtype=float), (n,))
+    if support is None:
+        return [float(u) for u in ub_vec], [float(l) for l in lb_vec]
+    supp = {int(i) for i in support}
+    # Off-support: ub pins to 0; the lb keeps its floor so a floored asset dropped from
+    # support is infeasible AT THE SOLVER (lb>ub), not merely rejected by the post-gate.
+    return ([float(ub_vec[i]) if i in supp else 0.0 for i in range(n)],
+            [float(lb_vec[i]) for i in range(n)])
+
+
+def _qp_weights_ok(weights: "np.ndarray | None", ub, lb=None, *, tol: float = 1e-3) -> bool:
     """Feasibility gate on a QP solver's *returned* weights — not just its status. First-order
     QP solvers can terminate 'solved' on a degenerate point whose weights are non-finite or
-    violate Σw=1 / the [0, ub] box; the downstream aggregation then explodes one point and
-    blows out the frontier. Reject those here so the scalarization is treated as infeasible."""
+    violate Σw=1 / the [lb, ub] box; the downstream aggregation then explodes one point and
+    blows out the frontier. Reject those here so the scalarization is treated as infeasible.
+    ``ub``/``lb`` are a scalar or a per-option vector (allocation_bound constraints)."""
     if weights is None or not np.all(np.isfinite(weights)):
         return False
     if abs(float(weights.sum()) - 1.0) > tol:
         return False
-    return bool(weights.min() >= -1e-6 and weights.max() <= ub + 1e-4)
+    ub_vec = np.broadcast_to(np.asarray(ub if ub is not None else 1.0, dtype=float), weights.shape)
+    lb_vec = np.broadcast_to(np.asarray(lb if lb is not None else 0.0, dtype=float), weights.shape)
+    return bool(np.all(weights >= lb_vec - 1e-6) and np.all(weights <= ub_vec + 1e-4))
 
 
 def _nondominated(solutions: list[Solution], obj_list: list) -> list[Solution]:
@@ -256,28 +257,105 @@ def _seed_cardinality_population(linear_coefs, cov, eps_bounds, k, pop, seed) ->
 # flow through the same inner solves and marshaling as every other point (dedup'd by content
 # signature, dominance-filtered), so the change is strictly additive.
 # --------------------------------------------------------------------------- #
-def _box_extreme(coef, maximize, max_weight) -> float:
-    """Feasible extreme of a linear objective over the budget+box region (Σw=1, 0≤w≤cap),
-    closed form: fill the best assets to the cap. Unlike ``coef.max()`` (the best single
-    asset), this value is reachable under a max-allocation cap, so it makes a solvable
-    epsilon target for an anchor corner."""
+def _box_extreme(coef, maximize, max_weight, min_weight=None) -> float:
+    """Feasible extreme of a linear objective over the budget+box region (Σw=1, lo≤w≤cap),
+    closed form: satisfy every floor, then fill the best assets to their caps. Unlike
+    ``coef.max()`` (the best single asset), this value is reachable under the box, so it
+    makes a solvable epsilon target for an anchor corner. ``max_weight``/``min_weight``
+    are a scalar or per-option vector."""
     coef = np.asarray(coef, dtype=float)
-    cap = max_weight if max_weight is not None else 1.0
+    n = len(coef)
+    cap = np.broadcast_to(np.asarray(max_weight if max_weight is not None else 1.0,
+                                     dtype=float), (n,)).copy()
+    lo = np.broadcast_to(np.asarray(min_weight if min_weight is not None else 0.0,
+                                    dtype=float), (n,)).copy()
     order = np.argsort(coef)
     if maximize:
         order = order[::-1]
-    w = np.zeros(len(coef))
-    remaining = 1.0
+    w = lo.copy()                       # floors first — they're spent budget
+    remaining = 1.0 - float(lo.sum())
     for i in order:
-        take = min(cap, remaining)
-        w[i] = take
+        take = min(cap[i] - w[i], max(remaining, 0.0))
+        w[i] += take
         remaining -= take
         if remaining <= 1e-12:
             break
     return float(coef @ w)
 
 
-def _prop_anchor_rows(linear_coefs, linear_maximize, max_weight, include_primary_eps) -> list:
+def _allocation_bound_vectors(problem: Problem, cp: dict):
+    """Per-option weight-fraction ``(lo, hi)`` vectors from ``allocation_bound`` constraints
+    AND the force_include / force_exclude sets, or ``(None, None)`` when none apply. ``hi``
+    folds in the global ``max_allocation`` cap (effective cap = min of the two).
+    force_exclude pins ``hi`` to 0; force_include lifts ``lo`` to 1% — the engine's activity
+    grid (NSGA treats >0.5% as active on the integer-percent representation), so the exact
+    paths honor the same membership constraints the EA enforces."""
+    ab = cp.get("allocation_bounds") or {}
+    forced_in = cp.get("forced_in") or set()
+    forced_out = cp.get("forced_out") or set()
+    if not ab and not forced_in and not forced_out:
+        return None, None
+    n = len(problem.options)
+    cap = (cp["max_allocation"] / 100.0) if cp.get("max_allocation") else 1.0
+    lo, hi = np.zeros(n), np.full(n, cap)
+    for i, (l, h) in ab.items():
+        lo[i] = l / 100.0
+        hi[i] = min(cap, h / 100.0)
+    for i in forced_in:
+        lo[i] = max(lo[i], 0.01)
+    for i in forced_out:
+        hi[i] = 0.0
+        lo[i] = 0.0
+    return lo, hi
+
+
+def _model_bound_rows(problem: Problem, score_matrix) -> tuple[list, list[str]]:
+    """Model-level ``objective_bound`` constraints as permanent linear rows for the proportional
+    inner solves — ``(rows, bounded_objective_names)`` with each row ``(coef, target, floor_bool)``
+    in the extra_linears/eps_list tuple shape (floor_bool True → coef·w ≥ target). NSGA enforces
+    these as G rows and the binary MILP as matrix rows; without this the exact proportional
+    overlay could return points outside the model's own bounds. Linear rows are exact for sum
+    and avg aggregation alike (Σw=1 makes them equal); bounds on min/max/quadratic objectives
+    never reach here — ``exact_solver_fits`` declines those shapes. The names list mirrors row
+    order (constraint order), the contract ``_build_solution_sensitivity`` uses to label each
+    model-bound dual."""
+    ocol = {o.name: j for j, o in enumerate(problem.objectives)}
+    agg = {o.name: getattr(o.aggregation, "value", o.aggregation) for o in problem.objectives}
+    rows, names = [], []
+    for c in (problem.constraints or []):
+        if getattr(c, "type", "") == "objective_bound" and agg.get(c.objective) in ("sum", "avg"):
+            j = ocol[c.objective]
+            rows.append((score_matrix[:, j].astype(float), float(c.value),
+                         getattr(c.operator, "value", c.operator) == "min"))
+            names.append(c.objective)
+    return rows, names
+
+
+def _prop_bound_context(problem: Problem, cp: dict, score_matrix):
+    """The proportional exact paths' shared bound context, built once per path:
+    ``(model_rows, bound_names, max_weight, min_weight, bounds_pct, quad_caps)``. One
+    construction site keeps the row/name order coupling, the cap folding, and the rounding box
+    in lockstep across optimize_qp / optimize_lp / certify_curated_frontier. ``quad_caps`` are
+    the model's MAX bounds on quadratic objectives — not encodable as rows; the assemblies
+    filter returned points against them (exact, because each inner solve minimizes the
+    quadratic: a violating point proves its epsilon-targets infeasible)."""
+    model_rows, bound_names = _model_bound_rows(problem, score_matrix)
+    max_weight = (cp["max_allocation"] / 100.0) if cp.get("max_allocation") else None
+    min_weight, _hi_vec = _allocation_bound_vectors(problem, cp)
+    if _hi_vec is not None:
+        max_weight = _hi_vec
+    bounds_pct = ((np.round(min_weight * 100).astype(int), np.round(_hi_vec * 100).astype(int))
+                  if min_weight is not None else None)
+    quad = {o.name for o in problem.objectives
+            if getattr(o.aggregation, "value", o.aggregation) == "quadratic"}
+    quad_caps = [(c.objective, float(c.value)) for c in (problem.constraints or [])
+                 if getattr(c, "type", "") == "objective_bound" and c.objective in quad
+                 and getattr(c.operator, "value", c.operator) == "max"]
+    return model_rows, bound_names, max_weight, min_weight, bounds_pct, quad_caps
+
+
+def _prop_anchor_rows(linear_coefs, linear_maximize, max_weight, include_primary_eps,
+                      min_weight=None) -> list:
     """Anchor epsilon-rows for the proportional exact paths. One all-loose row — every floor
     trivially satisfied, so the inner solve lands on the minimand's own corner (min-variance
     for the QP, best-primary for the LP) — plus one row per epsilon'd objective pinning it at
@@ -292,7 +370,7 @@ def _prop_anchor_rows(linear_coefs, linear_maximize, max_weight, include_primary
     rows = [np.array(loose, dtype=float)]
     for k in range(len(coefs)):
         row = list(loose)
-        row[k] = _box_extreme(coefs[k], maxs[k], max_weight)
+        row[k] = _box_extreme(coefs[k], maxs[k], max_weight, min_weight)
         rows.append(np.array(row, dtype=float))
     return rows
 
@@ -338,7 +416,8 @@ def _milp_anchor_sels(S, dirs, mc, n, inner_milp, exact, first_stage=None) -> li
 # --------------------------------------------------------------------------- #
 # QP genome (proportional mean-variance)
 # --------------------------------------------------------------------------- #
-def _solve_individual(cov, linear_coefs, linear_maximize, max_weight, eps, support, inner_qp):
+def _solve_individual(cov, linear_coefs, linear_maximize, max_weight, eps, support, inner_qp,
+                      min_weight=None, model_rows=()):
     """Inner QP for one EA individual: minimize variance subject to every linear objective k
     meeting its epsilon target ``eps[k]``, restricted to ``support``. Shared by the genome's
     ``_evaluate`` and the marshaling re-solve so the two can never disagree on what an
@@ -346,20 +425,23 @@ def _solve_individual(cov, linear_coefs, linear_maximize, max_weight, eps, suppo
     extra = [(linear_coefs[t], float(eps[t]), linear_maximize[t])
              for t in range(1, len(linear_coefs))]
     return inner_qp(cov, linear_coefs[0], float(eps[0]), linear_maximize[0],
-                    max_weight, support, extra)
+                    max_weight, support, extra + list(model_rows), min_weight=min_weight)
 
 
 def _solve_individual_sensitivity(cov, linear_coefs, linear_maximize, max_weight, eps,
-                                  support, inner_qp_sensitivity):
+                                  support, inner_qp_sensitivity, min_weight=None,
+                                  model_rows=()):
     """Dual-returning sibling of ``_solve_individual`` — same scalarization, but the inner
     solve also returns the exact duals. Returns ``(weights_frac, ok, raw_sensitivity)``."""
     extra = [(linear_coefs[t], float(eps[t]), linear_maximize[t])
              for t in range(1, len(linear_coefs))]
     return inner_qp_sensitivity(cov, linear_coefs[0], float(eps[0]), linear_maximize[0],
-                                max_weight, support, extra)
+                                max_weight, support, extra + list(model_rows),
+                                min_weight=min_weight)
 
 
-def _solve_individual_lp(linear_coefs, linear_maximize, max_weight, eps, support, inner_lp):
+def _solve_individual_lp(linear_coefs, linear_maximize, max_weight, eps, support, inner_lp,
+                         min_weight=None, model_rows=()):
     """Inner LP for one EA individual (proportional allocation, purely linear objectives): optimize
     the **primary** linear objective (``linear_coefs[0]``) subject to every NON-primary objective
     meeting its epsilon target ``eps[t]``, restricted to ``support``. The continuous-allocation
@@ -367,15 +449,19 @@ def _solve_individual_lp(linear_coefs, linear_maximize, max_weight, eps, support
     quadratic, so the genome carries one fewer target (the primary isn't epsilon-constrained)."""
     eps_list = [(linear_coefs[t + 1], float(eps[t]), linear_maximize[t + 1])
                 for t in range(len(eps))]
-    return inner_lp(linear_coefs[0], linear_maximize[0], eps_list, max_weight, support)
+    return inner_lp(linear_coefs[0], linear_maximize[0], eps_list + list(model_rows),
+                    max_weight, support, min_weight=min_weight)
 
 
 def _solve_individual_lp_sensitivity(linear_coefs, linear_maximize, max_weight, eps,
-                                     support, inner_lp_sensitivity):
+                                     support, inner_lp_sensitivity, min_weight=None,
+                                     model_rows=()):
     """Dual-returning sibling of ``_solve_individual_lp``: ``(weights_frac, ok, raw_sensitivity)``."""
     eps_list = [(linear_coefs[t + 1], float(eps[t]), linear_maximize[t + 1])
                 for t in range(len(eps))]
-    return inner_lp_sensitivity(linear_coefs[0], linear_maximize[0], eps_list, max_weight, support)
+    return inner_lp_sensitivity(linear_coefs[0], linear_maximize[0],
+                                eps_list + list(model_rows), max_weight, support,
+                                min_weight=min_weight)
 
 
 def _decode_support(pri, cardinality_k, groups):
@@ -433,14 +519,26 @@ def _build_raw_sensitivity(row_dual, col_dual, n, has_return, n_extra, support):
             "eligible": eligible, "ranging": None}
 
 
-def _build_solution_sensitivity(raw, opt_names, alloc_row, linear_idxs, obj_list):
+def _build_solution_sensitivity(raw, opt_names, alloc_row, linear_idxs, obj_list,
+                                bound_names=()):
     """Map a backend's raw dual payload onto option/objective names → a
     ``SolutionSensitivity``. Backend-agnostic: ``raw['shadow_prices']`` is a list of
     ``{role, linear_index, value}`` (``linear_index`` indexes ``linear_idxs``; None =
     budget), and ``raw['reduced_costs']`` is one value per option index."""
     shadow = []
+    n_model = 0
     for sp in raw["shadow_prices"]:
         li = sp.get("linear_index")
+        if li is not None and li >= len(linear_idxs):
+            # A model-level objective_bound row appended after the genome's epsilon rows (see
+            # ``_model_bound_rows``) — priced, but not one of the walked objectives. Rows keep
+            # constraint order, so the lever is named for the objective its bound constrains
+            # (the surface convention: levers carry business names, never schema types).
+            name = bound_names[n_model] if n_model < len(bound_names) else "objective_bound"
+            n_model += 1
+            shadow.append(ShadowPrice(name=name, role="model_bound",
+                                      shadow_price=round(float(sp["value"]), 6)))
+            continue
         name = "budget" if li is None else obj_list[linear_idxs[li]].name
         shadow.append(ShadowPrice(name=name, role=sp["role"],
                                   shadow_price=round(float(sp["value"]), 6)))
@@ -465,12 +563,15 @@ class _QpFrontierProblem(PymooProblem):
     with NSGA)."""
 
     def __init__(self, prop_problem, cov, linear_coefs, linear_maximize, max_weight,
-                 eps_bounds, cardinality_k=None, groups=None, *, inner_qp):
+                 eps_bounds, cardinality_k=None, groups=None, *, inner_qp, min_weight=None,
+                 model_rows=()):
         self.prop = prop_problem
         self.cov = cov
         self.linear_coefs = linear_coefs
         self.linear_maximize = linear_maximize
         self.max_weight = max_weight
+        self.min_weight = min_weight
+        self.model_rows = tuple(model_rows)
         self.cardinality_k = cardinality_k
         self.groups = groups or []
         self.inner_qp = inner_qp
@@ -502,6 +603,7 @@ class _QpFrontierProblem(PymooProblem):
             w_frac, ok = _solve_individual(
                 self.cov, self.linear_coefs, self.linear_maximize,
                 self.max_weight, X[k, :n_lin], self._support_from_row(X[k]), self.inner_qp,
+                min_weight=self.min_weight, model_rows=self.model_rows,
             )
             if ok:
                 W_pct[k] = w_frac * 100.0
@@ -543,9 +645,11 @@ def optimize_qp(problem, mode, *, inner_qp, inner_qp_sensitivity=None, pop, gen,
     linear_maximize = [obj_list[j].direction.value == "maximize" for j in linear_idxs]
 
     cov = _nearest_psd(im[risk_idx])
-    max_weight = (cp["max_allocation"] / 100.0) if cp.get("max_allocation") else None
+    model_rows, bound_names, max_weight, min_weight, bounds_pct, quad_caps = \
+        _prop_bound_context(problem, cp, score_matrix)
     cardinality_k = _cardinality_k(problem)
-    groups = _group_limits(problem)
+    # Caps only — the exact gate declines proportional problems with group floors.
+    groups = [(g, mx) for g, _mn, mx in _group_limits(problem)]
 
     prop = _opt._ProportionalProblem(
         n_options=n_options, score_matrix=score_matrix, objectives=obj_list,
@@ -554,7 +658,8 @@ def optimize_qp(problem, mode, *, inner_qp, inner_qp_sensitivity=None, pop, gen,
 
     # Epsilon range per linear objective = [value at the global min-variance portfolio, best
     # single-asset value]. Lower bound from one unconstrained inner solve; upper bound max(coef).
-    w_mv, ok_mv = inner_qp(cov, linear_coefs[0], None, linear_maximize[0], max_weight, None, [])
+    w_mv, ok_mv = inner_qp(cov, linear_coefs[0], None, linear_maximize[0], max_weight, None,
+                           list(model_rows), min_weight=min_weight)
     eps_bounds: list[tuple[float, float]] = []
     for coef in linear_coefs:
         lo = float(coef @ w_mv) if ok_mv else float(coef.min())
@@ -565,7 +670,8 @@ def optimize_qp(problem, mode, *, inner_qp, inner_qp_sensitivity=None, pop, gen,
 
     pymoo_problem = _QpFrontierProblem(
         prop, cov, linear_coefs, linear_maximize, max_weight, eps_bounds,
-        cardinality_k, groups, inner_qp=inner_qp,
+        cardinality_k, groups, inner_qp=inner_qp, min_weight=min_weight,
+        model_rows=model_rows,
     )
     if cardinality_k is not None:
         seed_X = _seed_cardinality_population(linear_coefs, cov, eps_bounds, cardinality_k, pop, seed)
@@ -583,7 +689,8 @@ def optimize_qp(problem, mode, *, inner_qp, inner_qp_sensitivity=None, pop, gen,
     # epsilon sweep under-covered them. Skipped under a cardinality/group support search —
     # an anchor row carries no priority tail, and support=None would sidestep the cap.
     if cardinality_k is None and not groups:
-        rows += _prop_anchor_rows(linear_coefs, linear_maximize, max_weight, include_primary_eps=True)
+        rows += _prop_anchor_rows(linear_coefs, linear_maximize, max_weight,
+                                  include_primary_eps=True, min_weight=min_weight)
     solutions: list[Solution] = []
     seen: set[str] = set()
     if rows:
@@ -592,17 +699,19 @@ def optimize_qp(problem, mode, *, inner_qp, inner_qp_sensitivity=None, pop, gen,
             if inner_qp_sensitivity is not None:
                 w_frac, ok, raw_sens = _solve_individual_sensitivity(
                     cov, linear_coefs, linear_maximize, max_weight,
-                    row[:n_lin], support, inner_qp_sensitivity,
+                    row[:n_lin], support, inner_qp_sensitivity, min_weight=min_weight,
+                    model_rows=model_rows,
                 )
             else:
                 w_frac, ok = _solve_individual(
                     cov, linear_coefs, linear_maximize, max_weight,
-                    row[:n_lin], support, inner_qp,
+                    row[:n_lin], support, inner_qp, min_weight=min_weight,
+                    model_rows=model_rows,
                 )
                 raw_sens = None
             if not ok:
                 continue
-            raw = _round_weights_to_pct(w_frac, n_options, cp.get("max_allocation"))
+            raw = _round_weights_to_pct(w_frac, n_options, cp.get("max_allocation"), bounds_pct)
             selected = [opt_names[i] for i in range(n_options) if raw[i] > 0]
             alloc_map = {opt_names[i]: int(raw[i]) for i in range(n_options)}
             sig = _content_signature(selected, alloc_map)
@@ -615,7 +724,12 @@ def optimize_qp(problem, mode, *, inner_qp, inner_qp_sensitivity=None, pop, gen,
                 obj.name: round(float(prop._aggregate_objective(W_pct, j)[0]), 4)
                 for j, obj in enumerate(obj_list)
             }
-            sensitivity = (_build_solution_sensitivity(raw_sens, opt_names, raw, linear_idxs, obj_list)
+            # Model MAX caps on the quadratic objective: the inner solve minimized it, so a
+            # violating point means these epsilon-targets are infeasible under the model.
+            if any(obj_values.get(nm, 0.0) > v + 1e-9 for nm, v in quad_caps):
+                continue
+            sensitivity = (_build_solution_sensitivity(raw_sens, opt_names, raw, linear_idxs,
+                                                       obj_list, bound_names=bound_names)
                            if raw_sens else None)
             solutions.append(Solution(
                 solution_id=len(solutions), selected_options=selected,
@@ -644,11 +758,14 @@ class _LpFrontierProblem(PymooProblem):
     aggregator scores the resulting weights apples-to-apples with the NSGA paths."""
 
     def __init__(self, prop, linear_coefs, linear_maximize, max_weight, eps_bounds,
-                 cardinality_k=None, groups=None, *, inner_lp):
+                 cardinality_k=None, groups=None, *, inner_lp, min_weight=None,
+                 model_rows=()):
         self.prop = prop
         self.linear_coefs = linear_coefs
         self.linear_maximize = linear_maximize
         self.max_weight = max_weight
+        self.min_weight = min_weight
+        self.model_rows = tuple(model_rows)
         self.cardinality_k = cardinality_k
         self.groups = groups or []
         self.inner_lp = inner_lp
@@ -677,6 +794,7 @@ class _LpFrontierProblem(PymooProblem):
             w_frac, ok = _solve_individual_lp(
                 self.linear_coefs, self.linear_maximize, self.max_weight,
                 X[k, :self.n_eps], self._support_from_row(X[k]), self.inner_lp,
+                min_weight=self.min_weight, model_rows=self.model_rows,
             )
             if ok:
                 W_pct[k] = w_frac * 100.0
@@ -709,9 +827,11 @@ def optimize_lp(problem, mode, *, inner_lp, inner_lp_sensitivity=None, pop, gen,
     linear_coefs = [score_matrix[:, j] for j in linear_idxs]
     linear_maximize = [obj_list[j].direction.value == "maximize" for j in linear_idxs]
 
-    max_weight = (cp["max_allocation"] / 100.0) if cp.get("max_allocation") else None
+    model_rows, bound_names, max_weight, min_weight, bounds_pct, _quad_caps = \
+        _prop_bound_context(problem, cp, score_matrix)
     cardinality_k = _cardinality_k(problem)
-    groups = _group_limits(problem)
+    # Caps only — the exact gate declines proportional problems with group floors.
+    groups = [(g, mx) for g, _mn, mx in _group_limits(problem)]
 
     prop = _opt._ProportionalProblem(
         n_options=n_options, score_matrix=score_matrix, objectives=obj_list,
@@ -723,15 +843,18 @@ def optimize_lp(problem, mode, *, inner_lp, inner_lp_sensitivity=None, pop, gen,
     eps_bounds: list[tuple[float, float]] = []
     for t in range(1, len(linear_coefs)):
         coef, maximize = linear_coefs[t], linear_maximize[t]
-        w_hi, ok_hi = inner_lp(coef, maximize, [], max_weight, None)        # best for this objective
-        w_lo, ok_lo = inner_lp(coef, not maximize, [], max_weight, None)    # worst for this objective
+        w_hi, ok_hi = inner_lp(coef, maximize, list(model_rows), max_weight, None,
+                               min_weight=min_weight)      # best for this objective
+        w_lo, ok_lo = inner_lp(coef, not maximize, list(model_rows), max_weight, None,
+                               min_weight=min_weight)      # worst for this objective
         vals = [float(coef @ w) for w, ok in ((w_hi, ok_hi), (w_lo, ok_lo)) if ok]
         lo, hi = (min(vals), max(vals)) if vals else (float(coef.min()), float(coef.max()))
         eps_bounds.append((lo, hi if hi > lo else lo + 1e-6))
 
     pymoo_problem = _LpFrontierProblem(
         prop, linear_coefs, linear_maximize, max_weight, eps_bounds,
-        cardinality_k, groups, inner_lp=inner_lp,
+        cardinality_k, groups, inner_lp=inner_lp, min_weight=min_weight,
+        model_rows=model_rows,
     )
     _t0 = time.monotonic()
     result = pymoo_minimize(pymoo_problem, NSGA2(pop_size=pop),
@@ -747,7 +870,8 @@ def optimize_lp(problem, mode, *, inner_lp, inner_lp_sensitivity=None, pop, gen,
     # objective the top-K support is greedy-optimal, so the decoded support reaches the true
     # capped extreme — exact under a pure cardinality cap; group caps inherit the EA's
     # decode semantics. (Row order: all-loose → objective 0, then pinned rows → 1..n_eps.)
-    anchor_rows = _prop_anchor_rows(linear_coefs, linear_maximize, max_weight, include_primary_eps=False)
+    anchor_rows = _prop_anchor_rows(linear_coefs, linear_maximize, max_weight,
+                                    include_primary_eps=False, min_weight=min_weight)
     if cardinality_k is not None or groups:
         anchor_rows = [np.concatenate([row, _rank_priorities(linear_coefs[j], linear_maximize[j])])
                        for j, row in enumerate(anchor_rows)]
@@ -760,14 +884,15 @@ def optimize_lp(problem, mode, *, inner_lp, inner_lp_sensitivity=None, pop, gen,
             if inner_lp_sensitivity is not None:
                 w_frac, ok, raw_sens = _solve_individual_lp_sensitivity(
                     linear_coefs, linear_maximize, max_weight, row[:n_eps], support,
-                    inner_lp_sensitivity)
+                    inner_lp_sensitivity, min_weight=min_weight, model_rows=model_rows)
             else:
                 w_frac, ok = _solve_individual_lp(
-                    linear_coefs, linear_maximize, max_weight, row[:n_eps], support, inner_lp)
+                    linear_coefs, linear_maximize, max_weight, row[:n_eps], support, inner_lp,
+                    min_weight=min_weight, model_rows=model_rows)
                 raw_sens = None
             if not ok:
                 continue
-            raw = _round_weights_to_pct(w_frac, n_options, cp.get("max_allocation"))
+            raw = _round_weights_to_pct(w_frac, n_options, cp.get("max_allocation"), bounds_pct)
             selected = [opt_names[i] for i in range(n_options) if raw[i] > 0]
             alloc_map = {opt_names[i]: int(raw[i]) for i in range(n_options)}
             sig = _content_signature(selected, alloc_map)
@@ -777,7 +902,8 @@ def optimize_lp(problem, mode, *, inner_lp, inner_lp_sensitivity=None, pop, gen,
             W_pct = raw.astype(float).reshape(1, -1)
             obj_values = {obj.name: round(float(prop._aggregate_objective(W_pct, j)[0]), 4)
                           for j, obj in enumerate(obj_list)}
-            sensitivity = (_build_solution_sensitivity(raw_sens, opt_names, raw, linear_idxs, obj_list)
+            sensitivity = (_build_solution_sensitivity(raw_sens, opt_names, raw, linear_idxs,
+                                                       obj_list, bound_names=bound_names)
                            if raw_sens else None)
             solutions.append(Solution(
                 solution_id=len(solutions), selected_options=selected,
@@ -850,7 +976,8 @@ def certify_curated_frontier(problem, source_run, *, inner=None, inner_sensitivi
         linear_idxs = _resolve_linear_objectives(problem)
         linear_coefs = [score_matrix[:, j] for j in linear_idxs]
         linear_maximize = [obj_list[j].direction.value == "maximize" for j in linear_idxs]
-        max_weight = (cp["max_allocation"] / 100.0) if cp.get("max_allocation") else None
+        model_rows, bound_names, max_weight, min_weight, bounds_pct, quad_caps = \
+            _prop_bound_context(problem, cp, score_matrix)
         prop = _opt._ProportionalProblem(n_options=n_options, score_matrix=score_matrix,
                                          objectives=obj_list, interaction_matrices=im, **cp)
         is_qp = bool(im)
@@ -870,8 +997,9 @@ def certify_curated_frontier(problem, source_run, *, inner=None, inner_sensitivi
         # (greedy-optimal for a linear objective — see ``_rank_priorities``); QP anchors are
         # skipped there — the min-variance corner has no greedy-derivable support, and the
         # capped QP path's seeded population owns corner coverage.
-        k_cap, glims = _cardinality_k(problem), _group_limits(problem)
-        anchor_rows = _prop_anchor_rows(linear_coefs, linear_maximize, max_weight, include_primary_eps=is_qp)
+        k_cap, glims = _cardinality_k(problem), [(g, mx) for g, _mn, mx in _group_limits(problem)]
+        anchor_rows = _prop_anchor_rows(linear_coefs, linear_maximize, max_weight,
+                                        include_primary_eps=is_qp, min_weight=min_weight)
         if k_cap is None and not glims:
             targets += [(row, None) for row in anchor_rows]
         elif not is_qp:
@@ -881,19 +1009,25 @@ def certify_curated_frontier(problem, source_run, *, inner=None, inner_sensitivi
         for eps, support in targets:
             if is_qp and inner_sensitivity is not None:
                 w_frac, ok, raw_sens = _solve_individual_sensitivity(
-                    cov, linear_coefs, linear_maximize, max_weight, eps, support, inner_sensitivity)
+                    cov, linear_coefs, linear_maximize, max_weight, eps, support, inner_sensitivity,
+                    min_weight=min_weight, model_rows=model_rows)
             elif is_qp:
-                w_frac, ok = _solve_individual(cov, linear_coefs, linear_maximize, max_weight, eps, support, inner)
+                w_frac, ok = _solve_individual(cov, linear_coefs, linear_maximize, max_weight,
+                                               eps, support, inner, min_weight=min_weight,
+                                               model_rows=model_rows)
                 raw_sens = None
             elif inner_sensitivity is not None:
                 w_frac, ok, raw_sens = _solve_individual_lp_sensitivity(
-                    linear_coefs, linear_maximize, max_weight, eps, support, inner_sensitivity)
+                    linear_coefs, linear_maximize, max_weight, eps, support, inner_sensitivity,
+                    min_weight=min_weight, model_rows=model_rows)
             else:
-                w_frac, ok = _solve_individual_lp(linear_coefs, linear_maximize, max_weight, eps, support, inner)
+                w_frac, ok = _solve_individual_lp(linear_coefs, linear_maximize, max_weight,
+                                                  eps, support, inner, min_weight=min_weight,
+                                                  model_rows=model_rows)
                 raw_sens = None
             if not ok:
                 continue
-            raw = _round_weights_to_pct(w_frac, n_options, cp.get("max_allocation"))
+            raw = _round_weights_to_pct(w_frac, n_options, cp.get("max_allocation"), bounds_pct)
             selected = [opt_names[i] for i in range(n_options) if raw[i] > 0]
             alloc_map = {opt_names[i]: int(raw[i]) for i in range(n_options)}
             sig = _content_signature(selected, alloc_map)
@@ -903,7 +1037,10 @@ def certify_curated_frontier(problem, source_run, *, inner=None, inner_sensitivi
             W_pct = raw.astype(float).reshape(1, -1)
             obj_values = {obj.name: round(float(prop._aggregate_objective(W_pct, j)[0]), 4)
                           for j, obj in enumerate(obj_list)}
-            sensitivity = (_build_solution_sensitivity(raw_sens, opt_names, raw, linear_idxs, obj_list)
+            if is_qp and any(obj_values.get(nm, 0.0) > v + 1e-9 for nm, v in quad_caps):
+                continue
+            sensitivity = (_build_solution_sensitivity(raw_sens, opt_names, raw, linear_idxs,
+                                                       obj_list, bound_names=bound_names)
                            if raw_sens else None)
             solutions.append(Solution(solution_id=len(solutions), selected_options=selected,
                                       objective_values=obj_values, allocations=alloc_map, sensitivity=sensitivity))

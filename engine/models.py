@@ -155,12 +155,23 @@ class DependencyConstraint(BaseModel):
 class GroupLimitConstraint(BaseModel):
     type: Literal["group_limit"] = "group_limit"
     options: list[str]
+    min: int = 0  # minimum selected/active options from the group (0 = no floor)
     max: int
 
 
 class MaxAllocationConstraint(BaseModel):
     type: Literal["max_allocation"] = "max_allocation"
     max: int  # maximum allocation percentage for any single option (1-100)
+
+
+class AllocationBoundConstraint(BaseModel):
+    """Per-option allocation floor/cap in percent (proportional only) — contractual minimums,
+    service floors, per-channel caps. The effective cap is min(global max_allocation, max);
+    a floor > 0 force-activates the option."""
+    type: Literal["allocation_bound"] = "allocation_bound"
+    option: str
+    min: int = 0
+    max: int = 100
 
 
 Constraint = (
@@ -172,6 +183,7 @@ Constraint = (
     | DependencyConstraint
     | GroupLimitConstraint
     | MaxAllocationConstraint
+    | AllocationBoundConstraint
 )
 
 

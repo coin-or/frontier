@@ -117,6 +117,104 @@ class TestGate:
         p = _qp_problem(constraints=[GroupLimitConstraint(options=["A", "B"], max=1)])
         assert exact_solver_fits(p)[0] is True
 
+    def test_exact_proportional_honors_membership_constraints(self):
+        # force_exclude/include fold into the variable box (0 cap / 1% activity floor); the
+        # genuinely combinatorial trio declines rather than certifying the wrong region.
+        from engine.models import (CardinalityConstraint, DependencyConstraint,
+                                   ExclusionPairConstraint, ForceExcludeConstraint,
+                                   ForceIncludeConstraint)
+
+        base = dict(objectives=[Objective(name="Return", direction="maximize", aggregation="avg"),
+                                Objective(name="Risk", direction="minimize", aggregation="sum")],
+                    interaction_matrices=[])
+        p = _qp_problem(constraints=[MaxAllocationConstraint(max=60),
+                                     ForceExcludeConstraint(option="D"),
+                                     ForceIncludeConstraint(option="C")], **base)
+        run = optimize(p, solver="highs", seed=3)
+        assert len(run.solutions) > 0
+        for s in run.solutions:
+            assert s.allocations.get("D", 0) == 0
+            assert s.allocations.get("C", 0) >= 1
+        for bad in (ExclusionPairConstraint(option_a="A", option_b="B"),
+                    DependencyConstraint(if_option="A", then_option="B"),
+                    CardinalityConstraint(min=2, max=3)):
+            fits, why = exact_solver_fits(_qp_problem(constraints=[bad], **base))
+            assert fits is False and "combinatorial" in why, (bad.type, why)
+        # cardinality min=1 is the engine default — always satisfiable, stays in scope.
+        assert exact_solver_fits(_qp_problem(constraints=[CardinalityConstraint(min=1, max=3)],
+                                             **base))[0] is True
+
+    def test_quadratic_bound_cap_filtered_floor_declined(self):
+        # A MAX cap on the quadratic minimand rides the exact path via post-filtering (the
+        # inner solve minimizes it, so violation proves the targets infeasible); a MIN floor
+        # on it is non-convex and declines.
+        from engine.models import ObjectiveBoundConstraint
+
+        capped = _qp_problem(constraints=[
+            MaxAllocationConstraint(max=50),
+            ObjectiveBoundConstraint(objective="Risk", operator="max", value=0.30)])
+        assert exact_solver_fits(capped)[0] is True
+        run = optimize(capped, solver="highs", seed=5)
+        assert len(run.solutions) > 0
+        for s in run.solutions:   # every certified point honors the model's own risk cap
+            assert s.objective_values["Risk"] <= 0.30 + 1e-6
+        floored = _qp_problem(constraints=[
+            ObjectiveBoundConstraint(objective="Risk", operator="min", value=0.05)])
+        fits, why = exact_solver_fits(floored)
+        assert fits is False and "non-convex" in why
+
+    def test_group_floor_declined_on_proportional_but_fits_on_binary(self):
+        # A floor counts *active* options — combinatorial on the continuous QP/LP path,
+        # a plain MILP row on the binary path.
+        p = _qp_problem(constraints=[GroupLimitConstraint(options=["A", "B"], min=1, max=2)])
+        fits, why = exact_solver_fits(p)
+        assert fits is False and "floor" in why.lower() or "minimum" in why.lower()
+        b = _binary_problem(constraints=[GroupLimitConstraint(options=["A", "B"], min=1, max=2)])
+        assert exact_solver_fits(b)[0] is True
+
+    def test_exact_lp_respects_allocation_bounds_and_prices_the_floor(self):
+        """E2 on the exact LP path: per-option floors/caps become variable bounds, every
+        overlay point honors them, and the dual read still returns per-option reduced costs
+        (the floor's price surfaces there)."""
+        from engine.models import AllocationBoundConstraint
+
+        names = ["A", "B", "C", "D"]
+        rev = {"A": 14, "B": 11, "C": 8, "D": 5}
+        stab = {"A": 3, "B": 6, "C": 8, "D": 9}
+        scores = []
+        for n_ in names:
+            scores.append(Score(option=n_, objective="Revenue", value=rev[n_]))
+            scores.append(Score(option=n_, objective="Stability", value=stab[n_]))
+        p = Problem(
+            name="lp-bounds", approach="proportional",
+            objectives=[Objective(name="Revenue", direction="maximize", aggregation="sum"),
+                        Objective(name="Stability", direction="maximize", aggregation="sum")],
+            options=[Option(name=n_) for n_ in names], scores=scores,
+            constraints=[MaxAllocationConstraint(max=60),
+                         AllocationBoundConstraint(option="D", min=15, max=100),
+                         AllocationBoundConstraint(option="A", min=0, max=35)],
+        )
+        assert exact_solver_fits(p)[0] is True
+        run = optimize(p, solver="highs", seed=11)
+        assert len(run.solutions) > 0
+        priced = False
+        for s in run.solutions:
+            assert s.allocations.get("D", 0) >= 15    # the floor holds on every exact point
+            assert s.allocations.get("A", 0) <= 35    # the per-option cap holds
+            if s.sensitivity is not None and s.sensitivity.reduced_costs:
+                priced = True
+        assert priced, "exact LP overlay carries no dual read"
+        # D/E/F score low on NPV; a floor on {D, E, F} must still pull one into every plan.
+        p = _binary_problem(constraints=[
+            CardinalityConstraint(min=2, max=4),
+            GroupLimitConstraint(options=["D", "E", "F"], min=1, max=2),
+        ])
+        run = optimize(p, solver="highs", seed=7)
+        assert len(run.solutions) > 0
+        for s in run.solutions:
+            in_group = len({"D", "E", "F"} & set(s.selected_options))
+            assert 1 <= in_group <= 2
+
     def test_proportional_linear_fits_as_lp(self):
         # Two purely linear objectives (no quadratic) → the exact multi-objective LP path now owns
         # this shape (it previously declined to NSGA).

@@ -33,6 +33,7 @@ from engine.models import Aggregation, Approach, OptimizeMode, Problem, Run
 from solvers._scalarization import (
     _build_raw_sensitivity,
     _qp_weights_ok,
+    _weight_box,
     certify_curated_frontier,
     optimize_lp,
     optimize_milp,
@@ -90,6 +91,7 @@ def _solve_qp_cuopt(
     max_weight: float | None,
     support: "np.ndarray | list[int] | None" = None,
     extra_linears: "list[tuple[np.ndarray, float, bool]] | None" = None,
+    min_weight=None,
 ) -> tuple[np.ndarray, bool]:
     """One epsilon-constraint inner solve via cuOpt. Mirrors NVIDIA's
     ``QP_portfolio_optimization.ipynb`` fixture::
@@ -109,15 +111,10 @@ def _solve_qp_cuopt(
 
     n = len(mu)
     prob = CuProblem("frontier_portfolio_qp")
-    ub = float(max_weight) if max_weight is not None else 1.0
-    # Cardinality support: excluded assets get a 0 upper bound, so the QP is solved exactly
-    # over the chosen subset without leaving the continuous beta.
-    if support is None:
-        ubs = [ub] * n
-    else:
-        supp = {int(i) for i in support}
-        ubs = [ub if i in supp else 0.0 for i in range(n)]
-    w = [prob.addVariable(lb=0.0, ub=ubs[i], name=f"w_{i}") for i in range(n)]
+    # Cardinality support: excluded assets get a 0 box, so the QP is solved exactly over the
+    # chosen subset without leaving the continuous beta.
+    ubs, lbs = _weight_box(n, max_weight, min_weight, support)
+    w = [prob.addVariable(lb=lbs[i], ub=ubs[i], name=f"w_{i}") for i in range(n)]
 
     # Quadratic objective wᵀΣw, built term-by-term exactly as the fixture does.
     quad = None
@@ -159,7 +156,7 @@ def _solve_qp_cuopt(
     weights = np.array([w[i].Value for i in range(n)], dtype=float) if ok else np.zeros(n)
     # Status says "solved" but the returned point can still be degenerate (non-finite or off
     # the Σw=1 / box) — gate on the weights themselves, else one bad solve blows up the frontier.
-    if ok and not _qp_weights_ok(weights, ub):
+    if ok and not _qp_weights_ok(weights, max_weight, min_weight):
         weights, ok = np.zeros(n), False
     # Free the cuOpt problem before the next inner solve (the EA issues many).
     del prob
@@ -168,7 +165,7 @@ def _solve_qp_cuopt(
 
 
 def _qp_to_csr(cov, mu, target_return, return_maximize, max_weight,
-               support=None, extra_linears=None):
+               support=None, extra_linears=None, min_weight=None):
     """Marshal one epsilon-constraint mean-variance QP into the CSR arrays cuOpt's low-level
     ``data_model.DataModel`` consumes — the vectorised matrix build that replaces the
     term-by-term ``Problem`` API. **Pure** (no cuOpt import), so it unit-tests on CPU by
@@ -188,11 +185,9 @@ def _qp_to_csr(cov, mu, target_return, return_maximize, max_weight,
     from scipy.sparse import csr_matrix
 
     n = len(mu)
-    ub = float(max_weight) if max_weight is not None else 1.0
-    var_ub = np.full(n, ub, dtype=np.float64)
-    if support is not None:
-        supp = {int(i) for i in support}
-        var_ub[[i for i in range(n) if i not in supp]] = 0.0
+    _ubs, _lbs = _weight_box(n, max_weight, min_weight, support)
+    var_ub = np.asarray(_ubs, dtype=np.float64)
+    var_lb = np.asarray(_lbs, dtype=np.float64)
 
     # Quadratic objective Q = full covariance (threshold to match the term-wise skip), as CSR.
     Q = csr_matrix(np.where(np.abs(cov) > 1e-12, cov, 0.0).astype(np.float64))
@@ -221,13 +216,13 @@ def _qp_to_csr(cov, mu, target_return, return_maximize, max_weight,
         "b": np.asarray(b, dtype=np.float64),
         "row_types": np.array(row_types, dtype="S1"),   # matches the high-level path's dtype
         "c": np.zeros(n, dtype=np.float64),              # objective is purely quadratic
-        "var_lb": np.zeros(n, dtype=np.float64),
+        "var_lb": var_lb,
         "var_ub": var_ub,
     }
 
 
 def _solve_qp_cuopt_matrix(cov, mu, target_return, return_maximize, max_weight,
-                           support=None, extra_linears=None):
+                           support=None, extra_linears=None, min_weight=None):
     """Matrix-API twin of ``_solve_qp_cuopt`` — same contract, built via cuOpt's low-level
     ``data_model.DataModel`` (CSR objective + constraints) and solved with ``Solve``, instead of
     the term-by-term ``Problem`` API. The build is O(nnz) — one vectorised CSR conversion — so a
@@ -240,8 +235,8 @@ def _solve_qp_cuopt_matrix(cov, mu, target_return, return_maximize, max_weight,
     from cuopt.linear_programming import DataModel, Solve
 
     n = len(mu)
-    ub = float(max_weight) if max_weight is not None else 1.0
-    a = _qp_to_csr(cov, mu, target_return, return_maximize, max_weight, support, extra_linears)
+    a = _qp_to_csr(cov, mu, target_return, return_maximize, max_weight, support, extra_linears,
+                   min_weight=min_weight)
 
     dm = DataModel()
     dm.set_csr_constraint_matrix(a["A_data"], a["A_indices"], a["A_offsets"])
@@ -259,7 +254,7 @@ def _solve_qp_cuopt_matrix(cov, mu, target_return, return_maximize, max_weight,
     # from exactly this call), so the names match across both paths.
     ok = getattr(sol.get_termination_status(), "name", "") in ("Optimal", "PrimalFeasible")
     weights = np.asarray(sol.get_primal_solution(), dtype=float) if ok else np.zeros(n)
-    if ok and not _qp_weights_ok(weights, ub):
+    if ok and not _qp_weights_ok(weights, max_weight, min_weight):
         weights, ok = np.zeros(n), False
     del dm, sol
     gc.collect()
@@ -298,7 +293,7 @@ def _extract_cuopt_qp_sensitivity_matrix(sol, n, has_return, n_extra, support):
 
 
 def _solve_qp_cuopt_matrix_sensitivity(cov, mu, target_return, return_maximize, max_weight,
-                                       support=None, extra_linears=None):
+                                       support=None, extra_linears=None, min_weight=None):
     """Dual-returning twin of ``_solve_qp_cuopt_matrix`` (the default QP path): returns
     ``(weights, ok, raw_sensitivity)``. Same CSR build + ``Solve`` as the plain matrix path, then reads
     the duals off the ``Solve`` result; ``raw_sensitivity`` is None when the solve is rejected. Called
@@ -307,8 +302,8 @@ def _solve_qp_cuopt_matrix_sensitivity(cov, mu, target_return, return_maximize, 
     from cuopt.linear_programming import DataModel, Solve
 
     n = len(mu)
-    ub = float(max_weight) if max_weight is not None else 1.0
-    a = _qp_to_csr(cov, mu, target_return, return_maximize, max_weight, support, extra_linears)
+    a = _qp_to_csr(cov, mu, target_return, return_maximize, max_weight, support, extra_linears,
+                   min_weight=min_weight)
 
     dm = DataModel()
     dm.set_csr_constraint_matrix(a["A_data"], a["A_indices"], a["A_offsets"])
@@ -322,7 +317,7 @@ def _solve_qp_cuopt_matrix_sensitivity(cov, mu, target_return, return_maximize, 
 
     ok = getattr(sol.get_termination_status(), "name", "") in ("Optimal", "PrimalFeasible")
     weights = np.asarray(sol.get_primal_solution(), dtype=float) if ok else np.zeros(n)
-    if ok and not _qp_weights_ok(weights, ub):
+    if ok and not _qp_weights_ok(weights, max_weight, min_weight):
         weights, ok = np.zeros(n), False
     raw = (_extract_cuopt_qp_sensitivity_matrix(sol, n, target_return is not None,
                                                 len(extra_linears or []), support)
@@ -344,7 +339,7 @@ def _extract_cuopt_qp_sensitivity(prob, w, has_return, n_extra, support):
 
 
 def _solve_qp_cuopt_sensitivity(cov, mu, target_return, return_maximize, max_weight,
-                                support=None, extra_linears=None):
+                                support=None, extra_linears=None, min_weight=None):
     """Dual-returning twin of ``_solve_qp_cuopt`` (term-by-term path): ``(weights, ok,
     raw_sensitivity)``. Mirrors ``_solve_qp_cuopt`` line-for-line, then reads the modeling-API duals;
     kept separate so the GPU-verified plain path stays untouched."""
@@ -352,13 +347,8 @@ def _solve_qp_cuopt_sensitivity(cov, mu, target_return, return_maximize, max_wei
 
     n = len(mu)
     prob = CuProblem("frontier_portfolio_qp")
-    ub = float(max_weight) if max_weight is not None else 1.0
-    if support is None:
-        ubs = [ub] * n
-    else:
-        supp = {int(i) for i in support}
-        ubs = [ub if i in supp else 0.0 for i in range(n)]
-    w = [prob.addVariable(lb=0.0, ub=ubs[i], name=f"w_{i}") for i in range(n)]
+    ubs, lbs = _weight_box(n, max_weight, min_weight, support)
+    w = [prob.addVariable(lb=lbs[i], ub=ubs[i], name=f"w_{i}") for i in range(n)]
 
     quad = None
     for i in range(n):
@@ -383,7 +373,7 @@ def _solve_qp_cuopt_sensitivity(cov, mu, target_return, return_maximize, max_wei
     prob.solve()
     ok = getattr(prob.Status, "name", "") in ("Optimal", "PrimalFeasible")
     weights = np.array([w[i].Value for i in range(n)], dtype=float) if ok else np.zeros(n)
-    if ok and not _qp_weights_ok(weights, ub):
+    if ok and not _qp_weights_ok(weights, max_weight, min_weight):
         weights, ok = np.zeros(n), False
     raw = _extract_cuopt_qp_sensitivity(prob, w, has_return, n_extra, support) if ok else None
     del prob
@@ -397,7 +387,8 @@ def _solve_qp_cuopt_sensitivity(cov, mu, target_return, return_maximize, max_wei
 # problem-category (dual simplex / PDLP), so duals + reduced costs are first-class here.
 
 
-def _lp_to_csr(primary_coef, primary_maximize, eps_list, max_weight, support=None):
+def _lp_to_csr(primary_coef, primary_maximize, eps_list, max_weight, support=None,
+               min_weight=None):
     """Marshal one proportional LP into the CSR arrays cuOpt's ``DataModel`` consumes — the linear
     twin of ``_qp_to_csr`` (no quadratic Q; the objective is the linear ``c``). Pure (no cuOpt
     import), so it unit-tests on CPU. Objective ``c = ±primary_coef`` (negated to maximize, since
@@ -406,11 +397,9 @@ def _lp_to_csr(primary_coef, primary_maximize, eps_list, max_weight, support=Non
     from scipy.sparse import csr_matrix
 
     n = len(primary_coef)
-    ub = float(max_weight) if max_weight is not None else 1.0
-    var_ub = np.full(n, ub, dtype=np.float64)
-    if support is not None:
-        supp = {int(i) for i in support}
-        var_ub[[i for i in range(n) if i not in supp]] = 0.0
+    _ubs, _lbs = _weight_box(n, max_weight, min_weight, support)
+    var_ub = np.asarray(_ubs, dtype=np.float64)
+    var_lb = np.asarray(_lbs, dtype=np.float64)
 
     rows = [np.ones(n, dtype=np.float64)]
     b = [1.0]
@@ -429,12 +418,13 @@ def _lp_to_csr(primary_coef, primary_maximize, eps_list, max_weight, support=Non
         "b": np.asarray(b, dtype=np.float64),
         "row_types": np.array(row_types, dtype="S1"),
         "c": (sign * np.asarray(primary_coef, dtype=np.float64)).astype(np.float64),
-        "var_lb": np.zeros(n, dtype=np.float64),
+        "var_lb": var_lb,
         "var_ub": var_ub,
     }
 
 
-def _solve_lp_cuopt(primary_coef, primary_maximize, eps_list, max_weight, support=None):
+def _solve_lp_cuopt(primary_coef, primary_maximize, eps_list, max_weight, support=None,
+                    min_weight=None):
     """One proportional LP via cuOpt's low-level ``DataModel`` — the linear inner-solve contract
     shared with HiGHS (optimize a linear objective over Σw=1, box, support, with each non-primary
     objective epsilon-constrained). Returns ``(weights as fractions, ok)``. Marshaling (``_lp_to_csr``)
@@ -442,8 +432,8 @@ def _solve_lp_cuopt(primary_coef, primary_maximize, eps_list, max_weight, suppor
     from cuopt.linear_programming import DataModel, Solve
 
     n = len(primary_coef)
-    ub = float(max_weight) if max_weight is not None else 1.0
-    a = _lp_to_csr(primary_coef, primary_maximize, eps_list, max_weight, support)
+    a = _lp_to_csr(primary_coef, primary_maximize, eps_list, max_weight, support,
+                   min_weight=min_weight)
 
     dm = DataModel()
     dm.set_csr_constraint_matrix(a["A_data"], a["A_indices"], a["A_offsets"])
@@ -456,7 +446,7 @@ def _solve_lp_cuopt(primary_coef, primary_maximize, eps_list, max_weight, suppor
 
     ok = getattr(sol.get_termination_status(), "name", "") in ("Optimal", "PrimalFeasible")
     weights = np.asarray(sol.get_primal_solution(), dtype=float) if ok else np.zeros(n)
-    if ok and not _qp_weights_ok(weights, ub):
+    if ok and not _qp_weights_ok(weights, max_weight, min_weight):
         weights, ok = np.zeros(n), False
     del dm, sol
     gc.collect()
@@ -476,15 +466,16 @@ def _extract_cuopt_lp_sensitivity_matrix(sol, n, n_extra, support):
                                   support=support)
 
 
-def _solve_lp_cuopt_sensitivity(primary_coef, primary_maximize, eps_list, max_weight, support=None):
+def _solve_lp_cuopt_sensitivity(primary_coef, primary_maximize, eps_list, max_weight, support=None,
+                                min_weight=None):
     """Dual-returning twin of ``_solve_lp_cuopt``: ``(weights, ok, raw_sensitivity)``. Same CSR build +
     ``Solve``, then reads the duals off the result; None when the solve is rejected. The cuOpt LP
     counterpart of ``_solve_lp_highs_sensitivity``."""
     from cuopt.linear_programming import DataModel, Solve
 
     n = len(primary_coef)
-    ub = float(max_weight) if max_weight is not None else 1.0
-    a = _lp_to_csr(primary_coef, primary_maximize, eps_list, max_weight, support)
+    a = _lp_to_csr(primary_coef, primary_maximize, eps_list, max_weight, support,
+                   min_weight=min_weight)
 
     dm = DataModel()
     dm.set_csr_constraint_matrix(a["A_data"], a["A_indices"], a["A_offsets"])
@@ -497,7 +488,7 @@ def _solve_lp_cuopt_sensitivity(primary_coef, primary_maximize, eps_list, max_we
 
     ok = getattr(sol.get_termination_status(), "name", "") in ("Optimal", "PrimalFeasible")
     weights = np.asarray(sol.get_primal_solution(), dtype=float) if ok else np.zeros(n)
-    if ok and not _qp_weights_ok(weights, ub):
+    if ok and not _qp_weights_ok(weights, max_weight, min_weight):
         weights, ok = np.zeros(n), False
     raw = _extract_cuopt_lp_sensitivity_matrix(sol, n, len(eps_list), support) if ok else None
     del dm, sol
@@ -561,8 +552,10 @@ def _solve_milp_cuopt(min_coef, eps_list, mc, n, exact=False):
         prob.addConstraint(x[a] - x[b] <= 0, name="dep")   # if a then b
     for a, b in mc["excl"]:
         prob.addConstraint(x[a] + x[b] <= 1, name="excl")
-    for grp, gmax in mc["groups"]:
+    for grp, gmin, gmax in mc["groups"]:
         prob.addConstraint(sum(x[i] for i in grp) <= gmax, name="grp")
+        if gmin > 0:
+            prob.addConstraint(sum(x[i] for i in grp) >= gmin, name="grpmin")
     # Bounded (default, trades the optimality proof for speed) vs exact (gap→0, accept only
     # Optimal — _MILP_TIME_LIMIT still applies as a safety deadline). _MILP_ABS_GAP (default
     # off) sets an absolute gap on the bounded path; below the score granularity it certifies.

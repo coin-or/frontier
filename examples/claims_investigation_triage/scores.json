@@ -1,0 +1,3426 @@
+{
+  "options": [
+    {
+      "name": "PRP-1001",
+      "description": "Property \u2014 burglary claim, no forced entry"
+    },
+    {
+      "name": "LIA-1001",
+      "description": "Liability \u2014 late-reported injury, venue shopping"
+    },
+    {
+      "name": "PRP-1002",
+      "description": "Property \u2014 water damage predating policy bind"
+    },
+    {
+      "name": "WC-1001",
+      "description": "Workers' comp \u2014 malingering surveillance flags"
+    },
+    {
+      "name": "LIA-1002",
+      "description": "Liability \u2014 duplicate billing across carriers"
+    },
+    {
+      "name": "WC-1010",
+      "description": "Workers' comp \u2014 ghost-employee premium fraud"
+    },
+    {
+      "name": "AUT-1011",
+      "description": "Auto \u2014 soft-tissue clinic cluster referral"
+    },
+    {
+      "name": "PRP-1012",
+      "description": "Property \u2014 fire loss, accelerant indicators"
+    },
+    {
+      "name": "LIA-1013",
+      "description": "Liability \u2014 late-reported injury, venue shopping"
+    },
+    {
+      "name": "AUT-1014",
+      "description": "Auto \u2014 phantom passenger injury claims"
+    },
+    {
+      "name": "WC-1015",
+      "description": "Workers' comp \u2014 provider upcoding cluster"
+    },
+    {
+      "name": "AUT-1020",
+      "description": "Auto \u2014 phantom passenger injury claims"
+    },
+    {
+      "name": "AUT-1021",
+      "description": "Auto \u2014 prior-damage resubmission flags"
+    },
+    {
+      "name": "AUT-1022",
+      "description": "Auto \u2014 rental-period padding, repeat shop"
+    },
+    {
+      "name": "AUT-1023",
+      "description": "Auto \u2014 soft-tissue clinic cluster referral"
+    },
+    {
+      "name": "AUT-1024",
+      "description": "Auto \u2014 staged rear-end collision, ring-pattern plates"
+    },
+    {
+      "name": "AUT-1025",
+      "description": "Auto \u2014 inflated repair invoice vs photos"
+    },
+    {
+      "name": "AUT-1026",
+      "description": "Auto \u2014 phantom passenger injury claims"
+    },
+    {
+      "name": "AUT-1027",
+      "description": "Auto \u2014 prior-damage resubmission flags"
+    },
+    {
+      "name": "AUT-1028",
+      "description": "Auto \u2014 rental-period padding, repeat shop"
+    },
+    {
+      "name": "AUT-1029",
+      "description": "Auto \u2014 soft-tissue clinic cluster referral"
+    },
+    {
+      "name": "AUT-1030",
+      "description": "Auto \u2014 staged rear-end collision, ring-pattern plates"
+    },
+    {
+      "name": "AUT-1031",
+      "description": "Auto \u2014 inflated repair invoice vs photos"
+    },
+    {
+      "name": "AUT-1032",
+      "description": "Auto \u2014 phantom passenger injury claims"
+    },
+    {
+      "name": "AUT-1033",
+      "description": "Auto \u2014 prior-damage resubmission flags"
+    },
+    {
+      "name": "AUT-1034",
+      "description": "Auto \u2014 rental-period padding, repeat shop"
+    },
+    {
+      "name": "AUT-1035",
+      "description": "Auto \u2014 soft-tissue clinic cluster referral"
+    },
+    {
+      "name": "AUT-1036",
+      "description": "Auto \u2014 staged rear-end collision, ring-pattern plates"
+    },
+    {
+      "name": "AUT-1037",
+      "description": "Auto \u2014 inflated repair invoice vs photos"
+    },
+    {
+      "name": "AUT-1038",
+      "description": "Auto \u2014 phantom passenger injury claims"
+    },
+    {
+      "name": "AUT-1039",
+      "description": "Auto \u2014 prior-damage resubmission flags"
+    },
+    {
+      "name": "AUT-1040",
+      "description": "Auto \u2014 rental-period padding, repeat shop"
+    },
+    {
+      "name": "AUT-1041",
+      "description": "Auto \u2014 soft-tissue clinic cluster referral"
+    },
+    {
+      "name": "AUT-1042",
+      "description": "Auto \u2014 staged rear-end collision, ring-pattern plates"
+    },
+    {
+      "name": "AUT-1043",
+      "description": "Auto \u2014 inflated repair invoice vs photos"
+    },
+    {
+      "name": "AUT-1044",
+      "description": "Auto \u2014 phantom passenger injury claims"
+    },
+    {
+      "name": "AUT-1045",
+      "description": "Auto \u2014 prior-damage resubmission flags"
+    },
+    {
+      "name": "AUT-1046",
+      "description": "Auto \u2014 rental-period padding, repeat shop"
+    },
+    {
+      "name": "AUT-1047",
+      "description": "Auto \u2014 soft-tissue clinic cluster referral"
+    },
+    {
+      "name": "AUT-1048",
+      "description": "Auto \u2014 staged rear-end collision, ring-pattern plates"
+    },
+    {
+      "name": "AUT-1049",
+      "description": "Auto \u2014 inflated repair invoice vs photos"
+    },
+    {
+      "name": "AUT-1050",
+      "description": "Auto \u2014 phantom passenger injury claims"
+    },
+    {
+      "name": "AUT-1051",
+      "description": "Auto \u2014 prior-damage resubmission flags"
+    },
+    {
+      "name": "AUT-1052",
+      "description": "Auto \u2014 rental-period padding, repeat shop"
+    },
+    {
+      "name": "AUT-1053",
+      "description": "Auto \u2014 soft-tissue clinic cluster referral"
+    },
+    {
+      "name": "AUT-1054",
+      "description": "Auto \u2014 staged rear-end collision, ring-pattern plates"
+    },
+    {
+      "name": "AUT-1055",
+      "description": "Auto \u2014 inflated repair invoice vs photos"
+    },
+    {
+      "name": "AUT-1056",
+      "description": "Auto \u2014 phantom passenger injury claims"
+    },
+    {
+      "name": "AUT-1057",
+      "description": "Auto \u2014 prior-damage resubmission flags"
+    },
+    {
+      "name": "AUT-1058",
+      "description": "Auto \u2014 rental-period padding, repeat shop"
+    },
+    {
+      "name": "AUT-1059",
+      "description": "Auto \u2014 soft-tissue clinic cluster referral"
+    },
+    {
+      "name": "AUT-1060",
+      "description": "Auto \u2014 staged rear-end collision, ring-pattern plates"
+    },
+    {
+      "name": "AUT-1061",
+      "description": "Auto \u2014 inflated repair invoice vs photos"
+    },
+    {
+      "name": "AUT-1062",
+      "description": "Auto \u2014 phantom passenger injury claims"
+    },
+    {
+      "name": "AUT-1063",
+      "description": "Auto \u2014 prior-damage resubmission flags"
+    },
+    {
+      "name": "AUT-1064",
+      "description": "Auto \u2014 rental-period padding, repeat shop"
+    },
+    {
+      "name": "AUT-1065",
+      "description": "Auto \u2014 soft-tissue clinic cluster referral"
+    },
+    {
+      "name": "AUT-1066",
+      "description": "Auto \u2014 staged rear-end collision, ring-pattern plates"
+    },
+    {
+      "name": "AUT-1067",
+      "description": "Auto \u2014 inflated repair invoice vs photos"
+    },
+    {
+      "name": "PRP-1070",
+      "description": "Property \u2014 roof claim, hail map mismatch"
+    },
+    {
+      "name": "LIA-1071",
+      "description": "Liability \u2014 attorney-referred clinic pattern"
+    },
+    {
+      "name": "WC-1072",
+      "description": "Workers' comp \u2014 off-the-job injury indicators"
+    },
+    {
+      "name": "AUT-1073",
+      "description": "Auto \u2014 inflated repair invoice vs photos"
+    },
+    {
+      "name": "PRP-1074",
+      "description": "Property \u2014 water damage predating policy bind"
+    },
+    {
+      "name": "LIA-1075",
+      "description": "Liability \u2014 attorney-referred clinic pattern"
+    },
+    {
+      "name": "WC-1076",
+      "description": "Workers' comp \u2014 off-the-job injury indicators"
+    },
+    {
+      "name": "AUT-1077",
+      "description": "Auto \u2014 soft-tissue clinic cluster referral"
+    },
+    {
+      "name": "PRP-1078",
+      "description": "Property \u2014 fire loss, accelerant indicators"
+    },
+    {
+      "name": "LIA-1079",
+      "description": "Liability \u2014 attorney-referred clinic pattern"
+    },
+    {
+      "name": "WC-1080",
+      "description": "Workers' comp \u2014 off-the-job injury indicators"
+    },
+    {
+      "name": "AUT-1081",
+      "description": "Auto \u2014 prior-damage resubmission flags"
+    },
+    {
+      "name": "PRP-1082",
+      "description": "Property \u2014 roof claim, hail map mismatch"
+    },
+    {
+      "name": "LIA-1083",
+      "description": "Liability \u2014 attorney-referred clinic pattern"
+    },
+    {
+      "name": "WC-1084",
+      "description": "Workers' comp \u2014 off-the-job injury indicators"
+    },
+    {
+      "name": "AUT-1085",
+      "description": "Auto \u2014 inflated repair invoice vs photos"
+    },
+    {
+      "name": "PRP-1086",
+      "description": "Property \u2014 water damage predating policy bind"
+    },
+    {
+      "name": "LIA-1087",
+      "description": "Liability \u2014 attorney-referred clinic pattern"
+    },
+    {
+      "name": "WC-1088",
+      "description": "Workers' comp \u2014 off-the-job injury indicators"
+    },
+    {
+      "name": "AUT-1089",
+      "description": "Auto \u2014 soft-tissue clinic cluster referral"
+    },
+    {
+      "name": "PRP-1090",
+      "description": "Property \u2014 fire loss, accelerant indicators"
+    },
+    {
+      "name": "LIA-1091",
+      "description": "Liability \u2014 attorney-referred clinic pattern"
+    },
+    {
+      "name": "WC-1092",
+      "description": "Workers' comp \u2014 off-the-job injury indicators"
+    },
+    {
+      "name": "AUT-1093",
+      "description": "Auto \u2014 prior-damage resubmission flags"
+    },
+    {
+      "name": "PRP-1094",
+      "description": "Property \u2014 roof claim, hail map mismatch"
+    },
+    {
+      "name": "LIA-1095",
+      "description": "Liability \u2014 attorney-referred clinic pattern"
+    },
+    {
+      "name": "WC-1096",
+      "description": "Workers' comp \u2014 off-the-job injury indicators"
+    },
+    {
+      "name": "AUT-1097",
+      "description": "Auto \u2014 inflated repair invoice vs photos"
+    },
+    {
+      "name": "PRP-1098",
+      "description": "Property \u2014 water damage predating policy bind"
+    },
+    {
+      "name": "LIA-1099",
+      "description": "Liability \u2014 attorney-referred clinic pattern"
+    },
+    {
+      "name": "WC-1100",
+      "description": "Workers' comp \u2014 off-the-job injury indicators"
+    },
+    {
+      "name": "AUT-1101",
+      "description": "Auto \u2014 soft-tissue clinic cluster referral"
+    },
+    {
+      "name": "PRP-1102",
+      "description": "Property \u2014 fire loss, accelerant indicators"
+    },
+    {
+      "name": "LIA-1103",
+      "description": "Liability \u2014 attorney-referred clinic pattern"
+    },
+    {
+      "name": "WC-1104",
+      "description": "Workers' comp \u2014 off-the-job injury indicators"
+    },
+    {
+      "name": "AUT-1105",
+      "description": "Auto \u2014 prior-damage resubmission flags"
+    },
+    {
+      "name": "PRP-1106",
+      "description": "Property \u2014 roof claim, hail map mismatch"
+    },
+    {
+      "name": "LIA-1107",
+      "description": "Liability \u2014 attorney-referred clinic pattern"
+    },
+    {
+      "name": "WC-1108",
+      "description": "Workers' comp \u2014 off-the-job injury indicators"
+    },
+    {
+      "name": "AUT-1109",
+      "description": "Auto \u2014 inflated repair invoice vs photos"
+    },
+    {
+      "name": "PRP-1120",
+      "description": "Property \u2014 fire loss, accelerant indicators"
+    },
+    {
+      "name": "WC-1121",
+      "description": "Workers' comp \u2014 malingering surveillance flags"
+    },
+    {
+      "name": "LIA-1122",
+      "description": "Liability \u2014 duplicate billing across carriers"
+    },
+    {
+      "name": "PRP-1123",
+      "description": "Property \u2014 inventory inflation vs purchase records"
+    },
+    {
+      "name": "WC-1124",
+      "description": "Workers' comp \u2014 off-the-job injury indicators"
+    },
+    {
+      "name": "LIA-1125",
+      "description": "Liability \u2014 late-reported injury, venue shopping"
+    },
+    {
+      "name": "PRP-1126",
+      "description": "Property \u2014 fire loss, accelerant indicators"
+    },
+    {
+      "name": "WC-1127",
+      "description": "Workers' comp \u2014 provider upcoding cluster"
+    },
+    {
+      "name": "LIA-1128",
+      "description": "Liability \u2014 slip-and-fall, surveillance contradiction"
+    },
+    {
+      "name": "PRP-1129",
+      "description": "Property \u2014 inventory inflation vs purchase records"
+    },
+    {
+      "name": "WC-1130",
+      "description": "Workers' comp \u2014 ghost-employee premium fraud"
+    },
+    {
+      "name": "LIA-1131",
+      "description": "Liability \u2014 attorney-referred clinic pattern"
+    },
+    {
+      "name": "PRP-1132",
+      "description": "Property \u2014 fire loss, accelerant indicators"
+    },
+    {
+      "name": "WC-1133",
+      "description": "Workers' comp \u2014 malingering surveillance flags"
+    },
+    {
+      "name": "LIA-1134",
+      "description": "Liability \u2014 duplicate billing across carriers"
+    },
+    {
+      "name": "PRP-1135",
+      "description": "Property \u2014 inventory inflation vs purchase records"
+    },
+    {
+      "name": "WC-1136",
+      "description": "Workers' comp \u2014 off-the-job injury indicators"
+    },
+    {
+      "name": "LIA-1137",
+      "description": "Liability \u2014 late-reported injury, venue shopping"
+    },
+    {
+      "name": "PRP-1138",
+      "description": "Property \u2014 fire loss, accelerant indicators"
+    },
+    {
+      "name": "WC-1139",
+      "description": "Workers' comp \u2014 provider upcoding cluster"
+    },
+    {
+      "name": "LIA-1140",
+      "description": "Liability \u2014 slip-and-fall, surveillance contradiction"
+    },
+    {
+      "name": "PRP-1141",
+      "description": "Property \u2014 inventory inflation vs purchase records"
+    },
+    {
+      "name": "WC-1142",
+      "description": "Workers' comp \u2014 ghost-employee premium fraud"
+    },
+    {
+      "name": "LIA-1143",
+      "description": "Liability \u2014 attorney-referred clinic pattern"
+    },
+    {
+      "name": "PRP-1144",
+      "description": "Property \u2014 fire loss, accelerant indicators"
+    },
+    {
+      "name": "WC-1145",
+      "description": "Workers' comp \u2014 malingering surveillance flags"
+    },
+    {
+      "name": "LIA-1146",
+      "description": "Liability \u2014 duplicate billing across carriers"
+    },
+    {
+      "name": "PRP-1147",
+      "description": "Property \u2014 inventory inflation vs purchase records"
+    },
+    {
+      "name": "WC-1148",
+      "description": "Workers' comp \u2014 off-the-job injury indicators"
+    },
+    {
+      "name": "LIA-1149",
+      "description": "Liability \u2014 late-reported injury, venue shopping"
+    },
+    {
+      "name": "AUT-1160",
+      "description": "Auto \u2014 rental-period padding, repeat shop"
+    },
+    {
+      "name": "WC-1161",
+      "description": "Workers' comp \u2014 malingering surveillance flags"
+    },
+    {
+      "name": "PRP-1162",
+      "description": "Property \u2014 fire loss, accelerant indicators"
+    },
+    {
+      "name": "LIA-1163",
+      "description": "Liability \u2014 attorney-referred clinic pattern"
+    },
+    {
+      "name": "AUT-1164",
+      "description": "Auto \u2014 phantom passenger injury claims"
+    },
+    {
+      "name": "WC-1165",
+      "description": "Workers' comp \u2014 malingering surveillance flags"
+    },
+    {
+      "name": "PRP-1166",
+      "description": "Property \u2014 roof claim, hail map mismatch"
+    },
+    {
+      "name": "LIA-1167",
+      "description": "Liability \u2014 attorney-referred clinic pattern"
+    },
+    {
+      "name": "AUT-1168",
+      "description": "Auto \u2014 staged rear-end collision, ring-pattern plates"
+    },
+    {
+      "name": "WC-1169",
+      "description": "Workers' comp \u2014 malingering surveillance flags"
+    },
+    {
+      "name": "PRP-1170",
+      "description": "Property \u2014 water damage predating policy bind"
+    },
+    {
+      "name": "LIA-1171",
+      "description": "Liability \u2014 attorney-referred clinic pattern"
+    },
+    {
+      "name": "AUT-1172",
+      "description": "Auto \u2014 rental-period padding, repeat shop"
+    },
+    {
+      "name": "WC-1173",
+      "description": "Workers' comp \u2014 malingering surveillance flags"
+    },
+    {
+      "name": "PRP-1174",
+      "description": "Property \u2014 fire loss, accelerant indicators"
+    },
+    {
+      "name": "LIA-1175",
+      "description": "Liability \u2014 attorney-referred clinic pattern"
+    },
+    {
+      "name": "AUT-1176",
+      "description": "Auto \u2014 phantom passenger injury claims"
+    },
+    {
+      "name": "WC-1177",
+      "description": "Workers' comp \u2014 malingering surveillance flags"
+    },
+    {
+      "name": "PRP-1178",
+      "description": "Property \u2014 roof claim, hail map mismatch"
+    },
+    {
+      "name": "LIA-1179",
+      "description": "Liability \u2014 attorney-referred clinic pattern"
+    },
+    {
+      "name": "AUT-1180",
+      "description": "Auto \u2014 staged rear-end collision, ring-pattern plates"
+    },
+    {
+      "name": "WC-1181",
+      "description": "Workers' comp \u2014 malingering surveillance flags"
+    },
+    {
+      "name": "PRP-1182",
+      "description": "Property \u2014 water damage predating policy bind"
+    },
+    {
+      "name": "LIA-1183",
+      "description": "Liability \u2014 attorney-referred clinic pattern"
+    },
+    {
+      "name": "AUT-1184",
+      "description": "Auto \u2014 rental-period padding, repeat shop"
+    },
+    {
+      "name": "WC-1185",
+      "description": "Workers' comp \u2014 malingering surveillance flags"
+    },
+    {
+      "name": "PRP-1186",
+      "description": "Property \u2014 fire loss, accelerant indicators"
+    },
+    {
+      "name": "LIA-1187",
+      "description": "Liability \u2014 attorney-referred clinic pattern"
+    },
+    {
+      "name": "AUT-1188",
+      "description": "Auto \u2014 phantom passenger injury claims"
+    },
+    {
+      "name": "WC-1189",
+      "description": "Workers' comp \u2014 malingering surveillance flags"
+    },
+    {
+      "name": "PRP-1190",
+      "description": "Property \u2014 roof claim, hail map mismatch"
+    },
+    {
+      "name": "LIA-1191",
+      "description": "Liability \u2014 attorney-referred clinic pattern"
+    },
+    {
+      "name": "AUT-1192",
+      "description": "Auto \u2014 staged rear-end collision, ring-pattern plates"
+    },
+    {
+      "name": "WC-1193",
+      "description": "Workers' comp \u2014 malingering surveillance flags"
+    },
+    {
+      "name": "PRP-1194",
+      "description": "Property \u2014 water damage predating policy bind"
+    },
+    {
+      "name": "LIA-1195",
+      "description": "Liability \u2014 attorney-referred clinic pattern"
+    },
+    {
+      "name": "AUT-1196",
+      "description": "Auto \u2014 rental-period padding, repeat shop"
+    },
+    {
+      "name": "WC-1197",
+      "description": "Workers' comp \u2014 malingering surveillance flags"
+    },
+    {
+      "name": "PRP-1198",
+      "description": "Property \u2014 fire loss, accelerant indicators"
+    },
+    {
+      "name": "LIA-1199",
+      "description": "Liability \u2014 attorney-referred clinic pattern"
+    },
+    {
+      "name": "AUT-1200",
+      "description": "Auto \u2014 phantom passenger injury claims"
+    },
+    {
+      "name": "WC-1201",
+      "description": "Workers' comp \u2014 malingering surveillance flags"
+    },
+    {
+      "name": "PRP-1202",
+      "description": "Property \u2014 roof claim, hail map mismatch"
+    },
+    {
+      "name": "LIA-1203",
+      "description": "Liability \u2014 attorney-referred clinic pattern"
+    },
+    {
+      "name": "AUT-1204",
+      "description": "Auto \u2014 staged rear-end collision, ring-pattern plates"
+    },
+    {
+      "name": "WC-1205",
+      "description": "Workers' comp \u2014 malingering surveillance flags"
+    },
+    {
+      "name": "PRP-1206",
+      "description": "Property \u2014 water damage predating policy bind"
+    },
+    {
+      "name": "LIA-1207",
+      "description": "Liability \u2014 attorney-referred clinic pattern"
+    },
+    {
+      "name": "AUT-1208",
+      "description": "Auto \u2014 rental-period padding, repeat shop"
+    },
+    {
+      "name": "WC-1209",
+      "description": "Workers' comp \u2014 malingering surveillance flags"
+    },
+    {
+      "name": "PRP-1210",
+      "description": "Property \u2014 fire loss, accelerant indicators"
+    }
+  ],
+  "scores": [
+    {
+      "option": "PRP-1001",
+      "objective": "ExpectedRecovery",
+      "value": 312.0
+    },
+    {
+      "option": "PRP-1001",
+      "objective": "Hours",
+      "value": 45.0
+    },
+    {
+      "option": "PRP-1001",
+      "objective": "Friction",
+      "value": 2.5
+    },
+    {
+      "option": "LIA-1001",
+      "objective": "ExpectedRecovery",
+      "value": 296.0
+    },
+    {
+      "option": "LIA-1001",
+      "objective": "Hours",
+      "value": 43.0
+    },
+    {
+      "option": "LIA-1001",
+      "objective": "Friction",
+      "value": 3.0
+    },
+    {
+      "option": "PRP-1002",
+      "objective": "ExpectedRecovery",
+      "value": 288.0
+    },
+    {
+      "option": "PRP-1002",
+      "objective": "Hours",
+      "value": 42.0
+    },
+    {
+      "option": "PRP-1002",
+      "objective": "Friction",
+      "value": 2.0
+    },
+    {
+      "option": "WC-1001",
+      "objective": "ExpectedRecovery",
+      "value": 272.0
+    },
+    {
+      "option": "WC-1001",
+      "objective": "Hours",
+      "value": 40.0
+    },
+    {
+      "option": "WC-1001",
+      "objective": "Friction",
+      "value": 2.5
+    },
+    {
+      "option": "LIA-1002",
+      "objective": "ExpectedRecovery",
+      "value": 190.0
+    },
+    {
+      "option": "LIA-1002",
+      "objective": "Hours",
+      "value": 34.0
+    },
+    {
+      "option": "LIA-1002",
+      "objective": "Friction",
+      "value": 3.5
+    },
+    {
+      "option": "WC-1010",
+      "objective": "ExpectedRecovery",
+      "value": 142.0
+    },
+    {
+      "option": "WC-1010",
+      "objective": "Hours",
+      "value": 30.0
+    },
+    {
+      "option": "WC-1010",
+      "objective": "Friction",
+      "value": 3.0
+    },
+    {
+      "option": "AUT-1011",
+      "objective": "ExpectedRecovery",
+      "value": 96.0
+    },
+    {
+      "option": "AUT-1011",
+      "objective": "Hours",
+      "value": 22.0
+    },
+    {
+      "option": "AUT-1011",
+      "objective": "Friction",
+      "value": 4.5
+    },
+    {
+      "option": "PRP-1012",
+      "objective": "ExpectedRecovery",
+      "value": 78.0
+    },
+    {
+      "option": "PRP-1012",
+      "objective": "Hours",
+      "value": 24.0
+    },
+    {
+      "option": "PRP-1012",
+      "objective": "Friction",
+      "value": 3.5
+    },
+    {
+      "option": "LIA-1013",
+      "objective": "ExpectedRecovery",
+      "value": 64.0
+    },
+    {
+      "option": "LIA-1013",
+      "objective": "Hours",
+      "value": 19.0
+    },
+    {
+      "option": "LIA-1013",
+      "objective": "Friction",
+      "value": 5.0
+    },
+    {
+      "option": "AUT-1014",
+      "objective": "ExpectedRecovery",
+      "value": 88.0
+    },
+    {
+      "option": "AUT-1014",
+      "objective": "Hours",
+      "value": 21.0
+    },
+    {
+      "option": "AUT-1014",
+      "objective": "Friction",
+      "value": 4.0
+    },
+    {
+      "option": "WC-1015",
+      "objective": "ExpectedRecovery",
+      "value": 58.0
+    },
+    {
+      "option": "WC-1015",
+      "objective": "Hours",
+      "value": 17.0
+    },
+    {
+      "option": "WC-1015",
+      "objective": "Friction",
+      "value": 4.5
+    },
+    {
+      "option": "AUT-1020",
+      "objective": "ExpectedRecovery",
+      "value": 41.9
+    },
+    {
+      "option": "AUT-1020",
+      "objective": "Hours",
+      "value": 8.9
+    },
+    {
+      "option": "AUT-1020",
+      "objective": "Friction",
+      "value": 8.6
+    },
+    {
+      "option": "AUT-1021",
+      "objective": "ExpectedRecovery",
+      "value": 36.6
+    },
+    {
+      "option": "AUT-1021",
+      "objective": "Hours",
+      "value": 8.5
+    },
+    {
+      "option": "AUT-1021",
+      "objective": "Friction",
+      "value": 8.9
+    },
+    {
+      "option": "AUT-1022",
+      "objective": "ExpectedRecovery",
+      "value": 45.3
+    },
+    {
+      "option": "AUT-1022",
+      "objective": "Hours",
+      "value": 8.8
+    },
+    {
+      "option": "AUT-1022",
+      "objective": "Friction",
+      "value": 6.8
+    },
+    {
+      "option": "AUT-1023",
+      "objective": "ExpectedRecovery",
+      "value": 33.7
+    },
+    {
+      "option": "AUT-1023",
+      "objective": "Hours",
+      "value": 7.3
+    },
+    {
+      "option": "AUT-1023",
+      "objective": "Friction",
+      "value": 8.8
+    },
+    {
+      "option": "AUT-1024",
+      "objective": "ExpectedRecovery",
+      "value": 42.6
+    },
+    {
+      "option": "AUT-1024",
+      "objective": "Hours",
+      "value": 8.2
+    },
+    {
+      "option": "AUT-1024",
+      "objective": "Friction",
+      "value": 7.6
+    },
+    {
+      "option": "AUT-1025",
+      "objective": "ExpectedRecovery",
+      "value": 29.9
+    },
+    {
+      "option": "AUT-1025",
+      "objective": "Hours",
+      "value": 6.1
+    },
+    {
+      "option": "AUT-1025",
+      "objective": "Friction",
+      "value": 6.7
+    },
+    {
+      "option": "AUT-1026",
+      "objective": "ExpectedRecovery",
+      "value": 45.3
+    },
+    {
+      "option": "AUT-1026",
+      "objective": "Hours",
+      "value": 9.1
+    },
+    {
+      "option": "AUT-1026",
+      "objective": "Friction",
+      "value": 8.4
+    },
+    {
+      "option": "AUT-1027",
+      "objective": "ExpectedRecovery",
+      "value": 36.3
+    },
+    {
+      "option": "AUT-1027",
+      "objective": "Hours",
+      "value": 6.8
+    },
+    {
+      "option": "AUT-1027",
+      "objective": "Friction",
+      "value": 8.7
+    },
+    {
+      "option": "AUT-1028",
+      "objective": "ExpectedRecovery",
+      "value": 39.4
+    },
+    {
+      "option": "AUT-1028",
+      "objective": "Hours",
+      "value": 8.9
+    },
+    {
+      "option": "AUT-1028",
+      "objective": "Friction",
+      "value": 7.7
+    },
+    {
+      "option": "AUT-1029",
+      "objective": "ExpectedRecovery",
+      "value": 22.9
+    },
+    {
+      "option": "AUT-1029",
+      "objective": "Hours",
+      "value": 5.2
+    },
+    {
+      "option": "AUT-1029",
+      "objective": "Friction",
+      "value": 8.2
+    },
+    {
+      "option": "AUT-1030",
+      "objective": "ExpectedRecovery",
+      "value": 46.8
+    },
+    {
+      "option": "AUT-1030",
+      "objective": "Hours",
+      "value": 8.7
+    },
+    {
+      "option": "AUT-1030",
+      "objective": "Friction",
+      "value": 7.3
+    },
+    {
+      "option": "AUT-1031",
+      "objective": "ExpectedRecovery",
+      "value": 32.6
+    },
+    {
+      "option": "AUT-1031",
+      "objective": "Hours",
+      "value": 6.9
+    },
+    {
+      "option": "AUT-1031",
+      "objective": "Friction",
+      "value": 7.0
+    },
+    {
+      "option": "AUT-1032",
+      "objective": "ExpectedRecovery",
+      "value": 27.0
+    },
+    {
+      "option": "AUT-1032",
+      "objective": "Hours",
+      "value": 5.6
+    },
+    {
+      "option": "AUT-1032",
+      "objective": "Friction",
+      "value": 7.1
+    },
+    {
+      "option": "AUT-1033",
+      "objective": "ExpectedRecovery",
+      "value": 39.4
+    },
+    {
+      "option": "AUT-1033",
+      "objective": "Hours",
+      "value": 8.3
+    },
+    {
+      "option": "AUT-1033",
+      "objective": "Friction",
+      "value": 8.6
+    },
+    {
+      "option": "AUT-1034",
+      "objective": "ExpectedRecovery",
+      "value": 38.9
+    },
+    {
+      "option": "AUT-1034",
+      "objective": "Hours",
+      "value": 8.5
+    },
+    {
+      "option": "AUT-1034",
+      "objective": "Friction",
+      "value": 8.6
+    },
+    {
+      "option": "AUT-1035",
+      "objective": "ExpectedRecovery",
+      "value": 42.1
+    },
+    {
+      "option": "AUT-1035",
+      "objective": "Hours",
+      "value": 9.0
+    },
+    {
+      "option": "AUT-1035",
+      "objective": "Friction",
+      "value": 7.2
+    },
+    {
+      "option": "AUT-1036",
+      "objective": "ExpectedRecovery",
+      "value": 36.7
+    },
+    {
+      "option": "AUT-1036",
+      "objective": "Hours",
+      "value": 8.4
+    },
+    {
+      "option": "AUT-1036",
+      "objective": "Friction",
+      "value": 7.0
+    },
+    {
+      "option": "AUT-1037",
+      "objective": "ExpectedRecovery",
+      "value": 25.9
+    },
+    {
+      "option": "AUT-1037",
+      "objective": "Hours",
+      "value": 5.0
+    },
+    {
+      "option": "AUT-1037",
+      "objective": "Friction",
+      "value": 8.2
+    },
+    {
+      "option": "AUT-1038",
+      "objective": "ExpectedRecovery",
+      "value": 43.8
+    },
+    {
+      "option": "AUT-1038",
+      "objective": "Hours",
+      "value": 8.5
+    },
+    {
+      "option": "AUT-1038",
+      "objective": "Friction",
+      "value": 7.6
+    },
+    {
+      "option": "AUT-1039",
+      "objective": "ExpectedRecovery",
+      "value": 34.3
+    },
+    {
+      "option": "AUT-1039",
+      "objective": "Hours",
+      "value": 7.8
+    },
+    {
+      "option": "AUT-1039",
+      "objective": "Friction",
+      "value": 6.8
+    },
+    {
+      "option": "AUT-1040",
+      "objective": "ExpectedRecovery",
+      "value": 39.8
+    },
+    {
+      "option": "AUT-1040",
+      "objective": "Hours",
+      "value": 8.3
+    },
+    {
+      "option": "AUT-1040",
+      "objective": "Friction",
+      "value": 7.9
+    },
+    {
+      "option": "AUT-1041",
+      "objective": "ExpectedRecovery",
+      "value": 43.8
+    },
+    {
+      "option": "AUT-1041",
+      "objective": "Hours",
+      "value": 8.8
+    },
+    {
+      "option": "AUT-1041",
+      "objective": "Friction",
+      "value": 7.9
+    },
+    {
+      "option": "AUT-1042",
+      "objective": "ExpectedRecovery",
+      "value": 35.6
+    },
+    {
+      "option": "AUT-1042",
+      "objective": "Hours",
+      "value": 7.8
+    },
+    {
+      "option": "AUT-1042",
+      "objective": "Friction",
+      "value": 6.6
+    },
+    {
+      "option": "AUT-1043",
+      "objective": "ExpectedRecovery",
+      "value": 32.0
+    },
+    {
+      "option": "AUT-1043",
+      "objective": "Hours",
+      "value": 7.2
+    },
+    {
+      "option": "AUT-1043",
+      "objective": "Friction",
+      "value": 7.5
+    },
+    {
+      "option": "AUT-1044",
+      "objective": "ExpectedRecovery",
+      "value": 41.5
+    },
+    {
+      "option": "AUT-1044",
+      "objective": "Hours",
+      "value": 9.3
+    },
+    {
+      "option": "AUT-1044",
+      "objective": "Friction",
+      "value": 6.6
+    },
+    {
+      "option": "AUT-1045",
+      "objective": "ExpectedRecovery",
+      "value": 29.2
+    },
+    {
+      "option": "AUT-1045",
+      "objective": "Hours",
+      "value": 6.4
+    },
+    {
+      "option": "AUT-1045",
+      "objective": "Friction",
+      "value": 8.2
+    },
+    {
+      "option": "AUT-1046",
+      "objective": "ExpectedRecovery",
+      "value": 40.0
+    },
+    {
+      "option": "AUT-1046",
+      "objective": "Hours",
+      "value": 7.8
+    },
+    {
+      "option": "AUT-1046",
+      "objective": "Friction",
+      "value": 8.2
+    },
+    {
+      "option": "AUT-1047",
+      "objective": "ExpectedRecovery",
+      "value": 36.4
+    },
+    {
+      "option": "AUT-1047",
+      "objective": "Hours",
+      "value": 7.0
+    },
+    {
+      "option": "AUT-1047",
+      "objective": "Friction",
+      "value": 6.9
+    },
+    {
+      "option": "AUT-1048",
+      "objective": "ExpectedRecovery",
+      "value": 22.0
+    },
+    {
+      "option": "AUT-1048",
+      "objective": "Hours",
+      "value": 5.1
+    },
+    {
+      "option": "AUT-1048",
+      "objective": "Friction",
+      "value": 8.3
+    },
+    {
+      "option": "AUT-1049",
+      "objective": "ExpectedRecovery",
+      "value": 32.1
+    },
+    {
+      "option": "AUT-1049",
+      "objective": "Hours",
+      "value": 7.3
+    },
+    {
+      "option": "AUT-1049",
+      "objective": "Friction",
+      "value": 7.8
+    },
+    {
+      "option": "AUT-1050",
+      "objective": "ExpectedRecovery",
+      "value": 29.0
+    },
+    {
+      "option": "AUT-1050",
+      "objective": "Hours",
+      "value": 5.8
+    },
+    {
+      "option": "AUT-1050",
+      "objective": "Friction",
+      "value": 7.6
+    },
+    {
+      "option": "AUT-1051",
+      "objective": "ExpectedRecovery",
+      "value": 31.5
+    },
+    {
+      "option": "AUT-1051",
+      "objective": "Hours",
+      "value": 6.9
+    },
+    {
+      "option": "AUT-1051",
+      "objective": "Friction",
+      "value": 8.1
+    },
+    {
+      "option": "AUT-1052",
+      "objective": "ExpectedRecovery",
+      "value": 29.3
+    },
+    {
+      "option": "AUT-1052",
+      "objective": "Hours",
+      "value": 6.8
+    },
+    {
+      "option": "AUT-1052",
+      "objective": "Friction",
+      "value": 6.8
+    },
+    {
+      "option": "AUT-1053",
+      "objective": "ExpectedRecovery",
+      "value": 51.9
+    },
+    {
+      "option": "AUT-1053",
+      "objective": "Hours",
+      "value": 9.8
+    },
+    {
+      "option": "AUT-1053",
+      "objective": "Friction",
+      "value": 8.2
+    },
+    {
+      "option": "AUT-1054",
+      "objective": "ExpectedRecovery",
+      "value": 33.9
+    },
+    {
+      "option": "AUT-1054",
+      "objective": "Hours",
+      "value": 6.3
+    },
+    {
+      "option": "AUT-1054",
+      "objective": "Friction",
+      "value": 8.4
+    },
+    {
+      "option": "AUT-1055",
+      "objective": "ExpectedRecovery",
+      "value": 40.7
+    },
+    {
+      "option": "AUT-1055",
+      "objective": "Hours",
+      "value": 8.6
+    },
+    {
+      "option": "AUT-1055",
+      "objective": "Friction",
+      "value": 7.2
+    },
+    {
+      "option": "AUT-1056",
+      "objective": "ExpectedRecovery",
+      "value": 29.0
+    },
+    {
+      "option": "AUT-1056",
+      "objective": "Hours",
+      "value": 5.5
+    },
+    {
+      "option": "AUT-1056",
+      "objective": "Friction",
+      "value": 7.6
+    },
+    {
+      "option": "AUT-1057",
+      "objective": "ExpectedRecovery",
+      "value": 27.5
+    },
+    {
+      "option": "AUT-1057",
+      "objective": "Hours",
+      "value": 6.0
+    },
+    {
+      "option": "AUT-1057",
+      "objective": "Friction",
+      "value": 7.9
+    },
+    {
+      "option": "AUT-1058",
+      "objective": "ExpectedRecovery",
+      "value": 30.8
+    },
+    {
+      "option": "AUT-1058",
+      "objective": "Hours",
+      "value": 5.9
+    },
+    {
+      "option": "AUT-1058",
+      "objective": "Friction",
+      "value": 8.4
+    },
+    {
+      "option": "AUT-1059",
+      "objective": "ExpectedRecovery",
+      "value": 40.6
+    },
+    {
+      "option": "AUT-1059",
+      "objective": "Hours",
+      "value": 8.6
+    },
+    {
+      "option": "AUT-1059",
+      "objective": "Friction",
+      "value": 8.1
+    },
+    {
+      "option": "AUT-1060",
+      "objective": "ExpectedRecovery",
+      "value": 39.4
+    },
+    {
+      "option": "AUT-1060",
+      "objective": "Hours",
+      "value": 7.9
+    },
+    {
+      "option": "AUT-1060",
+      "objective": "Friction",
+      "value": 6.7
+    },
+    {
+      "option": "AUT-1061",
+      "objective": "ExpectedRecovery",
+      "value": 30.1
+    },
+    {
+      "option": "AUT-1061",
+      "objective": "Hours",
+      "value": 7.1
+    },
+    {
+      "option": "AUT-1061",
+      "objective": "Friction",
+      "value": 7.7
+    },
+    {
+      "option": "AUT-1062",
+      "objective": "ExpectedRecovery",
+      "value": 29.1
+    },
+    {
+      "option": "AUT-1062",
+      "objective": "Hours",
+      "value": 6.6
+    },
+    {
+      "option": "AUT-1062",
+      "objective": "Friction",
+      "value": 6.8
+    },
+    {
+      "option": "AUT-1063",
+      "objective": "ExpectedRecovery",
+      "value": 35.0
+    },
+    {
+      "option": "AUT-1063",
+      "objective": "Hours",
+      "value": 7.9
+    },
+    {
+      "option": "AUT-1063",
+      "objective": "Friction",
+      "value": 8.8
+    },
+    {
+      "option": "AUT-1064",
+      "objective": "ExpectedRecovery",
+      "value": 36.5
+    },
+    {
+      "option": "AUT-1064",
+      "objective": "Hours",
+      "value": 7.9
+    },
+    {
+      "option": "AUT-1064",
+      "objective": "Friction",
+      "value": 8.0
+    },
+    {
+      "option": "AUT-1065",
+      "objective": "ExpectedRecovery",
+      "value": 27.4
+    },
+    {
+      "option": "AUT-1065",
+      "objective": "Hours",
+      "value": 5.1
+    },
+    {
+      "option": "AUT-1065",
+      "objective": "Friction",
+      "value": 7.7
+    },
+    {
+      "option": "AUT-1066",
+      "objective": "ExpectedRecovery",
+      "value": 38.3
+    },
+    {
+      "option": "AUT-1066",
+      "objective": "Hours",
+      "value": 8.9
+    },
+    {
+      "option": "AUT-1066",
+      "objective": "Friction",
+      "value": 7.7
+    },
+    {
+      "option": "AUT-1067",
+      "objective": "ExpectedRecovery",
+      "value": 39.7
+    },
+    {
+      "option": "AUT-1067",
+      "objective": "Hours",
+      "value": 7.5
+    },
+    {
+      "option": "AUT-1067",
+      "objective": "Friction",
+      "value": 7.9
+    },
+    {
+      "option": "PRP-1070",
+      "objective": "ExpectedRecovery",
+      "value": 52.3
+    },
+    {
+      "option": "PRP-1070",
+      "objective": "Hours",
+      "value": 17.8
+    },
+    {
+      "option": "PRP-1070",
+      "objective": "Friction",
+      "value": 3.0
+    },
+    {
+      "option": "LIA-1071",
+      "objective": "ExpectedRecovery",
+      "value": 56.2
+    },
+    {
+      "option": "LIA-1071",
+      "objective": "Hours",
+      "value": 18.2
+    },
+    {
+      "option": "LIA-1071",
+      "objective": "Friction",
+      "value": 2.1
+    },
+    {
+      "option": "WC-1072",
+      "objective": "ExpectedRecovery",
+      "value": 72.3
+    },
+    {
+      "option": "WC-1072",
+      "objective": "Hours",
+      "value": 20.6
+    },
+    {
+      "option": "WC-1072",
+      "objective": "Friction",
+      "value": 2.4
+    },
+    {
+      "option": "AUT-1073",
+      "objective": "ExpectedRecovery",
+      "value": 51.6
+    },
+    {
+      "option": "AUT-1073",
+      "objective": "Hours",
+      "value": 18.4
+    },
+    {
+      "option": "AUT-1073",
+      "objective": "Friction",
+      "value": 4.0
+    },
+    {
+      "option": "PRP-1074",
+      "objective": "ExpectedRecovery",
+      "value": 53.5
+    },
+    {
+      "option": "PRP-1074",
+      "objective": "Hours",
+      "value": 16.2
+    },
+    {
+      "option": "PRP-1074",
+      "objective": "Friction",
+      "value": 4.2
+    },
+    {
+      "option": "LIA-1075",
+      "objective": "ExpectedRecovery",
+      "value": 56.4
+    },
+    {
+      "option": "LIA-1075",
+      "objective": "Hours",
+      "value": 20.1
+    },
+    {
+      "option": "LIA-1075",
+      "objective": "Friction",
+      "value": 4.7
+    },
+    {
+      "option": "WC-1076",
+      "objective": "ExpectedRecovery",
+      "value": 43.3
+    },
+    {
+      "option": "WC-1076",
+      "objective": "Hours",
+      "value": 15.8
+    },
+    {
+      "option": "WC-1076",
+      "objective": "Friction",
+      "value": 3.7
+    },
+    {
+      "option": "AUT-1077",
+      "objective": "ExpectedRecovery",
+      "value": 58.5
+    },
+    {
+      "option": "AUT-1077",
+      "objective": "Hours",
+      "value": 17.0
+    },
+    {
+      "option": "AUT-1077",
+      "objective": "Friction",
+      "value": 4.4
+    },
+    {
+      "option": "PRP-1078",
+      "objective": "ExpectedRecovery",
+      "value": 58.8
+    },
+    {
+      "option": "PRP-1078",
+      "objective": "Hours",
+      "value": 16.5
+    },
+    {
+      "option": "PRP-1078",
+      "objective": "Friction",
+      "value": 2.9
+    },
+    {
+      "option": "LIA-1079",
+      "objective": "ExpectedRecovery",
+      "value": 53.1
+    },
+    {
+      "option": "LIA-1079",
+      "objective": "Hours",
+      "value": 18.1
+    },
+    {
+      "option": "LIA-1079",
+      "objective": "Friction",
+      "value": 4.8
+    },
+    {
+      "option": "WC-1080",
+      "objective": "ExpectedRecovery",
+      "value": 42.0
+    },
+    {
+      "option": "WC-1080",
+      "objective": "Hours",
+      "value": 15.3
+    },
+    {
+      "option": "WC-1080",
+      "objective": "Friction",
+      "value": 3.3
+    },
+    {
+      "option": "AUT-1081",
+      "objective": "ExpectedRecovery",
+      "value": 76.8
+    },
+    {
+      "option": "AUT-1081",
+      "objective": "Hours",
+      "value": 21.9
+    },
+    {
+      "option": "AUT-1081",
+      "objective": "Friction",
+      "value": 4.2
+    },
+    {
+      "option": "PRP-1082",
+      "objective": "ExpectedRecovery",
+      "value": 74.0
+    },
+    {
+      "option": "PRP-1082",
+      "objective": "Hours",
+      "value": 21.1
+    },
+    {
+      "option": "PRP-1082",
+      "objective": "Friction",
+      "value": 3.6
+    },
+    {
+      "option": "LIA-1083",
+      "objective": "ExpectedRecovery",
+      "value": 56.1
+    },
+    {
+      "option": "LIA-1083",
+      "objective": "Hours",
+      "value": 16.5
+    },
+    {
+      "option": "LIA-1083",
+      "objective": "Friction",
+      "value": 4.0
+    },
+    {
+      "option": "WC-1084",
+      "objective": "ExpectedRecovery",
+      "value": 47.3
+    },
+    {
+      "option": "WC-1084",
+      "objective": "Hours",
+      "value": 17.0
+    },
+    {
+      "option": "WC-1084",
+      "objective": "Friction",
+      "value": 4.2
+    },
+    {
+      "option": "AUT-1085",
+      "objective": "ExpectedRecovery",
+      "value": 57.0
+    },
+    {
+      "option": "AUT-1085",
+      "objective": "Hours",
+      "value": 16.1
+    },
+    {
+      "option": "AUT-1085",
+      "objective": "Friction",
+      "value": 2.7
+    },
+    {
+      "option": "PRP-1086",
+      "objective": "ExpectedRecovery",
+      "value": 51.7
+    },
+    {
+      "option": "PRP-1086",
+      "objective": "Hours",
+      "value": 15.0
+    },
+    {
+      "option": "PRP-1086",
+      "objective": "Friction",
+      "value": 2.5
+    },
+    {
+      "option": "LIA-1087",
+      "objective": "ExpectedRecovery",
+      "value": 50.0
+    },
+    {
+      "option": "LIA-1087",
+      "objective": "Hours",
+      "value": 15.4
+    },
+    {
+      "option": "LIA-1087",
+      "objective": "Friction",
+      "value": 4.6
+    },
+    {
+      "option": "WC-1088",
+      "objective": "ExpectedRecovery",
+      "value": 46.4
+    },
+    {
+      "option": "WC-1088",
+      "objective": "Hours",
+      "value": 15.6
+    },
+    {
+      "option": "WC-1088",
+      "objective": "Friction",
+      "value": 4.3
+    },
+    {
+      "option": "AUT-1089",
+      "objective": "ExpectedRecovery",
+      "value": 68.6
+    },
+    {
+      "option": "AUT-1089",
+      "objective": "Hours",
+      "value": 21.8
+    },
+    {
+      "option": "AUT-1089",
+      "objective": "Friction",
+      "value": 2.4
+    },
+    {
+      "option": "PRP-1090",
+      "objective": "ExpectedRecovery",
+      "value": 41.0
+    },
+    {
+      "option": "PRP-1090",
+      "objective": "Hours",
+      "value": 14.1
+    },
+    {
+      "option": "PRP-1090",
+      "objective": "Friction",
+      "value": 2.4
+    },
+    {
+      "option": "LIA-1091",
+      "objective": "ExpectedRecovery",
+      "value": 54.6
+    },
+    {
+      "option": "LIA-1091",
+      "objective": "Hours",
+      "value": 19.4
+    },
+    {
+      "option": "LIA-1091",
+      "objective": "Friction",
+      "value": 3.5
+    },
+    {
+      "option": "WC-1092",
+      "objective": "ExpectedRecovery",
+      "value": 63.0
+    },
+    {
+      "option": "WC-1092",
+      "objective": "Hours",
+      "value": 19.6
+    },
+    {
+      "option": "WC-1092",
+      "objective": "Friction",
+      "value": 2.6
+    },
+    {
+      "option": "AUT-1093",
+      "objective": "ExpectedRecovery",
+      "value": 68.3
+    },
+    {
+      "option": "AUT-1093",
+      "objective": "Hours",
+      "value": 20.4
+    },
+    {
+      "option": "AUT-1093",
+      "objective": "Friction",
+      "value": 4.2
+    },
+    {
+      "option": "PRP-1094",
+      "objective": "ExpectedRecovery",
+      "value": 42.3
+    },
+    {
+      "option": "PRP-1094",
+      "objective": "Hours",
+      "value": 15.0
+    },
+    {
+      "option": "PRP-1094",
+      "objective": "Friction",
+      "value": 4.8
+    },
+    {
+      "option": "LIA-1095",
+      "objective": "ExpectedRecovery",
+      "value": 51.0
+    },
+    {
+      "option": "LIA-1095",
+      "objective": "Hours",
+      "value": 17.2
+    },
+    {
+      "option": "LIA-1095",
+      "objective": "Friction",
+      "value": 3.5
+    },
+    {
+      "option": "WC-1096",
+      "objective": "ExpectedRecovery",
+      "value": 68.7
+    },
+    {
+      "option": "WC-1096",
+      "objective": "Hours",
+      "value": 19.3
+    },
+    {
+      "option": "WC-1096",
+      "objective": "Friction",
+      "value": 2.9
+    },
+    {
+      "option": "AUT-1097",
+      "objective": "ExpectedRecovery",
+      "value": 58.3
+    },
+    {
+      "option": "AUT-1097",
+      "objective": "Hours",
+      "value": 21.4
+    },
+    {
+      "option": "AUT-1097",
+      "objective": "Friction",
+      "value": 3.7
+    },
+    {
+      "option": "PRP-1098",
+      "objective": "ExpectedRecovery",
+      "value": 53.3
+    },
+    {
+      "option": "PRP-1098",
+      "objective": "Hours",
+      "value": 19.1
+    },
+    {
+      "option": "PRP-1098",
+      "objective": "Friction",
+      "value": 2.4
+    },
+    {
+      "option": "LIA-1099",
+      "objective": "ExpectedRecovery",
+      "value": 61.9
+    },
+    {
+      "option": "LIA-1099",
+      "objective": "Hours",
+      "value": 17.4
+    },
+    {
+      "option": "LIA-1099",
+      "objective": "Friction",
+      "value": 3.8
+    },
+    {
+      "option": "WC-1100",
+      "objective": "ExpectedRecovery",
+      "value": 73.5
+    },
+    {
+      "option": "WC-1100",
+      "objective": "Hours",
+      "value": 21.5
+    },
+    {
+      "option": "WC-1100",
+      "objective": "Friction",
+      "value": 3.4
+    },
+    {
+      "option": "AUT-1101",
+      "objective": "ExpectedRecovery",
+      "value": 55.1
+    },
+    {
+      "option": "AUT-1101",
+      "objective": "Hours",
+      "value": 20.3
+    },
+    {
+      "option": "AUT-1101",
+      "objective": "Friction",
+      "value": 2.3
+    },
+    {
+      "option": "PRP-1102",
+      "objective": "ExpectedRecovery",
+      "value": 70.5
+    },
+    {
+      "option": "PRP-1102",
+      "objective": "Hours",
+      "value": 20.6
+    },
+    {
+      "option": "PRP-1102",
+      "objective": "Friction",
+      "value": 2.7
+    },
+    {
+      "option": "LIA-1103",
+      "objective": "ExpectedRecovery",
+      "value": 59.2
+    },
+    {
+      "option": "LIA-1103",
+      "objective": "Hours",
+      "value": 18.2
+    },
+    {
+      "option": "LIA-1103",
+      "objective": "Friction",
+      "value": 4.6
+    },
+    {
+      "option": "WC-1104",
+      "objective": "ExpectedRecovery",
+      "value": 57.8
+    },
+    {
+      "option": "WC-1104",
+      "objective": "Hours",
+      "value": 18.8
+    },
+    {
+      "option": "WC-1104",
+      "objective": "Friction",
+      "value": 3.1
+    },
+    {
+      "option": "AUT-1105",
+      "objective": "ExpectedRecovery",
+      "value": 57.2
+    },
+    {
+      "option": "AUT-1105",
+      "objective": "Hours",
+      "value": 17.4
+    },
+    {
+      "option": "AUT-1105",
+      "objective": "Friction",
+      "value": 4.6
+    },
+    {
+      "option": "PRP-1106",
+      "objective": "ExpectedRecovery",
+      "value": 51.5
+    },
+    {
+      "option": "PRP-1106",
+      "objective": "Hours",
+      "value": 17.6
+    },
+    {
+      "option": "PRP-1106",
+      "objective": "Friction",
+      "value": 2.7
+    },
+    {
+      "option": "LIA-1107",
+      "objective": "ExpectedRecovery",
+      "value": 68.6
+    },
+    {
+      "option": "LIA-1107",
+      "objective": "Hours",
+      "value": 20.0
+    },
+    {
+      "option": "LIA-1107",
+      "objective": "Friction",
+      "value": 2.3
+    },
+    {
+      "option": "WC-1108",
+      "objective": "ExpectedRecovery",
+      "value": 47.0
+    },
+    {
+      "option": "WC-1108",
+      "objective": "Hours",
+      "value": 14.5
+    },
+    {
+      "option": "WC-1108",
+      "objective": "Friction",
+      "value": 2.4
+    },
+    {
+      "option": "AUT-1109",
+      "objective": "ExpectedRecovery",
+      "value": 61.4
+    },
+    {
+      "option": "AUT-1109",
+      "objective": "Hours",
+      "value": 20.6
+    },
+    {
+      "option": "AUT-1109",
+      "objective": "Friction",
+      "value": 2.4
+    },
+    {
+      "option": "PRP-1120",
+      "objective": "ExpectedRecovery",
+      "value": 77.0
+    },
+    {
+      "option": "PRP-1120",
+      "objective": "Hours",
+      "value": 50.3
+    },
+    {
+      "option": "PRP-1120",
+      "objective": "Friction",
+      "value": 5.9
+    },
+    {
+      "option": "WC-1121",
+      "objective": "ExpectedRecovery",
+      "value": 49.8
+    },
+    {
+      "option": "WC-1121",
+      "objective": "Hours",
+      "value": 33.4
+    },
+    {
+      "option": "WC-1121",
+      "objective": "Friction",
+      "value": 5.1
+    },
+    {
+      "option": "LIA-1122",
+      "objective": "ExpectedRecovery",
+      "value": 48.1
+    },
+    {
+      "option": "LIA-1122",
+      "objective": "Hours",
+      "value": 31.2
+    },
+    {
+      "option": "LIA-1122",
+      "objective": "Friction",
+      "value": 5.2
+    },
+    {
+      "option": "PRP-1123",
+      "objective": "ExpectedRecovery",
+      "value": 83.6
+    },
+    {
+      "option": "PRP-1123",
+      "objective": "Hours",
+      "value": 43.0
+    },
+    {
+      "option": "PRP-1123",
+      "objective": "Friction",
+      "value": 6.2
+    },
+    {
+      "option": "WC-1124",
+      "objective": "ExpectedRecovery",
+      "value": 66.7
+    },
+    {
+      "option": "WC-1124",
+      "objective": "Hours",
+      "value": 37.0
+    },
+    {
+      "option": "WC-1124",
+      "objective": "Friction",
+      "value": 7.6
+    },
+    {
+      "option": "LIA-1125",
+      "objective": "ExpectedRecovery",
+      "value": 69.9
+    },
+    {
+      "option": "LIA-1125",
+      "objective": "Hours",
+      "value": 48.7
+    },
+    {
+      "option": "LIA-1125",
+      "objective": "Friction",
+      "value": 5.5
+    },
+    {
+      "option": "PRP-1126",
+      "objective": "ExpectedRecovery",
+      "value": 56.3
+    },
+    {
+      "option": "PRP-1126",
+      "objective": "Hours",
+      "value": 35.2
+    },
+    {
+      "option": "PRP-1126",
+      "objective": "Friction",
+      "value": 6.7
+    },
+    {
+      "option": "WC-1127",
+      "objective": "ExpectedRecovery",
+      "value": 56.4
+    },
+    {
+      "option": "WC-1127",
+      "objective": "Hours",
+      "value": 39.2
+    },
+    {
+      "option": "WC-1127",
+      "objective": "Friction",
+      "value": 6.1
+    },
+    {
+      "option": "LIA-1128",
+      "objective": "ExpectedRecovery",
+      "value": 61.5
+    },
+    {
+      "option": "LIA-1128",
+      "objective": "Hours",
+      "value": 41.5
+    },
+    {
+      "option": "LIA-1128",
+      "objective": "Friction",
+      "value": 7.5
+    },
+    {
+      "option": "PRP-1129",
+      "objective": "ExpectedRecovery",
+      "value": 66.6
+    },
+    {
+      "option": "PRP-1129",
+      "objective": "Hours",
+      "value": 31.1
+    },
+    {
+      "option": "PRP-1129",
+      "objective": "Friction",
+      "value": 5.3
+    },
+    {
+      "option": "WC-1130",
+      "objective": "ExpectedRecovery",
+      "value": 103.0
+    },
+    {
+      "option": "WC-1130",
+      "objective": "Hours",
+      "value": 48.6
+    },
+    {
+      "option": "WC-1130",
+      "objective": "Friction",
+      "value": 7.9
+    },
+    {
+      "option": "LIA-1131",
+      "objective": "ExpectedRecovery",
+      "value": 96.4
+    },
+    {
+      "option": "LIA-1131",
+      "objective": "Hours",
+      "value": 47.6
+    },
+    {
+      "option": "LIA-1131",
+      "objective": "Friction",
+      "value": 6.9
+    },
+    {
+      "option": "PRP-1132",
+      "objective": "ExpectedRecovery",
+      "value": 71.1
+    },
+    {
+      "option": "PRP-1132",
+      "objective": "Hours",
+      "value": 47.1
+    },
+    {
+      "option": "PRP-1132",
+      "objective": "Friction",
+      "value": 6.6
+    },
+    {
+      "option": "WC-1133",
+      "objective": "ExpectedRecovery",
+      "value": 86.2
+    },
+    {
+      "option": "WC-1133",
+      "objective": "Hours",
+      "value": 41.3
+    },
+    {
+      "option": "WC-1133",
+      "objective": "Friction",
+      "value": 6.4
+    },
+    {
+      "option": "LIA-1134",
+      "objective": "ExpectedRecovery",
+      "value": 73.5
+    },
+    {
+      "option": "LIA-1134",
+      "objective": "Hours",
+      "value": 38.5
+    },
+    {
+      "option": "LIA-1134",
+      "objective": "Friction",
+      "value": 5.8
+    },
+    {
+      "option": "PRP-1135",
+      "objective": "ExpectedRecovery",
+      "value": 58.9
+    },
+    {
+      "option": "PRP-1135",
+      "objective": "Hours",
+      "value": 33.1
+    },
+    {
+      "option": "PRP-1135",
+      "objective": "Friction",
+      "value": 6.3
+    },
+    {
+      "option": "WC-1136",
+      "objective": "ExpectedRecovery",
+      "value": 59.5
+    },
+    {
+      "option": "WC-1136",
+      "objective": "Hours",
+      "value": 35.1
+    },
+    {
+      "option": "WC-1136",
+      "objective": "Friction",
+      "value": 6.1
+    },
+    {
+      "option": "LIA-1137",
+      "objective": "ExpectedRecovery",
+      "value": 63.4
+    },
+    {
+      "option": "LIA-1137",
+      "objective": "Hours",
+      "value": 37.2
+    },
+    {
+      "option": "LIA-1137",
+      "objective": "Friction",
+      "value": 7.1
+    },
+    {
+      "option": "PRP-1138",
+      "objective": "ExpectedRecovery",
+      "value": 78.9
+    },
+    {
+      "option": "PRP-1138",
+      "objective": "Hours",
+      "value": 36.5
+    },
+    {
+      "option": "PRP-1138",
+      "objective": "Friction",
+      "value": 7.7
+    },
+    {
+      "option": "WC-1139",
+      "objective": "ExpectedRecovery",
+      "value": 67.5
+    },
+    {
+      "option": "WC-1139",
+      "objective": "Hours",
+      "value": 40.6
+    },
+    {
+      "option": "WC-1139",
+      "objective": "Friction",
+      "value": 6.6
+    },
+    {
+      "option": "LIA-1140",
+      "objective": "ExpectedRecovery",
+      "value": 93.5
+    },
+    {
+      "option": "LIA-1140",
+      "objective": "Hours",
+      "value": 48.7
+    },
+    {
+      "option": "LIA-1140",
+      "objective": "Friction",
+      "value": 7.4
+    },
+    {
+      "option": "PRP-1141",
+      "objective": "ExpectedRecovery",
+      "value": 79.5
+    },
+    {
+      "option": "PRP-1141",
+      "objective": "Hours",
+      "value": 41.7
+    },
+    {
+      "option": "PRP-1141",
+      "objective": "Friction",
+      "value": 5.9
+    },
+    {
+      "option": "WC-1142",
+      "objective": "ExpectedRecovery",
+      "value": 72.1
+    },
+    {
+      "option": "WC-1142",
+      "objective": "Hours",
+      "value": 46.2
+    },
+    {
+      "option": "WC-1142",
+      "objective": "Friction",
+      "value": 7.1
+    },
+    {
+      "option": "LIA-1143",
+      "objective": "ExpectedRecovery",
+      "value": 73.7
+    },
+    {
+      "option": "LIA-1143",
+      "objective": "Hours",
+      "value": 48.9
+    },
+    {
+      "option": "LIA-1143",
+      "objective": "Friction",
+      "value": 6.8
+    },
+    {
+      "option": "PRP-1144",
+      "objective": "ExpectedRecovery",
+      "value": 63.6
+    },
+    {
+      "option": "PRP-1144",
+      "objective": "Hours",
+      "value": 32.1
+    },
+    {
+      "option": "PRP-1144",
+      "objective": "Friction",
+      "value": 5.3
+    },
+    {
+      "option": "WC-1145",
+      "objective": "ExpectedRecovery",
+      "value": 76.4
+    },
+    {
+      "option": "WC-1145",
+      "objective": "Hours",
+      "value": 50.6
+    },
+    {
+      "option": "WC-1145",
+      "objective": "Friction",
+      "value": 7.9
+    },
+    {
+      "option": "LIA-1146",
+      "objective": "ExpectedRecovery",
+      "value": 89.3
+    },
+    {
+      "option": "LIA-1146",
+      "objective": "Hours",
+      "value": 47.6
+    },
+    {
+      "option": "LIA-1146",
+      "objective": "Friction",
+      "value": 7.3
+    },
+    {
+      "option": "PRP-1147",
+      "objective": "ExpectedRecovery",
+      "value": 102.4
+    },
+    {
+      "option": "PRP-1147",
+      "objective": "Hours",
+      "value": 47.5
+    },
+    {
+      "option": "PRP-1147",
+      "objective": "Friction",
+      "value": 5.8
+    },
+    {
+      "option": "WC-1148",
+      "objective": "ExpectedRecovery",
+      "value": 63.4
+    },
+    {
+      "option": "WC-1148",
+      "objective": "Hours",
+      "value": 43.0
+    },
+    {
+      "option": "WC-1148",
+      "objective": "Friction",
+      "value": 6.8
+    },
+    {
+      "option": "LIA-1149",
+      "objective": "ExpectedRecovery",
+      "value": 62.5
+    },
+    {
+      "option": "LIA-1149",
+      "objective": "Hours",
+      "value": 33.8
+    },
+    {
+      "option": "LIA-1149",
+      "objective": "Friction",
+      "value": 6.7
+    },
+    {
+      "option": "AUT-1160",
+      "objective": "ExpectedRecovery",
+      "value": 13.7
+    },
+    {
+      "option": "AUT-1160",
+      "objective": "Hours",
+      "value": 7.7
+    },
+    {
+      "option": "AUT-1160",
+      "objective": "Friction",
+      "value": 2.9
+    },
+    {
+      "option": "WC-1161",
+      "objective": "ExpectedRecovery",
+      "value": 18.1
+    },
+    {
+      "option": "WC-1161",
+      "objective": "Hours",
+      "value": 10.4
+    },
+    {
+      "option": "WC-1161",
+      "objective": "Friction",
+      "value": 2.5
+    },
+    {
+      "option": "PRP-1162",
+      "objective": "ExpectedRecovery",
+      "value": 16.1
+    },
+    {
+      "option": "PRP-1162",
+      "objective": "Hours",
+      "value": 11.4
+    },
+    {
+      "option": "PRP-1162",
+      "objective": "Friction",
+      "value": 1.3
+    },
+    {
+      "option": "LIA-1163",
+      "objective": "ExpectedRecovery",
+      "value": 8.9
+    },
+    {
+      "option": "LIA-1163",
+      "objective": "Hours",
+      "value": 4.7
+    },
+    {
+      "option": "LIA-1163",
+      "objective": "Friction",
+      "value": 2.0
+    },
+    {
+      "option": "AUT-1164",
+      "objective": "ExpectedRecovery",
+      "value": 19.4
+    },
+    {
+      "option": "AUT-1164",
+      "objective": "Hours",
+      "value": 10.2
+    },
+    {
+      "option": "AUT-1164",
+      "objective": "Friction",
+      "value": 1.8
+    },
+    {
+      "option": "WC-1165",
+      "objective": "ExpectedRecovery",
+      "value": 22.2
+    },
+    {
+      "option": "WC-1165",
+      "objective": "Hours",
+      "value": 11.2
+    },
+    {
+      "option": "WC-1165",
+      "objective": "Friction",
+      "value": 1.7
+    },
+    {
+      "option": "PRP-1166",
+      "objective": "ExpectedRecovery",
+      "value": 10.9
+    },
+    {
+      "option": "PRP-1166",
+      "objective": "Hours",
+      "value": 6.9
+    },
+    {
+      "option": "PRP-1166",
+      "objective": "Friction",
+      "value": 1.4
+    },
+    {
+      "option": "LIA-1167",
+      "objective": "ExpectedRecovery",
+      "value": 11.1
+    },
+    {
+      "option": "LIA-1167",
+      "objective": "Hours",
+      "value": 5.2
+    },
+    {
+      "option": "LIA-1167",
+      "objective": "Friction",
+      "value": 2.1
+    },
+    {
+      "option": "AUT-1168",
+      "objective": "ExpectedRecovery",
+      "value": 13.8
+    },
+    {
+      "option": "AUT-1168",
+      "objective": "Hours",
+      "value": 7.1
+    },
+    {
+      "option": "AUT-1168",
+      "objective": "Friction",
+      "value": 2.4
+    },
+    {
+      "option": "WC-1169",
+      "objective": "ExpectedRecovery",
+      "value": 23.0
+    },
+    {
+      "option": "WC-1169",
+      "objective": "Hours",
+      "value": 11.5
+    },
+    {
+      "option": "WC-1169",
+      "objective": "Friction",
+      "value": 2.2
+    },
+    {
+      "option": "PRP-1170",
+      "objective": "ExpectedRecovery",
+      "value": 15.3
+    },
+    {
+      "option": "PRP-1170",
+      "objective": "Hours",
+      "value": 7.0
+    },
+    {
+      "option": "PRP-1170",
+      "objective": "Friction",
+      "value": 2.8
+    },
+    {
+      "option": "LIA-1171",
+      "objective": "ExpectedRecovery",
+      "value": 16.3
+    },
+    {
+      "option": "LIA-1171",
+      "objective": "Hours",
+      "value": 11.6
+    },
+    {
+      "option": "LIA-1171",
+      "objective": "Friction",
+      "value": 3.1
+    },
+    {
+      "option": "AUT-1172",
+      "objective": "ExpectedRecovery",
+      "value": 12.8
+    },
+    {
+      "option": "AUT-1172",
+      "objective": "Hours",
+      "value": 9.1
+    },
+    {
+      "option": "AUT-1172",
+      "objective": "Friction",
+      "value": 2.5
+    },
+    {
+      "option": "WC-1173",
+      "objective": "ExpectedRecovery",
+      "value": 12.4
+    },
+    {
+      "option": "WC-1173",
+      "objective": "Hours",
+      "value": 9.5
+    },
+    {
+      "option": "WC-1173",
+      "objective": "Friction",
+      "value": 2.1
+    },
+    {
+      "option": "PRP-1174",
+      "objective": "ExpectedRecovery",
+      "value": 16.6
+    },
+    {
+      "option": "PRP-1174",
+      "objective": "Hours",
+      "value": 10.6
+    },
+    {
+      "option": "PRP-1174",
+      "objective": "Friction",
+      "value": 2.1
+    },
+    {
+      "option": "LIA-1175",
+      "objective": "ExpectedRecovery",
+      "value": 11.8
+    },
+    {
+      "option": "LIA-1175",
+      "objective": "Hours",
+      "value": 7.5
+    },
+    {
+      "option": "LIA-1175",
+      "objective": "Friction",
+      "value": 3.3
+    },
+    {
+      "option": "AUT-1176",
+      "objective": "ExpectedRecovery",
+      "value": 14.3
+    },
+    {
+      "option": "AUT-1176",
+      "objective": "Hours",
+      "value": 10.3
+    },
+    {
+      "option": "AUT-1176",
+      "objective": "Friction",
+      "value": 3.5
+    },
+    {
+      "option": "WC-1177",
+      "objective": "ExpectedRecovery",
+      "value": 17.2
+    },
+    {
+      "option": "WC-1177",
+      "objective": "Hours",
+      "value": 11.0
+    },
+    {
+      "option": "WC-1177",
+      "objective": "Friction",
+      "value": 3.1
+    },
+    {
+      "option": "PRP-1178",
+      "objective": "ExpectedRecovery",
+      "value": 10.7
+    },
+    {
+      "option": "PRP-1178",
+      "objective": "Hours",
+      "value": 4.9
+    },
+    {
+      "option": "PRP-1178",
+      "objective": "Friction",
+      "value": 2.7
+    },
+    {
+      "option": "LIA-1179",
+      "objective": "ExpectedRecovery",
+      "value": 12.7
+    },
+    {
+      "option": "LIA-1179",
+      "objective": "Hours",
+      "value": 9.2
+    },
+    {
+      "option": "LIA-1179",
+      "objective": "Friction",
+      "value": 3.2
+    },
+    {
+      "option": "AUT-1180",
+      "objective": "ExpectedRecovery",
+      "value": 6.4
+    },
+    {
+      "option": "AUT-1180",
+      "objective": "Hours",
+      "value": 4.2
+    },
+    {
+      "option": "AUT-1180",
+      "objective": "Friction",
+      "value": 1.4
+    },
+    {
+      "option": "WC-1181",
+      "objective": "ExpectedRecovery",
+      "value": 15.1
+    },
+    {
+      "option": "WC-1181",
+      "objective": "Hours",
+      "value": 10.2
+    },
+    {
+      "option": "WC-1181",
+      "objective": "Friction",
+      "value": 3.3
+    },
+    {
+      "option": "PRP-1182",
+      "objective": "ExpectedRecovery",
+      "value": 12.3
+    },
+    {
+      "option": "PRP-1182",
+      "objective": "Hours",
+      "value": 9.3
+    },
+    {
+      "option": "PRP-1182",
+      "objective": "Friction",
+      "value": 1.0
+    },
+    {
+      "option": "LIA-1183",
+      "objective": "ExpectedRecovery",
+      "value": 8.1
+    },
+    {
+      "option": "LIA-1183",
+      "objective": "Hours",
+      "value": 4.4
+    },
+    {
+      "option": "LIA-1183",
+      "objective": "Friction",
+      "value": 3.0
+    },
+    {
+      "option": "AUT-1184",
+      "objective": "ExpectedRecovery",
+      "value": 12.2
+    },
+    {
+      "option": "AUT-1184",
+      "objective": "Hours",
+      "value": 5.9
+    },
+    {
+      "option": "AUT-1184",
+      "objective": "Friction",
+      "value": 1.1
+    },
+    {
+      "option": "WC-1185",
+      "objective": "ExpectedRecovery",
+      "value": 22.2
+    },
+    {
+      "option": "WC-1185",
+      "objective": "Hours",
+      "value": 10.4
+    },
+    {
+      "option": "WC-1185",
+      "objective": "Friction",
+      "value": 2.9
+    },
+    {
+      "option": "PRP-1186",
+      "objective": "ExpectedRecovery",
+      "value": 19.7
+    },
+    {
+      "option": "PRP-1186",
+      "objective": "Hours",
+      "value": 9.6
+    },
+    {
+      "option": "PRP-1186",
+      "objective": "Friction",
+      "value": 1.1
+    },
+    {
+      "option": "LIA-1187",
+      "objective": "ExpectedRecovery",
+      "value": 7.9
+    },
+    {
+      "option": "LIA-1187",
+      "objective": "Hours",
+      "value": 5.6
+    },
+    {
+      "option": "LIA-1187",
+      "objective": "Friction",
+      "value": 2.3
+    },
+    {
+      "option": "AUT-1188",
+      "objective": "ExpectedRecovery",
+      "value": 18.6
+    },
+    {
+      "option": "AUT-1188",
+      "objective": "Hours",
+      "value": 10.0
+    },
+    {
+      "option": "AUT-1188",
+      "objective": "Friction",
+      "value": 3.1
+    },
+    {
+      "option": "WC-1189",
+      "objective": "ExpectedRecovery",
+      "value": 10.3
+    },
+    {
+      "option": "WC-1189",
+      "objective": "Hours",
+      "value": 5.2
+    },
+    {
+      "option": "WC-1189",
+      "objective": "Friction",
+      "value": 1.5
+    },
+    {
+      "option": "PRP-1190",
+      "objective": "ExpectedRecovery",
+      "value": 12.0
+    },
+    {
+      "option": "PRP-1190",
+      "objective": "Hours",
+      "value": 6.2
+    },
+    {
+      "option": "PRP-1190",
+      "objective": "Friction",
+      "value": 3.5
+    },
+    {
+      "option": "LIA-1191",
+      "objective": "ExpectedRecovery",
+      "value": 12.0
+    },
+    {
+      "option": "LIA-1191",
+      "objective": "Hours",
+      "value": 8.9
+    },
+    {
+      "option": "LIA-1191",
+      "objective": "Friction",
+      "value": 2.5
+    },
+    {
+      "option": "AUT-1192",
+      "objective": "ExpectedRecovery",
+      "value": 9.1
+    },
+    {
+      "option": "AUT-1192",
+      "objective": "Hours",
+      "value": 4.3
+    },
+    {
+      "option": "AUT-1192",
+      "objective": "Friction",
+      "value": 2.8
+    },
+    {
+      "option": "WC-1193",
+      "objective": "ExpectedRecovery",
+      "value": 7.4
+    },
+    {
+      "option": "WC-1193",
+      "objective": "Hours",
+      "value": 5.4
+    },
+    {
+      "option": "WC-1193",
+      "objective": "Friction",
+      "value": 1.5
+    },
+    {
+      "option": "PRP-1194",
+      "objective": "ExpectedRecovery",
+      "value": 20.3
+    },
+    {
+      "option": "PRP-1194",
+      "objective": "Hours",
+      "value": 11.8
+    },
+    {
+      "option": "PRP-1194",
+      "objective": "Friction",
+      "value": 3.0
+    },
+    {
+      "option": "LIA-1195",
+      "objective": "ExpectedRecovery",
+      "value": 16.5
+    },
+    {
+      "option": "LIA-1195",
+      "objective": "Hours",
+      "value": 9.1
+    },
+    {
+      "option": "LIA-1195",
+      "objective": "Friction",
+      "value": 1.4
+    },
+    {
+      "option": "AUT-1196",
+      "objective": "ExpectedRecovery",
+      "value": 18.2
+    },
+    {
+      "option": "AUT-1196",
+      "objective": "Hours",
+      "value": 11.6
+    },
+    {
+      "option": "AUT-1196",
+      "objective": "Friction",
+      "value": 2.4
+    },
+    {
+      "option": "WC-1197",
+      "objective": "ExpectedRecovery",
+      "value": 18.1
+    },
+    {
+      "option": "WC-1197",
+      "objective": "Hours",
+      "value": 9.6
+    },
+    {
+      "option": "WC-1197",
+      "objective": "Friction",
+      "value": 3.4
+    },
+    {
+      "option": "PRP-1198",
+      "objective": "ExpectedRecovery",
+      "value": 9.1
+    },
+    {
+      "option": "PRP-1198",
+      "objective": "Hours",
+      "value": 5.2
+    },
+    {
+      "option": "PRP-1198",
+      "objective": "Friction",
+      "value": 2.0
+    },
+    {
+      "option": "LIA-1199",
+      "objective": "ExpectedRecovery",
+      "value": 11.0
+    },
+    {
+      "option": "LIA-1199",
+      "objective": "Hours",
+      "value": 7.8
+    },
+    {
+      "option": "LIA-1199",
+      "objective": "Friction",
+      "value": 1.3
+    },
+    {
+      "option": "AUT-1200",
+      "objective": "ExpectedRecovery",
+      "value": 9.8
+    },
+    {
+      "option": "AUT-1200",
+      "objective": "Hours",
+      "value": 6.2
+    },
+    {
+      "option": "AUT-1200",
+      "objective": "Friction",
+      "value": 2.1
+    },
+    {
+      "option": "WC-1201",
+      "objective": "ExpectedRecovery",
+      "value": 16.6
+    },
+    {
+      "option": "WC-1201",
+      "objective": "Hours",
+      "value": 8.9
+    },
+    {
+      "option": "WC-1201",
+      "objective": "Friction",
+      "value": 2.0
+    },
+    {
+      "option": "PRP-1202",
+      "objective": "ExpectedRecovery",
+      "value": 10.9
+    },
+    {
+      "option": "PRP-1202",
+      "objective": "Hours",
+      "value": 7.3
+    },
+    {
+      "option": "PRP-1202",
+      "objective": "Friction",
+      "value": 2.5
+    },
+    {
+      "option": "LIA-1203",
+      "objective": "ExpectedRecovery",
+      "value": 8.7
+    },
+    {
+      "option": "LIA-1203",
+      "objective": "Hours",
+      "value": 6.5
+    },
+    {
+      "option": "LIA-1203",
+      "objective": "Friction",
+      "value": 2.0
+    },
+    {
+      "option": "AUT-1204",
+      "objective": "ExpectedRecovery",
+      "value": 11.7
+    },
+    {
+      "option": "AUT-1204",
+      "objective": "Hours",
+      "value": 7.8
+    },
+    {
+      "option": "AUT-1204",
+      "objective": "Friction",
+      "value": 2.4
+    },
+    {
+      "option": "WC-1205",
+      "objective": "ExpectedRecovery",
+      "value": 16.5
+    },
+    {
+      "option": "WC-1205",
+      "objective": "Hours",
+      "value": 8.5
+    },
+    {
+      "option": "WC-1205",
+      "objective": "Friction",
+      "value": 2.6
+    },
+    {
+      "option": "PRP-1206",
+      "objective": "ExpectedRecovery",
+      "value": 14.6
+    },
+    {
+      "option": "PRP-1206",
+      "objective": "Hours",
+      "value": 9.2
+    },
+    {
+      "option": "PRP-1206",
+      "objective": "Friction",
+      "value": 3.0
+    },
+    {
+      "option": "LIA-1207",
+      "objective": "ExpectedRecovery",
+      "value": 14.2
+    },
+    {
+      "option": "LIA-1207",
+      "objective": "Hours",
+      "value": 8.4
+    },
+    {
+      "option": "LIA-1207",
+      "objective": "Friction",
+      "value": 2.6
+    },
+    {
+      "option": "AUT-1208",
+      "objective": "ExpectedRecovery",
+      "value": 12.1
+    },
+    {
+      "option": "AUT-1208",
+      "objective": "Hours",
+      "value": 6.9
+    },
+    {
+      "option": "AUT-1208",
+      "objective": "Friction",
+      "value": 2.8
+    },
+    {
+      "option": "WC-1209",
+      "objective": "ExpectedRecovery",
+      "value": 23.6
+    },
+    {
+      "option": "WC-1209",
+      "objective": "Hours",
+      "value": 11.1
+    },
+    {
+      "option": "WC-1209",
+      "objective": "Friction",
+      "value": 2.3
+    },
+    {
+      "option": "PRP-1210",
+      "objective": "ExpectedRecovery",
+      "value": 16.5
+    },
+    {
+      "option": "PRP-1210",
+      "objective": "Hours",
+      "value": 8.2
+    },
+    {
+      "option": "PRP-1210",
+      "objective": "Friction",
+      "value": 1.8
+    }
+  ]
+}

@@ -26,6 +26,7 @@ from mcp.server.fastmcp import FastMCP
 
 from engine import explorer, metrics, optimizer, problem_io
 from engine.models import (
+    AllocationBoundConstraint,
     Approach,
     Constraint,
     CardinalityConstraint,
@@ -453,7 +454,8 @@ def _model_update(params: dict) -> dict:
             p.scores = [s for s in p.scores if s.option not in removed]
 
             def _constraint_references_removed(c, removed_opts):
-                if c.type in ("force_include", "force_exclude") and c.option in removed_opts:
+                if (c.type in ("force_include", "force_exclude", "allocation_bound")
+                        and c.option in removed_opts):
                     return True
                 if c.type == "exclusion_pair" and (c.option_a in removed_opts or c.option_b in removed_opts):
                     return True
@@ -691,10 +693,15 @@ def _format_constraint(c, units: dict | None = None) -> str:
         return f"{d.get('option_a')} ⊕ {d.get('option_b')}"
     if t == "dependency":
         return f"{d.get('if_option')} requires {d.get('then_option')}"
+    if t == "allocation_bound":
+        lo, hi = d.get("min", 0) or 0, d.get("max", 100)
+        return f"{d.get('option')} allocation {_fmt_num(lo)}–{_fmt_num(hi)}%"
     if t == "group_limit":
         opts = d.get("options", [])
         members = ", ".join(opts) if 0 < len(opts) <= 5 else f"{len(opts)} options"
-        return f"≤{_fmt_num(d.get('max'))} of {{{members}}}"
+        g_min = d.get("min", 0) or 0
+        lo = f"{_fmt_num(g_min)}–" if g_min > 0 else "≤"
+        return f"{lo}{_fmt_num(d.get('max'))} of {{{members}}}"
     return t or "constraint"
 
 
@@ -925,6 +932,8 @@ def _parse_constraint(c: dict | Constraint) -> Constraint:
             return GroupLimitConstraint(**c)
         case "max_allocation":
             return MaxAllocationConstraint(**c)
+        case "allocation_bound":
+            return AllocationBoundConstraint(**c)
         case _:
             raise ValueError(f"Unknown constraint type: {ctype}")
 
@@ -1505,7 +1514,7 @@ def explore(
     detail: bool = False,
     cvar_alpha: float | None = None,
     format: str | None = None,
-    audit_property: dict | None = None,
+    audit_property: dict | list[dict] | None = None,
 ) -> dict:
     """Navigate results after solving — or, with `audit`, interrogate the model's feasible region
     directly (no prior solve needed). Every other action reads a run.
@@ -1553,10 +1562,16 @@ def explore(
                    over the WHOLE feasible space, not just the frontier. No params → feasibility
                    probe ("is any plan feasible under the current constraints?" — the exact form of
                    validate's pre-solve check; verdict feasible / no_feasible_plan). With
-                   audit_property (a constraint-shaped dict, same vocabulary as model constraints) →
+                   audit_property (a constraint-shaped dict, same vocabulary as model
+                   constraints — e.g. {"type": "force_include", "option": "A"} or
+                   {"type": "objective_bound", "objective": "Cost", "operator": "max",
+                   "value": 100}) →
                    prove a guarantee: does the property hold for EVERY feasible plan (verdict
                    "holds") or here is a concrete counterexample (verdict "violated" + witness).
-                   Binary problems; needs HiGHS. Reads the model directly — no prior solve required.
+                   A LIST of constraint dicts proves the conjunction — a compound guarantee holds
+                   iff every conjunct holds; the payload adds a per-property breakdown and names
+                   the violated conjunct. Binary problems; needs HiGHS. Reads the model directly —
+                   no prior solve required.
       scenario_results — Cross-scenario robustness: option_robustness (importance-ranked,
                    tiers core/common/marginal), scenario-specific options, expected values
                    (ideal-point), scenario_risk per objective (expected/worst/best/cvar), and
@@ -1575,10 +1590,12 @@ def explore(
                    Default: summary per pair (inflection, stats, top-5 steepest, truncated viz).
                    Pass detail=true for full rates array + untruncated visualization.
                    Optional: detail, scenario.
-      sensitivity — Solver-exact duals: where_to_invest (shadow prices, ranked), near_misses
-                   (reduced costs), capped_options, frontier_shadow_price_trend — anchored on a
-                   reference solution (default balanced; solution_id overrides) and naming the
-                   optimized_objective. Needs an exact continuous run (LP/QP); falls back to the
+      sensitivity — Solver-exact duals: where_to_invest (shadow prices, ranked; model-level
+                   objective_bound levers carry role `model_bound`), near_misses (reduced
+                   costs), capped_options, floored_options (options held at an
+                   allocation_bound floor — the commitment's price per point), and
+                   frontier_shadow_price_trend — anchored on a reference solution (default
+                   balanced; solution_id overrides) and naming the optimized_objective. Needs an exact continuous run (LP/QP); falls back to the
                    frontier-inferred binding analysis (tagged) on heuristic/MILP runs.
                    Optional: solution_id, scenario, source.
       composition — Mine the solution set: option selection rates (consensus vs distinctive),
