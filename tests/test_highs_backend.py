@@ -117,6 +117,33 @@ class TestGate:
         p = _qp_problem(constraints=[GroupLimitConstraint(options=["A", "B"], max=1)])
         assert exact_solver_fits(p)[0] is True
 
+    def test_exact_proportional_honors_membership_constraints(self):
+        # force_exclude/include fold into the variable box (0 cap / 1% activity floor); the
+        # genuinely combinatorial trio declines rather than certifying the wrong region.
+        from engine.models import (CardinalityConstraint, DependencyConstraint,
+                                   ExclusionPairConstraint, ForceExcludeConstraint,
+                                   ForceIncludeConstraint)
+
+        base = dict(objectives=[Objective(name="Return", direction="maximize", aggregation="avg"),
+                                Objective(name="Risk", direction="minimize", aggregation="sum")],
+                    interaction_matrices=[])
+        p = _qp_problem(constraints=[MaxAllocationConstraint(max=60),
+                                     ForceExcludeConstraint(option="D"),
+                                     ForceIncludeConstraint(option="C")], **base)
+        run = optimize(p, solver="highs", seed=3)
+        assert len(run.solutions) > 0
+        for s in run.solutions:
+            assert s.allocations.get("D", 0) == 0
+            assert s.allocations.get("C", 0) >= 1
+        for bad in (ExclusionPairConstraint(option_a="A", option_b="B"),
+                    DependencyConstraint(if_option="A", then_option="B"),
+                    CardinalityConstraint(min=2, max=3)):
+            fits, why = exact_solver_fits(_qp_problem(constraints=[bad], **base))
+            assert fits is False and "combinatorial" in why, (bad.type, why)
+        # cardinality min=1 is the engine default — always satisfiable, stays in scope.
+        assert exact_solver_fits(_qp_problem(constraints=[CardinalityConstraint(min=1, max=3)],
+                                             **base))[0] is True
+
     def test_quadratic_bound_cap_filtered_floor_declined(self):
         # A MAX cap on the quadratic minimand rides the exact path via post-filtering (the
         # inner solve minimizes it, so violation proves the targets infeasible); a MIN floor

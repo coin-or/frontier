@@ -91,6 +91,20 @@ def exact_solver_fits(problem: "Problem") -> tuple[bool, str]:
             "exact backends support binary selection or proportional mean-variance "
             f"portfolios; approach is '{getattr(problem.approach, 'value', problem.approach)}'"
         )
+    # Membership logic beyond a box is combinatorial on a continuous shape: an exclusion
+    # pair (never both active), a dependency (one active forces another), and a cardinality
+    # floor above 1 (at least K active) are all semicontinuous — the convex QP/LP can't
+    # express them, and NSGA enforces them exactly. (force_include / force_exclude ARE in
+    # scope — they fold into the variable box as a 1% floor / 0 cap.)
+    combinatorial = sorted({c.type for c in (problem.constraints or [])
+                            if c.type in ("exclusion_pair", "dependency")
+                            or (c.type == "cardinality" and int(c.min) > 1)})
+    if combinatorial:
+        return False, (
+            f"{', '.join(combinatorial)} constraints on a proportional allocation are "
+            "combinatorial (they gate which options are ACTIVE), outside the exact QP/LP "
+            "scope — explore with the NSGA heuristic, which enforces them."
+        )
     # Group floors on a proportional shape are a count of *active* options — combinatorial
     # (semicontinuous), outside the convex QP/LP scope. Caps stay in scope: the EA's support
     # decode enforces them. The binary MILP handles floors natively, so this gate is

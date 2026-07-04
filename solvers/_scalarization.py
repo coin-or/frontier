@@ -284,11 +284,16 @@ def _box_extreme(coef, maximize, max_weight, min_weight=None) -> float:
 
 
 def _allocation_bound_vectors(problem: Problem, cp: dict):
-    """Per-option weight-fraction ``(lo, hi)`` vectors from ``allocation_bound`` constraints,
-    or ``(None, None)`` when absent. ``hi`` folds in the global ``max_allocation`` cap
-    (effective cap = min of the two)."""
+    """Per-option weight-fraction ``(lo, hi)`` vectors from ``allocation_bound`` constraints
+    AND the force_include / force_exclude sets, or ``(None, None)`` when none apply. ``hi``
+    folds in the global ``max_allocation`` cap (effective cap = min of the two).
+    force_exclude pins ``hi`` to 0; force_include lifts ``lo`` to 1% — the engine's activity
+    grid (NSGA treats >0.5% as active on the integer-percent representation), so the exact
+    paths honor the same membership constraints the EA enforces."""
     ab = cp.get("allocation_bounds") or {}
-    if not ab:
+    forced_in = cp.get("forced_in") or set()
+    forced_out = cp.get("forced_out") or set()
+    if not ab and not forced_in and not forced_out:
         return None, None
     n = len(problem.options)
     cap = (cp["max_allocation"] / 100.0) if cp.get("max_allocation") else 1.0
@@ -296,6 +301,11 @@ def _allocation_bound_vectors(problem: Problem, cp: dict):
     for i, (l, h) in ab.items():
         lo[i] = l / 100.0
         hi[i] = min(cap, h / 100.0)
+    for i in forced_in:
+        lo[i] = max(lo[i], 0.01)
+    for i in forced_out:
+        hi[i] = 0.0
+        lo[i] = 0.0
     return lo, hi
 
 
