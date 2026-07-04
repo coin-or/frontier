@@ -143,6 +143,8 @@ On MILP, present the frontier-inferred estimate and name it as an estimate — i
 **Sign convention (carries meaning — don't drop it):**
 - An **excluded** option (held at 0) has reduced cost **> 0**: "would need to improve by X to enter." This is the near-miss read.
 - A **capped** option (pinned at its max-allocation limit) has reduced cost **< 0**, reported under `capped_options`: "the cap is binding — it would take more if allowed." That points at the allocation cap as a *where-to-invest* lever, not a near-miss.
+- A **floored** option (held at its `allocation_bound` minimum) has reduced cost **> 0**, reported under `floored_options`: it's being carried above what it would earn, and the reduced cost is *the price of the commitment* per unit of allocation. Present it as what the contract costs, not as a near-miss: *"holding [option] at its [floor]% floor costs about [reduced_cost] per point of allocation."*
+- A `where_to_invest` entry with role **`model_bound`** prices a model-level `objective_bound` constraint (e.g. a strategic mandate): relaxing that bound by one unit shifts the optimized objective by the shadow price — often the single most negotiable lever in a rationing decision.
 
 **Guidance:**
 - **Prefer `solver_exact` over `binding_analysis` when both exist** — the dual is the exact local rate; the regression averages across nearby points and overstates the rate on a curved frontier. If you've quoted a frontier-inferred slope and an exact run is available, refresh with the exact number.

@@ -2528,7 +2528,9 @@ def sensitivity_analysis(problem: Problem, solution_id: int | None = None,
         ref = _find_balanced(exact, problem.objectives)
 
     optimized = _optimized_objective(problem, ref.sensitivity)
-    where, near, capped = _format_solution_sensitivity(ref, optimized)
+    floors = {c.option: int(c.min) for c in (problem.constraints or [])
+              if getattr(c, "type", "") == "allocation_bound" and int(getattr(c, "min", 0)) > 0}
+    where, near, capped, floored = _format_solution_sensitivity(ref, optimized, floors)
     scope = ("Exact LP/QP duals (continuous path). Shadow price = marginal change in the "
              "optimized objective per unit a binding constraint is relaxed (that constraint's "
              "own unit — rates on different levers aren't directly comparable); reduced cost = "
@@ -2551,6 +2553,7 @@ def sensitivity_analysis(problem: Problem, solution_id: int | None = None,
         "where_to_invest": where,
         "near_misses": near,
         "capped_options": capped,
+        **({"floored_options": floored} if floored else {}),
         "frontier_shadow_price_trend": _shadow_price_trend(exact),
         "note": ("Shadow prices and reduced costs are reported at the reference solution; the "
                  "trend shows how the swept-constraint shadow price changes along the frontier "
@@ -2589,9 +2592,12 @@ def _shadow_interpretation(sp, objective: str | None) -> str:
     return f"marginal change in {target} per unit this constraint is relaxed"
 
 
-def _format_solution_sensitivity(s, objective: str | None = None):
-    """(where_to_invest, near_misses, capped) for one solution's solver-exact duals."""
+def _format_solution_sensitivity(s, objective: str | None = None, floors: dict | None = None):
+    """(where_to_invest, near_misses, capped, floored) for one solution's solver-exact duals.
+    ``floors`` maps option → allocation_bound minimum; an option held AT its floor with a
+    positive reduced cost is being carried above what it would earn — the floor's price."""
     sens = s.sensitivity
+    floors = floors or {}
     target = f"'{objective}'" if objective else "the optimal mix"
     where = [{
         "lever": sp.name,
@@ -2617,7 +2623,20 @@ def _format_solution_sensitivity(s, objective: str | None = None):
     } for rc in sorted((r for r in sens.reduced_costs
                         if r.allocation > 0 and r.reduced_cost < -1e-9),
                        key=lambda x: x.reduced_cost)]
-    return where, near, capped
+
+    floored = [{
+        "option": rc.option,
+        "allocation": rc.allocation,
+        "floor": floors[rc.option],
+        "reduced_cost": rc.reduced_cost,
+        "interpretation": (f"pinned at its {floors[rc.option]}% contractual floor — held above "
+                           f"what it would earn; the floor costs ~{abs(rc.reduced_cost):.4g} per "
+                           "unit of allocation (the price of the commitment)"),
+    } for rc in sorted((r for r in sens.reduced_costs
+                        if r.option in floors and r.allocation <= floors[r.option]
+                        and r.reduced_cost > 1e-9),
+                       key=lambda x: -x.reduced_cost)]
+    return where, near, capped, floored
 
 
 def _shadow_price_trend(solutions) -> list[dict]:
