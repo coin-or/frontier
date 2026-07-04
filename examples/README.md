@@ -1,6 +1,6 @@
 # Examples
 
-Loadable Frontier problems: combinatorial, multi-objective decisions beyond a spreadsheet. Each ships a `problem.json` (objectives, approach, constraints, scenarios), a `scores.json` (options, scores, interaction matrices), a pre-solved `solutions.json` (results restored on load), and a workflow walkthrough in its own README — one natural user ask per phase, with the tools that fire and the response shape to expect. Each is pre-framed and pre-scored, so its walkthrough picks up the [main workflow](../README.md#workflow) at **Solve** (steps 1–2, Frame and Score, are already done). Each walkthrough IS the runbook: one natural user ask per workflow phase, with the tools that fire and the response shape to expect.
+Loadable Frontier problems: combinatorial, multi-objective decisions beyond a spreadsheet. Each ships a `problem.json` (objectives, approach, constraints, scenarios), a `scores.json` (options, scores, interaction matrices), a pre-solved `solutions.json` (results restored on load), and a workflow walkthrough in its own README — one natural user ask per phase, with the tools that fire and the response shape to expect. Each is pre-framed and pre-scored, so its walkthrough picks up the [main workflow](../README.md#workflow) at **Solve** (steps 1–2, Frame and Score, are already done).
 
 | Example | Decision & objectives | Files |
 |---|---|---|
