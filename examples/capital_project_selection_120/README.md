@@ -8,7 +8,7 @@ Pick which of 120 capital projects to fund, maximizing total NPV and strategic v
 
 Load with `model load source="capital_project_selection_120"`, or paste this to an agent connected to Frontier:
 
-> Map the efficient frontier of funding plans across NPV, cost, risk, and strategic fit within the $610M budget, solve it exactly to certify the finalists, and walk me through a few representative plans.
+> Help me decide which of these 120 projects to fund. Show me my real choices within the $610M budget, how much to trust them, and walk me through a few plans worth defending.
 
 ## The workflow
 

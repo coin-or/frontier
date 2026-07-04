@@ -8,7 +8,7 @@ Pick exactly 24 of 144 screened volunteers for a biomarker study, maximizing sig
 
 Load with `model load source="research_cohort_selection"`, or paste this to an agent connected to Frontier:
 
-> Map the frontier of 24-person cohorts across signal strength, retention risk, and cost, certify it exactly, and then tell me something the constraints don't say: what's the most rare-variant (F) volunteers any feasible cohort can carry — does "at most 6" hold across every legal cohort, and does "at most 5"?
+> Help me pick the strongest 24-person cohort from these 144 volunteers — signal against dropout risk against cost — and check the finalists are actually optimal. Then tell me something the protocol doesn't say: how many rare-variant (F) volunteers can any legal cohort carry — does "at most 6" hold across every one, and does "at most 5"?
 
 ## The workflow
 

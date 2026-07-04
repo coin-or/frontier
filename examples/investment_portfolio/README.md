@@ -8,7 +8,7 @@ A 30-ETF portfolio balancing return, volatility (via covariance), and yield, acr
 
 Load with `model load source="investment_portfolio"`, or paste this to an agent connected to Frontier:
 
-> Build a diversified ETF portfolio from the funds in scores.json: maximize return, minimize volatility from the covariance matrix, maximize yield. Constraints: no fund over 30%, ≤3 per sector, volatility under 20%. Explore the tradeoffs across the base case and the macro scenarios, solve it exactly (solver=highs), certify it, and read the duals.
+> How should I allocate across these 30 funds? Show me the real return/volatility/yield choices, whether the finalists are actually optimal, which of my rules costs me the most — and which allocations hold up in a recession, an inflation run, or rate cuts.
 
 ## The workflow
 

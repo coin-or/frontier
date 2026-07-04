@@ -8,7 +8,7 @@ Allocate a fixed plant capacity across 10 products on three lines, trading margi
 
 Load with `model load source="production_mix"`, or paste this to an agent connected to Frontier:
 
-> Allocate plant capacity across the products in scores.json to maximize margin, throughput, and sustainability, with no product over 30% and at most two SKUs per line. Explore the tradeoffs across the base case and the stress scenarios, solve it exactly (solver=highs), certify the exact overlay, and read the duals for where to invest and what's close.
+> How should we load the plant across these ten products? Show me the margin/throughput/sustainability tradeoffs and how they hold up under the stress scenarios, check the finalists are actually optimal, and tell me where to invest next and which product just missed the cut.
 
 ## The workflow
 

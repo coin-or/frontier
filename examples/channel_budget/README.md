@@ -8,7 +8,7 @@ Split a media budget across 22 channel × audience/geo combinations balancing fo
 
 Load with `model load source="channel_budget"`, or paste this to an agent connected to Frontier:
 
-> Allocate my marketing budget across the 22 channels in scores.json to maximize Conversions, Reach, ROAS, and Brand Lift. Treat Reach with the audience-overlap matrix, so same-audience channels combine sub-additively. Constraints: no channel over 15%, at most one line item per platform, blended ROAS at least 2.0x. Show the tradeoff frontier and where the knees are, and how it shifts under measurement signal loss and a demand pullback.
+> How should we split the marketing budget across these 22 channels? Show me the real tradeoffs — remembering that channels sharing an audience overlap rather than add — where the diminishing returns kick in, and what happens if measurement signal degrades or demand pulls back.
 
 ## The workflow
 

@@ -8,7 +8,7 @@ Split one quarter's constrained memory-chip supply across 36 customers whose com
 
 Load with `model load source="scarce_supply_rationing"`, or paste this to an agent connected to Frontier:
 
-> Map the allocation frontier across revenue, strategic value, and demand fragility under the five contractual floors and the strategic mandate, solve it exactly and certify it, then read the duals: what does the mandate cost at the revenue corner, which floor pinches, and who absorbs the cut when a fab outage raises the floors to 8/7/5/5/4?
+> How should we split the quarter's supply across these 36 customers? Show me the revenue/strategic/fragility choices and check they're actually optimal. Then tell me what our promises cost: what does the board mandate cost at the revenue-max split, which contract floor pinches hardest, and who absorbs the cut when the fab outage raises the floors to 8/7/5/5/4?
 
 ## The workflow
 

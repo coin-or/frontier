@@ -8,7 +8,7 @@ Choose a generation capacity mix (share %) across 22 candidate projects to balan
 
 Load with `model load source="capacity_planning"`, or paste this to an agent connected to Frontier:
 
-> Build a generation capacity mix from the 22 projects in scores.json to minimize LCOE, minimize CO2, maximize Firmness, minimize VariabilityRisk (via the covariance matrix), and minimize LandUse. Constraints: no project over 25%, a cap per technology, CO2 under 0.20 t/MWh, Firmness at least 50. Explore the tradeoffs across the base case and a low-renewables year, solve it exactly (solver=highs), certify it, and read the duals.
+> Help me build the generation mix from these 22 projects. Show me the real tradeoffs between cost, carbon, firmness, variability, and land use — and how they shift in a low-renewables year — then check the finalists are actually optimal and tell me which of our limits binds hardest.
 
 ## The workflow
 

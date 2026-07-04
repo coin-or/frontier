@@ -8,7 +8,7 @@ Split a fixed growth budget across 8 initiatives, trading ROI against strategic 
 
 Load with `model load source="budget_allocation"`, or paste this to an agent connected to Frontier:
 
-> Split a fixed growth budget across the initiatives in scores.json to maximize ROI and strategic reach, with no initiative over 35%. Show me the frontier, solve it exactly (solver=highs), certify it, and read the duals for the closest near-miss and the binding limit.
+> I need to split our growth budget across these eight initiatives. Show me the real ROI-versus-reach choices, check the winners are actually optimal, and tell me which of our limits is costing us the most and which initiative just missed the cut.
 
 ## The workflow
 

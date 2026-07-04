@@ -8,7 +8,7 @@ Split a production order across 25 global suppliers balancing cost, reliability,
 
 Load with `model load source="supplier_selection"`, or paste this to an agent connected to Frontier:
 
-> Allocate our order across the 25 suppliers in scores.json to minimize unit cost, maximize reliability, minimize lead time and ESG risk, and minimize concentration risk via the ConcentrationRisk interaction matrix. Constraints: no supplier over 15%, at most 3 active suppliers per region, weighted reliability at least 78. Explore the tradeoffs across the base case and the disruption scenarios, solve it exactly (solver=highs), certify it, and read the duals.
+> How should we split the order across these 25 suppliers? Show me the real cost/reliability/lead-time/ESG choices — keeping regional concentration in check — how they hold up if China goes offline or demand surges, then check the finalists are actually optimal and tell me which of our rules costs us the most.
 
 ## The workflow
 

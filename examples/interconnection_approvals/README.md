@@ -8,7 +8,7 @@ A regional grid operator approves which of 42 large-load interconnection request
 
 Load with `model load source="interconnection_approvals"`, or paste this to an agent connected to Frontier:
 
-> Map the approval frontier across net value, capex, and reliability risk at the $400M envelope, certify it exactly, then run the four budget scenarios and tell me: which approvals survive every envelope, what does each step up to $560M actually buy, and which upgrades earn their cost only through what they unlock?
+> Which requests should we approve this cycle at the $400M envelope, and how sure can we be? Run all four budget levels and tell me: which approvals survive every envelope, what each step up to $560M actually buys, and which upgrades earn their cost only through what they unlock.
 
 ## The workflow
 

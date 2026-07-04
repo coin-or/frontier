@@ -8,7 +8,7 @@ Pick which of 72 candidate EV fast-charging sites to build across seven metros a
 
 Load with `model load source="charging_network_siting"`, or paste this to an agent connected to Frontier:
 
-> Map the frontier of build programs across drivers served, catchment overlap, and cost under the $34M budget. Then prove the public commitments: is every metro served, and the North-corridor flagship built, in every feasible program? What's the minimum coverage any legal program delivers — does 53 k-drivers/day hold, and does 59? Show how the picks shift if North-corridor adoption surges or metro grid quotes inflate 30%.
+> Which of these 72 sites should we build? Show me the real choices between coverage, overlap, and cost under the $34M budget. Before this goes public: is every metro guaranteed a site, and the North-corridor flagship built, whichever program we pick? What's the least coverage any legal program delivers — does 53 k-drivers/day hold, and does 59? And how do the picks shift if corridor adoption surges or metro grid quotes come back 30% over?
 
 ## The workflow
 

@@ -8,7 +8,7 @@ Pick which of 180 model-flagged claims a special-investigations unit works this 
 
 Load with `model load source="claims_investigation_triage"`, or paste this to an agent connected to Frontier:
 
-> Map the frontier of investigation plans across expected recovery, hours, and customer friction under the 1,170-hour capacity and the $4.84M recovery target, certify it exactly, then prove a guarantee: is every critical claim (the six regulator referrals plus PRP-1001, LIA-1001, PRP-1002, WC-1001) investigated in every feasible plan? Is LIA-1002? Show how the plan degrades if a CAT deployment cuts capacity to 1,140 hours.
+> Which claims should we work this month? Show me the real choices across recovery, hours, and customer friction, and how much to trust them. Before this goes to the committee: is every critical claim — the six regulator referrals plus PRP-1001, LIA-1001, PRP-1002, WC-1001 — guaranteed to be investigated no matter which plan we pick? Is LIA-1002? And how does the plan degrade if a CAT deployment cuts capacity to 1,140 hours?
 
 ## The workflow
 
