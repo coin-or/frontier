@@ -1940,7 +1940,7 @@ class _FrontierProblem(PymooProblem):
         obj_bounds: list[tuple[int, BoundOperator, float]],
         exclusion_pairs: list[tuple[int, int]] | None = None,
         dependencies: list[tuple[int, int]] | None = None,
-        group_limits: list[tuple[list[int], int]] | None = None,
+        group_limits: list[tuple[list[int], int, int]] | None = None,  # (indices, min, max)
         max_allocation: int | None = None,  # ignored for binary mode
         allocation_bounds: dict | None = None,  # ignored for binary mode (proportional-only)
         interaction_matrices: dict[int, np.ndarray] | None = None,
@@ -2096,7 +2096,7 @@ class _ProportionalProblem(PymooProblem):
         obj_bounds: list[tuple[int, BoundOperator, float]],
         exclusion_pairs: list[tuple[int, int]] | None = None,
         dependencies: list[tuple[int, int]] | None = None,
-        group_limits: list[tuple[list[int], int]] | None = None,
+        group_limits: list[tuple[list[int], int, int]] | None = None,  # (indices, min, max)
         max_allocation: int | None = None,
         allocation_bounds: dict | None = None,  # idx -> (min%, max%)
         interaction_matrices: dict[int, np.ndarray] | None = None,
