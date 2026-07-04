@@ -1519,7 +1519,7 @@ def explore(
     detail: bool = False,
     cvar_alpha: float | None = None,
     format: str | None = None,
-    audit_property: dict | None = None,
+    audit_property: dict | list[dict] | None = None,
 ) -> dict:
     """Navigate results after solving — or, with `audit`, interrogate the model's feasible region
     directly (no prior solve needed). Every other action reads a run.
@@ -1570,7 +1570,10 @@ def explore(
                    audit_property (a constraint-shaped dict, same vocabulary as model constraints) →
                    prove a guarantee: does the property hold for EVERY feasible plan (verdict
                    "holds") or here is a concrete counterexample (verdict "violated" + witness).
-                   Binary problems; needs HiGHS. Reads the model directly — no prior solve required.
+                   A LIST of constraint dicts proves the conjunction — a compound guarantee holds
+                   iff every conjunct holds; the payload adds a per-property breakdown and names
+                   the violated conjunct. Binary problems; needs HiGHS. Reads the model directly —
+                   no prior solve required.
       scenario_results — Cross-scenario robustness: option_robustness (importance-ranked,
                    tiers core/common/marginal), scenario-specific options, expected values
                    (ideal-point), scenario_risk per objective (expected/worst/best/cvar), and

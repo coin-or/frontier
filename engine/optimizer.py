@@ -1190,15 +1190,17 @@ def audit(problem: Problem, prop=None, solver: str = "highs") -> dict:
     With ``prop=None`` it *probes feasibility* — "is any plan feasible under the current
     constraints?". With ``prop`` (a ``Constraint``) it *proves a guarantee* — does the property hold
     for EVERY feasible plan (the negation is infeasible across the whole region, not a sample), or is
-    there a concrete counterexample witness? Binary selection only in v1 (the exact MILP feasibility
-    path).
+    there a concrete counterexample witness? With a *list* of constraints it proves the conjunction —
+    a compound guarantee holds iff every conjunct holds, so each gets its own feasibility solve and
+    the payload carries a per-property breakdown. Binary selection only in v1 (the exact MILP
+    feasibility path).
 
     Returns a structured verdict dict (``verdict`` ∈ feasible / no_feasible_plan / violated / holds /
     holds_vacuously / inconclusive). **Raises ``ValueError`` when the shape or backend can't serve an
-    audit** (non-binary, non-sum aggregation, or HiGHS not installed) — the same hard-decline
-    convention as ``solve``'s exact gate and ``certify``'s precondition, never a silent or structured
-    degradation."""
-    from solvers import available_solvers, exact_solver_fits
+    audit** (non-binary, an objective_bound on a non-sum objective, or HiGHS not installed) — the
+    same hard-decline convention as ``solve``'s exact gate and ``certify``'s precondition, never a
+    silent or structured degradation."""
+    from solvers import available_solvers
     from solvers._scalarization import audit_milp
 
     if solver != "highs":
@@ -1207,22 +1209,40 @@ def audit(problem: Problem, prop=None, solver: str = "highs") -> dict:
         raise ValueError(
             "audit v1 supports binary selection problems; a proportional/continuous feasibility "
             "audit is not yet implemented — explore the allocation frontier with the EA instead.")
-    fits, why = exact_solver_fits(problem)
-    if not fits:
-        raise ValueError(f"audit reuses the exact MILP encoding, which declines this shape: {why}")
+    # Audit is a *feasibility* solve over the constraint region: objectives enter the encoding only
+    # through objective_bound rows (linear in the score matrix — exact under sum aggregation only).
+    # Gate on exactly that rather than the full exact-solve shape: an avg/min/max/quadratic
+    # objective that no bound touches doesn't shape the region, so e.g. a binary problem with a
+    # quadratic interaction objective still audits. ``_negate_property`` re-guards bound
+    # *properties* the same way.
+    bound_objs = {c.objective for c in (problem.constraints or []) if c.type == "objective_bound"}
+    by_name = {o.name: o for o in problem.objectives}
+    nonsum = sorted(n for n in bound_objs
+                    if n in by_name and by_name[n].aggregation != Aggregation.sum)
+    if nonsum:
+        raise ValueError(
+            "audit encodes objective_bound constraints as linear (sum) rows; "
+            f"{', '.join(nonsum)} use a non-sum aggregation, so the bounded region can't be "
+            "encoded exactly. Drop or re-aggregate those bounds to audit.")
     if not available_solvers().get("highs"):
         raise ValueError("audit needs the HiGHS exact backend — `pip install highspy`.")
 
     from solvers.highs_backend import _audit_milp_highs
 
-    disjuncts = _negate_property(problem, prop)   # raises ValueError on unknown option/objective
-    raw = audit_milp(problem, disjuncts, inner_audit=_audit_milp_highs)
-    statuses = raw["statuses"]                    # raw solver statuses drive the verdict; not surfaced
-    is_probe = prop is None
+    # Normalize: None (probe), one property, or a conjunction (list — holds iff every conjunct holds).
+    if isinstance(prop, (list, tuple)):
+        if not prop:
+            raise ValueError(
+                "audit property list is empty — pass one or more constraint-shaped properties, "
+                "or omit the property to probe feasibility.")
+        props = list(prop)
+    else:
+        props = None if prop is None else [prop]
+
     # Pin the audited region so a `holds` is self-certifying — the guarantee is conditional on
     # exactly these constraints, the traceable-claims convention the explore analytics follow.
     base = {
-        "audit_kind": "feasibility_probe" if is_probe else "property_audit",
+        "audit_kind": "feasibility_probe" if props is None else "property_audit",
         "solver": "highs",
         "feasible_region": {
             "approach": problem.approach.value,
@@ -1231,28 +1251,57 @@ def audit(problem: Problem, prop=None, solver: str = "highs") -> dict:
         },
     }
 
-    if raw["feasible"]:
-        names = raw["witness_options"]
+    def _witness(names: list[str]) -> dict:
         sl = score_slate(problem, names)
-        return {**base, "verdict": "feasible" if is_probe else "violated",
-                "witness": {"selected_options": names,
-                            "objective_values": sl["values"], "feasible": sl["feasible"]}}
+        return {"selected_options": names,
+                "objective_values": sl["values"], "feasible": sl["feasible"]}
 
-    if all(s == "Infeasible" for s in statuses):
-        if is_probe:
+    if props is None:
+        raw = audit_milp(problem, [[]], inner_audit=_audit_milp_highs)
+        if raw["feasible"]:
+            return {**base, "verdict": "feasible", "witness": _witness(raw["witness_options"])}
+        if all(s == "Infeasible" for s in raw["statuses"]):
             return {**base, "verdict": "no_feasible_plan", "witness": None}
-        # Negation infeasible — but confirm the feasible region isn't itself empty, else "holds" is
-        # only vacuously true (the classic "num_points==0 ≠ PASS" trap from feasibility auditing).
-        if not audit_milp(problem, [[]], inner_audit=_audit_milp_highs)["feasible"]:
-            return {**base, "verdict": "holds_vacuously", "witness": None,
-                    "note": "the feasible region is empty — the property holds only vacuously; "
-                            "probe feasibility first (audit with no property)."}
-        return {**base, "verdict": "holds", "witness": None}
+        return {**base, "verdict": "inconclusive", "witness": None,
+                "reason": "the feasibility solve hit its time limit without proving infeasibility — "
+                          "INCONCLUSIVE, not a pass; simplify the model and re-probe."}
 
-    return {**base, "verdict": "inconclusive", "witness": None,
-            "reason": "the feasibility solve hit its time limit without proving infeasibility — "
-                      "INCONCLUSIVE, not a pass; " + ("simplify the model and re-probe."
-                      if is_probe else "narrow the property or simplify the model.")}
+    # Property audit — every conjunct gets its own feasibility solve of its negation. All conjuncts
+    # are evaluated even after a violation, so the breakdown names each guarantee's own verdict.
+    per_prop: list[dict] = []
+    witness = None
+    violated_prop: dict | None = None
+    for p in props:
+        disjuncts = _negate_property(problem, p)   # raises ValueError on unknown option/objective
+        raw = audit_milp(problem, disjuncts, inner_audit=_audit_milp_highs)
+        if raw["feasible"]:
+            verdict = "violated"
+            if witness is None:
+                witness = _witness(raw["witness_options"])
+                violated_prop = p.model_dump(mode="json")
+        elif all(s == "Infeasible" for s in raw["statuses"]):
+            verdict = "holds"
+        else:
+            verdict = "inconclusive"
+        per_prop.append({"property": p.model_dump(mode="json"), "verdict": verdict})
+    conj = {"properties": per_prop} if len(props) > 1 else {}
+
+    if witness is not None:
+        out = {**base, "verdict": "violated", "witness": witness, **conj}
+        if len(props) > 1:
+            out["violated_property"] = violated_prop
+        return out
+    if any(r["verdict"] == "inconclusive" for r in per_prop):
+        return {**base, "verdict": "inconclusive", "witness": None, **conj,
+                "reason": "the feasibility solve hit its time limit without proving infeasibility — "
+                          "INCONCLUSIVE, not a pass; narrow the property or simplify the model."}
+    # Every conjunct's negation is infeasible — but confirm the feasible region isn't itself empty,
+    # else "holds" is only vacuously true (the classic "num_points==0 ≠ PASS" trap).
+    if not audit_milp(problem, [[]], inner_audit=_audit_milp_highs)["feasible"]:
+        return {**base, "verdict": "holds_vacuously", "witness": None, **conj,
+                "note": "the feasible region is empty — the property holds only vacuously; "
+                        "probe feasibility first (audit with no property)."}
+    return {**base, "verdict": "holds", "witness": None, **conj}
 
 
 def optimize_scenarios(

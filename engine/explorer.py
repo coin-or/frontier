@@ -1034,30 +1034,40 @@ def _audit_framing(verdict: str) -> dict:
     return {"recommendation": text.get(verdict, ""), "next_steps": read}
 
 
-def audit_property(problem: Problem, property_dict: dict | None) -> dict:
+def audit_property(problem: Problem, property_dict: dict | list | None) -> dict:
     """MCP payload for `explore audit` — the witness / feasibility auditor (sibling of certify).
 
-    Parses the optional property (a ``Constraint`` dict — same vocabulary as model constraints),
-    runs the engine audit over the whole feasible space, and frames the verdict for presentation.
-    No prior solve required: audit reasons about the model's feasible region directly, so it can
-    feasibility-probe *before* spending a solve."""
+    Parses the optional property (a ``Constraint`` dict, or a *list* of them for a compound
+    guarantee — the conjunction holds iff every conjunct holds — same vocabulary as model
+    constraints), runs the engine audit over the whole feasible space, and frames the verdict for
+    presentation. No prior solve required: audit reasons about the model's feasible region
+    directly, so it can feasibility-probe *before* spending a solve."""
     from engine import optimizer
 
-    prop = None
-    if property_dict is not None:
-        if not isinstance(property_dict, dict):
+    def _parse_one(d) -> "Constraint":
+        if not isinstance(d, dict):
             raise ValueError(
-                "audit `property` must be a constraint object, e.g. "
+                "audit `property` must be a constraint object (or a list of them), e.g. "
                 '{"type": "objective_bound", "objective": "Cost", "operator": "max", "value": 100}.')
         from pydantic import TypeAdapter, ValidationError
 
         from engine.models import Constraint
         try:
-            prop = TypeAdapter(Constraint).validate_python(property_dict)
+            return TypeAdapter(Constraint).validate_python(d)
         except ValidationError as e:
             errs = e.errors()
             raise ValueError(
                 f"audit `property` isn't a valid constraint: {errs[0].get('msg', e) if errs else e}")
+
+    prop = None
+    if isinstance(property_dict, (list, tuple)):
+        if not property_dict:
+            raise ValueError(
+                "audit `property` list is empty — pass one or more constraint objects, or omit "
+                "the property to probe feasibility.")
+        prop = [_parse_one(d) for d in property_dict]
+    elif property_dict is not None:
+        prop = _parse_one(property_dict)
 
     result = optimizer.audit(problem, prop=prop, solver="highs")
     result["audited"] = ("feasibility of the current constraint set" if prop is None else property_dict)

@@ -166,10 +166,55 @@ def test_proportional_shape_declined_raises():
         audit(_problem(approach="proportional"))
 
 
-def test_nonsum_aggregation_declined_raises():
-    # The exact MILP only encodes additive objectives; a min-aggregated one is out of scope.
-    with pytest.raises(ValueError):
-        audit(_problem(aggregation="min"))
+def test_nonsum_aggregation_gates_on_bound_reference_only():
+    # Audit is a feasibility solve: objectives shape the region only via objective_bound rows.
+    # A non-sum objective NO bound touches is fine (e.g. a quadratic interaction objective on a
+    # binary problem still audits)...
+    r = audit(_problem(aggregation="min",
+                       constraints=[CardinalityConstraint(min=1, max=2)]))
+    assert r["verdict"] == "feasible"
+    # ...but a bound ON the non-sum objective can't be encoded exactly → hard decline.
+    with pytest.raises(ValueError, match="non-sum"):
+        audit(_problem(aggregation="min",
+                       constraints=[ObjectiveBoundConstraint(objective="Value", operator="min",
+                                                             value=5)]))
+
+
+# ─── Conjunction (compound guarantees) ───
+
+def test_conjunction_holds_when_every_conjunct_holds():
+    # Region pins exactly 2 selected; both conjuncts hold across the whole space.
+    r = audit(_problem(constraints=[CardinalityConstraint(min=2, max=2)]),
+              [CardinalityConstraint(min=1, max=4),
+               ObjectiveBoundConstraint(objective="Cost", operator="max", value=20)])
+    assert r["verdict"] == "holds"
+    assert [p["verdict"] for p in r["properties"]] == ["holds", "holds"]
+
+
+def test_conjunction_violated_names_the_failing_conjunct():
+    # "1≤count≤4" holds, but A isn't forced — the compound guarantee fails on the second conjunct,
+    # the witness genuinely violates it, and the breakdown still reports the first as holding.
+    r = audit(_problem(constraints=[CardinalityConstraint(min=1, max=2)]),
+              [CardinalityConstraint(min=1, max=4), ForceIncludeConstraint(option="A")])
+    assert r["verdict"] == "violated"
+    assert r["violated_property"]["type"] == "force_include"
+    assert "A" not in r["witness"]["selected_options"]
+    assert [p["verdict"] for p in r["properties"]] == ["holds", "violated"]
+
+
+def test_conjunction_single_item_list_matches_single_property_payload():
+    # A one-element list behaves as the single property: same verdict, no breakdown keys.
+    single = audit(_problem(constraints=[CardinalityConstraint(min=2, max=2)]),
+                   CardinalityConstraint(min=1, max=4))
+    listed = audit(_problem(constraints=[CardinalityConstraint(min=2, max=2)]),
+                   [CardinalityConstraint(min=1, max=4)])
+    assert listed == single
+    assert "properties" not in listed
+
+
+def test_conjunction_empty_list_rejected():
+    with pytest.raises(ValueError, match="empty"):
+        audit(_problem(), [])
 
 
 def test_unknown_option_raises():
@@ -190,6 +235,19 @@ def test_explorer_payload_frames_verdict_and_echoes_property():
 def test_explorer_payload_rejects_malformed_property():
     with pytest.raises(ValueError, match="valid constraint"):
         explorer.audit_property(_problem(), {"type": "not_a_constraint"})
+
+
+def test_explorer_payload_parses_conjunction_and_echoes_it():
+    props = [{"type": "cardinality", "min": 1, "max": 4},
+             {"type": "force_include", "option": "A"}]
+    out = explorer.audit_property(_problem(constraints=[CardinalityConstraint(min=1, max=2)]), props)
+    assert out["verdict"] == "violated"
+    assert out["audited"] == props
+    assert len(out["properties"]) == 2
+    with pytest.raises(ValueError, match="empty"):
+        explorer.audit_property(_problem(), [])
+    with pytest.raises(ValueError, match="valid constraint"):
+        explorer.audit_property(_problem(), [{"type": "force_include", "option": "A"}, {"type": "nope"}])
 
 
 def test_explorer_payload_raises_on_unsupported_shape():
