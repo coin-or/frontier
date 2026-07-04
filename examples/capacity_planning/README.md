@@ -6,9 +6,12 @@ Choose a generation capacity mix (share %) across 22 candidate projects to balan
 - **`scores.json`**: 22 projects across 9 technologies with LCOE/CO2/Firmness/LandUse/VariabilityRisk scores, plus the VariabilityRisk covariance matrix (stacking correlated renewables raises portfolio risk super-linearly).
 - **`solutions.json`**: the exploratory NSGA `run` plus the per-scenario `scenario_run`.
 
-Load with `model load source="capacity_planning"`, or paste this to an agent connected to Frontier:
+Load with `model load source="capacity_planning"`, then drive the workflow the way a user would — one ask per phase:
 
-> Help me build the generation mix from these 22 projects. Show me the real tradeoffs between cost, carbon, firmness, variability, and land use — and how they shift in a low-renewables year — then check the finalists are actually optimal and tell me which of our limits binds hardest.
+> 1. *“Help me build the generation mix from these 22 projects. Show me the real tradeoffs between cost, carbon, firmness, variability, and land use — and how they shift in a low-renewables year.”*
+> 2. *“Keep the balanced mix and the firmest one. Are these actually optimal?”*
+> 3. *“Which limit binds hardest — the CO2 cap or the firmness floor — and what would relaxing it buy?”*
+> 4. *“Write it up for the planning board.”*
 
 ## The workflow
 

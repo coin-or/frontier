@@ -6,9 +6,12 @@ A 30-ETF portfolio balancing return, volatility (via covariance), and yield, acr
 - **`scores.json`**: the 30 funds, their per-objective scores, and the covariance matrix (the `Volatility` interaction matrix).
 - **`solutions.json`**: the exploratory NSGA `run` plus the per-scenario `scenario_run`.
 
-Load with `model load source="investment_portfolio"`, or paste this to an agent connected to Frontier:
+Load with `model load source="investment_portfolio"`, then drive the workflow the way a user would — one ask per phase:
 
-> How should I allocate across these 30 funds? Show me the real return/volatility/yield choices, whether the finalists are actually optimal, which of my rules costs me the most — and which allocations hold up in a recession, an inflation run, or rate cuts.
+> 1. *“How should we allocate? Show me the return/risk/yield tradeoffs, and how the picture changes in a recession, an inflation run, or rate cuts.”*
+> 2. *“Keep the balanced portfolio and the calmest one. Are these optimal, or just decent?”*
+> 3. *“At the balanced portfolio, which of my rules is costing me the most — and which allocations hold up across all three macro futures?”*
+> 4. *“Write the shortlist up for the investment committee.”*
 
 ## The workflow
 

@@ -6,9 +6,12 @@ Pick which of 120 capital projects to fund, maximizing total NPV and strategic v
 - **`scores.json`**: the 120 projects scored on each objective.
 - **`solutions.json`**: the exploratory NSGA `run` plus the exact-MILP `exact_run` overlay (HiGHS or cuOpt).
 
-Load with `model load source="capital_project_selection_120"`, or paste this to an agent connected to Frontier:
+Load with `model load source="capital_project_selection_120"`, then drive the workflow the way a user would — one ask per phase:
 
-> Help me decide which of these 120 projects to fund. Show me my real choices within the $610M budget, how much to trust them, and walk me through a few plans worth defending.
+> 1. *“Which projects should we fund? Show me the real choices — where we can push value, where risk bites, and where the budget pinches.”*
+> 2. *“Keep the balanced plan and the safest one as finalists. How much should I trust these?”*
+> 3. *“What's the tightest lever, what should we stress-test, and can you guarantee we never blow the risk ceiling, whichever feasible plan we land on?”*
+> 4. *“Write the shortlist up for the investment review.”*
 
 ## The workflow
 

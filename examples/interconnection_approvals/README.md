@@ -6,9 +6,12 @@ A regional grid operator approves which of 42 large-load interconnection request
 - **`scores.json`**: the 58 options scored per objective; enabler upgrades carry negative ReliabilityRisk (they relieve system stress), the two speculative ones carry nothing.
 - **`solutions.json`**: the base NSGA `run`, the exact-MILP `exact_run` overlay, and the per-budget `scenario_run`.
 
-Load with `model load source="interconnection_approvals"`, or paste this to an agent connected to Frontier:
+Load with `model load source="interconnection_approvals"`, then drive the workflow the way a user would — one ask per phase:
 
-> Which requests should we approve this cycle at the $400M envelope, and how sure can we be? Run all four budget levels and tell me: which approvals survive every envelope, what each step up to $560M actually buys, and which upgrades earn their cost only through what they unlock.
+> 1. *“Which requests should we approve this cycle at the $400M envelope? Show me the real value/capex/reliability choices.”*
+> 2. *“Run all four budget levels: which approvals survive every envelope, and what does each step up to $560M actually buy?”*
+> 3. *“Keep the base pick and the stretch portfolio. How sure can we be — and which upgrades earn their cost only through what they unlock?”*
+> 4. *“Write the approval recommendation up for the commission.”*
 
 ## The workflow
 

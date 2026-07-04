@@ -15,7 +15,7 @@ Under the hood it maps the **Pareto frontier** (every outcome where improving on
 
 ## Examples
 
-[Worked examples](examples/) you can load and adapt: each ships a paste-ready prompt that reproduces the result. Two shown:
+[Worked examples](examples/) you can load and adapt: each ships a paste-ready prompt journey that reproduces the result. Two shown:
 
 <table>
 <tr>

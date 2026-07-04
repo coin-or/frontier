@@ -6,9 +6,12 @@ Split one quarter's constrained memory-chip supply across 36 customers whose com
 - **`scores.json`**: the 36 customers scored per 1% of supply, segment economics doing the conflict work.
 - **`solutions.json`**: the exploratory NSGA `run`, the exact-LP `exact_run` overlay with solver duals, and the per-scenario `scenario_run`.
 
-Load with `model load source="scarce_supply_rationing"`, or paste this to an agent connected to Frontier:
+Load with `model load source="scarce_supply_rationing"`, then drive the workflow the way a user would — one ask per phase:
 
-> How should we split the quarter's supply across these 36 customers? Show me the revenue/strategic/fragility choices and check they're actually optimal. Then tell me what our promises cost: what does the board mandate cost at the revenue-max split, which contract floor pinches hardest, and who absorbs the cut when the fab outage raises the floors to 8/7/5/5/4?
+> 1. *“How could we split this quarter's supply? Show me the real tradeoffs between revenue, the strategic accounts, and demand we can't count on — and what happens if the fab outage hits or spot prices spike.”*
+> 2. *“Keep the balanced split and the one that maximizes revenue. Are these optimal, or just plausible?”*
+> 3. *“At the revenue-max split, what is each of our commitments costing — the board's mandate and every contract floor? Which would I renegotiate first?”*
+> 4. *“If the fab outage happens, who absorbs the cut? Write up the recommendation for the allocation committee.”*
 
 ## The workflow
 

@@ -6,9 +6,12 @@ Pick exactly 24 of 144 screened volunteers for a biomarker study, maximizing sig
 - **`scores.json`**: the 144 volunteers scored per objective, signal clustering at the costly high-dropout sites by construction.
 - **`solutions.json`**: the exploratory NSGA `run` plus the exact-MILP `exact_run` overlay — every point exactly 24 volunteers, floors held.
 
-Load with `model load source="research_cohort_selection"`, or paste this to an agent connected to Frontier:
+Load with `model load source="research_cohort_selection"`, then drive the workflow the way a user would — one ask per phase:
 
-> Help me pick the strongest 24-person cohort from these 144 volunteers — signal against dropout risk against cost — and check the finalists are actually optimal. Then tell me something the protocol doesn't say: how many rare-variant (F) volunteers can any legal cohort carry — does "at most 6" hold across every one, and does "at most 5"?
+> 1. *“Help me pick the strongest 24-person cohort from these 144 volunteers — signal against dropout risk against cost.”*
+> 2. *“Keep the balanced cohort and the max-signal one. Are these actually optimal?”*
+> 3. *“Tell me something the protocol doesn't say: how many rare-variant (F) volunteers can any legal cohort carry — does "at most 6" hold across every one, and does "at most 5"?”*
+> 4. *“Write the shortlist up for the steering committee.”*
 
 ## The workflow
 

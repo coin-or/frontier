@@ -6,9 +6,12 @@ Split a production order across 25 global suppliers balancing cost, reliability,
 - **`scores.json`**: 25 suppliers across 6 regions with per-objective scores, plus the `ConcentrationRisk` interaction matrix (high within-region correlation, ~0 across regions).
 - **`solutions.json`**: the exploratory NSGA `run` plus the per-scenario `scenario_run`.
 
-Load with `model load source="supplier_selection"`, or paste this to an agent connected to Frontier:
+Load with `model load source="supplier_selection"`, then drive the workflow the way a user would — one ask per phase:
 
-> How should we split the order across these 25 suppliers? Show me the real cost/reliability/lead-time/ESG choices — keeping regional concentration in check — how they hold up if China goes offline or demand surges, then check the finalists are actually optimal and tell me which of our rules costs us the most.
+> 1. *“How should we split the order across these 25 suppliers, keeping regional concentration in check? Show me the real cost/reliability/lead-time/ESG choices — and how they hold up if China goes offline or demand surges.”*
+> 2. *“Keep the balanced mix and the most reliable one. Are these actually optimal?”*
+> 3. *“Which of our rules costs us the most, and which supplier just missed the cut?”*
+> 4. *“Write it up for the sourcing review.”*
 
 ## The workflow
 

@@ -6,9 +6,11 @@ Split a media budget across 22 channel × audience/geo combinations balancing fo
 - **`scores.json`**: the 22 channels with per-channel scores, plus the Reach audience-overlap interaction matrix (negative off-diagonals between same-audience channels = diminishing combined reach).
 - **`solutions.json`**: the exploratory NSGA `run` plus the per-scenario `scenario_run`.
 
-Load with `model load source="channel_budget"`, or paste this to an agent connected to Frontier:
+Load with `model load source="channel_budget"`, then drive the workflow the way a user would — one ask per phase:
 
-> How should we split the marketing budget across these 22 channels? Show me the real tradeoffs — remembering that channels sharing an audience overlap rather than add — where the diminishing returns kick in, and what happens if measurement signal degrades or demand pulls back.
+> 1. *“How should we split the marketing budget across these 22 channels? Show me the real tradeoffs — remembering that channels sharing an audience overlap rather than add — and what happens if measurement signal degrades or demand pulls back.”*
+> 2. *“Where do diminishing returns kick in, and which limit is holding the mix back?”*
+> 3. *“Keep the balanced split and the conversion-max one, and write the plan up for the growth review.”*
 
 ## The workflow
 

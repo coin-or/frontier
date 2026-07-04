@@ -6,9 +6,12 @@ Pick which of 180 model-flagged claims a special-investigations unit works this 
 - **`scores.json`**: the 180 claims scored per objective — framed as the output of an upstream fraud-scoring model, so shaky scores are part of the story (see the data_collection skill).
 - **`solutions.json`**: the exploratory NSGA `run`, the exact-MILP `exact_run` overlay, and the per-scenario `scenario_run`.
 
-Load with `model load source="claims_investigation_triage"`, or paste this to an agent connected to Frontier:
+Load with `model load source="claims_investigation_triage"`, then drive the workflow the way a user would — one ask per phase:
 
-> Which claims should we work this month? Show me the real choices across recovery, hours, and customer friction, and how much to trust them. Before this goes to the committee: is every critical claim — the six regulator referrals plus PRP-1001, LIA-1001, PRP-1002, WC-1001 — guaranteed to be investigated no matter which plan we pick? Is LIA-1002? And how does the plan degrade if a CAT deployment cuts capacity to 1,140 hours?
+> 1. *“Which claims should we work this month? Show me my real choices across recovery, hours, and how much we'd annoy legitimate customers — and how the picture changes if the CAT event pulls one of my seniors.”*
+> 2. *“Keep the balanced plan and the gentlest one that still hits the target. How much should I trust these?”*
+> 3. *“Is there any legal plan that skips the regulator referrals or any of the four big-ticket claims? And is LIA-1002 covered too?”*
+> 4. *“What's holding us back, what should we stress-test next quarter, and write this up for the claims committee.”*
 
 ## The workflow
 

@@ -6,9 +6,12 @@ Allocate a fixed plant capacity across 10 products on three lines, trading margi
 - **`scores.json`**: the 10 products scored on margin ($/unit), throughput (k units/wk), and sustainability (0–10).
 - **`solutions.json`**: the exploratory NSGA `run`, the exact-LP `exact_run` overlay (HiGHS) with solver-exact duals per point, and the per-scenario `scenario_run`.
 
-Load with `model load source="production_mix"`, or paste this to an agent connected to Frontier:
+Load with `model load source="production_mix"`, then drive the workflow the way a user would — one ask per phase:
 
-> How should we load the plant across these ten products? Show me the margin/throughput/sustainability tradeoffs and how they hold up under the stress scenarios, check the finalists are actually optimal, and tell me where to invest next and which product just missed the cut.
+> 1. *“How should we load the plant across these ten products? Show me the margin/throughput/sustainability tradeoffs — and how they hold up under the stress scenarios.”*
+> 2. *“Keep the balanced plan and the max-margin one. Are these actually optimal?”*
+> 3. *“Where should we invest next — what's binding, and which product just missed the cut?”*
+> 4. *“Write the loading plan up for the ops review.”*
 
 ## The workflow
 

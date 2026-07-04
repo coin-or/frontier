@@ -6,9 +6,12 @@ Split a fixed growth budget across 8 initiatives, trading ROI against strategic 
 - **`scores.json`**: the 8 initiatives scored on ROI (%) and reach (0–10).
 - **`solutions.json`**: the exploratory NSGA `run` plus the exact-LP `exact_run` overlay (HiGHS), with solver-exact duals per point.
 
-Load with `model load source="budget_allocation"`, or paste this to an agent connected to Frontier:
+Load with `model load source="budget_allocation"`, then drive the workflow the way a user would — one ask per phase:
 
-> I need to split our growth budget across these eight initiatives. Show me the real ROI-versus-reach choices, check the winners are actually optimal, and tell me which of our limits is costing us the most and which initiative just missed the cut.
+> 1. *“How should we split the growth budget across these eight initiatives? Show me the real ROI-versus-reach choices.”*
+> 2. *“Keep the balanced split and the ROI-max one. Are these actually optimal?”*
+> 3. *“Which of our limits is costing us the most, and which initiative just missed the cut?”*
+> 4. *“Write it up for the planning review.”*
 
 ## The workflow
 

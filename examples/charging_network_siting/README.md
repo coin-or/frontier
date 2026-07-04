@@ -6,9 +6,12 @@ Pick which of 72 candidate EV fast-charging sites to build across seven metros a
 - **`scores.json`**: the 72 sites scored per objective, plus the 72×72 `Overlap` interaction matrix (strong within a catchment — Harborview pairs most — near-zero across regions). Pairwise-only: triple-overlap is understated, stated here honestly.
 - **`solutions.json`**: the exploratory NSGA `run` and the per-scenario `scenario_run`. No exact overlay — see the scope note below.
 
-Load with `model load source="charging_network_siting"`, or paste this to an agent connected to Frontier:
+Load with `model load source="charging_network_siting"`, then drive the workflow the way a user would — one ask per phase:
 
-> Which of these 72 sites should we build? Show me the real choices between coverage, overlap, and cost under the $34M budget. Before this goes public: is every metro guaranteed a site, and the North-corridor flagship built, whichever program we pick? What's the least coverage any legal program delivers — does 53 k-drivers/day hold, and does 59? And how do the picks shift if corridor adoption surges or metro grid quotes come back 30% over?
+> 1. *“Which of these 72 sites should we build? Show me the real choices between coverage, overlap, and cost under the $34M budget — and how the picks shift if corridor adoption surges or metro grid quotes come back 30% over.”*
+> 2. *“Before this goes public: is every metro guaranteed a site, and the North-corridor flagship built, whichever program we pick?”*
+> 3. *“What's the least coverage any legal program delivers — does 53 k-drivers/day hold, and does 59?”*
+> 4. *“Keep the balanced program and the max-coverage one, and write it up for the infrastructure committee.”*
 
 ## The workflow
 
