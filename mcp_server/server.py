@@ -44,8 +44,6 @@ from engine.models import (
     Option,
     Problem,
     ReferencePoint,
-    Scenario,
-    ScoreAdjustment,
     ScenarioConfig,
     ScenarioRun,
     Score,
@@ -505,32 +503,19 @@ def _model_update(params: dict) -> dict:
     if "scenario_config" in params:
         sc = params["scenario_config"]
         if isinstance(sc, dict):
-            # Parse nested scenarios with score overrides and adjustments
-            scenarios = []
-            for s in sc.get("scenarios", []):
-                overrides = [Score(**o) if isinstance(o, dict) else o for o in s.get("score_overrides", [])]
-                adjustments = [
-                    ScoreAdjustment(**a) if isinstance(a, dict) else a
-                    for a in s.get("score_adjustments", [])
-                ]
-                constraint_ov = [
-                    _parse_constraint(c) for c in s.get("constraint_overrides", [])
-                ]
-                matrix_ov = [
-                    InteractionMatrix(**m) if isinstance(m, dict) else m
-                    for m in s.get("interaction_matrix_overrides", [])
-                ]
-                scenarios.append(Scenario(
-                    name=s["name"],
-                    probability=s.get("probability"),  # optional
-                    description=s.get("description", ""),
-                    motivated_by=s.get("motivated_by", ""),
-                    score_overrides=overrides,
-                    score_adjustments=adjustments,
-                    constraint_overrides=constraint_ov,
-                    interaction_matrix_overrides=matrix_ov,
-                ))
-            p.scenario_config = ScenarioConfig(enabled=sc.get("enabled", True), scenarios=scenarios)
+            # Validate through the model, not field-by-field construction — a manual
+            # Scenario(...) silently dropped every kwarg it didn't name (motivated_by was
+            # lost this way), and would drop each future field the same way. The Constraint
+            # union, nested overrides, and defaults all validate via pydantic; `enabled`
+            # keeps this endpoint's historical default of True when omitted.
+            from pydantic import ValidationError
+            try:
+                p.scenario_config = ScenarioConfig.model_validate({"enabled": True, **sc})
+            except ValidationError as e:
+                errs = e.errors()
+                first = errs[0] if errs else {}
+                where = ".".join(str(x) for x in first.get("loc", ())) or "scenario_config"
+                return {"error": f"invalid scenario_config at {where}: {first.get('msg', e)}"}
         structural_change = True
         interpreter_rearm = True
 

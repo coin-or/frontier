@@ -598,10 +598,22 @@ def _parse_constraints(problem: Problem) -> dict:
 
 
 def _build_score_matrix(problem: Problem) -> np.ndarray:
-    """Build score_matrix[opt_idx][obj_idx] from problem scores."""
+    """Build score_matrix[opt_idx][obj_idx] from problem scores.
+
+    Guards completeness at the root: every analysis path funnels through this build
+    (solve, score_slate/regret, audit, viz), so a missing cell fails HERE with the cell
+    named instead of a raw KeyError somewhere downstream — e.g. an option added after a
+    solve and not yet scored used to crash `explore scenario_results` outright."""
     opt_names = [o.name for o in problem.options]
     obj_list = problem.objectives
     score_map = {(s.option, s.objective): s.value for s in problem.scores}
+    missing = [(opt, obj.name) for opt in opt_names for obj in obj_list
+               if (opt, obj.name) not in score_map]
+    if missing:
+        preview = ", ".join(f"{o}×{b}" for o, b in missing[:3])
+        raise ValueError(
+            f"this analysis needs a complete score matrix — {len(missing)} option×objective "
+            f"cell(s) unscored (e.g. {preview}); finish SCORE (model update) first.")
     matrix = np.zeros((len(opt_names), len(obj_list)))
     for i, opt in enumerate(opt_names):
         for j, obj in enumerate(obj_list):
@@ -1055,6 +1067,48 @@ def build_scenario_problem(problem: Problem, scenario: "Scenario") -> Problem:
     return sp
 
 
+def make_slate_scorer(problem: Problem, scenario: "Scenario | None" = None):
+    """Batch form of ``score_slate``: apply the scenario overrides and build the scoring
+    context (score matrix, interaction matrices, constraint encoding) ONCE, and return a
+    ``score(selected_options, allocations=None) -> {"values", "feasible"}`` callable for
+    many slates. Regret alone scores every base solution under every scenario, so the
+    per-call rebuild — O(options×objectives) plus O(n²) per quadratic matrix — is the
+    dominant cost once the problem copy is lean; hoist it per scenario instead."""
+    p = build_scenario_problem(problem, scenario) if scenario is not None else problem
+    n = len(p.options)
+    idx = {o.name: i for i, o in enumerate(p.options)}
+    score_matrix = _build_score_matrix(p)
+    im = _build_interaction_matrices(p)
+    cp = _parse_constraints(p)
+    cls = _ProportionalProblem if p.approach == Approach.proportional else _FrontierProblem
+    prob = cls(n_options=n, score_matrix=score_matrix, objectives=p.objectives,
+               interaction_matrices=im, **cp)
+    proportional = p.approach == Approach.proportional
+    objectives = p.objectives
+
+    def score(selected_options: list[str], allocations: dict[str, int] | None = None) -> dict:
+        x = np.zeros((1, n))
+        if proportional:
+            for name, pct in (allocations or {}).items():
+                if name in idx:
+                    x[0, idx[name]] = pct
+        else:
+            for name in selected_options:
+                if name in idx:
+                    x[0, idx[name]] = 1.0
+        values = {
+            obj.name: round(float(prob._aggregate_objective(x, j)[0]), 4)
+            for j, obj in enumerate(objectives)
+        }
+        out: dict = {}
+        prob._evaluate(x.copy(), out)
+        g = out.get("G")
+        feasible = bool(g is None or np.asarray(g).size == 0 or np.all(np.asarray(g) <= 1e-6))
+        return {"values": values, "feasible": feasible}
+
+    return score
+
+
 def score_slate(
     problem: Problem,
     selected_options: list[str],
@@ -1068,41 +1122,9 @@ def score_slate(
     interaction matrices) and constraint encoding, so values and feasibility match what
     ``solve`` would report. ``scenario`` is a ``Scenario`` object (None = base case).
     For proportional problems pass ``allocations``; for binary, ``selected_options``.
-    Returns ``{"values": {obj: v}, "feasible": bool}``."""
-    p = build_scenario_problem(problem, scenario) if scenario is not None else problem
-    n = len(p.options)
-    idx = {o.name: i for i, o in enumerate(p.options)}
-    score_matrix = _build_score_matrix(p)
-    im = _build_interaction_matrices(p)
-    cp = _parse_constraints(p)
-
-    x = np.zeros((1, n))
-    if p.approach == Approach.proportional:
-        for name, pct in (allocations or {}).items():
-            if name in idx:
-                x[0, idx[name]] = pct
-        prob = _ProportionalProblem(
-            n_options=n, score_matrix=score_matrix, objectives=p.objectives,
-            interaction_matrices=im, **cp,
-        )
-    else:
-        for name in selected_options:
-            if name in idx:
-                x[0, idx[name]] = 1.0
-        prob = _FrontierProblem(
-            n_options=n, score_matrix=score_matrix, objectives=p.objectives,
-            interaction_matrices=im, **cp,
-        )
-
-    values = {
-        obj.name: round(float(prob._aggregate_objective(x, j)[0]), 4)
-        for j, obj in enumerate(p.objectives)
-    }
-    out: dict = {}
-    prob._evaluate(x.copy(), out)
-    g = out.get("G")
-    feasible = bool(g is None or np.asarray(g).size == 0 or np.all(np.asarray(g) <= 1e-6))
-    return {"values": values, "feasible": feasible}
+    Returns ``{"values": {obj: v}, "feasible": bool}``. Scoring many slates under the
+    same scenario? Use ``make_slate_scorer`` and pay the context build once."""
+    return make_slate_scorer(problem, scenario)(selected_options, allocations)
 
 
 def evaluate_slate(
@@ -1277,12 +1299,8 @@ def audit(problem: Problem, prop=None, solver: str = "highs") -> dict:
         raise ValueError(f"audit reuses the exact MILP encoding, which declines this shape: {why}")
     if not available_solvers().get("highs"):
         raise ValueError("audit needs the HiGHS exact backend — `pip install highspy`.")
-    have = {(s.option, s.objective) for s in problem.scores}
-    missing = len(problem.options) * len(problem.objectives) - len(have)
-    if missing > 0:
-        raise ValueError(
-            f"audit builds the exact MILP encoding, which needs a complete score matrix — "
-            f"{missing} option×objective cell(s) unscored; finish SCORE (model update) first.")
+    # Score completeness is enforced at the root by _build_score_matrix (a worded decline,
+    # not a KeyError), which the MILP encoding below funnels through.
 
     from solvers.highs_backend import _audit_milp_highs
 

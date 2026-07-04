@@ -722,6 +722,22 @@ class TestScenarios:
         p = srv.model(action="get", problem_id=pid, section="full")
         assert p["scenario_config"]["scenarios"][0]["motivated_by"] == "shadow_price:Rev"
 
+    def test_malformed_scenario_errors_clearly(self):
+        # Model-validated: a bad nested value errors with its location, never a crash.
+        pid = _build_solvable_problem()
+        r = srv.model(action="update", problem_id=pid, scenario_config={
+            "scenarios": [{"name": "bad", "score_adjustments": [{"objective": "Rev", "multiply": "x"}]}],
+        })
+        assert "invalid scenario_config" in r["error"] and "score_adjustments" in r["error"]
+
+    def test_unknown_scenario_field_errors_not_silently_dropped(self):
+        # The motivated_by bug class: a typoed field must error, not vanish.
+        pid = _build_solvable_problem()
+        r = srv.model(action="update", problem_id=pid, scenario_config={
+            "scenarios": [{"name": "typo", "motivatedby": "shadow_price:Rev"}],
+        })
+        assert "invalid scenario_config" in r["error"] and "motivatedby" in r["error"]
+
     def test_run_scenarios(self):
         import json as _json
         from pathlib import Path
