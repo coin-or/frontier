@@ -1015,7 +1015,14 @@ def build_scenario_problem(problem: Problem, scenario: "Scenario") -> Problem:
     interaction_matrix overrides (replace/upsert/scale_groups). Extracted from
     ``optimize_scenarios`` so the same overridden scores can be reused to score a
     specific slate under the scenario (see ``evaluate_slate``)."""
-    sp = problem.model_copy(deep=True)
+    # Copy the MODEL only — run history, curation, and feedback are dead weight for a
+    # scenario evaluation, and deep-copying them turns a per-slate scoring call into
+    # seconds (regret alone scores every base solution under every scenario, so a full
+    # deep copy here made scenario_results minutes-slow on run-heavy problems).
+    sp = problem.model_copy(update={
+        "run": None, "runs": [], "exact_run": None, "scenario_run": None,
+        "curated_solutions": [], "feedback": [],
+    }, deep=False).model_copy(deep=True)
 
     if scenario.score_adjustments:
         adj_map = {a.objective: a for a in scenario.score_adjustments}
@@ -1270,6 +1277,12 @@ def audit(problem: Problem, prop=None, solver: str = "highs") -> dict:
         raise ValueError(f"audit reuses the exact MILP encoding, which declines this shape: {why}")
     if not available_solvers().get("highs"):
         raise ValueError("audit needs the HiGHS exact backend — `pip install highspy`.")
+    have = {(s.option, s.objective) for s in problem.scores}
+    missing = len(problem.options) * len(problem.objectives) - len(have)
+    if missing > 0:
+        raise ValueError(
+            f"audit builds the exact MILP encoding, which needs a complete score matrix — "
+            f"{missing} option×objective cell(s) unscored; finish SCORE (model update) first.")
 
     from solvers.highs_backend import _audit_milp_highs
 

@@ -179,6 +179,15 @@ def test_unknown_option_raises():
         audit(_problem(), ForceIncludeConstraint(option="ZZ"))
 
 
+def test_incomplete_scores_declined_clearly():
+    # Auditing before SCORE used to surface a raw KeyError ('A', 'Value'); the gate now
+    # declines in words, matching the shape/backend gates.
+    p = _problem()
+    p.scores = [s for s in p.scores if s.option != "A"]
+    with pytest.raises(ValueError, match="complete score matrix"):
+        audit(p)
+
+
 # ─── Verdict hardening: every non-proof status maps to inconclusive, never to holds ───
 #
 # `holds` requires a solver-proven Infeasible on the negation; anything else the solver can return

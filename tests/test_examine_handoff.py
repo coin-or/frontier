@@ -85,6 +85,20 @@ def test_no_binding_levers_no_suggestions():
     assert "suggested_scenarios" not in out
 
 
+def test_build_scenario_problem_strips_run_history():
+    # A scenario evaluation needs the model, not the history: carrying runs/curation into
+    # the per-slate deep copy made scenario regret minutes-slow on run-heavy problems.
+    from engine.optimizer import build_scenario_problem
+    p = _problem()
+    p.run = _run([(1, 1), (2, 3)])
+    p.exact_run = _run([(1, 1)])
+    sc = Scenario(name="s", score_adjustments=[ScoreAdjustment(objective="Value", multiply=0.5)])
+    sp = build_scenario_problem(p, sc)
+    assert sp.run is None and sp.exact_run is None and sp.runs == []
+    assert {s.value for s in sp.scores} != {s.value for s in p.scores}  # overrides applied to a copy
+    assert p.run is not None                                            # original untouched
+
+
 # ─── C2: scenario results restate varies / held-fixed and cite their motive ───
 
 def test_scenario_results_restate_varies_held_fixed_and_motive():
