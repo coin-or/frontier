@@ -479,18 +479,24 @@ def _build_raw_sensitivity(row_dual, col_dual, n, has_return, n_extra, support):
             "eligible": eligible, "ranging": None}
 
 
-def _build_solution_sensitivity(raw, opt_names, alloc_row, linear_idxs, obj_list):
+def _build_solution_sensitivity(raw, opt_names, alloc_row, linear_idxs, obj_list,
+                                bound_names=()):
     """Map a backend's raw dual payload onto option/objective names → a
     ``SolutionSensitivity``. Backend-agnostic: ``raw['shadow_prices']`` is a list of
     ``{role, linear_index, value}`` (``linear_index`` indexes ``linear_idxs``; None =
     budget), and ``raw['reduced_costs']`` is one value per option index."""
     shadow = []
+    n_model = 0
     for sp in raw["shadow_prices"]:
         li = sp.get("linear_index")
         if li is not None and li >= len(linear_idxs):
-            # A model-level objective_bound row appended after the genome's epsilon rows
-            # (see ``_model_bound_rows``) — priced, but not one of the walked objectives.
-            shadow.append(ShadowPrice(name="objective_bound", role="model_bound",
+            # A model-level objective_bound row appended after the genome's epsilon rows (see
+            # ``_model_bound_rows``) — priced, but not one of the walked objectives. Rows keep
+            # constraint order, so the lever is named for the objective its bound constrains
+            # (the surface convention: levers carry business names, never schema types).
+            name = bound_names[n_model] if n_model < len(bound_names) else "objective_bound"
+            n_model += 1
+            shadow.append(ShadowPrice(name=name, role="model_bound",
                                       shadow_price=round(float(sp["value"]), 6)))
             continue
         name = "budget" if li is None else obj_list[linear_idxs[li]].name
@@ -600,6 +606,8 @@ def optimize_qp(problem, mode, *, inner_qp, inner_qp_sensitivity=None, pop, gen,
 
     cov = _nearest_psd(im[risk_idx])
     model_rows = _model_bound_rows(problem, score_matrix)
+    bound_names = [c.objective for c in (problem.constraints or [])
+                   if getattr(c, "type", "") == "objective_bound"]
     max_weight = (cp["max_allocation"] / 100.0) if cp.get("max_allocation") else None
     min_weight, _hi_vec = _allocation_bound_vectors(problem, cp)
     if _hi_vec is not None:
@@ -683,7 +691,8 @@ def optimize_qp(problem, mode, *, inner_qp, inner_qp_sensitivity=None, pop, gen,
                 obj.name: round(float(prop._aggregate_objective(W_pct, j)[0]), 4)
                 for j, obj in enumerate(obj_list)
             }
-            sensitivity = (_build_solution_sensitivity(raw_sens, opt_names, raw, linear_idxs, obj_list)
+            sensitivity = (_build_solution_sensitivity(raw_sens, opt_names, raw, linear_idxs,
+                                                       obj_list, bound_names=bound_names)
                            if raw_sens else None)
             solutions.append(Solution(
                 solution_id=len(solutions), selected_options=selected,
@@ -782,6 +791,8 @@ def optimize_lp(problem, mode, *, inner_lp, inner_lp_sensitivity=None, pop, gen,
     linear_maximize = [obj_list[j].direction.value == "maximize" for j in linear_idxs]
 
     model_rows = _model_bound_rows(problem, score_matrix)
+    bound_names = [c.objective for c in (problem.constraints or [])
+                   if getattr(c, "type", "") == "objective_bound"]
     max_weight = (cp["max_allocation"] / 100.0) if cp.get("max_allocation") else None
     min_weight, _hi_vec = _allocation_bound_vectors(problem, cp)
     if _hi_vec is not None:
@@ -861,7 +872,8 @@ def optimize_lp(problem, mode, *, inner_lp, inner_lp_sensitivity=None, pop, gen,
             W_pct = raw.astype(float).reshape(1, -1)
             obj_values = {obj.name: round(float(prop._aggregate_objective(W_pct, j)[0]), 4)
                           for j, obj in enumerate(obj_list)}
-            sensitivity = (_build_solution_sensitivity(raw_sens, opt_names, raw, linear_idxs, obj_list)
+            sensitivity = (_build_solution_sensitivity(raw_sens, opt_names, raw, linear_idxs,
+                                                       obj_list, bound_names=bound_names)
                            if raw_sens else None)
             solutions.append(Solution(
                 solution_id=len(solutions), selected_options=selected,
@@ -935,6 +947,8 @@ def certify_curated_frontier(problem, source_run, *, inner=None, inner_sensitivi
         linear_coefs = [score_matrix[:, j] for j in linear_idxs]
         linear_maximize = [obj_list[j].direction.value == "maximize" for j in linear_idxs]
         model_rows = _model_bound_rows(problem, score_matrix)
+        bound_names = [c.objective for c in (problem.constraints or [])
+                       if getattr(c, "type", "") == "objective_bound"]
         max_weight = (cp["max_allocation"] / 100.0) if cp.get("max_allocation") else None
         min_weight, _hi_vec = _allocation_bound_vectors(problem, cp)
         if _hi_vec is not None:
@@ -1000,7 +1014,8 @@ def certify_curated_frontier(problem, source_run, *, inner=None, inner_sensitivi
             W_pct = raw.astype(float).reshape(1, -1)
             obj_values = {obj.name: round(float(prop._aggregate_objective(W_pct, j)[0]), 4)
                           for j, obj in enumerate(obj_list)}
-            sensitivity = (_build_solution_sensitivity(raw_sens, opt_names, raw, linear_idxs, obj_list)
+            sensitivity = (_build_solution_sensitivity(raw_sens, opt_names, raw, linear_idxs,
+                                                       obj_list, bound_names=bound_names)
                            if raw_sens else None)
             solutions.append(Solution(solution_id=len(solutions), selected_options=selected,
                                       objective_values=obj_values, allocations=alloc_map, sensitivity=sensitivity))
