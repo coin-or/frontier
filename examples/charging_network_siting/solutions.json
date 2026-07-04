@@ -1,0 +1,3361 @@
+{
+  "run": {
+    "run_id": "2d21bfae-eb85-4a4a-9361-2d305af0beac",
+    "created_at": "2026-07-04T02:25:38.934143Z",
+    "mode": "thorough",
+    "solutions": [
+      {
+        "solution_id": 1,
+        "selected_options": [
+          "HAR-01",
+          "HAR-04",
+          "HAR-07",
+          "CED-02",
+          "CED-04",
+          "CED-06",
+          "EAS-01",
+          "EAS-05",
+          "BRK-03",
+          "KNG-01",
+          "NCR-01",
+          "NCR-03",
+          "NCR-06",
+          "CCR-01",
+          "CCR-05",
+          "CCR-06"
+        ],
+        "objective_values": {
+          "DriversServed": 102.4,
+          "Overlap": 0.8578,
+          "Cost": 22.0
+        },
+        "allocations": null,
+        "content_signature": "5282fb8e9834",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 2,
+        "selected_options": [
+          "HAR-01",
+          "HAR-04",
+          "CED-02",
+          "CED-03",
+          "CED-04",
+          "CED-06",
+          "EAS-01",
+          "EAS-05",
+          "BRK-03",
+          "KNG-01",
+          "KNG-02",
+          "KNG-03",
+          "NCR-01",
+          "NCR-06",
+          "CCR-01",
+          "CCR-06"
+        ],
+        "objective_values": {
+          "DriversServed": 99.3,
+          "Overlap": 0.8823,
+          "Cost": 21.36
+        },
+        "allocations": null,
+        "content_signature": "a162d7dcdbe9",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 3,
+        "selected_options": [
+          "HAR-01",
+          "HAR-04",
+          "CED-02",
+          "CED-04",
+          "CED-06",
+          "EAS-01",
+          "EAS-05",
+          "BRK-03",
+          "KNG-01",
+          "KNG-03",
+          "NCR-01",
+          "NCR-05",
+          "NCR-06",
+          "CCR-01",
+          "CCR-05",
+          "CCR-06"
+        ],
+        "objective_values": {
+          "DriversServed": 98.0,
+          "Overlap": 0.795,
+          "Cost": 20.89
+        },
+        "allocations": null,
+        "content_signature": "c5046181cc2d",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 4,
+        "selected_options": [
+          "HAR-01",
+          "HAR-04",
+          "CED-02",
+          "CED-03",
+          "CED-04",
+          "CED-06",
+          "EAS-01",
+          "EAS-05",
+          "BRK-03",
+          "KNG-01",
+          "KNG-02",
+          "NCR-01",
+          "NCR-06",
+          "CCR-01",
+          "CCR-05",
+          "CCR-06"
+        ],
+        "objective_values": {
+          "DriversServed": 97.5,
+          "Overlap": 0.8537,
+          "Cost": 20.61
+        },
+        "allocations": null,
+        "content_signature": "ea22ebc2080d",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 5,
+        "selected_options": [
+          "HAR-01",
+          "HAR-04",
+          "CED-02",
+          "CED-04",
+          "CED-06",
+          "EAS-01",
+          "EAS-05",
+          "BRK-03",
+          "KNG-01",
+          "KNG-02",
+          "KNG-03",
+          "NCR-01",
+          "NCR-06",
+          "CCR-01",
+          "CCR-05",
+          "CCR-06"
+        ],
+        "objective_values": {
+          "DriversServed": 97.3,
+          "Overlap": 0.8276,
+          "Cost": 20.65
+        },
+        "allocations": null,
+        "content_signature": "c5418eab093e",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 6,
+        "selected_options": [
+          "HAR-01",
+          "HAR-04",
+          "CED-02",
+          "CED-04",
+          "CED-06",
+          "EAS-01",
+          "BRK-03",
+          "KNG-01",
+          "KNG-02",
+          "NCR-01",
+          "NCR-02",
+          "NCR-03",
+          "NCR-06",
+          "CCR-01",
+          "CCR-05",
+          "CCR-06"
+        ],
+        "objective_values": {
+          "DriversServed": 93.1,
+          "Overlap": 0.7969,
+          "Cost": 19.52
+        },
+        "allocations": null,
+        "content_signature": "bbeee0aa6d99",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 7,
+        "selected_options": [
+          "HAR-01",
+          "HAR-04",
+          "CED-02",
+          "CED-03",
+          "CED-04",
+          "CED-06",
+          "EAS-01",
+          "BRK-03",
+          "KNG-01",
+          "KNG-02",
+          "NCR-01",
+          "NCR-06",
+          "CCR-01",
+          "CCR-05",
+          "CCR-06"
+        ],
+        "objective_values": {
+          "DriversServed": 92.4,
+          "Overlap": 0.872,
+          "Cost": 19.46
+        },
+        "allocations": null,
+        "content_signature": "be09b8e8f344",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 8,
+        "selected_options": [
+          "HAR-01",
+          "HAR-04",
+          "CED-02",
+          "CED-06",
+          "EAS-01",
+          "EAS-05",
+          "BRK-03",
+          "KNG-01",
+          "KNG-02",
+          "NCR-01",
+          "NCR-02",
+          "NCR-05",
+          "NCR-06",
+          "CCR-01",
+          "CCR-05",
+          "CCR-06"
+        ],
+        "objective_values": {
+          "DriversServed": 91.7,
+          "Overlap": 0.769,
+          "Cost": 19.39
+        },
+        "allocations": null,
+        "content_signature": "8dc459826b37",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 9,
+        "selected_options": [
+          "HAR-01",
+          "CED-02",
+          "CED-03",
+          "CED-04",
+          "CED-06",
+          "EAS-01",
+          "BRK-03",
+          "KNG-01",
+          "KNG-02",
+          "NCR-01",
+          "NCR-03",
+          "NCR-05",
+          "NCR-06",
+          "CCR-01",
+          "CCR-05",
+          "CCR-06"
+        ],
+        "objective_values": {
+          "DriversServed": 90.5,
+          "Overlap": 0.8304,
+          "Cost": 18.78
+        },
+        "allocations": null,
+        "content_signature": "cce2e561e8b4",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 10,
+        "selected_options": [
+          "HAR-01",
+          "CED-02",
+          "CED-06",
+          "EAS-01",
+          "EAS-05",
+          "BRK-03",
+          "KNG-01",
+          "KNG-03",
+          "NCR-01",
+          "NCR-03",
+          "NCR-05",
+          "NCR-06",
+          "CCR-01",
+          "CCR-05",
+          "CCR-06",
+          "CCR-07"
+        ],
+        "objective_values": {
+          "DriversServed": 87.4,
+          "Overlap": 0.7484,
+          "Cost": 18.39
+        },
+        "allocations": null,
+        "content_signature": "be5af4bc8f36",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 11,
+        "selected_options": [
+          "HAR-01",
+          "CED-02",
+          "CED-04",
+          "CED-06",
+          "EAS-01",
+          "EAS-05",
+          "BRK-03",
+          "KNG-01",
+          "KNG-02",
+          "NCR-01",
+          "NCR-02",
+          "NCR-05",
+          "NCR-06",
+          "CCR-01",
+          "CCR-05",
+          "CCR-06"
+        ],
+        "objective_values": {
+          "DriversServed": 86.9,
+          "Overlap": 0.7749,
+          "Cost": 17.85
+        },
+        "allocations": null,
+        "content_signature": "ae41656d6a97",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 12,
+        "selected_options": [
+          "HAR-01",
+          "CED-02",
+          "CED-03",
+          "CED-04",
+          "CED-06",
+          "EAS-01",
+          "BRK-03",
+          "KNG-01",
+          "KNG-02",
+          "NCR-01",
+          "NCR-03",
+          "NCR-06",
+          "CCR-01",
+          "CCR-05",
+          "CCR-06"
+        ],
+        "objective_values": {
+          "DriversServed": 85.9,
+          "Overlap": 0.8483,
+          "Cost": 17.63
+        },
+        "allocations": null,
+        "content_signature": "f8643886e7df",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 13,
+        "selected_options": [
+          "HAR-01",
+          "CED-02",
+          "CED-04",
+          "CED-06",
+          "EAS-01",
+          "EAS-05",
+          "BRK-03",
+          "KNG-01",
+          "KNG-02",
+          "NCR-01",
+          "NCR-03",
+          "NCR-06",
+          "CCR-01",
+          "CCR-05",
+          "CCR-06"
+        ],
+        "objective_values": {
+          "DriversServed": 84.3,
+          "Overlap": 0.7936,
+          "Cost": 17.06
+        },
+        "allocations": null,
+        "content_signature": "b543f6cbf1c7",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 14,
+        "selected_options": [
+          "HAR-01",
+          "CED-02",
+          "CED-03",
+          "CED-04",
+          "CED-06",
+          "EAS-01",
+          "EAS-05",
+          "BRK-03",
+          "KNG-01",
+          "NCR-01",
+          "NCR-06",
+          "CCR-01",
+          "CCR-05",
+          "CCR-06"
+        ],
+        "objective_values": {
+          "DriversServed": 82.4,
+          "Overlap": 0.8658,
+          "Cost": 16.8
+        },
+        "allocations": null,
+        "content_signature": "b1231f2fbd7e",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 15,
+        "selected_options": [
+          "HAR-01",
+          "CED-02",
+          "CED-04",
+          "CED-06",
+          "EAS-01",
+          "EAS-05",
+          "BRK-03",
+          "KNG-01",
+          "KNG-02",
+          "NCR-01",
+          "NCR-06",
+          "CCR-01",
+          "CCR-05",
+          "CCR-06"
+        ],
+        "objective_values": {
+          "DriversServed": 79.6,
+          "Overlap": 0.8094,
+          "Cost": 15.99
+        },
+        "allocations": null,
+        "content_signature": "470d4a80e753",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 16,
+        "selected_options": [
+          "HAR-01",
+          "CED-02",
+          "CED-06",
+          "EAS-01",
+          "EAS-05",
+          "BRK-03",
+          "KNG-01",
+          "NCR-01",
+          "NCR-02",
+          "NCR-05",
+          "NCR-06",
+          "CCR-01",
+          "CCR-05",
+          "CCR-06",
+          "CCR-07"
+        ],
+        "objective_values": {
+          "DriversServed": 78.9,
+          "Overlap": 0.7456,
+          "Cost": 16.27
+        },
+        "allocations": null,
+        "content_signature": "08baf9db6ce8",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 17,
+        "selected_options": [
+          "HAR-01",
+          "CED-02",
+          "CED-06",
+          "EAS-01",
+          "EAS-05",
+          "BRK-03",
+          "BRK-05",
+          "KNG-01",
+          "NCR-01",
+          "NCR-03",
+          "NCR-06",
+          "CCR-01",
+          "CCR-05",
+          "CCR-06"
+        ],
+        "objective_values": {
+          "DriversServed": 78.7,
+          "Overlap": 0.774,
+          "Cost": 16.06
+        },
+        "allocations": null,
+        "content_signature": "9d93d5dd5420",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 18,
+        "selected_options": [
+          "HAR-01",
+          "CED-02",
+          "CED-03",
+          "CED-04",
+          "CED-06",
+          "EAS-01",
+          "BRK-03",
+          "KNG-01",
+          "NCR-01",
+          "NCR-06",
+          "CCR-01",
+          "CCR-05",
+          "CCR-06"
+        ],
+        "objective_values": {
+          "DriversServed": 77.3,
+          "Overlap": 0.8841,
+          "Cost": 15.65
+        },
+        "allocations": null,
+        "content_signature": "db94f7d8be14",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 19,
+        "selected_options": [
+          "HAR-05",
+          "CED-02",
+          "EAS-01",
+          "EAS-05",
+          "BRK-03",
+          "BRK-04",
+          "KNG-01",
+          "KNG-02",
+          "NCR-01",
+          "NCR-02",
+          "NCR-06",
+          "NCR-08",
+          "CCR-03",
+          "CCR-05",
+          "CCR-06",
+          "CCR-07"
+        ],
+        "objective_values": {
+          "DriversServed": 77.0,
+          "Overlap": 0.7378,
+          "Cost": 18.29
+        },
+        "allocations": null,
+        "content_signature": "56c3ca2e730e",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 20,
+        "selected_options": [
+          "HAR-01",
+          "CED-02",
+          "CED-04",
+          "CED-06",
+          "EAS-01",
+          "BRK-03",
+          "KNG-01",
+          "KNG-02",
+          "NCR-01",
+          "NCR-02",
+          "NCR-06",
+          "CCR-01",
+          "CCR-06",
+          "CCR-07"
+        ],
+        "objective_values": {
+          "DriversServed": 74.8,
+          "Overlap": 0.7942,
+          "Cost": 15.23
+        },
+        "allocations": null,
+        "content_signature": "b8ba5b1bf046",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 21,
+        "selected_options": [
+          "HAR-01",
+          "CED-02",
+          "CED-04",
+          "CED-06",
+          "EAS-01",
+          "BRK-03",
+          "KNG-01",
+          "KNG-02",
+          "NCR-01",
+          "NCR-06",
+          "CCR-01",
+          "CCR-05",
+          "CCR-06"
+        ],
+        "objective_values": {
+          "DriversServed": 74.5,
+          "Overlap": 0.8202,
+          "Cost": 14.84
+        },
+        "allocations": null,
+        "content_signature": "f8fbbaef6917",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 22,
+        "selected_options": [
+          "HAR-01",
+          "CED-02",
+          "CED-06",
+          "EAS-01",
+          "EAS-05",
+          "BRK-03",
+          "KNG-01",
+          "NCR-01",
+          "NCR-02",
+          "NCR-06",
+          "CCR-01",
+          "CCR-05",
+          "CCR-06",
+          "CCR-07"
+        ],
+        "objective_values": {
+          "DriversServed": 74.3,
+          "Overlap": 0.753,
+          "Cost": 15.12
+        },
+        "allocations": null,
+        "content_signature": "ca856ae0c20a",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 23,
+        "selected_options": [
+          "HAR-01",
+          "CED-02",
+          "EAS-01",
+          "BRK-05",
+          "KNG-01",
+          "KNG-02",
+          "NCR-01",
+          "NCR-02",
+          "NCR-06",
+          "NCR-07",
+          "NCR-08",
+          "CCR-01",
+          "CCR-02",
+          "CCR-05",
+          "CCR-06",
+          "CCR-07"
+        ],
+        "objective_values": {
+          "DriversServed": 72.8,
+          "Overlap": 0.7365,
+          "Cost": 16.62
+        },
+        "allocations": null,
+        "content_signature": "564f6d2124e2",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 24,
+        "selected_options": [
+          "HAR-01",
+          "CED-02",
+          "CED-04",
+          "EAS-01",
+          "BRK-03",
+          "KNG-01",
+          "KNG-02",
+          "NCR-01",
+          "NCR-03",
+          "NCR-06",
+          "CCR-01",
+          "CCR-05",
+          "CCR-06"
+        ],
+        "objective_values": {
+          "DriversServed": 72.7,
+          "Overlap": 0.7746,
+          "Cost": 14.76
+        },
+        "allocations": null,
+        "content_signature": "e0234fe0066e",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 25,
+        "selected_options": [
+          "HAR-01",
+          "CED-02",
+          "CED-04",
+          "CED-06",
+          "EAS-01",
+          "EAS-05",
+          "BRK-03",
+          "KNG-01",
+          "NCR-01",
+          "CCR-01",
+          "CCR-05",
+          "CCR-06"
+        ],
+        "objective_values": {
+          "DriversServed": 71.4,
+          "Overlap": 0.8472,
+          "Cost": 14.18
+        },
+        "allocations": null,
+        "content_signature": "47a8f4da2125",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 26,
+        "selected_options": [
+          "HAR-01",
+          "CED-02",
+          "EAS-01",
+          "BRK-03",
+          "KNG-01",
+          "KNG-02",
+          "NCR-01",
+          "NCR-02",
+          "NCR-03",
+          "NCR-06",
+          "CCR-01",
+          "CCR-05",
+          "CCR-06"
+        ],
+        "objective_values": {
+          "DriversServed": 69.0,
+          "Overlap": 0.7579,
+          "Cost": 14.11
+        },
+        "allocations": null,
+        "content_signature": "87eade3e12a4",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 27,
+        "selected_options": [
+          "HAR-01",
+          "CED-02",
+          "CED-06",
+          "EAS-01",
+          "EAS-05",
+          "BRK-03",
+          "KNG-01",
+          "KNG-02",
+          "NCR-01",
+          "NCR-06",
+          "CCR-01",
+          "CCR-06"
+        ],
+        "objective_values": {
+          "DriversServed": 68.5,
+          "Overlap": 0.8021,
+          "Cost": 13.62
+        },
+        "allocations": null,
+        "content_signature": "9f5265b1afb2",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 28,
+        "selected_options": [
+          "HAR-01",
+          "CED-02",
+          "CED-04",
+          "CED-06",
+          "EAS-01",
+          "EAS-05",
+          "BRK-03",
+          "KNG-01",
+          "NCR-01",
+          "CCR-01",
+          "CCR-06"
+        ],
+        "objective_values": {
+          "DriversServed": 66.7,
+          "Overlap": 0.8749,
+          "Cost": 13.17
+        },
+        "allocations": null,
+        "content_signature": "7d9386b79687",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 29,
+        "selected_options": [
+          "HAR-01",
+          "CED-02",
+          "CED-04",
+          "CED-06",
+          "EAS-01",
+          "BRK-03",
+          "KNG-01",
+          "NCR-01",
+          "NCR-06",
+          "CCR-01",
+          "CCR-06"
+        ],
+        "objective_values": {
+          "DriversServed": 65.9,
+          "Overlap": 0.8466,
+          "Cost": 12.92
+        },
+        "allocations": null,
+        "content_signature": "90ff5fc9eb93",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 30,
+        "selected_options": [
+          "HAR-01",
+          "CED-02",
+          "EAS-01",
+          "BRK-03",
+          "KNG-01",
+          "KNG-02",
+          "NCR-01",
+          "NCR-06",
+          "CCR-01",
+          "CCR-05",
+          "CCR-06",
+          "CCR-07"
+        ],
+        "objective_values": {
+          "DriversServed": 63.9,
+          "Overlap": 0.7672,
+          "Cost": 13.02
+        },
+        "allocations": null,
+        "content_signature": "3bfe2d003dc7",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 31,
+        "selected_options": [
+          "HAR-01",
+          "CED-02",
+          "EAS-01",
+          "BRK-05",
+          "KNG-02",
+          "NCR-01",
+          "NCR-02",
+          "NCR-03",
+          "NCR-06",
+          "CCR-01",
+          "CCR-05",
+          "CCR-06",
+          "CCR-07"
+        ],
+        "objective_values": {
+          "DriversServed": 63.7,
+          "Overlap": 0.74,
+          "Cost": 13.68
+        },
+        "allocations": null,
+        "content_signature": "bdf9c6d5539b",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 32,
+        "selected_options": [
+          "HAR-01",
+          "CED-02",
+          "CED-06",
+          "EAS-01",
+          "BRK-03",
+          "KNG-01",
+          "NCR-01",
+          "CCR-01",
+          "CCR-05",
+          "CCR-06",
+          "CCR-07"
+        ],
+        "objective_values": {
+          "DriversServed": 62.2,
+          "Overlap": 0.8019,
+          "Cost": 12.36
+        },
+        "allocations": null,
+        "content_signature": "05c283a9d644",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 33,
+        "selected_options": [
+          "HAR-01",
+          "CED-02",
+          "CED-04",
+          "CED-06",
+          "EAS-01",
+          "BRK-03",
+          "KNG-01",
+          "NCR-01",
+          "CCR-01",
+          "CCR-06"
+        ],
+        "objective_values": {
+          "DriversServed": 61.6,
+          "Overlap": 0.8873,
+          "Cost": 12.02
+        },
+        "allocations": null,
+        "content_signature": "0aaa78b0227a",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 34,
+        "selected_options": [
+          "HAR-01",
+          "CED-02",
+          "CED-06",
+          "EAS-01",
+          "EAS-05",
+          "BRK-03",
+          "KNG-01",
+          "NCR-01",
+          "CCR-01",
+          "CCR-06"
+        ],
+        "objective_values": {
+          "DriversServed": 60.3,
+          "Overlap": 0.8314,
+          "Cost": 11.81
+        },
+        "allocations": null,
+        "content_signature": "e09e798bf976",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 35,
+        "selected_options": [
+          "HAR-01",
+          "CED-02",
+          "EAS-01",
+          "BRK-03",
+          "KNG-01",
+          "KNG-02",
+          "NCR-01",
+          "NCR-06",
+          "CCR-01",
+          "CCR-06",
+          "CCR-07"
+        ],
+        "objective_values": {
+          "DriversServed": 59.2,
+          "Overlap": 0.7696,
+          "Cost": 12.01
+        },
+        "allocations": null,
+        "content_signature": "426544c4d056",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 36,
+        "selected_options": [
+          "HAR-05",
+          "CED-02",
+          "EAS-01",
+          "BRK-01",
+          "KNG-02",
+          "NCR-01",
+          "NCR-02",
+          "NCR-06",
+          "NCR-08",
+          "CCR-03",
+          "CCR-05",
+          "CCR-06",
+          "CCR-07"
+        ],
+        "objective_values": {
+          "DriversServed": 56.9,
+          "Overlap": 0.7275,
+          "Cost": 14.57
+        },
+        "allocations": null,
+        "content_signature": "03f6b0033c8e",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 37,
+        "selected_options": [
+          "HAR-01",
+          "CED-02",
+          "EAS-01",
+          "BRK-03",
+          "KNG-01",
+          "KNG-02",
+          "NCR-01",
+          "NCR-06",
+          "CCR-01",
+          "CCR-06"
+        ],
+        "objective_values": {
+          "DriversServed": 56.9,
+          "Overlap": 0.7863,
+          "Cost": 11.32
+        },
+        "allocations": null,
+        "content_signature": "c3ad93ac0db3",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 38,
+        "selected_options": [
+          "HAR-01",
+          "CED-02",
+          "EAS-01",
+          "BRK-03",
+          "KNG-01",
+          "NCR-01",
+          "NCR-02",
+          "CCR-01",
+          "CCR-05",
+          "CCR-06"
+        ],
+        "objective_values": {
+          "DriversServed": 56.1,
+          "Overlap": 0.7547,
+          "Cost": 11.23
+        },
+        "allocations": null,
+        "content_signature": "bca99db57f9d",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 39,
+        "selected_options": [
+          "HAR-04",
+          "CED-02",
+          "EAS-01",
+          "BRK-05",
+          "KNG-01",
+          "NCR-01",
+          "NCR-02",
+          "NCR-06",
+          "CCR-05",
+          "CCR-06",
+          "CCR-07"
+        ],
+        "objective_values": {
+          "DriversServed": 55.8,
+          "Overlap": 0.7324,
+          "Cost": 12.44
+        },
+        "allocations": null,
+        "content_signature": "18b58d225ae7",
+        "sensitivity": null
+      },
+      {
+        "solution_id": 40,
+        "selected_options": [
+          "HAR-01",
+          "CED-02",
+          "EAS-01",
+          "BRK-05",
+          "KNG-02",
+          "NCR-01",
+          "NCR-02",
+          "CCR-01",
+          "CCR-06",
+          "CCR-07"
+        ],
+        "objective_values": {
+          "DriversServed": 50.0,
+          "Overlap": 0.7428,
+          "Cost": 10.7
+        },
+        "allocations": null,
+        "content_signature": "27ed6b1b7327",
+        "sensitivity": null
+      }
+    ],
+    "total_pareto_found": 156,
+    "quality": {
+      "hypervolume_normalized": 0.6058,
+      "spacing_cv": 0.7622
+    },
+    "constraints_snapshot": [
+      {
+        "type": "objective_bound",
+        "objective": "Cost",
+        "operator": "max",
+        "value": 22.0
+      },
+      {
+        "type": "cardinality",
+        "min": 10,
+        "max": 16
+      },
+      {
+        "type": "force_include",
+        "option": "NCR-01"
+      },
+      {
+        "type": "group_limit",
+        "options": [
+          "HAR-01",
+          "HAR-02",
+          "HAR-03",
+          "HAR-04",
+          "HAR-05",
+          "HAR-06",
+          "HAR-07"
+        ],
+        "min": 1,
+        "max": 4
+      },
+      {
+        "type": "group_limit",
+        "options": [
+          "CED-01",
+          "CED-02",
+          "CED-03",
+          "CED-04",
+          "CED-05",
+          "CED-06"
+        ],
+        "min": 1,
+        "max": 4
+      },
+      {
+        "type": "group_limit",
+        "options": [
+          "EAS-01",
+          "EAS-02",
+          "EAS-03",
+          "EAS-04",
+          "EAS-05",
+          "EAS-06"
+        ],
+        "min": 1,
+        "max": 4
+      },
+      {
+        "type": "group_limit",
+        "options": [
+          "BRK-01",
+          "BRK-02",
+          "BRK-03",
+          "BRK-04",
+          "BRK-05"
+        ],
+        "min": 1,
+        "max": 4
+      },
+      {
+        "type": "group_limit",
+        "options": [
+          "KNG-01",
+          "KNG-02",
+          "KNG-03",
+          "KNG-04"
+        ],
+        "min": 1,
+        "max": 4
+      },
+      {
+        "type": "group_limit",
+        "options": [
+          "NCR-01",
+          "NCR-02",
+          "NCR-03",
+          "NCR-04",
+          "NCR-05",
+          "NCR-06",
+          "NCR-07",
+          "NCR-08"
+        ],
+        "min": 0,
+        "max": 5
+      },
+      {
+        "type": "group_limit",
+        "options": [
+          "CCR-01",
+          "CCR-02",
+          "CCR-03",
+          "CCR-04",
+          "CCR-05",
+          "CCR-06",
+          "CCR-07",
+          "CCR-08"
+        ],
+        "min": 0,
+        "max": 5
+      },
+      {
+        "type": "exclusion_pair",
+        "option_a": "HAR-01",
+        "option_b": "HAR-02"
+      },
+      {
+        "type": "exclusion_pair",
+        "option_a": "CED-01",
+        "option_b": "CED-02"
+      },
+      {
+        "type": "exclusion_pair",
+        "option_a": "NCR-03",
+        "option_b": "NCR-04"
+      }
+    ],
+    "seed_used": 42,
+    "solver": "nsga-ii",
+    "exact": false,
+    "time_limit": null,
+    "time_limited": false
+  },
+  "scenario_run": {
+    "scenario_runs": {
+      "adoption_surge": {
+        "run_id": "08e65b0e-6182-4a26-be40-3b5f1ebbd21a",
+        "created_at": "2026-07-04T02:25:39.969259Z",
+        "mode": "thorough",
+        "solutions": [
+          {
+            "solution_id": 1,
+            "selected_options": [
+              "HAR-01",
+              "HAR-05",
+              "HAR-07",
+              "CED-02",
+              "CED-06",
+              "EAS-01",
+              "EAS-05",
+              "BRK-03",
+              "KNG-01",
+              "NCR-01",
+              "NCR-02",
+              "NCR-03",
+              "NCR-05",
+              "NCR-06",
+              "CCR-01",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 104.4,
+              "Overlap": 0.8433,
+              "Cost": 21.02
+            },
+            "allocations": null,
+            "content_signature": "6eb22523f51b",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 2,
+            "selected_options": [
+              "HAR-01",
+              "HAR-05",
+              "CED-02",
+              "CED-04",
+              "CED-06",
+              "EAS-01",
+              "EAS-05",
+              "BRK-03",
+              "BRK-04",
+              "KNG-01",
+              "NCR-01",
+              "NCR-03",
+              "NCR-05",
+              "NCR-06",
+              "CCR-01",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 102.9,
+              "Overlap": 0.8098,
+              "Cost": 20.67
+            },
+            "allocations": null,
+            "content_signature": "9e463192ea12",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 3,
+            "selected_options": [
+              "HAR-01",
+              "HAR-05",
+              "CED-02",
+              "CED-04",
+              "CED-05",
+              "CED-06",
+              "EAS-01",
+              "BRK-03",
+              "KNG-01",
+              "KNG-02",
+              "NCR-01",
+              "NCR-03",
+              "NCR-05",
+              "NCR-06",
+              "CCR-01",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 102.4,
+              "Overlap": 0.8603,
+              "Cost": 20.54
+            },
+            "allocations": null,
+            "content_signature": "cfa7ddc85290",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 4,
+            "selected_options": [
+              "HAR-01",
+              "HAR-07",
+              "CED-02",
+              "EAS-01",
+              "BRK-03",
+              "BRK-04",
+              "KNG-01",
+              "KNG-03",
+              "NCR-01",
+              "NCR-03",
+              "NCR-05",
+              "NCR-06",
+              "CCR-01",
+              "CCR-03",
+              "CCR-05",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 101.3,
+              "Overlap": 0.7788,
+              "Cost": 21.56
+            },
+            "allocations": null,
+            "content_signature": "138c89442eb0",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 5,
+            "selected_options": [
+              "HAR-01",
+              "HAR-05",
+              "CED-02",
+              "CED-06",
+              "EAS-01",
+              "EAS-05",
+              "BRK-03",
+              "KNG-01",
+              "KNG-03",
+              "NCR-01",
+              "NCR-03",
+              "NCR-05",
+              "NCR-06",
+              "CCR-01",
+              "CCR-05",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 101.0,
+              "Overlap": 0.7747,
+              "Cost": 20.13
+            },
+            "allocations": null,
+            "content_signature": "e09cc92cb61a",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 6,
+            "selected_options": [
+              "HAR-01",
+              "HAR-05",
+              "CED-02",
+              "CED-04",
+              "CED-06",
+              "EAS-01",
+              "BRK-03",
+              "KNG-01",
+              "NCR-01",
+              "NCR-02",
+              "NCR-03",
+              "NCR-05",
+              "NCR-06",
+              "CCR-01",
+              "CCR-05",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 99.6,
+              "Overlap": 0.7976,
+              "Cost": 19.29
+            },
+            "allocations": null,
+            "content_signature": "79eaeca02e14",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 7,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "CED-04",
+              "CED-05",
+              "CED-06",
+              "EAS-01",
+              "EAS-05",
+              "BRK-03",
+              "KNG-01",
+              "KNG-02",
+              "NCR-01",
+              "NCR-03",
+              "NCR-05",
+              "NCR-06",
+              "CCR-01",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 98.6,
+              "Overlap": 0.841,
+              "Cost": 19.26
+            },
+            "allocations": null,
+            "content_signature": "e007a8bf76d8",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 8,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "CED-03",
+              "CED-04",
+              "CED-06",
+              "EAS-01",
+              "BRK-03",
+              "KNG-01",
+              "NCR-01",
+              "NCR-02",
+              "NCR-03",
+              "NCR-05",
+              "NCR-06",
+              "CCR-01",
+              "CCR-05",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 97.4,
+              "Overlap": 0.826,
+              "Cost": 18.58
+            },
+            "allocations": null,
+            "content_signature": "b854444a8449",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 9,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "CED-04",
+              "CED-06",
+              "EAS-01",
+              "BRK-03",
+              "KNG-01",
+              "KNG-03",
+              "NCR-01",
+              "NCR-02",
+              "NCR-03",
+              "NCR-05",
+              "NCR-06",
+              "CCR-01",
+              "CCR-05",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 97.2,
+              "Overlap": 0.7785,
+              "Cost": 18.62
+            },
+            "allocations": null,
+            "content_signature": "a7724f330ec9",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 10,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "CED-06",
+              "EAS-01",
+              "BRK-03",
+              "BRK-04",
+              "KNG-01",
+              "KNG-03",
+              "NCR-01",
+              "NCR-03",
+              "NCR-05",
+              "NCR-06",
+              "CCR-01",
+              "CCR-03",
+              "CCR-05",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 97.0,
+              "Overlap": 0.7573,
+              "Cost": 19.76
+            },
+            "allocations": null,
+            "content_signature": "dafd162adc97",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 11,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "EAS-01",
+              "EAS-05",
+              "BRK-04",
+              "KNG-01",
+              "KNG-03",
+              "NCR-01",
+              "NCR-02",
+              "NCR-03",
+              "NCR-05",
+              "NCR-06",
+              "CCR-01",
+              "CCR-03",
+              "CCR-05",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 93.2,
+              "Overlap": 0.7413,
+              "Cost": 19.16
+            },
+            "allocations": null,
+            "content_signature": "267f306e80fe",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 12,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "CED-04",
+              "CED-06",
+              "EAS-01",
+              "BRK-03",
+              "KNG-01",
+              "KNG-02",
+              "NCR-01",
+              "NCR-02",
+              "NCR-03",
+              "NCR-05",
+              "NCR-06",
+              "CCR-01",
+              "CCR-06",
+              "CCR-07"
+            ],
+            "objective_values": {
+              "DriversServed": 92.2,
+              "Overlap": 0.7802,
+              "Cost": 17.45
+            },
+            "allocations": null,
+            "content_signature": "b72fb91288ee",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 13,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "CED-06",
+              "EAS-01",
+              "EAS-05",
+              "BRK-03",
+              "KNG-01",
+              "NCR-01",
+              "NCR-02",
+              "NCR-03",
+              "NCR-05",
+              "NCR-06",
+              "CCR-01",
+              "CCR-05",
+              "CCR-06",
+              "CCR-07"
+            ],
+            "objective_values": {
+              "DriversServed": 91.7,
+              "Overlap": 0.7466,
+              "Cost": 17.34
+            },
+            "allocations": null,
+            "content_signature": "5e0226d4fc8f",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 14,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "CED-04",
+              "CED-06",
+              "EAS-01",
+              "BRK-03",
+              "KNG-01",
+              "KNG-02",
+              "NCR-01",
+              "NCR-02",
+              "NCR-03",
+              "NCR-05",
+              "NCR-06",
+              "CCR-01",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 89.9,
+              "Overlap": 0.8007,
+              "Cost": 16.76
+            },
+            "allocations": null,
+            "content_signature": "d7a6974ff75a",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 15,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "CED-06",
+              "EAS-01",
+              "EAS-05",
+              "BRK-03",
+              "KNG-01",
+              "KNG-02",
+              "NCR-01",
+              "NCR-03",
+              "NCR-05",
+              "NCR-06",
+              "CCR-01",
+              "CCR-05",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 89.5,
+              "Overlap": 0.7624,
+              "Cost": 16.85
+            },
+            "allocations": null,
+            "content_signature": "ea6870892130",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 16,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "CED-04",
+              "CED-06",
+              "EAS-01",
+              "BRK-03",
+              "KNG-01",
+              "NCR-01",
+              "NCR-02",
+              "NCR-03",
+              "NCR-05",
+              "NCR-06",
+              "CCR-01",
+              "CCR-06",
+              "CCR-07"
+            ],
+            "objective_values": {
+              "DriversServed": 88.3,
+              "Overlap": 0.7848,
+              "Cost": 16.54
+            },
+            "allocations": null,
+            "content_signature": "5fb20eafd047",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 17,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "CED-06",
+              "EAS-01",
+              "EAS-05",
+              "BRK-03",
+              "KNG-01",
+              "NCR-01",
+              "NCR-02",
+              "NCR-03",
+              "NCR-05",
+              "NCR-06",
+              "CCR-01",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 84.7,
+              "Overlap": 0.7732,
+              "Cost": 15.64
+            },
+            "allocations": null,
+            "content_signature": "935e4ae3afba",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 18,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "EAS-01",
+              "EAS-05",
+              "BRK-03",
+              "KNG-01",
+              "NCR-01",
+              "NCR-02",
+              "NCR-03",
+              "NCR-05",
+              "NCR-06",
+              "CCR-01",
+              "CCR-05",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 82.9,
+              "Overlap": 0.7537,
+              "Cost": 15.5
+            },
+            "allocations": null,
+            "content_signature": "d73ab8e3aab2",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 19,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "CED-04",
+              "CED-06",
+              "EAS-05",
+              "BRK-03",
+              "KNG-01",
+              "NCR-01",
+              "NCR-03",
+              "NCR-05",
+              "NCR-06",
+              "CCR-01",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 82.2,
+              "Overlap": 0.8124,
+              "Cost": 15.33
+            },
+            "allocations": null,
+            "content_signature": "47f0c927879e",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 20,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "EAS-01",
+              "EAS-05",
+              "BRK-04",
+              "KNG-01",
+              "NCR-01",
+              "NCR-02",
+              "NCR-06",
+              "NCR-07",
+              "NCR-08",
+              "CCR-02",
+              "CCR-03",
+              "CCR-04",
+              "CCR-06",
+              "CCR-07"
+            ],
+            "objective_values": {
+              "DriversServed": 80.0,
+              "Overlap": 0.7317,
+              "Cost": 18.34
+            },
+            "allocations": null,
+            "content_signature": "a2145458a715",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 21,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "CED-06",
+              "EAS-01",
+              "BRK-03",
+              "KNG-01",
+              "KNG-02",
+              "NCR-01",
+              "NCR-03",
+              "NCR-05",
+              "NCR-06",
+              "CCR-01",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 79.7,
+              "Overlap": 0.7864,
+              "Cost": 14.69
+            },
+            "allocations": null,
+            "content_signature": "65c0d4df7124",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 22,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "EAS-01",
+              "BRK-05",
+              "KNG-01",
+              "KNG-02",
+              "NCR-01",
+              "NCR-02",
+              "NCR-06",
+              "NCR-07",
+              "NCR-08",
+              "CCR-01",
+              "CCR-02",
+              "CCR-05",
+              "CCR-06",
+              "CCR-07"
+            ],
+            "objective_values": {
+              "DriversServed": 79.3,
+              "Overlap": 0.7365,
+              "Cost": 16.62
+            },
+            "allocations": null,
+            "content_signature": "564f6d2124e2",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 23,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "CED-06",
+              "EAS-01",
+              "BRK-03",
+              "KNG-01",
+              "NCR-01",
+              "NCR-02",
+              "NCR-03",
+              "NCR-05",
+              "CCR-01",
+              "CCR-05",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 78.3,
+              "Overlap": 0.764,
+              "Cost": 14.6
+            },
+            "allocations": null,
+            "content_signature": "3f2d782c029c",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 24,
+            "selected_options": [
+              "HAR-05",
+              "CED-02",
+              "EAS-01",
+              "EAS-05",
+              "BRK-03",
+              "KNG-01",
+              "NCR-01",
+              "NCR-02",
+              "NCR-03",
+              "NCR-06",
+              "CCR-01",
+              "CCR-05",
+              "CCR-06",
+              "CCR-07"
+            ],
+            "objective_values": {
+              "DriversServed": 76.5,
+              "Overlap": 0.7396,
+              "Cost": 15.06
+            },
+            "allocations": null,
+            "content_signature": "da69da56b881",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 25,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "CED-04",
+              "CED-06",
+              "EAS-01",
+              "BRK-03",
+              "KNG-01",
+              "NCR-01",
+              "NCR-03",
+              "NCR-05",
+              "CCR-01",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 76.2,
+              "Overlap": 0.8319,
+              "Cost": 14.24
+            },
+            "allocations": null,
+            "content_signature": "76e4786bb58b",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 26,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "CED-06",
+              "EAS-01",
+              "BRK-03",
+              "KNG-01",
+              "NCR-01",
+              "NCR-03",
+              "NCR-05",
+              "CCR-01",
+              "CCR-05",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 74.5,
+              "Overlap": 0.7748,
+              "Cost": 13.89
+            },
+            "allocations": null,
+            "content_signature": "a44836d63bc0",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 27,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "EAS-01",
+              "BRK-03",
+              "KNG-01",
+              "NCR-01",
+              "NCR-03",
+              "NCR-05",
+              "NCR-06",
+              "CCR-01",
+              "CCR-05",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 74.0,
+              "Overlap": 0.7572,
+              "Cost": 13.64
+            },
+            "allocations": null,
+            "content_signature": "e8ad469d8685",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 28,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "EAS-01",
+              "BRK-05",
+              "KNG-01",
+              "NCR-01",
+              "NCR-02",
+              "NCR-06",
+              "NCR-07",
+              "NCR-08",
+              "CCR-02",
+              "CCR-03",
+              "CCR-04",
+              "CCR-06",
+              "CCR-07"
+            ],
+            "objective_values": {
+              "DriversServed": 72.9,
+              "Overlap": 0.7326,
+              "Cost": 16.51
+            },
+            "allocations": null,
+            "content_signature": "4ffbf4a92472",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 29,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "CED-04",
+              "EAS-01",
+              "BRK-03",
+              "KNG-01",
+              "NCR-01",
+              "NCR-03",
+              "NCR-05",
+              "CCR-01",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 69.7,
+              "Overlap": 0.7877,
+              "Cost": 13.09
+            },
+            "allocations": null,
+            "content_signature": "ad0b58af92f1",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 30,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "EAS-01",
+              "BRK-03",
+              "KNG-01",
+              "KNG-02",
+              "NCR-01",
+              "NCR-02",
+              "NCR-06",
+              "CCR-01",
+              "CCR-06",
+              "CCR-07"
+            ],
+            "objective_values": {
+              "DriversServed": 66.3,
+              "Overlap": 0.7533,
+              "Cost": 12.72
+            },
+            "allocations": null,
+            "content_signature": "f44d46180e40",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 31,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "EAS-01",
+              "BRK-03",
+              "KNG-01",
+              "KNG-02",
+              "NCR-01",
+              "NCR-02",
+              "NCR-06",
+              "CCR-01",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 64.0,
+              "Overlap": 0.7689,
+              "Cost": 12.03
+            },
+            "allocations": null,
+            "content_signature": "b2cea50d7fb5",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 32,
+            "selected_options": [
+              "HAR-05",
+              "CED-02",
+              "EAS-01",
+              "BRK-03",
+              "KNG-02",
+              "NCR-01",
+              "NCR-02",
+              "NCR-05",
+              "NCR-06",
+              "CCR-01",
+              "CCR-05",
+              "CCR-07"
+            ],
+            "objective_values": {
+              "DriversServed": 63.7,
+              "Overlap": 0.7341,
+              "Cost": 13.05
+            },
+            "allocations": null,
+            "content_signature": "b21376a89358",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 33,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "CED-04",
+              "EAS-01",
+              "BRK-03",
+              "KNG-01",
+              "NCR-01",
+              "NCR-03",
+              "CCR-01",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 63.3,
+              "Overlap": 0.8003,
+              "Cost": 11.94
+            },
+            "allocations": null,
+            "content_signature": "2a43a7786055",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 34,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "EAS-01",
+              "BRK-03",
+              "KNG-01",
+              "NCR-01",
+              "NCR-02",
+              "NCR-03",
+              "NCR-06",
+              "CCR-01"
+            ],
+            "objective_values": {
+              "DriversServed": 61.4,
+              "Overlap": 0.7832,
+              "Cost": 11.42
+            },
+            "allocations": null,
+            "content_signature": "a033ee7d038d",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 35,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "EAS-01",
+              "BRK-03",
+              "KNG-01",
+              "NCR-01",
+              "NCR-02",
+              "NCR-06",
+              "CCR-05",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 59.4,
+              "Overlap": 0.7485,
+              "Cost": 11.3
+            },
+            "allocations": null,
+            "content_signature": "9e571fc124e6",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 36,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "EAS-01",
+              "BRK-03",
+              "KNG-02",
+              "NCR-01",
+              "NCR-02",
+              "NCR-07",
+              "CCR-03",
+              "CCR-05",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 57.7,
+              "Overlap": 0.7357,
+              "Cost": 12.53
+            },
+            "allocations": null,
+            "content_signature": "b9910eebb552",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 37,
+            "selected_options": [
+              "HAR-05",
+              "CED-02",
+              "EAS-01",
+              "BRK-05",
+              "KNG-02",
+              "NCR-01",
+              "NCR-02",
+              "NCR-06",
+              "NCR-07",
+              "CCR-03",
+              "CCR-05",
+              "CCR-07"
+            ],
+            "objective_values": {
+              "DriversServed": 56.9,
+              "Overlap": 0.7245,
+              "Cost": 13.33
+            },
+            "allocations": null,
+            "content_signature": "902b55da658d",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 38,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "EAS-01",
+              "BRK-05",
+              "KNG-02",
+              "NCR-01",
+              "NCR-02",
+              "CCR-01",
+              "CCR-06",
+              "CCR-07"
+            ],
+            "objective_values": {
+              "DriversServed": 52.7,
+              "Overlap": 0.7428,
+              "Cost": 10.7
+            },
+            "allocations": null,
+            "content_signature": "27ed6b1b7327",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 39,
+            "selected_options": [
+              "HAR-05",
+              "CED-02",
+              "EAS-01",
+              "BRK-05",
+              "KNG-02",
+              "NCR-01",
+              "NCR-02",
+              "NCR-07",
+              "CCR-03",
+              "CCR-05",
+              "CCR-07"
+            ],
+            "objective_values": {
+              "DriversServed": 50.9,
+              "Overlap": 0.7226,
+              "Cost": 12.43
+            },
+            "allocations": null,
+            "content_signature": "fb96d5062657",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 40,
+            "selected_options": [
+              "HAR-05",
+              "CED-02",
+              "EAS-01",
+              "BRK-05",
+              "KNG-02",
+              "NCR-01",
+              "NCR-02",
+              "NCR-07",
+              "CCR-06",
+              "CCR-07"
+            ],
+            "objective_values": {
+              "DriversServed": 48.2,
+              "Overlap": 0.7284,
+              "Cost": 10.93
+            },
+            "allocations": null,
+            "content_signature": "3a190a5147f8",
+            "sensitivity": null
+          }
+        ],
+        "total_pareto_found": 156,
+        "quality": {
+          "hypervolume_normalized": 0.6538,
+          "spacing_cv": 0.6254
+        },
+        "constraints_snapshot": [],
+        "seed_used": 2076703711,
+        "solver": "nsga-ii",
+        "exact": false,
+        "time_limit": null,
+        "time_limited": false
+      },
+      "grid_cost_inflation": {
+        "run_id": "4b77818d-e583-4e5d-ae7a-680e9df76af2",
+        "created_at": "2026-07-04T02:25:39.961803Z",
+        "mode": "thorough",
+        "solutions": [
+          {
+            "solution_id": 1,
+            "selected_options": [
+              "HAR-01",
+              "HAR-04",
+              "CED-02",
+              "CED-04",
+              "CED-06",
+              "EAS-01",
+              "EAS-05",
+              "BRK-03",
+              "KNG-01",
+              "NCR-01",
+              "NCR-03",
+              "NCR-05",
+              "NCR-06",
+              "CCR-01",
+              "CCR-05",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 96.2,
+              "Overlap": 0.7937,
+              "Cost": 21.79
+            },
+            "allocations": null,
+            "content_signature": "aa0a477bb55d",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 2,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "CED-04",
+              "CED-06",
+              "EAS-01",
+              "EAS-05",
+              "BRK-03",
+              "BRK-04",
+              "BRK-05",
+              "KNG-01",
+              "KNG-03",
+              "NCR-01",
+              "NCR-06",
+              "CCR-01",
+              "CCR-05",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 93.6,
+              "Overlap": 0.8191,
+              "Cost": 20.78
+            },
+            "allocations": null,
+            "content_signature": "5382aaf7fc6f",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 3,
+            "selected_options": [
+              "HAR-01",
+              "HAR-04",
+              "CED-02",
+              "CED-06",
+              "EAS-01",
+              "EAS-05",
+              "BRK-05",
+              "KNG-01",
+              "KNG-03",
+              "NCR-01",
+              "NCR-04",
+              "NCR-06",
+              "CCR-01",
+              "CCR-05",
+              "CCR-06",
+              "CCR-07"
+            ],
+            "objective_values": {
+              "DriversServed": 92.1,
+              "Overlap": 0.7617,
+              "Cost": 21.98
+            },
+            "allocations": null,
+            "content_signature": "aed80f8f1fd8",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 4,
+            "selected_options": [
+              "HAR-02",
+              "CED-02",
+              "CED-04",
+              "CED-06",
+              "EAS-01",
+              "EAS-05",
+              "BRK-03",
+              "KNG-01",
+              "KNG-03",
+              "NCR-01",
+              "NCR-05",
+              "NCR-06",
+              "CCR-01",
+              "CCR-05",
+              "CCR-06",
+              "CCR-08"
+            ],
+            "objective_values": {
+              "DriversServed": 92.0,
+              "Overlap": 0.7767,
+              "Cost": 20.25
+            },
+            "allocations": null,
+            "content_signature": "264d1070720e",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 5,
+            "selected_options": [
+              "HAR-02",
+              "CED-02",
+              "CED-06",
+              "EAS-01",
+              "EAS-05",
+              "BRK-03",
+              "KNG-01",
+              "KNG-03",
+              "NCR-01",
+              "NCR-03",
+              "NCR-05",
+              "NCR-06",
+              "CCR-01",
+              "CCR-05",
+              "CCR-06",
+              "CCR-08"
+            ],
+            "objective_values": {
+              "DriversServed": 90.3,
+              "Overlap": 0.7506,
+              "Cost": 19.96
+            },
+            "allocations": null,
+            "content_signature": "dbb13cc9d3d2",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 6,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "CED-04",
+              "CED-06",
+              "EAS-01",
+              "EAS-05",
+              "BRK-03",
+              "KNG-01",
+              "NCR-01",
+              "NCR-03",
+              "NCR-05",
+              "NCR-06",
+              "CCR-01",
+              "CCR-05",
+              "CCR-06",
+              "CCR-07"
+            ],
+            "objective_values": {
+              "DriversServed": 87.3,
+              "Overlap": 0.7725,
+              "Cost": 18.71
+            },
+            "allocations": null,
+            "content_signature": "68188d04f393",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 7,
+            "selected_options": [
+              "HAR-02",
+              "CED-02",
+              "CED-06",
+              "EAS-01",
+              "EAS-05",
+              "BRK-03",
+              "KNG-01",
+              "KNG-03",
+              "NCR-01",
+              "NCR-02",
+              "NCR-05",
+              "NCR-06",
+              "CCR-02",
+              "CCR-05",
+              "CCR-06",
+              "CCR-08"
+            ],
+            "objective_values": {
+              "DriversServed": 85.3,
+              "Overlap": 0.7428,
+              "Cost": 19.65
+            },
+            "allocations": null,
+            "content_signature": "698d579f6bb8",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 8,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "CED-04",
+              "CED-06",
+              "EAS-01",
+              "BRK-03",
+              "KNG-01",
+              "KNG-02",
+              "NCR-01",
+              "NCR-03",
+              "NCR-05",
+              "NCR-06",
+              "CCR-01",
+              "CCR-05",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 83.8,
+              "Overlap": 0.7922,
+              "Cost": 17.78
+            },
+            "allocations": null,
+            "content_signature": "f7558637b2c2",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 9,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "CED-06",
+              "EAS-01",
+              "EAS-05",
+              "BRK-03",
+              "KNG-01",
+              "KNG-03",
+              "NCR-01",
+              "NCR-03",
+              "NCR-06",
+              "CCR-01",
+              "CCR-05",
+              "CCR-06",
+              "CCR-07"
+            ],
+            "objective_values": {
+              "DriversServed": 82.8,
+              "Overlap": 0.7578,
+              "Cost": 17.96
+            },
+            "allocations": null,
+            "content_signature": "f7e18c977fde",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 10,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "CED-04",
+              "CED-06",
+              "EAS-01",
+              "BRK-03",
+              "KNG-01",
+              "KNG-02",
+              "KNG-03",
+              "NCR-01",
+              "NCR-06",
+              "CCR-01",
+              "CCR-05",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 81.0,
+              "Overlap": 0.8382,
+              "Cost": 17.32
+            },
+            "allocations": null,
+            "content_signature": "98c383933804",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 11,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "CED-04",
+              "CED-06",
+              "EAS-01",
+              "BRK-03",
+              "KNG-01",
+              "KNG-02",
+              "NCR-01",
+              "NCR-02",
+              "NCR-06",
+              "CCR-01",
+              "CCR-05",
+              "CCR-06",
+              "CCR-07"
+            ],
+            "objective_values": {
+              "DriversServed": 79.5,
+              "Overlap": 0.7828,
+              "Cost": 16.96
+            },
+            "allocations": null,
+            "content_signature": "350e300366dd",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 12,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "CED-06",
+              "EAS-01",
+              "EAS-05",
+              "BRK-03",
+              "KNG-01",
+              "NCR-01",
+              "NCR-03",
+              "NCR-05",
+              "NCR-06",
+              "CCR-01",
+              "CCR-05",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 78.6,
+              "Overlap": 0.7626,
+              "Cost": 16.66
+            },
+            "allocations": null,
+            "content_signature": "38bce5fb7611",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 13,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "CED-04",
+              "CED-06",
+              "EAS-01",
+              "BRK-03",
+              "KNG-01",
+              "KNG-02",
+              "NCR-01",
+              "NCR-02",
+              "NCR-06",
+              "CCR-01",
+              "CCR-05",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 77.2,
+              "Overlap": 0.7964,
+              "Cost": 16.27
+            },
+            "allocations": null,
+            "content_signature": "c1bed366afb2",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 14,
+            "selected_options": [
+              "HAR-04",
+              "CED-02",
+              "CED-06",
+              "EAS-01",
+              "BRK-05",
+              "KNG-01",
+              "KNG-03",
+              "NCR-01",
+              "NCR-04",
+              "NCR-06",
+              "NCR-07",
+              "NCR-08",
+              "CCR-02",
+              "CCR-03",
+              "CCR-04",
+              "CCR-07"
+            ],
+            "objective_values": {
+              "DriversServed": 75.7,
+              "Overlap": 0.7307,
+              "Cost": 20.66
+            },
+            "allocations": null,
+            "content_signature": "9edc6ab5dcee",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 15,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "CED-04",
+              "CED-06",
+              "EAS-01",
+              "EAS-05",
+              "BRK-03",
+              "KNG-01",
+              "KNG-02",
+              "NCR-01",
+              "NCR-06",
+              "CCR-01",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 74.9,
+              "Overlap": 0.8324,
+              "Cost": 15.7
+            },
+            "allocations": null,
+            "content_signature": "34fa3bac2d13",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 16,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "CED-06",
+              "EAS-01",
+              "EAS-05",
+              "BRK-03",
+              "KNG-01",
+              "NCR-01",
+              "NCR-02",
+              "NCR-06",
+              "CCR-01",
+              "CCR-05",
+              "CCR-06",
+              "CCR-07"
+            ],
+            "objective_values": {
+              "DriversServed": 74.3,
+              "Overlap": 0.753,
+              "Cost": 15.84
+            },
+            "allocations": null,
+            "content_signature": "ca856ae0c20a",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 17,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "EAS-01",
+              "BRK-05",
+              "KNG-01",
+              "KNG-02",
+              "NCR-01",
+              "NCR-02",
+              "NCR-06",
+              "NCR-07",
+              "NCR-08",
+              "CCR-01",
+              "CCR-02",
+              "CCR-05",
+              "CCR-06",
+              "CCR-07"
+            ],
+            "objective_values": {
+              "DriversServed": 72.8,
+              "Overlap": 0.7365,
+              "Cost": 17.34
+            },
+            "allocations": null,
+            "content_signature": "564f6d2124e2",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 18,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "CED-04",
+              "CED-06",
+              "EAS-01",
+              "BRK-03",
+              "KNG-01",
+              "KNG-02",
+              "NCR-01",
+              "NCR-02",
+              "NCR-06",
+              "CCR-01",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 72.5,
+              "Overlap": 0.8167,
+              "Cost": 15.26
+            },
+            "allocations": null,
+            "content_signature": "7ae017f18914",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 19,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "CED-04",
+              "CED-06",
+              "EAS-01",
+              "BRK-03",
+              "KNG-01",
+              "KNG-02",
+              "NCR-01",
+              "NCR-06",
+              "CCR-01",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 69.8,
+              "Overlap": 0.8438,
+              "Cost": 14.55
+            },
+            "allocations": null,
+            "content_signature": "6dbdb7f2fb0f",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 20,
+            "selected_options": [
+              "HAR-04",
+              "CED-02",
+              "EAS-01",
+              "BRK-05",
+              "KNG-01",
+              "KNG-03",
+              "NCR-01",
+              "NCR-03",
+              "NCR-06",
+              "NCR-07",
+              "NCR-08",
+              "CCR-02",
+              "CCR-03",
+              "CCR-04",
+              "CCR-07"
+            ],
+            "objective_values": {
+              "DriversServed": 69.6,
+              "Overlap": 0.7318,
+              "Cost": 19.22
+            },
+            "allocations": null,
+            "content_signature": "e5d8d46d5533",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 21,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "EAS-05",
+              "BRK-03",
+              "KNG-01",
+              "KNG-02",
+              "NCR-01",
+              "NCR-03",
+              "NCR-06",
+              "NCR-08",
+              "CCR-01",
+              "CCR-05",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 69.3,
+              "Overlap": 0.7552,
+              "Cost": 15.32
+            },
+            "allocations": null,
+            "content_signature": "614ec66922bf",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 22,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "CED-04",
+              "CED-06",
+              "EAS-01",
+              "BRK-03",
+              "KNG-01",
+              "NCR-01",
+              "NCR-02",
+              "NCR-06",
+              "CCR-01",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 68.6,
+              "Overlap": 0.819,
+              "Cost": 14.35
+            },
+            "allocations": null,
+            "content_signature": "8b833f8bb5fe",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 23,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "CED-04",
+              "CED-06",
+              "EAS-01",
+              "EAS-05",
+              "BRK-03",
+              "KNG-01",
+              "NCR-01",
+              "CCR-01",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 66.7,
+              "Overlap": 0.8749,
+              "Cost": 13.89
+            },
+            "allocations": null,
+            "content_signature": "7d9386b79687",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 24,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "CED-04",
+              "CED-06",
+              "EAS-01",
+              "BRK-03",
+              "KNG-01",
+              "NCR-01",
+              "NCR-03",
+              "CCR-01",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 66.3,
+              "Overlap": 0.8549,
+              "Cost": 13.81
+            },
+            "allocations": null,
+            "content_signature": "e657c7561389",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 25,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "CED-06",
+              "EAS-01",
+              "BRK-03",
+              "KNG-01",
+              "KNG-02",
+              "NCR-01",
+              "NCR-06",
+              "CCR-01",
+              "CCR-06",
+              "CCR-07"
+            ],
+            "objective_values": {
+              "DriversServed": 65.7,
+              "Overlap": 0.7838,
+              "Cost": 13.88
+            },
+            "allocations": null,
+            "content_signature": "33ac75a958a0",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 26,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "CED-04",
+              "EAS-05",
+              "BRK-03",
+              "KNG-02",
+              "NCR-01",
+              "NCR-06",
+              "NCR-07",
+              "NCR-08",
+              "CCR-02",
+              "CCR-03",
+              "CCR-06",
+              "CCR-07"
+            ],
+            "objective_values": {
+              "DriversServed": 65.1,
+              "Overlap": 0.7369,
+              "Cost": 16.56
+            },
+            "allocations": null,
+            "content_signature": "a457934e4e93",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 27,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "CED-06",
+              "EAS-01",
+              "EAS-05",
+              "BRK-03",
+              "KNG-01",
+              "NCR-01",
+              "CCR-01",
+              "CCR-05",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 65.0,
+              "Overlap": 0.8107,
+              "Cost": 13.54
+            },
+            "allocations": null,
+            "content_signature": "504a2e90d590",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 28,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "EAS-01",
+              "BRK-05",
+              "KNG-01",
+              "NCR-01",
+              "NCR-02",
+              "NCR-05",
+              "NCR-06",
+              "CCR-01",
+              "CCR-05",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 63.5,
+              "Overlap": 0.7435,
+              "Cost": 13.96
+            },
+            "allocations": null,
+            "content_signature": "fa303196ba22",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 29,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "CED-04",
+              "CED-06",
+              "EAS-01",
+              "BRK-03",
+              "KNG-01",
+              "NCR-01",
+              "CCR-01",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 61.6,
+              "Overlap": 0.8873,
+              "Cost": 12.74
+            },
+            "allocations": null,
+            "content_signature": "0aaa78b0227a",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 30,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "CED-06",
+              "EAS-01",
+              "EAS-05",
+              "BRK-03",
+              "KNG-01",
+              "NCR-01",
+              "CCR-01",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 60.3,
+              "Overlap": 0.8314,
+              "Cost": 12.53
+            },
+            "allocations": null,
+            "content_signature": "e09e798bf976",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 31,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "CED-06",
+              "EAS-01",
+              "BRK-03",
+              "KNG-01",
+              "NCR-01",
+              "CCR-01",
+              "CCR-05",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 59.9,
+              "Overlap": 0.8098,
+              "Cost": 12.39
+            },
+            "allocations": null,
+            "content_signature": "34dd0652a4ae",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 32,
+            "selected_options": [
+              "HAR-01",
+              "CED-01",
+              "EAS-06",
+              "BRK-01",
+              "KNG-02",
+              "NCR-01",
+              "NCR-06",
+              "NCR-07",
+              "NCR-08",
+              "CCR-02",
+              "CCR-03",
+              "CCR-05",
+              "CCR-06",
+              "CCR-07"
+            ],
+            "objective_values": {
+              "DriversServed": 59.2,
+              "Overlap": 0.7289,
+              "Cost": 17.26
+            },
+            "allocations": null,
+            "content_signature": "858146c0fd5a",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 33,
+            "selected_options": [
+              "HAR-03",
+              "CED-02",
+              "EAS-03",
+              "BRK-01",
+              "KNG-03",
+              "NCR-01",
+              "NCR-04",
+              "NCR-06",
+              "NCR-08",
+              "CCR-02",
+              "CCR-03",
+              "CCR-04",
+              "CCR-07"
+            ],
+            "objective_values": {
+              "DriversServed": 59.0,
+              "Overlap": 0.725,
+              "Cost": 19.44
+            },
+            "allocations": null,
+            "content_signature": "4255d91678c2",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 34,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "EAS-01",
+              "BRK-03",
+              "KNG-01",
+              "NCR-01",
+              "NCR-03",
+              "CCR-01",
+              "CCR-05",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 58.1,
+              "Overlap": 0.7675,
+              "Cost": 12.31
+            },
+            "allocations": null,
+            "content_signature": "662d48650a57",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 35,
+            "selected_options": [
+              "HAR-01",
+              "CED-01",
+              "EAS-06",
+              "BRK-01",
+              "KNG-03",
+              "NCR-01",
+              "NCR-02",
+              "NCR-06",
+              "CCR-01",
+              "CCR-05",
+              "CCR-06"
+            ],
+            "objective_values": {
+              "DriversServed": 56.6,
+              "Overlap": 0.7356,
+              "Cost": 14.77
+            },
+            "allocations": null,
+            "content_signature": "ef43714c0349",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 36,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "EAS-01",
+              "BRK-05",
+              "KNG-01",
+              "NCR-01",
+              "NCR-02",
+              "NCR-06",
+              "CCR-01",
+              "CCR-06",
+              "CCR-07"
+            ],
+            "objective_values": {
+              "DriversServed": 56.5,
+              "Overlap": 0.7356,
+              "Cost": 12.49
+            },
+            "allocations": null,
+            "content_signature": "d473f8ace9e0",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 37,
+            "selected_options": [
+              "HAR-03",
+              "CED-01",
+              "EAS-06",
+              "BRK-01",
+              "KNG-02",
+              "NCR-01",
+              "NCR-06",
+              "NCR-07",
+              "NCR-08",
+              "CCR-02",
+              "CCR-03",
+              "CCR-05",
+              "CCR-07"
+            ],
+            "objective_values": {
+              "DriversServed": 51.5,
+              "Overlap": 0.7219,
+              "Cost": 17.48
+            },
+            "allocations": null,
+            "content_signature": "2222ad6d4928",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 38,
+            "selected_options": [
+              "HAR-01",
+              "CED-01",
+              "EAS-06",
+              "BRK-01",
+              "KNG-02",
+              "NCR-01",
+              "NCR-06",
+              "NCR-07",
+              "CCR-05",
+              "CCR-06",
+              "CCR-07"
+            ],
+            "objective_values": {
+              "DriversServed": 50.5,
+              "Overlap": 0.7265,
+              "Cost": 14.11
+            },
+            "allocations": null,
+            "content_signature": "9770ff501876",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 39,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "EAS-01",
+              "BRK-05",
+              "KNG-02",
+              "NCR-01",
+              "NCR-07",
+              "NCR-08",
+              "CCR-02",
+              "CCR-06",
+              "CCR-07"
+            ],
+            "objective_values": {
+              "DriversServed": 49.6,
+              "Overlap": 0.7278,
+              "Cost": 12.81
+            },
+            "allocations": null,
+            "content_signature": "8049d640f73b",
+            "sensitivity": null
+          },
+          {
+            "solution_id": 40,
+            "selected_options": [
+              "HAR-01",
+              "CED-02",
+              "EAS-01",
+              "BRK-05",
+              "KNG-02",
+              "NCR-01",
+              "NCR-02",
+              "NCR-06",
+              "CCR-06",
+              "CCR-07"
+            ],
+            "objective_values": {
+              "DriversServed": 48.9,
+              "Overlap": 0.7384,
+              "Cost": 11.49
+            },
+            "allocations": null,
+            "content_signature": "b5999fbed815",
+            "sensitivity": null
+          }
+        ],
+        "total_pareto_found": 155,
+        "quality": {
+          "hypervolume_normalized": 0.617,
+          "spacing_cv": 0.9661
+        },
+        "constraints_snapshot": [],
+        "seed_used": 611695142,
+        "solver": "nsga-ii",
+        "exact": false,
+        "time_limit": null,
+        "time_limited": false
+      }
+    },
+    "created_at": "2026-07-04T02:25:39.970189Z"
+  }
+}
