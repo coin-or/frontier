@@ -891,6 +891,76 @@ class TestExtremeSeeds:
             count = int(seed.sum())
             assert 2 <= count <= 3
 
+    def test_allocation_bounds_respected_by_nsga_and_repair(self):
+        """E2: per-option allocation floors/caps hold in every returned plan, including under
+        an adversarial global cap, and the repair operator projects arbitrary rows into the
+        box without breaking the 100% budget."""
+        import numpy as np
+
+        from engine.models import AllocationBoundConstraint, MaxAllocationConstraint
+        from engine.optimizer import _SimplexRepair, _build_score_matrix, _parse_constraints
+
+        p = _make_problem(
+            approach="proportional",
+            constraints=[MaxAllocationConstraint(max=40),
+                         AllocationBoundConstraint(option="A", min=12, max=100),
+                         AllocationBoundConstraint(option="B", min=0, max=15)],
+        )
+        run = optimize(p, mode="fast", seed=5)
+        assert len(run.solutions) > 0
+        for s in run.solutions:
+            assert s.allocations.get("A", 0) >= 12
+            assert s.allocations.get("B", 0) <= 15
+            assert max(s.allocations.values()) <= 40
+            assert sum(s.allocations.values()) == 100
+
+        # Direct repair check on adversarial rows (all-zero, one-hot, uniform).
+        from engine.optimizer import _ProportionalProblem
+        cp = _parse_constraints(p)
+        prob = _ProportionalProblem(n_options=5, score_matrix=_build_score_matrix(p),
+                                    objectives=p.objectives, interaction_matrices={}, **cp)
+        X = np.array([[0, 0, 0, 0, 0], [100, 0, 0, 0, 0], [20, 20, 20, 20, 20]], dtype=float)
+        Y = _SimplexRepair()._do(prob, X)
+        for row in Y:
+            assert abs(row.sum() - 100.0) < 0.05
+            assert row[0] >= 12 - 1e-6 and row[1] <= 15 + 1e-6 and row.max() <= 40 + 1e-6
+
+    def test_allocation_bound_validation_and_conflicts(self):
+        """E2: bad ranges, unknown options, binary-mode warning, floor sums past 100%, floors
+        on excluded options, and starved effective caps are all caught pre-solve."""
+        from engine.models import AllocationBoundConstraint, ForceExcludeConstraint, MaxAllocationConstraint
+
+        bad = validate(_make_problem(approach="proportional", constraints=[
+            AllocationBoundConstraint(option="A", min=50, max=30)]))
+        assert any("0 <= min <= max <= 100" in i.message for i in bad.issues)
+
+        unknown = validate(_make_problem(approach="proportional", constraints=[
+            AllocationBoundConstraint(option="ZZ", min=0, max=50)]))
+        assert any("unknown option 'ZZ'" in i.message for i in unknown.issues)
+
+        warned = validate(_make_problem(constraints=[   # binary problem
+            AllocationBoundConstraint(option="A", min=0, max=50)]))
+        assert any("proportional mode" in i.message and i.severity == "warning"
+                   for i in warned.issues)
+
+        oversum = validate(_make_problem(approach="proportional", constraints=[
+            AllocationBoundConstraint(option="A", min=60, max=100),
+            AllocationBoundConstraint(option="B", min=50, max=100)]))
+        assert any("floors sum to 110%" in i.message for i in oversum.issues)
+
+        excluded = validate(_make_problem(approach="proportional", constraints=[
+            AllocationBoundConstraint(option="A", min=10, max=100),
+            ForceExcludeConstraint(option="A")]))
+        assert any("conflicts" in i.message and "force_exclude" in i.message
+                   for i in excluded.issues)
+
+        starved = validate(_make_problem(approach="proportional", constraints=[
+            MaxAllocationConstraint(max=30),
+            AllocationBoundConstraint(option="A", min=0, max=5),
+            ForceExcludeConstraint(option="B")]))
+        # caps: A 5 + C/D/E 30 each = 95 < 100
+        assert any("caps sum to 95%" in i.message for i in starved.issues)
+
     def test_group_floor_respected_by_nsga_and_prefilled_in_seeds(self):
         """E1: a group_limit floor pulls its members into every plan (NSGA) and into the
         greedy corner seeds (pre-fill), even when the floored group scores worst."""

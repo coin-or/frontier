@@ -14,7 +14,8 @@ Pass to the `constraints` param as a list of dicts:
 {"type": "exclusion_pair", "option_a": "<name>", "option_b": "<name>"}
 {"type": "dependency", "if_option": "<name>", "then_option": "<name>"}
 {"type": "group_limit", "options": ["<name>", ...], "max": <int>}  (optional "min": <int> floor — at least that many selected/active from the group; exact-certifiable on binary, NSGA-only on proportional)
-{"type": "max_allocation", "max": <int>}  (proportional only: cap single option allocation)
+{"type": "max_allocation", "max": <int>}  (proportional only: one global cap on every option's allocation)
+{"type": "allocation_bound", "option": "<name>", "min": <int>, "max": <int>}  (proportional only: per-option floor/cap in percent — contractual minimums, service floors, per-channel caps; effective cap = min(global, per-option); a floor > 0 force-activates the option and carries a dual on the exact LP/QP path)
 ```
 
 ## Interaction matrix schema

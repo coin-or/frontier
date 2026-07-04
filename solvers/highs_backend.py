@@ -33,6 +33,7 @@ from engine.models import Aggregation, Approach, OptimizeMode, Problem, Run
 from solvers._scalarization import (
     _build_raw_sensitivity,
     _qp_weights_ok,
+    _weight_box,
     certify_curated_frontier,
     optimize_lp,
     optimize_milp,
@@ -77,7 +78,7 @@ def _hessian_from_cov(cov: np.ndarray):
 
 
 def _build_qp_model(cov, mu, target_return, return_maximize, max_weight,
-                    support=None, extra_linears=None):
+                    support=None, extra_linears=None, min_weight=None):
     """Build (but don't solve) the min-variance QP shared by the plain and dual-returning
     inner solves. Returns ``(h, w, has_return)``. **Constraint (row) order is the dual
     reader's contract**: budget Σw=1 at idx 0, the return floor at idx 1 (iff
@@ -86,16 +87,11 @@ def _build_qp_model(cov, mu, target_return, return_maximize, max_weight,
     import highspy
 
     n = len(mu)
-    ub = float(max_weight) if max_weight is not None else 1.0
-    if support is None:
-        ubs = [ub] * n
-    else:
-        supp = {int(i) for i in support}
-        ubs = [ub if i in supp else 0.0 for i in range(n)]
+    ubs, lbs = _weight_box(n, max_weight, min_weight, support)
 
     h = highspy.Highs()
     h.silent()
-    w = [h.addVariable(lb=0.0, ub=ubs[i]) for i in range(n)]
+    w = [h.addVariable(lb=lbs[i], ub=ubs[i]) for i in range(n)]
     h.addConstr(sum(w) == 1)                                          # row 0: budget
     has_return = target_return is not None
     if has_return:
@@ -109,21 +105,21 @@ def _build_qp_model(cov, mu, target_return, return_maximize, max_weight,
     return h, w, has_return
 
 
-def _qp_primal(h, w, max_weight):
+def _qp_primal(h, w, max_weight, min_weight=None):
     """Read primal weights + feasibility from a solved QP. Gates on the returned weights,
     not just status (parity with the cuOpt inner solve): a degenerate 'solved' point whose
     weights are non-finite or violate Σw=1 / the box is treated as infeasible."""
     n = len(w)
-    ub = float(max_weight) if max_weight is not None else 1.0
     ok = h.modelStatusToString(h.getModelStatus()) == "Optimal"
     weights = np.array(h.vals(w), dtype=float) if ok else np.zeros(n)
-    if ok and not _qp_weights_ok(weights, ub):
+    if ok and not _qp_weights_ok(weights, max_weight, min_weight):
         weights, ok = np.zeros(n), False
     return weights, ok
 
 
+
 def _solve_qp_highs(cov, mu, target_return, return_maximize, max_weight,
-                    support=None, extra_linears=None):
+                    support=None, extra_linears=None, min_weight=None):
     """One min-variance QP via HiGHS — the convex inner solve contract shared with cuOpt::
 
         minimize   wᵀ(cov)w
@@ -135,9 +131,9 @@ def _solve_qp_highs(cov, mu, target_return, return_maximize, max_weight,
     Returns ``(weights as fractions, ok)``. Convex and exact.
     """
     h, w, _ = _build_qp_model(cov, mu, target_return, return_maximize, max_weight,
-                              support, extra_linears)
+                              support, extra_linears, min_weight=min_weight)
     h.minimize()
-    return _qp_primal(h, w, max_weight)
+    return _qp_primal(h, w, max_weight, min_weight)
 
 
 def _extract_qp_sensitivity(h, w, has_return, n_extra, support):
@@ -152,7 +148,7 @@ def _extract_qp_sensitivity(h, w, has_return, n_extra, support):
 
 
 def _solve_qp_highs_sensitivity(cov, mu, target_return, return_maximize, max_weight,
-                                support=None, extra_linears=None):
+                                support=None, extra_linears=None, min_weight=None):
     """Same convex inner solve as ``_solve_qp_highs``, plus the exact duals:
     ``(weights, ok, raw_sensitivity)``. ``raw_sensitivity`` carries role-tagged constraint
     shadow prices (row duals) and per-variable reduced costs (col duals); None when the
@@ -160,15 +156,16 @@ def _solve_qp_highs_sensitivity(cov, mu, target_return, return_maximize, max_wei
     so it adds at most one dual read per surviving point (no extra solves)."""
     n_extra = len(extra_linears or [])
     h, w, has_return = _build_qp_model(cov, mu, target_return, return_maximize, max_weight,
-                                       support, extra_linears)
+                                       support, extra_linears, min_weight=min_weight)
     h.minimize()
-    weights, ok = _qp_primal(h, w, max_weight)
+    weights, ok = _qp_primal(h, w, max_weight, min_weight)
     if not ok:
         return weights, ok, None
     return weights, ok, _extract_qp_sensitivity(h, w, has_return, n_extra, support)
 
 
-def _build_lp_model(primary_coef, primary_maximize, eps_list, max_weight, support=None):
+def _build_lp_model(primary_coef, primary_maximize, eps_list, max_weight, support=None,
+                    min_weight=None):
     """Build and solve the proportional LP shared by the plain and dual-returning inner solves:
     optimize one linear objective over Σw=1, 0 ≤ w ≤ max_weight (0 off ``support``), with each
     non-primary objective epsilon-constrained. **Row order is the dual reader's contract**: budget
@@ -177,15 +174,10 @@ def _build_lp_model(primary_coef, primary_maximize, eps_list, max_weight, suppor
     import highspy
 
     n = len(primary_coef)
-    ub = float(max_weight) if max_weight is not None else 1.0
-    if support is None:
-        ubs = [ub] * n
-    else:
-        supp = {int(i) for i in support}
-        ubs = [ub if i in supp else 0.0 for i in range(n)]
+    ubs, lbs = _weight_box(n, max_weight, min_weight, support)
     h = highspy.Highs()
     h.silent()
-    w = [h.addVariable(lb=0.0, ub=ubs[i]) for i in range(n)]
+    w = [h.addVariable(lb=lbs[i], ub=ubs[i]) for i in range(n)]
     h.addConstr(sum(w) == 1)                                          # row 0: budget
     for coef, tgt, maximize in eps_list:                             # rows 1..: objective floors
         expr = sum(float(coef[i]) * w[i] for i in range(n))
@@ -195,7 +187,8 @@ def _build_lp_model(primary_coef, primary_maximize, eps_list, max_weight, suppor
     return h, w
 
 
-def _solve_lp_highs(primary_coef, primary_maximize, eps_list, max_weight, support=None):
+def _solve_lp_highs(primary_coef, primary_maximize, eps_list, max_weight, support=None,
+                    min_weight=None):
     """One proportional LP via HiGHS — the linear inner-solve contract shared with cuOpt::
 
         optimize   primary_coef·w        (maximize or minimize)
@@ -203,17 +196,20 @@ def _solve_lp_highs(primary_coef, primary_maximize, eps_list, max_weight, suppor
                    coef·w ≥/≤ target  for each (coef, target, maximize) in eps_list
 
     Returns ``(weights as fractions, ok)``. Exact."""
-    h, w = _build_lp_model(primary_coef, primary_maximize, eps_list, max_weight, support)
-    return _qp_primal(h, w, max_weight)
+    h, w = _build_lp_model(primary_coef, primary_maximize, eps_list, max_weight, support,
+                           min_weight=min_weight)
+    return _qp_primal(h, w, max_weight, min_weight)
 
 
-def _solve_lp_highs_sensitivity(primary_coef, primary_maximize, eps_list, max_weight, support=None):
+def _solve_lp_highs_sensitivity(primary_coef, primary_maximize, eps_list, max_weight, support=None,
+                                min_weight=None):
     """Same LP as ``_solve_lp_highs`` plus the exact duals: ``(weights, ok, raw_sensitivity)``.
     ``raw_sensitivity`` carries budget + per-objective-floor shadow prices (row duals) and
     per-variable reduced costs (col duals) via the shared marshaller (``has_return=False`` — the
     primary objective is optimized, not epsilon-constrained). None when the solve is rejected."""
-    h, w = _build_lp_model(primary_coef, primary_maximize, eps_list, max_weight, support)
-    weights, ok = _qp_primal(h, w, max_weight)
+    h, w = _build_lp_model(primary_coef, primary_maximize, eps_list, max_weight, support,
+                           min_weight=min_weight)
+    weights, ok = _qp_primal(h, w, max_weight, min_weight)
     if not ok:
         return weights, ok, None
     sol = h.getSolution()

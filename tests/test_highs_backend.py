@@ -126,7 +126,38 @@ class TestGate:
         b = _binary_problem(constraints=[GroupLimitConstraint(options=["A", "B"], min=1, max=2)])
         assert exact_solver_fits(b)[0] is True
 
-    def test_exact_milp_respects_group_floor(self):
+    def test_exact_lp_respects_allocation_bounds_and_prices_the_floor(self):
+        """E2 on the exact LP path: per-option floors/caps become variable bounds, every
+        overlay point honors them, and the dual read still returns per-option reduced costs
+        (the floor's price surfaces there)."""
+        from engine.models import AllocationBoundConstraint
+
+        names = ["A", "B", "C", "D"]
+        rev = {"A": 14, "B": 11, "C": 8, "D": 5}
+        stab = {"A": 3, "B": 6, "C": 8, "D": 9}
+        scores = []
+        for n_ in names:
+            scores.append(Score(option=n_, objective="Revenue", value=rev[n_]))
+            scores.append(Score(option=n_, objective="Stability", value=stab[n_]))
+        p = Problem(
+            name="lp-bounds", approach="proportional",
+            objectives=[Objective(name="Revenue", direction="maximize", aggregation="sum"),
+                        Objective(name="Stability", direction="maximize", aggregation="sum")],
+            options=[Option(name=n_) for n_ in names], scores=scores,
+            constraints=[MaxAllocationConstraint(max=60),
+                         AllocationBoundConstraint(option="D", min=15, max=100),
+                         AllocationBoundConstraint(option="A", min=0, max=35)],
+        )
+        assert exact_solver_fits(p)[0] is True
+        run = optimize(p, solver="highs", seed=11)
+        assert len(run.solutions) > 0
+        priced = False
+        for s in run.solutions:
+            assert s.allocations.get("D", 0) >= 15    # the floor holds on every exact point
+            assert s.allocations.get("A", 0) <= 35    # the per-option cap holds
+            if s.sensitivity is not None and s.sensitivity.reduced_costs:
+                priced = True
+        assert priced, "exact LP overlay carries no dual read"
         # D/E/F score low on NPV; a floor on {D, E, F} must still pull one into every plan.
         p = _binary_problem(constraints=[
             CardinalityConstraint(min=2, max=4),

@@ -26,6 +26,7 @@ from mcp.server.fastmcp import FastMCP
 
 from engine import explorer, metrics, optimizer, problem_io
 from engine.models import (
+    AllocationBoundConstraint,
     Approach,
     Constraint,
     CardinalityConstraint,
@@ -705,6 +706,9 @@ def _format_constraint(c, units: dict | None = None) -> str:
         return f"{d.get('option_a')} ⊕ {d.get('option_b')}"
     if t == "dependency":
         return f"{d.get('if_option')} requires {d.get('then_option')}"
+    if t == "allocation_bound":
+        lo, hi = d.get("min", 0) or 0, d.get("max", 100)
+        return f"{d.get('option')} allocation {_fmt_num(lo)}–{_fmt_num(hi)}%"
     if t == "group_limit":
         opts = d.get("options", [])
         members = ", ".join(opts) if 0 < len(opts) <= 5 else f"{len(opts)} options"
@@ -941,6 +945,8 @@ def _parse_constraint(c: dict | Constraint) -> Constraint:
             return GroupLimitConstraint(**c)
         case "max_allocation":
             return MaxAllocationConstraint(**c)
+        case "allocation_bound":
+            return AllocationBoundConstraint(**c)
         case _:
             raise ValueError(f"Unknown constraint type: {ctype}")
 

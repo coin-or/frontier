@@ -147,8 +147,11 @@ class _SeededBinarySampling(Sampling):
 class _SimplexRepair(Repair):
     """After crossover/mutation, project solutions back onto the simplex (sum=100, non-negative).
 
-    When the pymoo problem has a max_allocation attribute, iteratively clamp
-    and redistribute so no variable exceeds the cap while preserving sum=100.
+    When the pymoo problem carries a max_allocation cap and/or per-option allocation bounds
+    (``alloc_lo``/``alloc_hi`` percent vectors), iteratively clamp to the box and redistribute
+    so the row still sums to 100. If the iteration doesn't converge (tight boxes), fall back
+    to the deterministic feasible point lo + slack ∝ (hi − lo), which satisfies the box and
+    the budget whenever the bounds are jointly feasible (Σlo ≤ 100 ≤ Σhi — validate enforces).
     """
 
     def _do(self, problem, X, **kwargs):
@@ -159,23 +162,47 @@ class _SimplexRepair(Repair):
         row_sums = np.maximum(row_sums, 1e-9)  # avoid div by zero
         X = X / row_sums * 100.0
 
-        # Enforce max_allocation: clamp and redistribute excess
+        lo = getattr(problem, "alloc_lo", None)
+        hi = getattr(problem, "alloc_hi", None)
         cap = getattr(problem, "max_allocation", None)
-        if cap is not None:
-            for _ in range(5):  # iterate until stable (typically 1-2 passes)
-                excess = np.maximum(X - cap, 0.0)
-                total_excess = excess.sum(axis=1, keepdims=True)
-                if np.all(total_excess < 0.01):
-                    break
-                X = np.minimum(X, cap)
-                # Redistribute excess proportionally to under-cap variables
-                under_cap = X < cap - 0.01
-                under_cap_sum = np.where(under_cap, X, 0.0).sum(axis=1, keepdims=True)
-                under_cap_sum = np.maximum(under_cap_sum, 1e-9)
-                redistribution = np.where(under_cap, X / under_cap_sum * total_excess, 0.0)
-                X = X + redistribution
+        if lo is None or hi is None or not getattr(problem, "allocation_bounds", None):
+            # Global-cap-only path (the pre-allocation_bound behavior, unchanged).
+            if cap is not None:
+                for _ in range(5):  # iterate until stable (typically 1-2 passes)
+                    excess = np.maximum(X - cap, 0.0)
+                    total_excess = excess.sum(axis=1, keepdims=True)
+                    if np.all(total_excess < 0.01):
+                        break
+                    X = np.minimum(X, cap)
+                    # Redistribute excess proportionally to under-cap variables
+                    under_cap = X < cap - 0.01
+                    under_cap_sum = np.where(under_cap, X, 0.0).sum(axis=1, keepdims=True)
+                    under_cap_sum = np.maximum(under_cap_sum, 1e-9)
+                    redistribution = np.where(under_cap, X / under_cap_sum * total_excess, 0.0)
+                    X = X + redistribution
+            return X
 
-        return X
+        # Box-constrained path: clamp to [lo, hi] and redistribute the budget residual onto
+        # options with slack, both directions (floors pull mass in, caps push it out).
+        for _ in range(8):
+            X = np.clip(X, lo, hi)
+            resid = 100.0 - X.sum(axis=1, keepdims=True)     # >0: need to add; <0: remove
+            if np.all(np.abs(resid) < 0.01):
+                return X
+            up_slack = np.maximum(hi - X, 0.0)
+            dn_slack = np.maximum(X - lo, 0.0)
+            up_total = np.maximum(up_slack.sum(axis=1, keepdims=True), 1e-9)
+            dn_total = np.maximum(dn_slack.sum(axis=1, keepdims=True), 1e-9)
+            add = np.where(resid > 0, up_slack / up_total * resid, 0.0)
+            sub = np.where(resid < 0, dn_slack / dn_total * (-resid), 0.0)
+            X = X + add - sub
+        # Deterministic feasible fallback for rows that didn't converge.
+        bad = np.abs(100.0 - np.clip(X, lo, hi).sum(axis=1)) >= 0.01
+        if bad.any():
+            span = np.maximum((hi - lo).sum(), 1e-9)
+            fallback = lo + (hi - lo) * ((100.0 - lo.sum()) / span)
+            X[bad] = fallback
+        return np.clip(X, lo, hi)
 
 from .models import (
     Aggregation,
@@ -338,6 +365,24 @@ def validate(problem: Problem) -> ValidationResult:
                     severity="error",
                     message=(f"group_limit min ({c.min}) exceeds the group's size "
                              f"({len(c.options)} options) — the floor can never be met."),
+                ))
+        elif c.type == "allocation_bound":
+            if c.option not in opt_names:
+                issues.append(ValidationIssue(
+                    severity="error",
+                    message=f"allocation_bound references unknown option '{c.option}'.",
+                ))
+            if not (0 <= c.min <= c.max <= 100):
+                issues.append(ValidationIssue(
+                    severity="error",
+                    message=(f"allocation_bound for '{c.option}' needs 0 <= min <= max <= 100, "
+                             f"got min={c.min}, max={c.max}."),
+                ))
+            if problem.approach != Approach.proportional:
+                issues.append(ValidationIssue(
+                    severity="warning",
+                    message=("allocation_bound constraint only applies to proportional mode; "
+                             "ignored in binary mode."),
                 ))
         elif c.type == "max_allocation":
             if not (1 <= c.max <= 100):
@@ -574,7 +619,7 @@ def _check_constraint_conflicts(
             if color[node] == WHITE:
                 _dfs(node, [])
 
-    # E. MaxAllocation arithmetic (proportional mode only)
+    # E. MaxAllocation / allocation_bound arithmetic (proportional mode only)
     if problem.approach == Approach.proportional:
         for c in problem.constraints:
             if c.type == "max_allocation":
@@ -586,6 +631,35 @@ def _check_constraint_conflicts(
                             f"{c.max * available}% < 100% required. Allocation cannot sum to 100."
                         ),
                     ))
+        ab = [c for c in problem.constraints if c.type == "allocation_bound"]
+        if ab:
+            floor_sum = sum(c.min for c in ab)
+            if floor_sum > 100:
+                issues.append(ValidationIssue(
+                    severity="error",
+                    message=(f"allocation_bound floors sum to {floor_sum}% > 100% — "
+                             "the floors cannot all be met."),
+                ))
+            for c in ab:
+                if c.min > 0 and c.option in forced_out:
+                    issues.append(ValidationIssue(
+                        severity="error",
+                        message=(f"allocation_bound floor ({c.min}%) on '{c.option}' conflicts "
+                                 "with force_exclude on the same option."),
+                    ))
+            global_cap = next((c.max for c in problem.constraints if c.type == "max_allocation"),
+                              None)
+            bounded = {c.option: c for c in ab}
+            cap_sum = sum(
+                min(global_cap or 100, bounded[o].max) if o in bounded else (global_cap or 100)
+                for o in (opt.name for opt in problem.options) if o not in forced_out
+            )
+            if cap_sum < 100:
+                issues.append(ValidationIssue(
+                    severity="error",
+                    message=(f"effective per-option caps sum to {cap_sum}% < 100% — "
+                             "allocation cannot sum to 100."),
+                ))
 
     return issues
 
@@ -605,6 +679,7 @@ def _parse_constraints(problem: Problem) -> dict:
     dependencies: list[tuple[int, int]] = []  # (if_idx, then_idx)
     group_limits: list[tuple[list[int], int, int]] = []  # (group_indices, min, max)
     max_allocation: int | None = None  # max allocation % per option (proportional only)
+    allocation_bounds: dict[int, tuple[int, int]] = {}  # idx -> (min%, max%) (proportional only)
 
     for c in problem.constraints:
         if c.type == "force_include":
@@ -626,6 +701,8 @@ def _parse_constraints(problem: Problem) -> dict:
             group_limits.append((group_indices, int(c.min), int(c.max)))
         elif c.type == "max_allocation":
             max_allocation = c.max
+        elif c.type == "allocation_bound":
+            allocation_bounds[opt_index[c.option]] = (int(c.min), int(c.max))
 
     return {
         "forced_in": forced_in_idx,
@@ -637,6 +714,7 @@ def _parse_constraints(problem: Problem) -> dict:
         "dependencies": dependencies,
         "group_limits": group_limits,
         "max_allocation": max_allocation,
+        "allocation_bounds": allocation_bounds,
     }
 
 
@@ -1746,6 +1824,7 @@ class _FrontierProblem(PymooProblem):
         dependencies: list[tuple[int, int]] | None = None,
         group_limits: list[tuple[list[int], int]] | None = None,
         max_allocation: int | None = None,  # ignored for binary mode
+        allocation_bounds: dict | None = None,  # ignored for binary mode (proportional-only)
         interaction_matrices: dict[int, np.ndarray] | None = None,
     ):
         exclusion_pairs = exclusion_pairs or []
@@ -1901,6 +1980,7 @@ class _ProportionalProblem(PymooProblem):
         dependencies: list[tuple[int, int]] | None = None,
         group_limits: list[tuple[list[int], int]] | None = None,
         max_allocation: int | None = None,
+        allocation_bounds: dict | None = None,  # idx -> (min%, max%)
         interaction_matrices: dict[int, np.ndarray] | None = None,
     ):
         exclusion_pairs = exclusion_pairs or []
@@ -1912,6 +1992,7 @@ class _ProportionalProblem(PymooProblem):
         n_ieq += sum(1 for _, g_min, _ in group_limits if g_min > 0)  # active-count >= min
         if max_allocation is not None:
             n_ieq += n_options  # one constraint per option
+        n_ieq += 2 * len(allocation_bounds or {})   # per-option lo/hi rows
 
         xu = max_allocation if max_allocation is not None else 100
 
@@ -1933,6 +2014,14 @@ class _ProportionalProblem(PymooProblem):
         self.dependencies = dependencies
         self.group_limits = group_limits
         self.max_allocation = max_allocation
+        self.allocation_bounds = allocation_bounds or {}
+        # Box vectors in percent for the repair operator (0 / effective cap where unbounded).
+        eff_cap = float(max_allocation) if max_allocation is not None else 100.0
+        self.alloc_lo = np.zeros(n_options)
+        self.alloc_hi = np.full(n_options, eff_cap)
+        for i, (lo, hi) in self.allocation_bounds.items():
+            self.alloc_lo[i] = float(lo)
+            self.alloc_hi[i] = min(eff_cap, float(hi))
         self.interaction_matrices = interaction_matrices or {}
 
     def _aggregate_objective(self, X: np.ndarray, j: int) -> np.ndarray:
@@ -2036,6 +2125,11 @@ class _ProportionalProblem(PymooProblem):
             G.append(group_sum - max_count)
             if min_count > 0:
                 G.append(min_count - group_sum)
+
+        # Per-option allocation bounds: lo <= x[i] <= hi (allocation_bound constraints)
+        for i, (lo, hi) in (self.allocation_bounds or {}).items():
+            G.append(lo - X[:, i])
+            G.append(X[:, i] - hi)
 
         # Max position: each allocation <= max_allocation
         if self.max_allocation is not None:
