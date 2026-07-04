@@ -1,0 +1,314 @@
+{
+  "name": "Claims Investigation Triage",
+  "domain": "insurance special investigations",
+  "context": "A carrier's special-investigations unit picks which of 80 model-flagged claims to investigate this month. Recovery, investigator hours, and customer friction pull in different directions: the best recovery-per-hour ratios sit on borderline claims where investigating a legitimate customer costs goodwill. A quarterly recovery target and a hard hours budget couple the picks \u2014 the plan must earn the target inside the capacity \u2014 under per-line concentration caps and four regulator-mandated referrals.",
+  "approach": "binary",
+  "objectives": [
+    {
+      "name": "ExpectedRecovery",
+      "direction": "maximize",
+      "unit": "$k",
+      "aggregation": "sum"
+    },
+    {
+      "name": "Hours",
+      "direction": "minimize",
+      "unit": "hours",
+      "aggregation": "sum"
+    },
+    {
+      "name": "Friction",
+      "direction": "minimize",
+      "unit": "points",
+      "aggregation": "sum"
+    }
+  ],
+  "constraints": [
+    {
+      "type": "objective_bound",
+      "objective": "Hours",
+      "operator": "max",
+      "value": 520.0
+    },
+    {
+      "type": "objective_bound",
+      "objective": "ExpectedRecovery",
+      "operator": "min",
+      "value": 2360.0
+    },
+    {
+      "type": "cardinality",
+      "min": 20,
+      "max": 45
+    },
+    {
+      "type": "force_include",
+      "option": "WC-1010"
+    },
+    {
+      "type": "force_include",
+      "option": "AUT-1011"
+    },
+    {
+      "type": "force_include",
+      "option": "PRP-1012"
+    },
+    {
+      "type": "force_include",
+      "option": "LIA-1013"
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "AUT-1011",
+        "AUT-1020",
+        "AUT-1021",
+        "AUT-1022",
+        "AUT-1023",
+        "AUT-1024",
+        "AUT-1025",
+        "AUT-1026",
+        "AUT-1027",
+        "AUT-1028",
+        "AUT-1029",
+        "AUT-1030",
+        "AUT-1031",
+        "AUT-1032",
+        "AUT-1033",
+        "AUT-1034",
+        "AUT-1035",
+        "AUT-1036",
+        "AUT-1037",
+        "AUT-1038",
+        "AUT-1039",
+        "AUT-1040",
+        "AUT-1041",
+        "AUT-1043",
+        "AUT-1047",
+        "AUT-1090",
+        "AUT-1094",
+        "AUT-1098",
+        "AUT-1102",
+        "AUT-1106",
+        "AUT-1110",
+        "AUT-1114"
+      ],
+      "max": 18
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "PRP-1001",
+        "PRP-1002",
+        "PRP-1012",
+        "PRP-1040",
+        "PRP-1044",
+        "PRP-1048",
+        "PRP-1070",
+        "PRP-1073",
+        "PRP-1076",
+        "PRP-1079",
+        "PRP-1082",
+        "PRP-1092",
+        "PRP-1096",
+        "PRP-1100",
+        "PRP-1104",
+        "PRP-1108",
+        "PRP-1112"
+      ],
+      "max": 15
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "LIA-1001",
+        "LIA-1002",
+        "LIA-1013",
+        "LIA-1041",
+        "LIA-1045",
+        "LIA-1049",
+        "LIA-1072",
+        "LIA-1075",
+        "LIA-1078",
+        "LIA-1081",
+        "LIA-1093",
+        "LIA-1097",
+        "LIA-1101",
+        "LIA-1105",
+        "LIA-1109",
+        "LIA-1113"
+      ],
+      "max": 13
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "WC-1010",
+        "WC-1042",
+        "WC-1046",
+        "WC-1071",
+        "WC-1074",
+        "WC-1077",
+        "WC-1080",
+        "WC-1083",
+        "WC-1091",
+        "WC-1095",
+        "WC-1099",
+        "WC-1103",
+        "WC-1107",
+        "WC-1111",
+        "WC-1115"
+      ],
+      "max": 11
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "capacity_cut",
+      "probability": null,
+      "description": "A catastrophe event pulls investigators onto CAT duty: the month's capacity drops to 440 hours; the recovery target does not move.",
+      "score_overrides": [],
+      "score_adjustments": [],
+      "constraint_overrides": [
+        {
+          "type": "objective_bound",
+          "objective": "Hours",
+          "operator": "max",
+          "value": 495.0
+        },
+        {
+          "type": "objective_bound",
+          "objective": "ExpectedRecovery",
+          "operator": "min",
+          "value": 2360.0
+        },
+        {
+          "type": "cardinality",
+          "min": 20,
+          "max": 45
+        },
+        {
+          "type": "force_include",
+          "option": "WC-1010"
+        },
+        {
+          "type": "force_include",
+          "option": "AUT-1011"
+        },
+        {
+          "type": "force_include",
+          "option": "PRP-1012"
+        },
+        {
+          "type": "force_include",
+          "option": "LIA-1013"
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "AUT-1011",
+            "AUT-1020",
+            "AUT-1021",
+            "AUT-1022",
+            "AUT-1023",
+            "AUT-1024",
+            "AUT-1025",
+            "AUT-1026",
+            "AUT-1027",
+            "AUT-1028",
+            "AUT-1029",
+            "AUT-1030",
+            "AUT-1031",
+            "AUT-1032",
+            "AUT-1033",
+            "AUT-1034",
+            "AUT-1035",
+            "AUT-1036",
+            "AUT-1037",
+            "AUT-1038",
+            "AUT-1039",
+            "AUT-1040",
+            "AUT-1041",
+            "AUT-1043",
+            "AUT-1047",
+            "AUT-1090",
+            "AUT-1094",
+            "AUT-1098",
+            "AUT-1102",
+            "AUT-1106",
+            "AUT-1110",
+            "AUT-1114"
+          ],
+          "max": 18
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "PRP-1001",
+            "PRP-1002",
+            "PRP-1012",
+            "PRP-1040",
+            "PRP-1044",
+            "PRP-1048",
+            "PRP-1070",
+            "PRP-1073",
+            "PRP-1076",
+            "PRP-1079",
+            "PRP-1082",
+            "PRP-1092",
+            "PRP-1096",
+            "PRP-1100",
+            "PRP-1104",
+            "PRP-1108",
+            "PRP-1112"
+          ],
+          "max": 15
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "LIA-1001",
+            "LIA-1002",
+            "LIA-1013",
+            "LIA-1041",
+            "LIA-1045",
+            "LIA-1049",
+            "LIA-1072",
+            "LIA-1075",
+            "LIA-1078",
+            "LIA-1081",
+            "LIA-1093",
+            "LIA-1097",
+            "LIA-1101",
+            "LIA-1105",
+            "LIA-1109",
+            "LIA-1113"
+          ],
+          "max": 13
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "WC-1010",
+            "WC-1042",
+            "WC-1046",
+            "WC-1071",
+            "WC-1074",
+            "WC-1077",
+            "WC-1080",
+            "WC-1083",
+            "WC-1091",
+            "WC-1095",
+            "WC-1099",
+            "WC-1103",
+            "WC-1107",
+            "WC-1111",
+            "WC-1115"
+          ],
+          "max": 11
+        }
+      ],
+      "interaction_matrix_overrides": []
+    }
+  ]
+}

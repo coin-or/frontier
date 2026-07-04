@@ -634,6 +634,32 @@ def _build_interaction_matrices(problem: Problem) -> dict[int, np.ndarray]:
     return result
 
 
+def _feasibility_witness_seed(problem: Problem) -> np.ndarray | None:
+    """One exact feasibility witness as a seed row — the audit probe seeding the explorer.
+
+    When objective_bound constraints couple the region (a budget cap plus a target floor), the
+    greedy per-objective corner seeds can all be infeasible — they respect forced/cardinality/
+    group constraints but not bounds — and the EA can then terminate with an empty feasible
+    front on a *provably feasible* problem (seed-dependent). One MILP feasibility witness
+    plants the population inside the band; NSGA expands the frontier from there. Binary
+    problems with HiGHS present only; silently absent otherwise (the prior behavior)."""
+    if problem.approach != Approach.binary:
+        return None
+    if not any(c.type == "objective_bound" for c in (problem.constraints or [])):
+        return None
+    from solvers import available_solvers
+    if not available_solvers().get("highs"):
+        return None
+    try:
+        probe = audit(problem)
+    except ValueError:
+        return None   # e.g. a bound on a non-sum objective — the audit gate declines
+    if probe.get("verdict") != "feasible":
+        return None
+    selected = set(probe["witness"]["selected_options"])
+    return np.array([[1.0 if o.name in selected else 0.0 for o in problem.options]])
+
+
 def _compute_extreme_seeds(problem: Problem, score_matrix: np.ndarray, cp: dict) -> np.ndarray:
     """Build one seed individual per objective, biased toward that objective's extreme.
 
@@ -1434,6 +1460,9 @@ def _optimize_binary(
     )
 
     seeds = _compute_extreme_seeds(problem, score_matrix, cp)
+    witness = _feasibility_witness_seed(problem)
+    if witness is not None:
+        seeds = np.vstack([seeds, witness]) if len(seeds) > 0 else witness
     algorithm, n_gen = _tune_parameters(problem, mode, seed_population=seeds if len(seeds) > 0 else None)
 
     with _seeded_rng_fallback(seed):  # make pymoo's unseeded survival/selection RNG deterministic

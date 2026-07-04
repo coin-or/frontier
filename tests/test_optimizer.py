@@ -891,6 +891,47 @@ class TestExtremeSeeds:
             count = int(seed.sum())
             assert 2 <= count <= 3
 
+    def test_witness_seed_plants_population_inside_a_tight_bound_band(self):
+        """objective_bound floor + cap couple the region into a band the greedy corner seeds
+        miss entirely; the audit-witness seed keeps the EA from terminating with an empty
+        feasible front on a provably feasible problem."""
+        pytest.importorskip("highspy")
+        import numpy as np
+
+        from engine.optimizer import _feasibility_witness_seed
+
+        # 20 options; Revenue floor + Effort cap leave a knife-edge feasible band.
+        n = 20
+        opts = [f"O{i:02d}" for i in range(n)]
+        scores = []
+        for i, o in enumerate(opts):
+            scores.append(Score(option=o, objective="Revenue", value=10 + (i % 7)))
+            scores.append(Score(option=o, objective="Effort", value=6 + (i % 5)))
+        p = Problem(
+            name="band", approach="binary",
+            objectives=[Objective(name="Revenue", direction="maximize", aggregation="sum"),
+                        Objective(name="Effort", direction="minimize", aggregation="sum")],
+            options=[Option(name=o) for o in opts], scores=scores,
+            constraints=[ObjectiveBoundConstraint(objective="Revenue", operator="min", value=115),
+                         ObjectiveBoundConstraint(objective="Effort", operator="max", value=78),
+                         CardinalityConstraint(min=5, max=12)],
+        )
+        seed_row = _feasibility_witness_seed(p)
+        assert seed_row is not None and seed_row.shape == (1, n)
+        sel = seed_row[0] > 0.5
+        rev = sum(10 + (i % 7) for i in range(n) if sel[i])
+        eff = sum(6 + (i % 5) for i in range(n) if sel[i])
+        assert rev >= 115 and eff <= 78 and 5 <= sel.sum() <= 12   # genuinely in the band
+        # And the full solve returns a non-empty feasible frontier across seeds/modes.
+        for sd in (1, 7, 42):
+            run = optimize(p, mode="fast", seed=sd)
+            assert len(run.solutions) > 0, f"empty frontier at seed {sd}"
+            for s in run.solutions:
+                assert s.objective_values["Revenue"] >= 115 - 1e-6
+                assert s.objective_values["Effort"] <= 78 + 1e-6
+        # No bounds → no witness row (the prior seed behavior, untouched).
+        assert _feasibility_witness_seed(_make_problem()) is None
+
     def test_proportional_seeds_sum_to_100_and_respect_cap(self):
         """Proportional seeds: allocations sum to 100 and no allocation exceeds max_allocation."""
         from engine.models import MaxAllocationConstraint
