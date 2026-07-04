@@ -133,6 +133,19 @@ def test_group_limit_property_violated():
     assert set(r["witness"]["selected_options"]) >= {"A", "B"}
 
 
+def test_group_floor_property_negates_as_disjunction():
+    # E1: a floored group property (min ≤ count ≤ max) negates below-min OR above-max.
+    # Model floors {A,B} at 1 → "≥1 from {A,B}" holds across the whole space...
+    region = [CardinalityConstraint(min=1, max=2),
+              GroupLimitConstraint(options=["A", "B"], min=1, max=2)]
+    r = audit(_problem(constraints=region), GroupLimitConstraint(options=["A", "B"], min=1, max=4))
+    assert r["verdict"] == "holds"
+    # ...but "≥2 from {A,B}" does not — a witness takes just one of them.
+    r2 = audit(_problem(constraints=region), GroupLimitConstraint(options=["A", "B"], min=2, max=4))
+    assert r2["verdict"] == "violated"
+    assert len({"A", "B"} & set(r2["witness"]["selected_options"])) == 1
+
+
 def test_dependency_property_violated():
     # force A, exclude B → a feasible plan has A without B, breaking "A ⇒ B".
     r = audit(_problem(constraints=[ForceIncludeConstraint(option="A"),

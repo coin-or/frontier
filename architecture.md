@@ -244,7 +244,7 @@ flowchart LR
         P2["Objectives<br/><i>name, direction, unit,<br/>aggregation (sum/avg/min/max/quadratic)</i>"]
         P3["Options<br/><i>name, description</i>"]
         P4["Score matrix<br/><i>(option, objective) → value</i>"]
-        P5["Constraints<br/><i>cardinality, force include/exclude,<br/>objective bounds, exclusion pairs,<br/>dependencies, group limits,<br/>max allocation (8 types)</i>"]
+        P5["Constraints<br/><i>cardinality, force include/exclude,<br/>objective bounds, exclusion pairs,<br/>dependencies, group limits (min/max),<br/>max allocation (8 types)</i>"]
         P6["Reference points<br/><i>baseline (current portfolio +<br/>objective values) &<br/>aspirational (target outcomes)</i>"]
         P7["Scenarios<br/><i>name, probability, description,<br/>score overrides, score adjustments<br/>(multiply/add), constraint overrides</i>"]
         P8["Feedback<br/><i>rating (1-5), notes, stage,<br/>linked via content_signature<br/>(stable across runs)</i>"]

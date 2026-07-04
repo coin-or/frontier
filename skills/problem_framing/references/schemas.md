@@ -13,7 +13,7 @@ Pass to the `constraints` param as a list of dicts:
 {"type": "objective_bound", "objective": "<name>", "operator": "min"|"max", "value": <float>}
 {"type": "exclusion_pair", "option_a": "<name>", "option_b": "<name>"}
 {"type": "dependency", "if_option": "<name>", "then_option": "<name>"}
-{"type": "group_limit", "options": ["<name>", ...], "max": <int>}
+{"type": "group_limit", "options": ["<name>", ...], "max": <int>}  (optional "min": <int> floor — at least that many selected/active from the group; exact-certifiable on binary, NSGA-only on proportional)
 {"type": "max_allocation", "max": <int>}  (proportional only: cap single option allocation)
 ```
 

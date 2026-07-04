@@ -328,6 +328,17 @@ def validate(problem: Problem) -> ValidationResult:
                     severity="error",
                     message=f"group_limit max ({c.max}) must be non-negative.",
                 ))
+            if c.min < 0 or c.min > c.max:
+                issues.append(ValidationIssue(
+                    severity="error",
+                    message=f"group_limit min ({c.min}) must be between 0 and max ({c.max}).",
+                ))
+            elif c.min > len(c.options):
+                issues.append(ValidationIssue(
+                    severity="error",
+                    message=(f"group_limit min ({c.min}) exceeds the group's size "
+                             f"({len(c.options)} options) — the floor can never be met."),
+                ))
         elif c.type == "max_allocation":
             if not (1 <= c.max <= 100):
                 issues.append(ValidationIssue(
@@ -448,7 +459,9 @@ def _check_constraint_conflicts(
     layer only checks consistency among the constraint set itself.
 
     Issues caught:
-      A. GroupLimit vs force_include — |force_in ∩ group| > group.max
+      A. GroupLimit vs force_include — |force_in ∩ group| > group.max; and floor arithmetic —
+         min > selectable members after force_excludes, or disjoint floors summing past the
+         cardinality max
       B. ExclusionPair vs force_include — both members force-included
       C. Dependency cycles — A→B→…→A in the dependency graph
       D. Dependency vs force_exclude — if-option forced in but then-option forced out
@@ -456,7 +469,8 @@ def _check_constraint_conflicts(
     """
     issues: list[ValidationIssue] = []
 
-    # A. GroupLimit vs force_include
+    # A. GroupLimit vs force_include — and floor arithmetic (min vs force_exclude / cardinality)
+    group_floors: list = []
     for c in problem.constraints:
         if c.type == "group_limit":
             forced_in_group = forced_in.intersection(c.options)
@@ -466,6 +480,35 @@ def _check_constraint_conflicts(
                     message=(
                         f"group_limit max ({c.max}) is below the number of force_included options "
                         f"in the group ({len(forced_in_group)}): {sorted(forced_in_group)}."
+                    ),
+                ))
+            if c.min > 0:
+                group_floors.append(c)
+                selectable = [o for o in c.options if o not in forced_out]
+                if c.min > len(selectable):
+                    issues.append(ValidationIssue(
+                        severity="error",
+                        message=(
+                            f"group_limit min ({c.min}) exceeds the group's selectable members "
+                            f"({len(selectable)} after force_excludes) — the floor can never be met."
+                        ),
+                    ))
+    # Floors vs the cardinality cap: sound only over pairwise-disjoint floored groups
+    # (overlapping groups would double-count), so overlapping floors are left to the solver.
+    if group_floors:
+        card_max = next((c.max for c in problem.constraints if c.type == "cardinality"), None)
+        all_disjoint = all(
+            not set(a.options) & set(b.options)
+            for i, a in enumerate(group_floors) for b in group_floors[i + 1:]
+        )
+        if card_max is not None and all_disjoint:
+            floor_sum = sum(c.min for c in group_floors)
+            if floor_sum > card_max:
+                issues.append(ValidationIssue(
+                    severity="error",
+                    message=(
+                        f"group_limit floors sum to {floor_sum}, above the cardinality max "
+                        f"({card_max}) — the floors cannot all be met."
                     ),
                 ))
 
@@ -560,7 +603,7 @@ def _parse_constraints(problem: Problem) -> dict:
     obj_bounds: list[tuple[int, BoundOperator, float]] = []
     exclusion_pairs: list[tuple[int, int]] = []
     dependencies: list[tuple[int, int]] = []  # (if_idx, then_idx)
-    group_limits: list[tuple[list[int], int]] = []  # (group_indices, max)
+    group_limits: list[tuple[list[int], int, int]] = []  # (group_indices, min, max)
     max_allocation: int | None = None  # max allocation % per option (proportional only)
 
     for c in problem.constraints:
@@ -580,7 +623,7 @@ def _parse_constraints(problem: Problem) -> dict:
             dependencies.append((opt_index[c.if_option], opt_index[c.then_option]))
         elif c.type == "group_limit":
             group_indices = [opt_index[o] for o in c.options]
-            group_limits.append((group_indices, c.max))
+            group_limits.append((group_indices, int(c.min), int(c.max)))
         elif c.type == "max_allocation":
             max_allocation = c.max
 
@@ -709,8 +752,25 @@ def _compute_extreme_seeds(problem: Problem, score_matrix: np.ndarray, cp: dict)
         selected = list(forced_in)
         group_counts = [0 for _ in group_limits]
         # Pre-count forced-ins against group caps
-        for g_idx, (g_indices, _g_max) in enumerate(group_limits):
+        for g_idx, (g_indices, _g_min, _g_max) in enumerate(group_limits):
             group_counts[g_idx] = sum(1 for idx in selected if idx in g_indices)
+
+        # Pre-fill floored groups to their minimum (best-ranked members first) before the
+        # greedy fill, so seeds start inside the floor region — the forced_in treatment,
+        # extended to group floors.
+        for g_idx, (g_indices, g_min, _g_max) in enumerate(group_limits):
+            for idx in order:
+                if group_counts[g_idx] >= g_min:
+                    break
+                if idx not in g_indices or idx in forced_out or idx in selected:
+                    continue
+                if any(idx in gi and group_counts[gj] >= gm
+                       for gj, (gi, _gn, gm) in enumerate(group_limits) if gj != g_idx):
+                    continue
+                selected.append(int(idx))
+                for gj, (gi, _gn, _gm) in enumerate(group_limits):
+                    if idx in gi:
+                        group_counts[gj] += 1
 
         for idx in order:
             if len(selected) >= target_k:
@@ -719,14 +779,14 @@ def _compute_extreme_seeds(problem: Problem, score_matrix: np.ndarray, cp: dict)
                 continue
             # Check group caps
             ok = True
-            for g_idx, (g_indices, g_max) in enumerate(group_limits):
+            for g_idx, (g_indices, _g_min, g_max) in enumerate(group_limits):
                 if idx in g_indices and group_counts[g_idx] >= g_max:
                     ok = False
                     break
             if not ok:
                 continue
             selected.append(int(idx))
-            for g_idx, (g_indices, _g_max) in enumerate(group_limits):
+            for g_idx, (g_indices, _g_min, _g_max) in enumerate(group_limits):
                 if idx in g_indices:
                     group_counts[g_idx] += 1
 
@@ -1171,11 +1231,15 @@ def _negate_property(problem: Problem, prop) -> list[list[tuple]]:
         return [[(coef, "ge", 2.0)]]
     if t == "dependency":          # holds: if_option ⇒ then_option → witness: if ∧ ¬then
         return [[(unit(prop.if_option), "ge", 1.0), (unit(prop.then_option), "le", 0.0)]]
-    if t == "group_limit":         # holds: ≤max from group → witness: ≥max+1 from it
+    if t == "group_limit":   # holds: min ≤ group count ≤ max → witness: ≤min-1 OR ≥max+1
         coef = [0.0] * n
         for o in prop.options:
             coef[idx(o)] = 1.0
-        return [[(coef, "ge", prop.max + 1)]]
+        disjuncts = []
+        if int(prop.min) > 0:
+            disjuncts.append([(coef, "le", prop.min - 1)])
+        disjuncts.append([(coef, "ge", prop.max + 1)])
+        return disjuncts
     if t == "cardinality":         # holds: min ≤ count ≤ max → witness: count≤min-1 OR count≥max+1
         ones = [1.0] * n
         disjuncts = []
@@ -1696,6 +1760,7 @@ class _FrontierProblem(PymooProblem):
         n_ieq += len(exclusion_pairs)  # x[a] + x[b] <= 1
         n_ieq += len(dependencies)     # x[a] - x[b] <= 0
         n_ieq += len(group_limits)     # sum(group) <= max
+        n_ieq += sum(1 for _, g_min, _ in group_limits if g_min > 0)  # sum(group) >= min
 
         super().__init__(
             n_var=n_options,
@@ -1809,10 +1874,12 @@ class _FrontierProblem(PymooProblem):
         for if_idx, then_idx in self.dependencies:
             G.append(X_bin[:, if_idx] - X_bin[:, then_idx])
 
-        # Group limits: sum(x[i] for i in group) <= max
-        for group_indices, max_count in self.group_limits:
+        # Group limits: min <= sum(x[i] for i in group) <= max
+        for group_indices, min_count, max_count in self.group_limits:
             group_sum = sum(X_bin[:, i] for i in group_indices)
             G.append(group_sum - max_count)
+            if min_count > 0:
+                G.append(min_count - group_sum)
 
         out["G"] = np.column_stack(G) if G else np.zeros((n_pop, 0))
 
@@ -1842,6 +1909,7 @@ class _ProportionalProblem(PymooProblem):
 
         n_ieq = 2 + 2 + len(forced_in) + len(forced_out) + len(obj_bounds)
         n_ieq += len(exclusion_pairs) + len(dependencies) + len(group_limits)
+        n_ieq += sum(1 for _, g_min, _ in group_limits if g_min > 0)  # active-count >= min
         if max_allocation is not None:
             n_ieq += n_options  # one constraint per option
 
@@ -1962,10 +2030,12 @@ class _ProportionalProblem(PymooProblem):
         for if_idx, then_idx in self.dependencies:
             G.append(allocated[:, if_idx] - allocated[:, then_idx])
 
-        # Group limits: count of allocated in group <= max
-        for group_indices, max_count in self.group_limits:
+        # Group limits: min <= count of allocated in group <= max
+        for group_indices, min_count, max_count in self.group_limits:
             group_sum = sum(allocated[:, i] for i in group_indices)
             G.append(group_sum - max_count)
+            if min_count > 0:
+                G.append(min_count - group_sum)
 
         # Max position: each allocation <= max_allocation
         if self.max_allocation is not None:
@@ -2000,7 +2070,7 @@ def analyze_infeasibility(problem: Problem) -> dict:
     forced_out = {c.option for c in problem.constraints if c.type == "force_exclude"}
     exclusion_pairs = [(c.option_a, c.option_b) for c in problem.constraints if c.type == "exclusion_pair"]
     dependencies = [(c.if_option, c.then_option) for c in problem.constraints if c.type == "dependency"]
-    group_limits = [(c.options, c.max) for c in problem.constraints if c.type == "group_limit"]
+    group_limits = [(c.options, int(c.min), c.max) for c in problem.constraints if c.type == "group_limit"]
     card_min, card_max = 1, n_options
     obj_bounds = []
     for c in problem.constraints:
@@ -2080,10 +2150,11 @@ def analyze_infeasibility(problem: Problem) -> dict:
             if if_opt in selected and then_opt not in selected:
                 return False
         # Group limits
-        for group_opts, max_count in group_limits:
-            if skip_constraint == f"group_limit:{','.join(group_opts)}:{max_count}":
+        for group_opts, min_count, max_count in group_limits:
+            if skip_constraint == f"group_limit:{','.join(group_opts)}:{min_count}:{max_count}":
                 continue
-            if sum(1 for o in group_opts if o in selected) > max_count:
+            in_group = sum(1 for o in group_opts if o in selected)
+            if in_group > max_count or in_group < min_count:
                 return False
         return True
 
@@ -2129,7 +2200,7 @@ def analyze_infeasibility(problem: Problem) -> dict:
             )
         elif c.type == "group_limit":
             constraint_labels.append(
-                (f"group_limit:{','.join(c.options)}:{c.max}", c.model_dump())
+                (f"group_limit:{','.join(c.options)}:{int(c.min)}:{c.max}", c.model_dump())
             )
         elif c.type == "max_allocation":
             # max_allocation is proportional-only; skip in binary feasibility analysis

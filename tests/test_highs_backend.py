@@ -117,6 +117,27 @@ class TestGate:
         p = _qp_problem(constraints=[GroupLimitConstraint(options=["A", "B"], max=1)])
         assert exact_solver_fits(p)[0] is True
 
+    def test_group_floor_declined_on_proportional_but_fits_on_binary(self):
+        # A floor counts *active* options — combinatorial on the continuous QP/LP path,
+        # a plain MILP row on the binary path.
+        p = _qp_problem(constraints=[GroupLimitConstraint(options=["A", "B"], min=1, max=2)])
+        fits, why = exact_solver_fits(p)
+        assert fits is False and "floor" in why.lower() or "minimum" in why.lower()
+        b = _binary_problem(constraints=[GroupLimitConstraint(options=["A", "B"], min=1, max=2)])
+        assert exact_solver_fits(b)[0] is True
+
+    def test_exact_milp_respects_group_floor(self):
+        # D/E/F score low on NPV; a floor on {D, E, F} must still pull one into every plan.
+        p = _binary_problem(constraints=[
+            CardinalityConstraint(min=2, max=4),
+            GroupLimitConstraint(options=["D", "E", "F"], min=1, max=2),
+        ])
+        run = optimize(p, solver="highs", seed=7)
+        assert len(run.solutions) > 0
+        for s in run.solutions:
+            in_group = len({"D", "E", "F"} & set(s.selected_options))
+            assert 1 <= in_group <= 2
+
     def test_proportional_linear_fits_as_lp(self):
         # Two purely linear objectives (no quadratic) → the exact multi-objective LP path now owns
         # this shape (it previously declined to NSGA).

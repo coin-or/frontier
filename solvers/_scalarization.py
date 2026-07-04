@@ -108,11 +108,13 @@ def _cardinality_k(problem: Problem) -> int | None:
     return int(k) if (k is not None and k < n) else None
 
 
-def _group_limits(problem: Problem) -> list[tuple[list[int], int]]:
-    """Per-group caps from ``group_limit`` constraints → ``[(option-index-list, max), …]``,
-    driving group-aware support selection (e.g. ≤3 active per region)."""
+def _group_limits(problem: Problem) -> list[tuple[list[int], int, int]]:
+    """Per-group bounds from ``group_limit`` constraints → ``[(option-index-list, min, max), …]``.
+    Caps drive group-aware support selection (e.g. ≤3 active per region); floors are MILP rows
+    on the binary path (the proportional exact gate declines them — a count of active options
+    is combinatorial, outside the QP/LP scope)."""
     ix = {o.name: i for i, o in enumerate(problem.options)}
-    return [([ix[o] for o in c.options], int(c.max))
+    return [([ix[o] for o in c.options], int(getattr(c, "min", 0) or 0), int(c.max))
             for c in (problem.constraints or []) if getattr(c, "type", "") == "group_limit"]
 
 
@@ -141,7 +143,7 @@ def _build_milp_data(problem: Problem):
         elif t == "exclusion_pair":
             mc["excl"].append((ix[c.option_a], ix[c.option_b]))
         elif t == "group_limit":
-            mc["groups"].append(([ix[o] for o in c.options], int(c.max)))
+            mc["groups"].append(([ix[o] for o in c.options], int(getattr(c, "min", 0) or 0), int(c.max)))
     return n, names, S, dirs, mc
 
 
@@ -545,7 +547,8 @@ def optimize_qp(problem, mode, *, inner_qp, inner_qp_sensitivity=None, pop, gen,
     cov = _nearest_psd(im[risk_idx])
     max_weight = (cp["max_allocation"] / 100.0) if cp.get("max_allocation") else None
     cardinality_k = _cardinality_k(problem)
-    groups = _group_limits(problem)
+    # Caps only — the exact gate declines proportional problems with group floors.
+    groups = [(g, mx) for g, _mn, mx in _group_limits(problem)]
 
     prop = _opt._ProportionalProblem(
         n_options=n_options, score_matrix=score_matrix, objectives=obj_list,
@@ -711,7 +714,8 @@ def optimize_lp(problem, mode, *, inner_lp, inner_lp_sensitivity=None, pop, gen,
 
     max_weight = (cp["max_allocation"] / 100.0) if cp.get("max_allocation") else None
     cardinality_k = _cardinality_k(problem)
-    groups = _group_limits(problem)
+    # Caps only — the exact gate declines proportional problems with group floors.
+    groups = [(g, mx) for g, _mn, mx in _group_limits(problem)]
 
     prop = _opt._ProportionalProblem(
         n_options=n_options, score_matrix=score_matrix, objectives=obj_list,
@@ -870,7 +874,7 @@ def certify_curated_frontier(problem, source_run, *, inner=None, inner_sensitivi
         # (greedy-optimal for a linear objective — see ``_rank_priorities``); QP anchors are
         # skipped there — the min-variance corner has no greedy-derivable support, and the
         # capped QP path's seeded population owns corner coverage.
-        k_cap, glims = _cardinality_k(problem), _group_limits(problem)
+        k_cap, glims = _cardinality_k(problem), [(g, mx) for g, _mn, mx in _group_limits(problem)]
         anchor_rows = _prop_anchor_rows(linear_coefs, linear_maximize, max_weight, include_primary_eps=is_qp)
         if k_cap is None and not glims:
             targets += [(row, None) for row in anchor_rows]

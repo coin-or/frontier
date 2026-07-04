@@ -91,6 +91,18 @@ def exact_solver_fits(problem: "Problem") -> tuple[bool, str]:
             "exact backends support binary selection or proportional mean-variance "
             f"portfolios; approach is '{getattr(problem.approach, 'value', problem.approach)}'"
         )
+    # Group floors on a proportional shape are a count of *active* options — combinatorial
+    # (semicontinuous), outside the convex QP/LP scope. Caps stay in scope: the EA's support
+    # decode enforces them. The binary MILP handles floors natively, so this gate is
+    # proportional-only.
+    floored = [c for c in (problem.constraints or [])
+               if c.type == "group_limit" and int(getattr(c, "min", 0) or 0) > 0]
+    if floored:
+        return False, (
+            "group_limit minimums on a proportional allocation count *active* options — "
+            "combinatorial, outside the exact QP/LP scope. Drop the floors to certify, or "
+            "explore with the NSGA heuristic (which enforces them)."
+        )
     # The proportional inner solve is a convex QP: linear (sum/avg) objectives plus one
     # quadratic variance term. `min`/`max` are nonlinear and out of scope.
     nonlinear = [o for o in problem.objectives if o.aggregation in (Aggregation.min, Aggregation.max)]

@@ -249,10 +249,12 @@ def _add_milp_constraints(h, n, eps_list, mc):
         h.addConstr(x[a] - x[b] <= 0)   # if a then b
     for a, b in mc["excl"]:
         h.addConstr(x[a] + x[b] <= 1)
-    for grp, gmax in mc["groups"]:
+    for grp, gmin, gmax in mc["groups"]:
         gc = np.zeros(n)
         gc[grp] = 1.0
         h.addConstr((x * list(gc)).sum() <= gmax)
+        if gmin > 0:
+            h.addConstr((x * list(gc)).sum() >= gmin)
     return x
 
 

@@ -891,6 +891,47 @@ class TestExtremeSeeds:
             count = int(seed.sum())
             assert 2 <= count <= 3
 
+    def test_group_floor_respected_by_nsga_and_prefilled_in_seeds(self):
+        """E1: a group_limit floor pulls its members into every plan (NSGA) and into the
+        greedy corner seeds (pre-fill), even when the floored group scores worst."""
+        from engine.models import GroupLimitConstraint
+        from engine.optimizer import _build_score_matrix, _compute_extreme_seeds, _parse_constraints
+
+        p = _make_problem(constraints=[
+            CardinalityConstraint(min=2, max=3),
+            GroupLimitConstraint(options=["D"], min=1, max=1),  # worst Revenue option, floored in
+        ])
+        seeds = _compute_extreme_seeds(p, _build_score_matrix(p), _parse_constraints(p))
+        d_idx = [o.name for o in p.options].index("D")
+        assert len(seeds) > 0 and all(seed[d_idx] == 1.0 for seed in seeds)
+        run = optimize(p, mode="fast", seed=3)
+        assert len(run.solutions) > 0
+        assert all("D" in s.selected_options for s in run.solutions)
+
+    def test_group_floor_validation_and_conflicts(self):
+        """E1: min>max and min>group-size are validation errors; disjoint floors summing past
+        the cardinality max, and floors starved by force_exclude, are conflict errors."""
+        from engine.models import ForceExcludeConstraint, GroupLimitConstraint
+
+        bad_range = validate(_make_problem(constraints=[
+            GroupLimitConstraint(options=["A", "B"], min=3, max=2)]))
+        assert any("min (3) must be between 0 and max (2)" in i.message for i in bad_range.issues)
+
+        too_big = validate(_make_problem(constraints=[
+            GroupLimitConstraint(options=["A", "B"], min=3, max=5)]))
+        assert any("exceeds the group's size" in i.message for i in too_big.issues)
+
+        starved = validate(_make_problem(constraints=[
+            GroupLimitConstraint(options=["A", "B"], min=2, max=2),
+            ForceExcludeConstraint(option="A")]))
+        assert any("selectable members" in i.message for i in starved.issues)
+
+        oversum = validate(_make_problem(constraints=[
+            CardinalityConstraint(min=2, max=3),
+            GroupLimitConstraint(options=["A", "B"], min=2, max=2),
+            GroupLimitConstraint(options=["C", "D"], min=2, max=2)]))
+        assert any("floors sum to 4" in i.message for i in oversum.issues)
+
     def test_witness_seed_plants_population_inside_a_tight_bound_band(self):
         """objective_bound floor + cap couple the region into a band the greedy corner seeds
         miss entirely; the audit-witness seed keeps the EA from terminating with an empty

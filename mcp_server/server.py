@@ -708,7 +708,9 @@ def _format_constraint(c, units: dict | None = None) -> str:
     if t == "group_limit":
         opts = d.get("options", [])
         members = ", ".join(opts) if 0 < len(opts) <= 5 else f"{len(opts)} options"
-        return f"≤{_fmt_num(d.get('max'))} of {{{members}}}"
+        g_min = d.get("min", 0) or 0
+        lo = f"{_fmt_num(g_min)}–" if g_min > 0 else "≤"
+        return f"{lo}{_fmt_num(d.get('max'))} of {{{members}}}"
     return t or "constraint"
 
 

@@ -155,6 +155,7 @@ class DependencyConstraint(BaseModel):
 class GroupLimitConstraint(BaseModel):
     type: Literal["group_limit"] = "group_limit"
     options: list[str]
+    min: int = 0  # minimum selected/active options from the group (0 = no floor)
     max: int
 
 

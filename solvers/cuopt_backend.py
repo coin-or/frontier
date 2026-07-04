@@ -561,8 +561,10 @@ def _solve_milp_cuopt(min_coef, eps_list, mc, n, exact=False):
         prob.addConstraint(x[a] - x[b] <= 0, name="dep")   # if a then b
     for a, b in mc["excl"]:
         prob.addConstraint(x[a] + x[b] <= 1, name="excl")
-    for grp, gmax in mc["groups"]:
+    for grp, gmin, gmax in mc["groups"]:
         prob.addConstraint(sum(x[i] for i in grp) <= gmax, name="grp")
+        if gmin > 0:
+            prob.addConstraint(sum(x[i] for i in grp) >= gmin, name="grpmin")
     # Bounded (default, trades the optimality proof for speed) vs exact (gap→0, accept only
     # Optimal — _MILP_TIME_LIMIT still applies as a safety deadline). _MILP_ABS_GAP (default
     # off) sets an absolute gap on the bounded path; below the score granularity it certifies.

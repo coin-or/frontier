@@ -1089,7 +1089,7 @@ def _constraint_key(c: dict) -> str:
     elif ctype == "dependency":
         return f"dependency:{c.get('if_option')}:{c.get('then_option')}"
     elif ctype == "group_limit":
-        return f"group_limit:{','.join(c.get('options', []))}:{c.get('max')}"
+        return f"group_limit:{','.join(c.get('options', []))}:{c.get('min', 0)}:{c.get('max')}"
     return str(c)
 
 
@@ -2436,37 +2436,49 @@ def _binding_cardinality(c, solutions, objectives) -> dict | None:
 
 
 def _binding_group_limit(c, solutions, objectives) -> dict | None:
+    """A group can bind at its cap (frontier plans pinned at max) or — with a floor set —
+    at its min (plans held up at the floor); report whichever side binds, cap first."""
     group_set = set(c.options)
     counts = np.array([len(group_set.intersection(s.selected_options)) for s in solutions])
-    mask_binding = counts == c.max
-    if mask_binding.sum() == 0:
-        return None
-    mask_adjacent = counts == c.max - 1
-    binding_fraction = round(float(mask_binding.sum() / len(counts)), 3)
+    g_min = int(getattr(c, "min", 0) or 0)
 
-    shadow_prices: list[dict] = []
-    if mask_adjacent.sum() > 0:
-        for obj in objectives:
-            vals = np.array([s.objective_values.get(obj.name, 0.0) for s in solutions], dtype=float)
-            is_max = obj.direction.value == "maximize"
-            best_binding = vals[mask_binding].max() if is_max else vals[mask_binding].min()
-            best_adjacent = vals[mask_adjacent].max() if is_max else vals[mask_adjacent].min()
-            delta = best_binding - best_adjacent
-            if not is_max:
-                delta = -delta
-            shadow_prices.append({
-                "objective": obj.name,
-                "gain_per_additional_slot": round(float(delta), 4),
-            })
+    def _entry(bound: int, adjacent: int, label: str, gain_key: str, cap_side: bool) -> dict | None:
+        mask_binding = counts == bound
+        if mask_binding.sum() == 0:
+            return None
+        mask_adjacent = counts == adjacent
+        shadow_prices: list[dict] = []
+        if mask_adjacent.sum() > 0:
+            for obj in objectives:
+                vals = np.array([s.objective_values.get(obj.name, 0.0) for s in solutions], dtype=float)
+                is_max = obj.direction.value == "maximize"
+                best_binding = vals[mask_binding].max() if is_max else vals[mask_binding].min()
+                best_adjacent = vals[mask_adjacent].max() if is_max else vals[mask_adjacent].min()
+                # Cap side: what the last allowed slot bought (binding vs one-below) — the
+                # existing "+1 slot" estimate. Floor side: what one member above the floor
+                # achieves vs pinned-at-floor — positive means the floor isn't pinching.
+                delta = best_binding - best_adjacent if cap_side else best_adjacent - best_binding
+                if not is_max:
+                    delta = -delta
+                shadow_prices.append({"objective": obj.name, gain_key: round(float(delta), 4)})
+        return {
+            "constraint": label,
+            "constraint_type": "group_limit",
+            "binding_fraction": round(float(mask_binding.sum() / len(counts)), 3),
+            "near_binding_count": int(mask_binding.sum()),
+            "shadow_prices": shadow_prices,
+            "note": None if shadow_prices else (
+                "no adjacent-count solutions on frontier — cannot estimate the gain from "
+                "relaxing this bound by one"),
+        }
 
-    return {
-        "constraint": f"group_limit({', '.join(c.options)}) ≤ {c.max}",
-        "constraint_type": "group_limit",
-        "binding_fraction": binding_fraction,
-        "near_binding_count": int(mask_binding.sum()),
-        "shadow_prices": shadow_prices,
-        "note": None if shadow_prices else "no adjacent-count solutions on frontier — cannot estimate gain from +1 slot",
-    }
+    opts = ", ".join(c.options)
+    entry = _entry(c.max, c.max - 1, f"group_limit({opts}) ≤ {c.max}",
+                   "gain_per_additional_slot", cap_side=True)
+    if entry is None and g_min > 0:
+        entry = _entry(g_min, g_min + 1, f"group_limit({opts}) ≥ {g_min}",
+                       "gain_per_extra_member", cap_side=False)
+    return entry
 
 
 # --------------------------------------------------------------------------- #
