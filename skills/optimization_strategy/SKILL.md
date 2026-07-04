@@ -38,7 +38,7 @@ The examine step is where most iteration happens. Few solutions? Constraints too
 
 (See approach selection in `frontier://skills/problem_framing`.)
 
-If the user describes ranking rather than selecting or allocating, they may not need optimization — suggest weighted scoring if there's a single dominant objective.
+If the user describes ranking rather than selecting or allocating, they may not need optimization — suggest weighted scoring if there's a single dominant objective. Weighted scoring has a known blind spot, though: a weighted sum can only land on the convex hull of the frontier — balanced middle solutions may be unreachable at any weights. If the user pre-commits to weights, note what a frontier view would have shown before they lock in.
 
 **Proportional mode solver differences:**
 - Solutions assign integer percentages (0-100), summing to 100
