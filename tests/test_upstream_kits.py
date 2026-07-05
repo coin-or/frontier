@@ -204,7 +204,7 @@ def test_channel_budget_kit():
     rows = _rows("channel_budget")
     built = [{"type": "max_allocation", "max": 15},
              {"type": "objective_bound", "objective": "ROAS", "operator": "min", "value": 2.0}]
-    built += [{"type": "group_limit", "options": opts, "min": 0, "max": 1}
+    built += [{"type": "group_limit", "options": opts, "min": 0, "max": 2}
               for opts in _groups(rows, "channel", "platform_group").values()]
     scores = _scores_from(rows, "channel", [("Conversions", "conversions"), ("Reach", "reach"),
                                             ("ROAS", "roas"), ("BrandLift", "brand_lift")])
@@ -420,7 +420,7 @@ ASK_LITERALS = {
                           "variability_low_renewables.csv", "from 50 to 60"],
     "capital_project_selection_300": ["$1550M", "between 45 and 100", "20 Growth",
                                       "15 Digital", "15 R&D", "18 Maintenance"],
-    "channel_budget": ["15%", "2.0x", "20% lower"],
+    "channel_budget": ["15%", "at most 2 active", "2.0x", "20% lower"],
     "charging_network_siting": ["$34M", "between 16 and 24", "at most 4", "at most 5",
                                 "NCR-01"],
     "claims_investigation_triage": ["1170 hours", "$4840k", "between 45 and 100",

@@ -1,7 +1,7 @@
 {
   "name": "Marketing Channel Budget",
   "domain": "marketing",
-  "context": "Allocate budget SHARE across 22 channel x audience/geo options to balance four conflicting goals: direct Conversions, audience Reach, ROAS, and Brand Lift. Efficient direct-response channels (search, email, retargeting, affiliate) convert well and return high ROAS but reach few people and barely move brand; broad upper-funnel channels (CTV, YouTube, display, podcast, OOH) reach huge audiences and build brand but convert poorly. Reach uses quadratic aggregation: same-audience channels overlap, so stacking them yields diminishing combined reach (audience-overlap interaction matrix in scores.json). Options, scores, and the matrix are in scores.json.",
+  "context": "Split a media budget across 40 channel x audience/geo cells balancing Conversions, Reach, ROAS, and Brand Lift. Direct-response cells convert and return well but reach few people; upper-funnel cells reach and build brand but convert poorly - and same-audience cells overlap, so blended reach combines sub-additively through the interaction matrix (sqrt of the quadratic form: stacking one audience saturates). The quadratic sits on a maximize objective, outside the mean-variance exact shape, so this decision runs on the approximate frontier end to end - the deliberate approx-first showcase.",
   "approach": "proportional",
   "objectives": [
     {
@@ -35,84 +35,201 @@
       "max": 15
     },
     {
+      "type": "objective_bound",
+      "objective": "ROAS",
+      "operator": "min",
+      "value": 2.0
+    },
+    {
       "type": "group_limit",
       "options": [
         "Search-US",
-        "Search-Intl"
+        "Search-EU",
+        "Search-APAC",
+        "Search-Brand-Defense"
       ],
-      "max": 1
+      "min": 0,
+      "max": 2
     },
     {
       "type": "group_limit",
       "options": [
-        "Meta-Prospecting",
-        "Meta-Retargeting"
+        "Meta-Prospecting-US",
+        "Meta-Prospecting-EU",
+        "Meta-Retargeting",
+        "Meta-Creators",
+        "Meta-Advantage-Plus"
       ],
-      "max": 1
+      "min": 0,
+      "max": 2
     },
     {
       "type": "group_limit",
       "options": [
-        "TikTok-GenZ",
-        "TikTok-Spark"
+        "TikTok-GenZ-US",
+        "TikTok-GenZ-Intl",
+        "TikTok-Spark-Ads",
+        "TikTok-Live-Shopping"
       ],
-      "max": 1
+      "min": 0,
+      "max": 2
     },
     {
       "type": "group_limit",
       "options": [
         "YouTube-Awareness",
-        "YouTube-Shorts"
+        "YouTube-Shorts",
+        "YouTube-Action"
       ],
-      "max": 1
+      "min": 0,
+      "max": 2
     },
     {
       "type": "group_limit",
       "options": [
         "Display-Programmatic",
-        "Display-Native"
+        "Display-Native",
+        "Display-Retail-Media"
       ],
-      "max": 1
+      "min": 0,
+      "max": 2
     },
     {
       "type": "group_limit",
       "options": [
-        "Email-CRM",
-        "SMS-CRM"
+        "Email-CRM-Active",
+        "Email-CRM-Winback",
+        "Email-Newsletter-Spons"
       ],
-      "max": 1
+      "min": 0,
+      "max": 2
     },
     {
-      "type": "objective_bound",
-      "objective": "ROAS",
-      "operator": "min",
-      "value": 2.0
+      "type": "group_limit",
+      "options": [
+        "SMS-CRM",
+        "SMS-Promo"
+      ],
+      "min": 0,
+      "max": 2
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "Affiliate-Coupon",
+        "Affiliate-Content",
+        "Affiliate-Influencer"
+      ],
+      "min": 0,
+      "max": 2
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "Podcast-HostRead",
+        "Podcast-Programmatic"
+      ],
+      "min": 0,
+      "max": 2
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "CTV-Streaming-Premium",
+        "CTV-Streaming-AVOD"
+      ],
+      "min": 0,
+      "max": 2
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "OOH-Digital-Urban",
+        "OOH-Transit"
+      ],
+      "min": 0,
+      "max": 2
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "Amazon-Sponsored-Prod",
+        "Amazon-DSP"
+      ],
+      "min": 0,
+      "max": 2
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "LinkedIn-Sponsored",
+        "LinkedIn-InMail"
+      ],
+      "min": 0,
+      "max": 2
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "Reddit-Communities"
+      ],
+      "min": 0,
+      "max": 2
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "Pinterest-Shopping"
+      ],
+      "min": 0,
+      "max": 2
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "Twitch-Sponsorships"
+      ],
+      "min": 0,
+      "max": 2
     }
   ],
   "scenarios": [
     {
       "name": "signal_loss",
+      "probability": null,
       "description": "Privacy/measurement erosion reduces attributable conversions.",
+      "motivated_by": "",
+      "score_overrides": [],
       "score_adjustments": [
         {
           "objective": "Conversions",
-          "multiply": 0.8
+          "multiply": 0.8,
+          "add": null
         }
-      ]
+      ],
+      "constraint_overrides": [],
+      "interaction_matrix_overrides": []
     },
     {
       "name": "demand_pullback",
+      "probability": null,
       "description": "A consumer downturn softens response and efficiency.",
+      "motivated_by": "",
+      "score_overrides": [],
       "score_adjustments": [
         {
           "objective": "Conversions",
-          "multiply": 0.85
+          "multiply": 0.85,
+          "add": null
         },
         {
           "objective": "ROAS",
-          "multiply": 0.9
+          "multiply": 0.9,
+          "add": null
         }
-      ]
+      ],
+      "constraint_overrides": [],
+      "interaction_matrix_overrides": []
     }
   ]
 }
