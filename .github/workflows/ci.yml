@@ -36,8 +36,11 @@ jobs:
       # --durations=10 keeps the slow tail visible in logs as the suite grows.
       # --timeout=300: the slowest test is ~16s under full parallel contention,
       # so 300s only fires on a genuine hang — which then fails loudly with the
-      # test's name instead of silently eating the 6-hour job limit.
-      - run: pytest tests/ --ignore=tests/ui -q -n auto --durations=10 --timeout=300
+      # test's name instead of silently eating the 6-hour job limit. The thread
+      # method (a watchdog that dumps stacks and kills the worker) catches hangs
+      # inside native solver code, where the default signal method never fires;
+      # xdist replaces the killed worker and the run continues.
+      - run: pytest tests/ --ignore=tests/ui -q -n auto --durations=10 --timeout=300 --timeout-method=thread
 
   ui:
     runs-on: ubuntu-latest
