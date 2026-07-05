@@ -22,7 +22,7 @@ EXAMPLES = [
     "supplier_selection",
     "capacity_planning",
     "investment_portfolio",
-    "capital_project_selection_120",
+    "capital_project_selection_300",
     "claims_investigation_triage",
     "charging_network_siting",
     "research_cohort_selection",
@@ -89,7 +89,7 @@ def test_scenarios_from_fresh_state(solved, name):
     assert (reg["minimax_choice"] is not None) or reg.get("saturated") is True
 
 
-BINARY_AUDITABLE = {"capital_project_selection_120", "claims_investigation_triage",
+BINARY_AUDITABLE = {"capital_project_selection_300", "claims_investigation_triage",
                     "charging_network_siting", "research_cohort_selection",
                     "interconnection_approvals"}
 

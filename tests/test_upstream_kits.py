@@ -1,10 +1,10 @@
-"""Upstream-kit sufficiency: BRIEF.md + data.csv (+ matrix CSVs) must reconstruct the
+"""Upstream-kit sufficiency: each README's Step-1 ask + data.csv (+ matrix CSVs) must reconstruct the
 canonical bundle.
 
-Every example ships an upstream kit (a user-voiced brief plus raw CSVs) so a session can
+Every example ships an upstream kit (a user-voiced ask in the README plus raw CSVs) so a session can
 start at FRAME the way a real user would. The kit's promise is that framing that input
 lands on exactly the shipped problem.json + scores.json — these tests reconstruct each
-model from the CSVs plus the brief's stated rules and diff it against the bundle, so the
+model from the CSVs plus the ask's stated rules and diff it against the bundle, so the
 kits can't silently drift from the canonical models (or vice versa).
 """
 import csv
@@ -114,19 +114,19 @@ def _scenario(p, name):
 # ─── the two demo kits (validated first) ───
 
 def test_capital_kit_reconstructs_canonical_model():
-    rows = _rows("capital_project_selection_120")
-    built = [{"type": "objective_bound", "objective": "Cost", "operator": "max", "value": 610.0},
-             {"type": "cardinality", "min": 18, "max": 40}]
+    rows = _rows("capital_project_selection_300")
+    built = [{"type": "objective_bound", "objective": "Cost", "operator": "max", "value": 1550.0},
+             {"type": "cardinality", "min": 45, "max": 100}]
     built += [{"type": "force_include", "option": r["project"]} for r in rows if r["committed"] == "yes"]
     built += [{"type": "dependency", "if_option": r["project"], "then_option": r["requires"]}
               for r in rows if r["requires"]]
     built += _exclusions(rows, "project", "mutually_exclusive_with")
     groups = _groups(rows, "project", "category")
-    for cat, mx in {"Growth": 8, "Digital": 6, "R&D": 6, "Maintenance": 7}.items():
+    for cat, mx in {"Growth": 20, "Digital": 15, "R&D": 15, "Maintenance": 18}.items():
         built.append({"type": "group_limit", "options": groups[cat], "min": 0, "max": mx})
     scores = _scores_from(rows, "project", [("NPV", "npv_musd"), ("Cost", "cost_musd"),
                                             ("Risk", "risk_score"), ("StrategicFit", "strategic_fit")])
-    _assert_model("capital_project_selection_120", built, scores,
+    _assert_model("capital_project_selection_300", built, scores,
                   [("NPV", "maximize", "sum"), ("Cost", "minimize", "sum"),
                    ("Risk", "minimize", "sum"), ("StrategicFit", "maximize", "sum")], "project")
 
