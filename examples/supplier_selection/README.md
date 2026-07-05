@@ -38,7 +38,7 @@
 
    Framing that input (`model create` + `model update`) lands on exactly this problem — the ask plus the data reconstruct `problem.json` and `scores.json` verbatim (guarded by `tests/test_upstream_kits.py`). `model load source="supplier_selection"` is the shortcut: it skips framing and restores the pre-solved runs too.
 
-2. *“How should we split the order across these 25 suppliers, keeping regional concentration in check? Show me the real cost/reliability/lead-time/ESG choices — and how they hold up if China goes offline or demand surges.”*
+2. *“How should we split the order across these 25 suppliers, keeping regional concentration in check? Show me the real cost/reliability/lead-time/ESG choices — and how they hold up if a China disruption throttles the CN suppliers or demand surges.”*
    `solve run` + `solve run_scenarios` → `explore tradeoffs`: the five-objective sourcing frontier plus per-scenario frontiers for `china_disruption` (every CN supplier throttled to ≤5% of the order) and `demand_surge` (per-supplier capacity tightens to 10%).
 3. *“Keep the balanced mix and the most reliable one. Are these actually optimal?”*
    `explore curate` per pick → `solve solver="highs"` → `explore certify`: the exact mean-variance QP overlay, sharpest at the minimum-concentration-risk corner.

@@ -26,6 +26,38 @@ const TIER_STYLES: Record<string, string> = {
 // Cap the per-solution regret table; the full ranking lives in `explore scenario_results`.
 const MAX_REGRET_ROWS = 8;
 
+const BANNER_TONES: Record<string, { box: string; label: string }> = {
+  amber: { box: "border-amber-300 bg-amber-50 text-amber-900", label: "" },
+  indigo: { box: "border-indigo-200 bg-indigo-50 text-indigo-900", label: "" },
+};
+
+// One callout shape for every engine finding rendered in this panel.
+function Banner({ tone, label, children }: { tone: "amber" | "indigo"; label: string; children: React.ReactNode }) {
+  return (
+    <div className={`mb-2 rounded border px-2 py-1.5 text-xs ${BANNER_TONES[tone].box}`}>
+      <span className="font-semibold">{label}:</span> {children}
+    </div>
+  );
+}
+
+// Three-state feasibility: ✓ everywhere; ✗ in a RANKED scenario (drives the ranking);
+// amber ⨯ when the only failure is an excluded wipeout scenario (harmless to the ranking).
+function FeasibilityMark({ row }: { row: { feasible_in_all: boolean; feasible_in_ranked?: boolean } }) {
+  if (row.feasible_in_all) return <span className="text-emerald-600">✓</span>;
+  if (row.feasible_in_ranked) {
+    return (
+      <span className="text-amber-600" title="feasible in every ranked scenario — infeasible only in the excluded wipeout scenario(s)">
+        ⨯<span className="ml-0.5 text-[9px] uppercase">wipeout only</span>
+      </span>
+    );
+  }
+  return (
+    <span className="text-red-600" title="infeasible in a ranked scenario (drives max regret to 100%)">
+      ✗
+    </span>
+  );
+}
+
 export function ScenarioSummary({ data }: { data: ScenarioSummaryVizData }) {
   // No scenarios → nothing meaningful to show; suppress the empty panel.
   if (!data.scenarios?.length) return null;
@@ -183,34 +215,33 @@ export function ScenarioSummary({ data }: { data: ScenarioSummaryVizData }) {
             Minimax-regret robustness
           </div>
 
-          {/* Saturation: every base plan hits max regret in some scenario, so the
-              ranking is an all-1.0 tie — a wall of 100%/✗ rows reads as broken data.
-              Surface the engine's finding instead of the meaningless table. */}
-          {regret.saturated && (
-            <div className="mb-2 rounded border border-amber-300 bg-amber-50 px-2 py-1.5 text-xs text-amber-900">
-              <span className="font-semibold">No base-frontier plan survives:</span>{" "}
-              {regret.saturation_note ??
-                "every base plan is infeasible or fully dominated in some scenario — pick a hedge from that scenario's own frontier, or fold its constraints into the base model and re-solve."}
-            </div>
+          {/* Degradation findings from the engine — rendered verbatim (the engine owns
+              the wording; both notes are always set alongside their flags). Saturation:
+              the ranking is an all-1.0 tie, so the table is suppressed. Wipeout: a
+              scenario no base plan survives is excluded from the ranking; the table
+              below stays meaningful. The two can co-occur. */}
+          {regret.saturated && regret.saturation_note && (
+            <Banner tone="amber" label="Regret saturated">
+              {regret.saturation_note}
+            </Banner>
           )}
 
-          {!regret.saturated && (regret.wipeout_scenarios?.length ?? 0) > 0 && (
-            <div className="mb-2 rounded border border-amber-300 bg-amber-50 px-2 py-1.5 text-xs text-amber-900">
-              <span className="font-semibold">
-                No base plan survives {regret.wipeout_scenarios!.join(", ")}:
-              </span>{" "}
-              {regret.wipeout_note ??
-                "excluded from the minimax ranking — pick that scenario's plan from its own frontier, or fold its constraints into the base model and re-solve."}
-            </div>
+          {(regret.wipeout_scenarios?.length ?? 0) > 0 && regret.wipeout_note && (
+            <Banner tone="amber" label={`No base plan survives ${regret.wipeout_scenarios!.join(", ")}`}>
+              {regret.wipeout_note}
+            </Banner>
           )}
 
           {regret.minimax_choice && (
-            <div className="mb-2 rounded border border-indigo-200 bg-indigo-50 px-2 py-1.5 text-xs text-indigo-900">
-              <span className="font-semibold">Minimax choice:</span> solution #
-              {regret.minimax_choice.solution_id} · worst-case regret{" "}
+            <Banner tone="indigo" label="Minimax choice">
+              solution #{regret.minimax_choice.solution_id} · worst-case regret{" "}
               <span className="font-mono">{pct(regret.minimax_choice.max_regret)}</span>
-              <span className="ml-1 text-[10px] text-indigo-500">(lowest achievable)</span>
-            </div>
+              <span className="ml-1 text-[10px] text-indigo-500">
+                {(regret.wipeout_scenarios?.length ?? 0) > 0
+                  ? `(lowest achievable across the ranked scenarios — excludes ${regret.wipeout_scenarios!.join(", ")})`
+                  : "(lowest achievable)"}
+              </span>
+            </Banner>
           )}
 
           {!regret.saturated && regretRows.length > 0 && (
@@ -256,13 +287,7 @@ export function ScenarioSummary({ data }: { data: ScenarioSummaryVizData }) {
                           {pct(s.mean_regret)}
                         </td>
                         <td className="border-b border-stone-100 px-2 py-1 text-center">
-                          {s.feasible_in_all ? (
-                            <span className="text-emerald-600">✓</span>
-                          ) : (
-                            <span className="text-red-600" title="infeasible in ≥1 scenario">
-                              ✗
-                            </span>
-                          )}
+                          <FeasibilityMark row={s} />
                         </td>
                       </tr>
                     );
@@ -277,7 +302,7 @@ export function ScenarioSummary({ data }: { data: ScenarioSummaryVizData }) {
             </div>
           )}
 
-          {!regret.saturated && regret.per_objective && Object.keys(regret.per_objective).length > 0 && (
+          {regret.per_objective && Object.keys(regret.per_objective).length > 0 && (
             <div className="mt-2 text-[11px] leading-relaxed text-stone-500">
               <span className="text-stone-400">lowest worst-case regret per objective:</span>{" "}
               {Object.entries(regret.per_objective).map(([obj, r], i) => (

@@ -126,7 +126,7 @@ Scenario minimax-regret. For each base-frontier solution, its value under each s
 | `per_solution` | list | Solutions by lowest `max_regret` (compact, ≤20): `{solution_id, content_signature, max_regret, mean_regret, by_scenario, feasible_in_all}` |
 | `minimax_choice` | obj\|null | The regret-robust pick: `{solution_id, content_signature, max_regret}` |
 
-- `max_regret` is the solution's worst regret across all (scenario, objective) pairs; `minimax_choice` minimizes it.
+- `max_regret` is the solution's worst regret across the **ranked** (scenario, objective) pairs; `minimax_choice` minimizes it. A total-wipeout scenario (no feasible base plan — see `survivors_by_scenario`) is excluded from the ranking and named in `wipeout_scenarios` + `wipeout_note`; its uniform 1.0 stays visible in `by_scenario`, and `feasible_in_ranked` distinguishes failing only the excluded wipeout from failing a ranked scenario. A 1.0 in `by_scenario` next to a sub-1.0 `max_regret` is the wipeout exclusion, not an inconsistency.
 - `feasible_in_all: false` means the solution breaks under at least one scenario's constraints — assigned worst-case regret (1.0) there; the flag is the headline, not a footnote.
 - Distinct from `scenario_risk`/CVaR: CVaR is "how bad when things go wrong"; regret is "how much worse than the best I could have chosen, in hindsight." See *Regret — the hindsight lens* in SKILL.md.
 
