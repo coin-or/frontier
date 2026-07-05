@@ -24,8 +24,11 @@ jobs:
             constraints.txt
       # -c constraints.txt pins the full resolved dependency tree (see the file
       # header for how to regenerate); pytest is dev-only and left unpinned.
-      - run: pip install -c constraints.txt -e ".[sse,highs]" pytest
-      - run: pytest tests/ --ignore=tests/ui -q
+      - run: pip install -c constraints.txt -e ".[sse,highs]" pytest pytest-xdist
+      # -n auto: the suite's tail is dozens of real solver runs (NSGA + HiGHS),
+      # all against per-test temp stores, so it parallelizes cleanly.
+      # --durations=10 keeps the slow tail visible in logs as the suite grows.
+      - run: pytest tests/ --ignore=tests/ui -q -n auto --durations=10
 
   ui:
     runs-on: ubuntu-latest
