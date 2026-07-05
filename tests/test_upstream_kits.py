@@ -395,6 +395,49 @@ def test_interconnection_kit():
         envelope[0] = {"type": "objective_bound", "objective": "Cost", "operator": "max", "value": cap}
         assert _canon(_scenario(p, name)["constraint_overrides"]) == _canon(envelope), name
 
+
+def test_shift_coverage_staffing_kit():
+    rows = _rows("shift_coverage_staffing")
+    built = [{"type": "objective_bound", "objective": "Cost", "operator": "max", "value": 210.0},
+             {"type": "cardinality", "min": 60, "max": 80}]
+    units = _groups(rows, "offer", "unit")
+    floors = {"ICU": 12, "ED": 14, "MedSurg": 12, "Oncology": 8, "LD": 8}
+    built += [{"type": "group_limit", "options": units[u], "min": floors[u], "max": len(units[u])}
+              for u in floors]
+    built += [{"type": "group_limit", "options": offs, "min": 0, "max": 3}
+              for offs in _groups(rows, "offer", "nurse").values()]
+    # same-nurse same-block offers exclude each other — derived from the nurse+block columns
+    by_nb = defaultdict(list)
+    for r in rows:
+        by_nb[(r["nurse"], r["block"])].append(r["offer"])
+    for offs in by_nb.values():
+        for i in range(len(offs)):
+            for j in range(i + 1, len(offs)):
+                built.append({"type": "exclusion_pair", "option_a": offs[i], "option_b": offs[j]})
+    scores = _scores_from(rows, "offer", [("CoverageValue", "coverage_value"),
+                                          ("Cost", "cost_kusd"), ("FatigueRisk", "fatigue_risk")])
+    _assert_model("shift_coverage_staffing", built, scores,
+                  [("CoverageValue", "maximize", "sum"), ("Cost", "minimize", "sum"),
+                   ("FatigueRisk", "minimize", "sum")], "offer")
+
+
+def test_community_program_funding_kit():
+    rows = _rows("community_program_funding")
+    built = [{"type": "max_allocation", "max": 12},
+             {"type": "objective_bound", "objective": "DeliveryRisk", "operator": "max", "value": 2.6}]
+    built += [{"type": "allocation_bound", "option": r["program"],
+               "min": int(r["mandated_floor_pct"]), "max": 100}
+              for r in rows if r["mandated_floor_pct"]]
+    scores = _scores_from(rows, "program", [("CommunityImpact", "impact_per_1pct"),
+                                            ("ResidentsServed", "residents_k_per_1pct"),
+                                            ("DeliveryRisk", "delivery_risk_per_1pct")])
+    p, _ = _assert_model("community_program_funding", built, scores,
+                         [("CommunityImpact", "maximize", "sum"), ("ResidentsServed", "maximize", "sum"),
+                          ("DeliveryRisk", "minimize", "sum")], "program")
+    assert _norm_adjustments(_scenario(p, "overrun_wave")["score_adjustments"]) == \
+           _norm_adjustments([{"objective": "DeliveryRisk", "multiply": 1.25}])
+
+
 # ─── kit-coverage guards ───
 
 # One entry per kit test above. A bundled example missing here (or here without a
@@ -407,11 +450,13 @@ KIT_COVERED = [
     "channel_budget",
     "charging_network_siting",
     "claims_investigation_triage",
+    "community_program_funding",
     "interconnection_approvals",
     "investment_portfolio",
     "production_mix",
     "research_cohort_selection",
     "scarce_supply_rationing",
+    "shift_coverage_staffing",
     "supplier_selection",
 ]
 
@@ -444,6 +489,9 @@ ASK_LITERALS = {
     "supplier_selection": ["15%", "at most 3", "at or above 78", "at most 5%",
                            "from 15% to 10%", "at least 5%", "at least 4%",
                            "between 4% and 5%"],
+    "shift_coverage_staffing": ["$210k", "between 60 and 80", "12 ICU", "14 ED",
+                                "12 MedSurg", "8 Oncology", "8 LD", "more than 3"],
+    "community_program_funding": ["12%", "2.6", "5%", "6%", "3% each", "25% higher"],
 }
 
 

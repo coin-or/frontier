@@ -1,0 +1,92 @@
+{
+  "name": "Community Program Funding",
+  "domain": "public sector",
+  "context": "A city splits a participatory budget across 32 program proposals from six districts, maximizing community impact and residents served while holding down delivery risk. No program above 12% of the fund, blended delivery risk capped at 2.6, and six council-mandated anchor floors - one per district - lock in the equity commitment that every district's flagship program is funded. Purely linear LP: the solver duals price each district's guarantee and the risk cap - what the equity commitments actually cost in impact terms.",
+  "approach": "proportional",
+  "objectives": [
+    {
+      "name": "CommunityImpact",
+      "direction": "maximize",
+      "unit": "points",
+      "aggregation": "sum"
+    },
+    {
+      "name": "ResidentsServed",
+      "direction": "maximize",
+      "unit": "k residents",
+      "aggregation": "sum"
+    },
+    {
+      "name": "DeliveryRisk",
+      "direction": "minimize",
+      "unit": "points",
+      "aggregation": "sum"
+    }
+  ],
+  "constraints": [
+    {
+      "type": "max_allocation",
+      "max": 12
+    },
+    {
+      "type": "objective_bound",
+      "objective": "DeliveryRisk",
+      "operator": "max",
+      "value": 2.6
+    },
+    {
+      "type": "allocation_bound",
+      "option": "Youth-Jobs-Corps",
+      "min": 5,
+      "max": 100
+    },
+    {
+      "type": "allocation_bound",
+      "option": "Community-Health-Workers",
+      "min": 3,
+      "max": 100
+    },
+    {
+      "type": "allocation_bound",
+      "option": "Neighborhood-Safety-Retrofit",
+      "min": 6,
+      "max": 100
+    },
+    {
+      "type": "allocation_bound",
+      "option": "Flood-Mitigation-Small",
+      "min": 3,
+      "max": 100
+    },
+    {
+      "type": "allocation_bound",
+      "option": "Summer-Youth-Employment",
+      "min": 3,
+      "max": 100
+    },
+    {
+      "type": "allocation_bound",
+      "option": "Cooling-Centers",
+      "min": 3,
+      "max": 100
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "overrun_wave",
+      "probability": null,
+      "description": "A construction and hiring overrun wave: every program's delivery risk reads 25% higher against the same risk cap - the fund must lean safer.",
+      "motivated_by": "",
+      "score_overrides": [],
+      "score_adjustments": [
+        {
+          "objective": "DeliveryRisk",
+          "multiply": 1.25,
+          "add": null
+        }
+      ],
+      "constraint_overrides": [],
+      "interaction_matrix_overrides": []
+    }
+  ]
+}
