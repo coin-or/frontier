@@ -10,6 +10,12 @@ on:
 permissions:
   contents: read
 
+# One live run per ref: a new push to a PR branch cancels the superseded run
+# instead of stacking runners. Pushes to main still run to completion.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   python:
     runs-on: ubuntu-latest
@@ -24,11 +30,14 @@ jobs:
             constraints.txt
       # -c constraints.txt pins the full resolved dependency tree (see the file
       # header for how to regenerate); pytest is dev-only and left unpinned.
-      - run: pip install -c constraints.txt -e ".[sse,highs]" pytest pytest-xdist
+      - run: pip install -c constraints.txt -e ".[sse,highs]" pytest pytest-xdist pytest-timeout
       # -n auto: the suite's tail is dozens of real solver runs (NSGA + HiGHS),
       # all against per-test temp stores, so it parallelizes cleanly.
       # --durations=10 keeps the slow tail visible in logs as the suite grows.
-      - run: pytest tests/ --ignore=tests/ui -q -n auto --durations=10
+      # --timeout=300: the slowest test is ~16s under full parallel contention,
+      # so 300s only fires on a genuine hang — which then fails loudly with the
+      # test's name instead of silently eating the 6-hour job limit.
+      - run: pytest tests/ --ignore=tests/ui -q -n auto --durations=10 --timeout=300
 
   ui:
     runs-on: ubuntu-latest
