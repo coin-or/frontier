@@ -20,15 +20,17 @@ def tmp_store(monkeypatch):
 
 class TestParseConstraintUnknownType:
     def test_unknown_constraint_type_in_update(self):
-        """Updating with unknown constraint type should raise ValueError."""
+        """Updating with an unknown constraint type returns a worded error naming the
+        valid vocabulary — the tool contract, never an uncaught exception."""
         created = srv.model(action="create")
         pid = created["problem_id"]
-        with pytest.raises(ValueError, match="Unknown constraint type"):
-            srv.model(
-                action="update",
-                problem_id=pid,
-                constraints=[{"type": "magic_constraint"}],
-            )
+        out = srv.model(
+            action="update",
+            problem_id=pid,
+            constraints=[{"type": "magic_constraint"}],
+        )
+        assert "Unknown constraint type" in out["error"]
+        assert "Valid types" in out["error"]
 
 
 class TestSolveRunInfeasible:

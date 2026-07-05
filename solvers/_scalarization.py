@@ -127,23 +127,34 @@ def _build_milp_data(problem: Problem):
     S = _opt._build_score_matrix(problem)
     dirs = np.array([1.0 if o.direction.value == "minimize" else -1.0 for o in problem.objectives])
     ocol = {o.name: j for j, o in enumerate(problem.objectives)}
+
+    def _ref(name, kind, c):
+        # A stored constraint can outlive an option/objective rename — decline in words
+        # instead of a raw KeyError inside audit/exact consumers.
+        table = ix if kind == "option" else ocol
+        if name not in table:
+            raise ValueError(f"constraint {c.type} references unknown {kind} '{name}' — "
+                             "update or remove that constraint (model update), then retry.")
+        return table[name]
+
     mc = {"card": None, "bounds": [], "force_in": [], "force_out": [], "deps": [], "excl": [], "groups": []}
     for c in (problem.constraints or []):
         t = c.type
         if t == "cardinality":
             mc["card"] = (int(c.min), int(c.max))
         elif t == "objective_bound":
-            mc["bounds"].append((S[:, ocol[c.objective]].copy(), c.operator, float(c.value)))
+            mc["bounds"].append((S[:, _ref(c.objective, "objective", c)].copy(), c.operator, float(c.value)))
         elif t == "force_include":
-            mc["force_in"].append(ix[c.option])
+            mc["force_in"].append(_ref(c.option, "option", c))
         elif t == "force_exclude":
-            mc["force_out"].append(ix[c.option])
+            mc["force_out"].append(_ref(c.option, "option", c))
         elif t == "dependency":
-            mc["deps"].append((ix[c.if_option], ix[c.then_option]))
+            mc["deps"].append((_ref(c.if_option, "option", c), _ref(c.then_option, "option", c)))
         elif t == "exclusion_pair":
-            mc["excl"].append((ix[c.option_a], ix[c.option_b]))
+            mc["excl"].append((_ref(c.option_a, "option", c), _ref(c.option_b, "option", c)))
         elif t == "group_limit":
-            mc["groups"].append(([ix[o] for o in c.options], int(getattr(c, "min", 0) or 0), int(c.max)))
+            mc["groups"].append(([_ref(o, "option", c) for o in c.options],
+                                 int(getattr(c, "min", 0) or 0), int(c.max)))
     return n, names, S, dirs, mc
 
 
@@ -216,27 +227,35 @@ def _nondominated(solutions: list[Solution], obj_list: list) -> list[Solution]:
     return [solutions[i] for i in keep]
 
 
-def _seed_cardinality_population(linear_coefs, cov, eps_bounds, k, pop, seed) -> np.ndarray:
+def _seed_cardinality_population(linear_coefs, cov, eps_bounds, k, pop, seed,
+                                 linear_maximize=None) -> np.ndarray:
     """Domain-informed initial population for the cardinality EA. The support search is
-    combinatorial, so at a small pop/gen the EA can miss the high-return corner. Seed with
-    sensible supports — lowest-volatility K, highest-return K, highest return/vol K — each
-    across a span of return targets, so the inner solver reaches those corners exactly from
+    combinatorial, so at a small pop/gen the EA can miss the best-primary corner. Seed with
+    sensible supports — lowest-volatility K, best-primary K, best primary/vol K — each
+    across a span of primary targets, so the inner solver reaches those corners exactly from
     generation 0 and the EA refines around them. Every seeded support is still solved exactly.
+    ``linear_maximize`` orients the seeds per objective: the best-primary support flips for a
+    minimize primary (e.g. cost), and each extra objective's seed epsilon sits at its LOOSE end
+    (floor low for maximize, ceiling high for minimize) so seeded inner solves stay feasible.
 
     Genome row = ``[eps per linear objective] + [priority vector]``; a support is selected by
     giving its assets the top-K priorities (≥0.7 vs ≤0.3 elsewhere)."""
+    if linear_maximize is None:
+        linear_maximize = [True] * len(linear_coefs)
     rng = np.random.default_rng(seed)
     n_assets = cov.shape[0]
     vols = np.sqrt(np.clip(np.diag(cov), 0.0, None))
-    ret = np.asarray(linear_coefs[0], float)
+    ret = np.asarray(linear_coefs[0], float) * (1.0 if linear_maximize[0] else -1.0)
     sharpe = ret / np.where(vols > 0, vols, 1e-9)
     supports = [np.argsort(vols)[:k], np.argsort(ret)[-k:], np.argsort(sharpe)[-k:]]
     lo0, hi0 = eps_bounds[0]
+    loose_rest = [b[0] if mx else b[1]
+                  for b, mx in zip(eps_bounds[1:], linear_maximize[1:])]
     n_frac = max(2, pop // (len(supports) * 2))
     rows: list[list[float]] = []
     for supp in supports:
         for frac in np.linspace(0.0, 1.0, n_frac):
-            eps = [lo0 + frac * (hi0 - lo0)] + [b[0] for b in eps_bounds[1:]]
+            eps = [lo0 + frac * (hi0 - lo0)] + loose_rest
             pri = rng.uniform(0.0, 0.3, n_assets)
             pri[np.asarray(supp)] = rng.uniform(0.7, 1.0, len(supp))
             rows.append(eps + list(pri))
@@ -466,24 +485,33 @@ def _solve_individual_lp_sensitivity(linear_coefs, linear_maximize, max_weight, 
 
 def _decode_support(pri, cardinality_k, groups):
     """Decode an asset-selection priority vector → the eligible asset indices (or ``None`` when
-    unconstrained). Group-aware: keep the top-``max`` priorities per group and, if a global
-    cardinality cap is also set, the top-K of the remainder. Shared by the QP and LP genomes so the
-    support search behaves identically on both exact paths."""
+    unconstrained). Group-aware greedy: walk options by priority (best first) and admit one only
+    while every group containing it has spare cap and the global cardinality cap has room, so the
+    decoded support satisfies ALL count caps at once — overlapping groups and a global cap tighter
+    than the group caps' sum included — and every plan the inner solves build from it is feasible
+    for the model's count constraints. Shared by the QP and LP genomes so the support search
+    behaves identically on both exact paths."""
     if cardinality_k is None and not groups:
         return None
     pri = np.asarray(pri, dtype=float)
     n = len(pri)
     if groups:
-        support, grouped = set(), set()
-        for grp, gmax in groups:
-            grouped.update(grp)
-            support.update(int(i) for i in sorted(grp, key=lambda i: pri[i])[-gmax:])
-        ungrouped = [i for i in range(n) if i not in grouped]
-        if cardinality_k is not None:
-            rem = max(0, cardinality_k - len(support))
-            support.update(int(i) for i in sorted(ungrouped, key=lambda i: pri[i])[-rem:])
-        else:
-            support.update(ungrouped)
+        membership: dict[int, list[int]] = {}
+        remaining = []
+        for g, (grp, gmax) in enumerate(groups):
+            remaining.append(int(gmax))
+            for i in grp:
+                membership.setdefault(int(i), []).append(g)
+        cap = n if cardinality_k is None else int(cardinality_k)
+        support: list[int] = []
+        for i in sorted(range(n), key=lambda i: pri[i], reverse=True):
+            if len(support) >= cap:
+                break
+            gs = membership.get(i, [])
+            if all(remaining[g] > 0 for g in gs):
+                support.append(i)
+                for g in gs:
+                    remaining[g] -= 1
         return np.array(sorted(support))
     return np.argsort(pri)[-cardinality_k:]
 
@@ -656,14 +684,19 @@ def optimize_qp(problem, mode, *, inner_qp, inner_qp_sensitivity=None, pop, gen,
         interaction_matrices=im, **cp,
     )
 
-    # Epsilon range per linear objective = [value at the global min-variance portfolio, best
-    # single-asset value]. Lower bound from one unconstrained inner solve; upper bound max(coef).
+    # Epsilon range per linear objective, DIRECTION-AWARE: the loose end is the objective's
+    # value at the global min-variance portfolio (one unconstrained inner solve); the tight end
+    # is the best single-asset value in that objective's own direction. A maximize objective
+    # sweeps its floor up toward max(coef); a minimize objective sweeps its ceiling down toward
+    # min(coef) — the old max(coef)-only upper bound left a minimize ceiling forever slack, so
+    # the sweep never traded variance against that objective.
     w_mv, ok_mv = inner_qp(cov, linear_coefs[0], None, linear_maximize[0], max_weight, None,
                            list(model_rows), min_weight=min_weight)
     eps_bounds: list[tuple[float, float]] = []
-    for coef in linear_coefs:
-        lo = float(coef @ w_mv) if ok_mv else float(coef.min())
-        hi = float(coef.max())
+    for coef, maximize in zip(linear_coefs, linear_maximize):
+        at_mv = float(coef @ w_mv) if ok_mv else float(coef.mean())
+        tight = float(coef.max()) if maximize else float(coef.min())
+        lo, hi = (at_mv, tight) if maximize else (tight, at_mv)
         if hi <= lo:
             hi = lo + 1e-6  # degenerate guard (all values equal)
         eps_bounds.append((lo, hi))
@@ -674,7 +707,8 @@ def optimize_qp(problem, mode, *, inner_qp, inner_qp_sensitivity=None, pop, gen,
         model_rows=model_rows,
     )
     if cardinality_k is not None:
-        seed_X = _seed_cardinality_population(linear_coefs, cov, eps_bounds, cardinality_k, pop, seed)
+        seed_X = _seed_cardinality_population(linear_coefs, cov, eps_bounds, cardinality_k, pop, seed,
+                                              linear_maximize=list(linear_maximize))
         algorithm = NSGA2(pop_size=pop, sampling=seed_X)
     else:
         algorithm = NSGA2(pop_size=pop)

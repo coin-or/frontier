@@ -617,6 +617,15 @@ _SCENARIO_REMEDY = ("Pick that scenario's plan from its own frontier (explore tr
                     "scenario=<name>) or fold its constraints into the base model and re-solve.")
 
 
+def _round_regret(v: float) -> float:
+    """Regret rounded for display, with 1.0 reserved for the exact clamp: a raw 0.9996
+    displays as 0.999, so every rendered 100% — including the saturation-note scenario
+    naming — means total regret (infeasible or fully dominated), matching the raw
+    saturated check."""
+    r = round(v, 3)
+    return 0.999 if r >= 1.0 and v < 1.0 else r
+
+
 def scenario_regret(problem: Problem) -> dict:
     """Scenario minimax-regret over the base frontier.
 
@@ -653,13 +662,6 @@ def scenario_regret(problem: Problem) -> dict:
     base = problem.run.solutions
     cache: dict[tuple, dict] = {}
 
-    def round_regret(v: float) -> float:
-        # 1.0 is reserved for the exact clamp (infeasible or fully dominated): a raw
-        # 0.9996 displays as 0.999, so every rendered 100% — and the saturation-note
-        # scenario naming below — means total regret, matching the raw saturated check.
-        r = round(v, 3)
-        return 0.999 if r >= 1.0 and v < 1.0 else r
-
     def regret_for(s, name, ob):
         ev = cache.get((s.content_signature, name))
         if ev is None or not ev["feasible"]:
@@ -685,7 +687,7 @@ def scenario_regret(problem: Problem) -> dict:
         raw_by_sig[s.content_signature] = raw
         per_solution.append({
             "solution_id": s.solution_id, "content_signature": s.content_signature,
-            "by_scenario": {name: round_regret(v) for name, v in raw.items()},
+            "by_scenario": {name: _round_regret(v) for name, v in raw.items()},
             "feasible_in_all": all(cache[(s.content_signature, name)]["feasible"] for name in scen_runs),
         })
 
@@ -707,8 +709,8 @@ def scenario_regret(problem: Problem) -> dict:
         raw = raw_by_sig[row["content_signature"]]
         vals = [raw[name] for name in ranked]
         raw_max[row["content_signature"]] = max(vals, default=0.0)
-        row["max_regret"] = round_regret(raw_max[row["content_signature"]])
-        row["mean_regret"] = round_regret(sum(vals) / len(vals)) if vals else None
+        row["max_regret"] = _round_regret(raw_max[row["content_signature"]])
+        row["mean_regret"] = _round_regret(sum(vals) / len(vals)) if vals else None
         row["feasible_in_ranked"] = all(cache[(row["content_signature"], name)]["feasible"]
                                         for name in ranked)
     per_solution.sort(key=lambda x: raw_max[x["content_signature"]])
@@ -721,7 +723,7 @@ def scenario_regret(problem: Problem) -> dict:
             if best_val is None or worst < best_val:
                 best_val, best_sid = worst, s.solution_id
         if best_sid is not None:
-            per_objective[ob.name] = {"min_max_regret": round_regret(best_val), "achieved_by_solution_id": best_sid}
+            per_objective[ob.name] = {"min_max_regret": _round_regret(best_val), "achieved_by_solution_id": best_sid}
 
     # per_solution is sorted ascending, so the metric is saturated exactly when the BEST
     # solution already hits total regret — every base solution is infeasible or fully
@@ -1057,9 +1059,18 @@ def certify_against_exact(problem: Problem, nsga_run: Run, exact_run: Run) -> di
         "invariant": {
             "holds": exact_dominated == 0,
             "exact_dominated_by_nsga": exact_dominated,
-            "note": ("a few exact points edged out by NSGA — the integer rounding of the continuous QP "
-                     "optimum to whole-percent allocations, not a heuristic beating the exact solve "
-                     "(MILP corners, integer by construction, never show this)"
+            # A violation has a different honest explanation per shape: proportional exact
+            # optima are rounded to whole-percent allocations (rounding artifact); a binary
+            # run without exact=True accepts gap/time-bounded incumbents a full NSGA search
+            # can legitimately beat (bounded-incumbent artifact, cured by exact=True).
+            "note": ((("a few exact points edged out by NSGA — this bounded MILP run accepts "
+                       "gap/time-limited incumbents, so that is an uncertified incumbent, not a "
+                       "heuristic beating a certified optimum; re-run with exact=True to certify"
+                       if problem.approach == Approach.binary and not exact_run.exact else
+                       "a few exact points edged out by NSGA — the integer rounding of the "
+                       "continuous QP optimum to whole-percent allocations, not a heuristic "
+                       "beating the exact solve (certified MILP corners, integer by "
+                       "construction, never show this)"))
                      if exact_dominated else "NSGA dominates no exact point — exact can only confirm or improve"),
         },
         "corner_sharpening": corners,
@@ -2216,6 +2227,19 @@ def _render_scenario_viz(result: dict) -> str:
 
 
 def _require_run(problem: Problem, scenario: str | None = None, source: str | None = None) -> Run:
+    def _consistent(run: Run) -> Run:
+        # The iterate loop edits the model and peeks at the previous run's results. Serving
+        # a run whose solutions lack a current objective would KeyError deep inside an
+        # explore action — decline in words instead, naming the re-solve.
+        if run.solutions:
+            have = set(run.solutions[0].objective_values)
+            missing = [o.name for o in problem.objectives if o.name not in have]
+            if missing:
+                raise ValueError(
+                    f"results are stale — the model's objectives changed since this run "
+                    f"(no values for: {', '.join(missing)}). Re-run solve to explore the "
+                    "updated model.")
+        return run
     if scenario:
         # Scenario runs are NSGA-only, so `source` doesn't apply to them.
         if not problem.scenario_run or not problem.scenario_run.scenario_runs:
@@ -2226,12 +2250,12 @@ def _require_run(problem: Problem, scenario: str | None = None, source: str | No
         run = problem.scenario_run.scenario_runs[scenario]
         if not run.solutions:
             raise ValueError(f"Scenario '{scenario}' has no solutions.")
-        return run
+        return _consistent(run)
     if source == "exact":
         # Explicitly target the exact-solver frontier (e.g. when both an
         # exploratory `run` and an `exact_run` overlay exist).
         if problem.exact_run is not None and problem.exact_run.solutions:
-            return problem.exact_run
+            return _consistent(problem.exact_run)
         raise ValueError("No exact_run found. Solve with an exact solver "
                          "(solver=\"highs\" or \"cuopt\") first.")
     if source not in (None, "run"):
@@ -2241,11 +2265,11 @@ def _require_run(problem: Problem, scenario: str | None = None, source: str | No
         # exact_run (the exact overlay) with no exploratory run — fall back to
         # it so those results are explorable rather than reported as "no run".
         if problem.exact_run is not None and problem.exact_run.solutions:
-            return problem.exact_run
+            return _consistent(problem.exact_run)
         raise ValueError("No run found. Use solve first.")
     if not problem.run.solutions:
         raise ValueError("Run has no solutions.")
-    return problem.run
+    return _consistent(problem.run)
 
 
 def _frontier_provenance(problem: Problem, run: Run, scenario: str | None = None) -> dict:
@@ -2745,11 +2769,12 @@ def sensitivity_analysis(problem: Problem, solution_id: int | None = None,
     floors = {c.option: int(c.min) for c in (problem.constraints or [])
               if getattr(c, "type", "") == "allocation_bound" and int(getattr(c, "min", 0)) > 0}
     where, near, capped, floored = _format_solution_sensitivity(ref, optimized, floors)
-    scope = ("Exact LP/QP duals (continuous path). Shadow price = marginal change in the "
-             "optimized objective per unit a binding constraint is relaxed (that constraint's "
-             "own unit — rates on different levers aren't directly comparable); reduced cost = "
-             "roughly how far an unheld option must improve to become competitive (a marginal "
-             "rate). Undefined for integer/MILP.")
+    scope = ("Exact LP/QP duals (continuous path). Shadow price = the price a binding "
+             "constraint charges the optimized objective per unit of tightening, in that "
+             "constraint's own unit (cost sense: positive means tighter hurts, whichever "
+             "direction the objective optimizes; rates on different levers aren't directly "
+             "comparable); reduced cost = roughly how far an unheld option must improve to "
+             "become competitive (a marginal rate). Undefined for integer/MILP.")
     if optimized:
         scope += (f" The optimized objective here is '{optimized}' — the ε-constraint primary; "
                   "the other objectives enter as floors.")
@@ -2824,14 +2849,18 @@ def _optimized_objective(problem: Problem, sens) -> str | None:
 
 
 def _shadow_interpretation(sp, objective: str | None) -> str:
+    # Duals are reported in the solver's COST sense (the minimization it actually ran), so a
+    # positive price on a binding row always reads "tightening this hurts the optimized
+    # objective" — for a maximize primary that means the value comes off it, never onto it.
     target = f"'{objective}'" if objective else "the optimized objective"
     if sp.role == "budget":
-        return (f"marginal change in {target} per unit of total budget "
-                "(allocations are normalized to 100%)")
+        return (f"price of the total-budget row on {target} "
+                "(allocations are normalized to 100%; cost sense — positive means tighter hurts)")
     if sp.role in ("return_floor", "linear_floor"):
         return (f"marginal cost of '{sp.name}': raising the {sp.name} requirement by one unit "
-                f"shifts {target} by ~{sp.shadow_price:.4g}")
-    return f"marginal change in {target} per unit this constraint is relaxed"
+                f"worsens {target} by ~{sp.shadow_price:.4g} (in {target}'s own units)")
+    return (f"price of this constraint on {target} per unit it is tightened "
+            "(cost sense — positive means tighter hurts)")
 
 
 def _format_solution_sensitivity(s, objective: str | None = None, floors: dict | None = None):

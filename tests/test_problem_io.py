@@ -321,3 +321,37 @@ def test_bundled_examples_baked_runs_snapshot_constraints():
                 f"{name}/{label}: constraints_snapshot has {len(run.constraints_snapshot)} "
                 f"entries but the problem has {len(p.constraints)} constraints"
             )
+
+
+def test_save_over_existing_name_drops_stale_solutions(io_dirs):
+    """Saving a results-free problem over an existing bundle name must not leave the
+    previous occupant's solutions.json behind — load would resurrect a foreign run
+    whose solutions reference options the new problem doesn't have."""
+    from engine.optimizer import optimize
+
+    saved, _ = io_dirs
+    solved = Problem(
+        name="First", approach="binary",
+        objectives=[Objective(name="R", direction="maximize", aggregation="sum"),
+                    Objective(name="E", direction="minimize", aggregation="sum")],
+        options=[Option(name=n) for n in ("o1", "o2", "o3", "o4")],
+        scores=[Score(option=f"o{i}", objective=ob, value=float(i + j))
+                for i in range(1, 5) for j, ob in enumerate(("R", "E"))],
+    )
+    solved.run = optimize(solved, mode="fast", seed=42)
+    problem_io.save_problem(solved, "demo")
+    assert (saved / "demo" / "solutions.json").exists()
+
+    fresh = Problem(
+        name="Second", approach="binary",
+        objectives=[Objective(name="R", direction="maximize", aggregation="sum"),
+                    Objective(name="E", direction="minimize", aggregation="sum")],
+        options=[Option(name=n) for n in ("n1", "n2", "n3")],
+        scores=[Score(option=f"n{i}", objective=ob, value=float(i))
+                for i in range(1, 4) for ob in ("R", "E")],
+    )
+    problem_io.save_problem(fresh, "demo")
+    assert not (saved / "demo" / "solutions.json").exists()
+    loaded = problem_io.load_problem("demo")
+    assert loaded.name == "Second"
+    assert loaded.run is None and loaded.exact_run is None

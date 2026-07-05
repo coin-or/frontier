@@ -694,28 +694,41 @@ def _parse_constraints(problem: Problem, search_floor: bool = False) -> dict:
     max_allocation: int | None = None  # max allocation % per option (proportional only)
     allocation_bounds: dict[int, tuple[int, int]] = {}  # idx -> (min%, max%) (proportional only)
 
+    def _opt_idx(name: str, c) -> int:
+        # A stored constraint can outlive an option rename/removal (validation flags the
+        # mismatch but persists the model) — decline in words instead of a raw KeyError
+        # deep inside audit/sensitivity/solve consumers.
+        if name not in opt_index:
+            raise ValueError(f"constraint {c.type} references unknown option '{name}' — "
+                             "update or remove that constraint (model update), then retry.")
+        return opt_index[name]
+
     for c in problem.constraints:
         if c.type == "force_include":
-            forced_in_idx.add(opt_index[c.option])
+            forced_in_idx.add(_opt_idx(c.option, c))
         elif c.type == "force_exclude":
-            forced_out_idx.add(opt_index[c.option])
+            forced_out_idx.add(_opt_idx(c.option, c))
         elif c.type == "cardinality":
             cardinality_min = c.min
             cardinality_max = c.max
         elif c.type == "objective_bound":
-            obj_idx = next(j for j, o in enumerate(obj_list) if o.name == c.objective)
+            obj_idx = next((j for j, o in enumerate(obj_list) if o.name == c.objective), None)
+            if obj_idx is None:
+                raise ValueError(f"objective_bound references unknown objective "
+                                 f"'{c.objective}' — update or remove that constraint "
+                                 "(model update), then retry.")
             obj_bounds.append((obj_idx, c.operator, c.value))
         elif c.type == "exclusion_pair":
-            exclusion_pairs.append((opt_index[c.option_a], opt_index[c.option_b]))
+            exclusion_pairs.append((_opt_idx(c.option_a, c), _opt_idx(c.option_b, c)))
         elif c.type == "dependency":
-            dependencies.append((opt_index[c.if_option], opt_index[c.then_option]))
+            dependencies.append((_opt_idx(c.if_option, c), _opt_idx(c.then_option, c)))
         elif c.type == "group_limit":
-            group_indices = [opt_index[o] for o in c.options]
+            group_indices = [_opt_idx(o, c) for o in c.options]
             group_limits.append((group_indices, int(c.min), int(c.max)))
         elif c.type == "max_allocation":
             max_allocation = c.max
         elif c.type == "allocation_bound":
-            allocation_bounds[opt_index[c.option]] = (int(c.min), int(c.max))
+            allocation_bounds[_opt_idx(c.option, c)] = (int(c.min), int(c.max))
 
     return {
         "forced_in": forced_in_idx,
@@ -2518,6 +2531,16 @@ def analyze_infeasibility(problem: Problem) -> dict:
         suggestions = ["Constraints may be jointly infeasible. Try relaxing multiple constraints."]
 
     result = {"binding_constraints": binding, "suggestions": suggestions}
+    if problem.approach == Approach.proportional:
+        # The enumeration above reasons over option SUBSETS (unweighted score sums, allocation
+        # constraints invisible) — a selection-level screen. Say so, and point at the layer
+        # that does the allocation arithmetic exactly, so a proportional user reads the
+        # binding list as candidates rather than a verdict.
+        result["scope_note"] = (
+            "selection-level diagnosis: constraints are tested over option subsets with "
+            "unweighted score sums, so allocation-level rules (per-option floors/caps, "
+            "weighted objective bounds) are screened approximately here — `solve validate` "
+            "checks the allocation arithmetic exactly (floor sums, floor-vs-cap conflicts).")
     # Exact upgrade where the shape supports it: a solver-proven minimal conflict set beats the
     # one-at-a-time heuristic above (which can only say "may help", and enumerates with a cutoff).
     from solvers import available_solvers, exact_solver_fits

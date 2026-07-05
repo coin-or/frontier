@@ -12,6 +12,7 @@ pytest.importorskip("highspy")
 
 from engine import explorer
 from engine.models import (
+    AllocationBoundConstraint,
     CardinalityConstraint,
     ForceIncludeConstraint,
     GroupLimitConstraint,
@@ -456,3 +457,137 @@ class TestSensitivity:
         trend = res["frontier_shadow_price_trend"]
         assert trend, "LP path must populate frontier_shadow_price_trend (the swept linear_floor objective)"
         assert all("shadow_price" in t and t["lever"] == "Yield" for t in trend)
+
+
+# ─── Audit-pass regressions: support caps, direction-aware sweeps, dual wording ───
+
+class TestSupportRespectsCountCaps:
+    def test_group_caps_plus_global_cardinality_never_violated(self):
+        """Group caps whose sum exceeds the global cardinality cap: every exact point
+        must respect BOTH (the old support decode unioned per-group tops and could
+        activate more options than the global cap allows)."""
+        names = [f"o{i}" for i in range(6)]
+        scores = []
+        for i, n in enumerate(names):
+            scores.append(Score(option=n, objective="Ret", value=float(3 + (i * 2) % 5)))
+            scores.append(Score(option=n, objective="Risk", value=30.0))
+        cov = {a: {b: (0.3 if a == b else 0.02) for b in names} for a in names}
+        p = Problem(
+            name="caps", approach="proportional",
+            objectives=[Objective(name="Ret", direction="maximize", aggregation="sum"),
+                        Objective(name="Risk", direction="minimize", aggregation="quadratic")],
+            options=[Option(name=n) for n in names], scores=scores,
+            interaction_matrices=[InteractionMatrix(objective="Risk", entries=cov)],
+            constraints=[GroupLimitConstraint(options=["o0", "o1", "o2"], max=2),
+                         GroupLimitConstraint(options=["o3", "o4", "o5"], max=2),
+                         CardinalityConstraint(min=1, max=3)],
+        )
+        run = optimize(p, mode="fast", seed=1, solver="highs")
+        assert run.solutions
+        for s in run.solutions:
+            active = [o for o, v in (s.allocations or {}).items() if v > 0]
+            assert len(active) <= 3, active
+            assert sum(1 for o in active if o in ("o0", "o1", "o2")) <= 2, active
+            assert sum(1 for o in active if o in ("o3", "o4", "o5")) <= 2, active
+
+    def test_qp_sweep_covers_a_minimize_linear_objective(self):
+        """Direction-aware epsilon bounds: a mean-variance model whose linear objective
+        MINIMIZES (cost) must still sweep the full tradeoff — the old max(coef) upper
+        bound left the ceiling forever slack and the frontier collapsed to ~2 points."""
+        names = [f"o{i}" for i in range(6)]
+        cost = [2.0, 7.9, 3.5, 5.0, 6.2, 4.1]
+        scores = []
+        for i, n in enumerate(names):
+            scores.append(Score(option=n, objective="Cost", value=cost[i]))
+            scores.append(Score(option=n, objective="Risk", value=30.0))
+        cov = {a: {b: (0.3 if a == b else 0.02) for b in names} for a in names}
+        p = Problem(
+            name="qpmin", approach="proportional",
+            objectives=[Objective(name="Risk", direction="minimize", aggregation="quadratic"),
+                        Objective(name="Cost", direction="minimize", aggregation="sum")],
+            options=[Option(name=n) for n in names], scores=scores,
+            interaction_matrices=[InteractionMatrix(objective="Risk", entries=cov)],
+        )
+        run = optimize(p, mode="fast", seed=1, solver="highs")
+        costs = sorted(s.objective_values["Cost"] for s in run.solutions)
+        assert len(run.solutions) >= 10
+        # The sweep reaches the cheap corner (all-in on the 2.0 option) and trades away from it.
+        assert costs[0] <= 2.2
+        assert costs[-1] - costs[0] >= 1.0
+
+
+class TestShapeGateQuadCount:
+    def test_two_quadratics_declined_in_words(self):
+        names = ["A", "B", "C"]
+        cov = {a: {b: (0.2 if a == b else 0.01) for b in names} for a in names}
+        scores = []
+        for n in names:
+            scores.append(Score(option=n, objective="RiskA", value=20.0))
+            scores.append(Score(option=n, objective="RiskB", value=20.0))
+        p = Problem(
+            name="twoquad", approach="proportional",
+            objectives=[Objective(name="RiskA", direction="minimize", aggregation="quadratic"),
+                        Objective(name="RiskB", direction="minimize", aggregation="quadratic")],
+            options=[Option(name=n) for n in names], scores=scores,
+            interaction_matrices=[InteractionMatrix(objective="RiskA", entries=cov),
+                                  InteractionMatrix(objective="RiskB", entries=cov)],
+        )
+        fits, msg = exact_solver_fits(p)
+        assert fits is False
+        assert "single variance term" in msg
+
+
+class TestLpDualDirection:
+    def test_floor_price_on_a_maximize_primary_is_a_cost(self):
+        """Ground truth for the dual convention: on a Revenue-max LP with a binding
+        allocation floor, the reported floor price must equal how much Revenue is LOST
+        per unit the floor rises (cost sense), and the interpretation must say 'worsens'
+        — the old wording claimed the primary shifts UP by the price."""
+        names = ["x", "y", "z"]
+        rev = {"x": 3.0, "y": 1.0, "z": 2.0}
+        scores = []
+        for n in names:
+            scores.append(Score(option=n, objective="Rev", value=rev[n]))
+            scores.append(Score(option=n, objective="Frag", value={"x": 2.0, "y": 1.0, "z": 3.0}[n]))
+        def _mk(floor):
+            return Problem(
+                name="lpdir", approach="proportional",
+                objectives=[Objective(name="Rev", direction="maximize", aggregation="sum"),
+                            Objective(name="Frag", direction="minimize", aggregation="sum")],
+                options=[Option(name=n) for n in names], scores=scores,
+                constraints=[AllocationBoundConstraint(option="y", min=floor, max=100)],
+            )
+        p = _mk(20)
+        p.run = optimize(p, mode="fast", seed=1)
+        p.exact_run = optimize(p, mode="fast", seed=1, solver="highs")
+        # Revenue-max corner: x carries everything above y's floor. Raising the floor by
+        # one point moves 1% from x (3.0/pt) to y (1.0/pt): Revenue drops by 2.0/pt... on
+        # the per-1% scale used by sum aggregation over integer-percent allocations.
+        best = max(p.exact_run.solutions, key=lambda s: s.objective_values["Rev"])
+        sens = best.sensitivity
+        assert sens is not None
+        rc = {r.option: r for r in sens.reduced_costs}
+        y = rc["y"]
+        assert y.allocation <= 21
+        # Cost sense: the floor's price is positive (it costs Revenue), magnitude = the
+        # marginal Rev given up per allocation point moved from the best option to y.
+        assert y.reduced_cost > 0
+        # Ground-truth re-solve: raise the floor one percentage point (0.01 weight
+        # units — duals are per unit weight); the Rev-max corner drops by about the
+        # reported price scaled to that move.
+        p2 = _mk(21)
+        p2.exact_run = optimize(p2, mode="fast", seed=1, solver="highs")
+        best2 = max(p2.exact_run.solutions, key=lambda s: s.objective_values["Rev"])
+        drop = best.objective_values["Rev"] - best2.objective_values["Rev"]
+        expected = y.reduced_cost / 100.0
+        assert drop > 0
+        assert abs(drop - expected) <= 0.5 * expected
+
+    def test_shadow_interpretation_uses_cost_framing(self):
+        from engine.explorer import _shadow_interpretation
+        from engine.models import ShadowPrice
+
+        sp = ShadowPrice(name="StrategicValue", role="linear_floor", shadow_price=0.21)
+        text = _shadow_interpretation(sp, "Revenue")
+        assert "worsens 'Revenue' by ~0.21" in text
+        assert "shifts" not in text

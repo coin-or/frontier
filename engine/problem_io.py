@@ -153,17 +153,26 @@ def from_portable(
 
 
 def write_bundle(p: Problem, dest: Path) -> dict:
-    """Write problem.json + scores.json (+ solutions.json) into ``dest``."""
+    """Write problem.json + scores.json (+ solutions.json) into ``dest``.
+
+    A faithful snapshot: each file lands atomically (temp file + rename, so a crash
+    mid-save never leaves a half-written library bundle), and when the problem carries
+    no results a leftover solutions.json from a previous occupant of the same name is
+    removed — loading the bundle round-trips exactly what was saved."""
+    from .store import _atomic_write
+
     dest.mkdir(parents=True, exist_ok=True)
     problem, scores, solutions = to_portable(p)
     written: dict[str, str] = {}
-    (dest / _PROBLEM_FILE).write_text(json.dumps(problem, indent=2))
+    _atomic_write(dest / _PROBLEM_FILE, json.dumps(problem, indent=2))
     written["problem"] = str(dest / _PROBLEM_FILE)
-    (dest / _SCORES_FILE).write_text(json.dumps(scores, indent=2))
+    _atomic_write(dest / _SCORES_FILE, json.dumps(scores, indent=2))
     written["scores"] = str(dest / _SCORES_FILE)
     if solutions is not None:
-        (dest / _SOLUTIONS_FILE).write_text(json.dumps(solutions, indent=2))
+        _atomic_write(dest / _SOLUTIONS_FILE, json.dumps(solutions, indent=2))
         written["solutions"] = str(dest / _SOLUTIONS_FILE)
+    else:
+        (dest / _SOLUTIONS_FILE).unlink(missing_ok=True)
     return written
 
 

@@ -282,7 +282,7 @@ def model(
                 Without section: the summary (counts + status flags — always small).
                 With section: targeted slice. Valid sections:
                   summary, objectives, options, scores, constraints, matrices,
-                  scenarios, run, runs, curated, references,
+                  scenarios, run, runs, exact_run, curated, references,
                   full (the complete dump — can exceed token cap for large models).
                 Drill into the slice you need rather than pulling "full".
       list    — All problems. No params.
@@ -343,6 +343,10 @@ def model(
         # Malformed model input (e.g. a non-finite score, a wrong field type) — return a
         # concise error instead of an uncaught tool crash, and before anything is persisted.
         return {"error": f"Invalid input: {_format_validation_error(e)}"}
+    except ValueError as e:
+        # Worded engine declines (unknown constraint type, bad approach string, unknown
+        # problem_id) — same contract as the solve/explore tools: the message IS the answer.
+        return {"error": str(e)}
 
 
 def _model_create(params: dict) -> dict:
@@ -675,8 +679,6 @@ def _format_constraint(c, units: dict | None = None) -> str:
     units = units or {}
     if t == "max_allocation":
         return f"≤{_fmt_num(d.get('max'))}% per option"
-    if t == "min_allocation":
-        return f"≥{_fmt_num(d.get('min'))}% per option"
     if t == "objective_bound":
         op = {"max": "≤", "min": "≥"}.get(d.get("operator"), str(d.get("operator")))
         obj = d.get("objective")
@@ -947,7 +949,10 @@ def _parse_constraint(c: dict | Constraint) -> Constraint:
         case "allocation_bound":
             return AllocationBoundConstraint(**c)
         case _:
-            raise ValueError(f"Unknown constraint type: {ctype}")
+            raise ValueError(
+                f"Unknown constraint type: {ctype}. Valid types: force_include, force_exclude, "
+                "exclusion_pair, dependency, cardinality, objective_bound, group_limit, "
+                "max_allocation, allocation_bound.")
 
 
 # ─── Tool 2: solve ───
@@ -1188,6 +1193,10 @@ def _solve_run_body(p: Problem, fingerprint: str, *, mode: OptimizeMode | None =
     overlay_scope = None
     use_curated = (is_exact_solver(solver) and (scope or "curated") != "full"
                    and p.run is not None and bool(p.run.solutions))
+    # Progressive certify audits ONE specific NSGA frontier — remember which, so the
+    # persist gate below can tell if a concurrent solve replaced it mid-certify (the model
+    # fingerprint alone wouldn't notice: same inputs, different run).
+    certified_run_id = p.run.run_id if use_curated else None
     try:
         if use_curated:
             run = optimizer.certify_curated(p, p.run, solver=solver, exact=exact,
@@ -1217,6 +1226,14 @@ def _solve_run_body(p: Problem, fingerprint: str, *, mode: OptimizeMode | None =
                 "stale": True,
                 "note": ("The problem was edited while this solve was running, so the frontier no "
                          "longer matches the current model. Nothing was overwritten — re-run solve."),
+            }
+        if certified_run_id is not None and (p.run is None or p.run.run_id != certified_run_id):
+            return {
+                "status": "stale",
+                "stale": True,
+                "note": ("A new solve replaced the frontier this certify pass was auditing, so the "
+                         "overlay would certify a run that is no longer current. Nothing was "
+                         "overwritten — re-run the exact solve against the new frontier."),
             }
         if run.solutions:
             # Snapshot constraints from the (unchanged) solved state.

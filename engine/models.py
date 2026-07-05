@@ -26,17 +26,6 @@ class Direction(str, Enum):
     minimize = "minimize"
 
 
-class ConstraintType(str, Enum):
-    cardinality = "cardinality"
-    force_include = "force_include"
-    force_exclude = "force_exclude"
-    objective_bound = "objective_bound"
-    exclusion_pair = "exclusion_pair"
-    dependency = "dependency"
-    group_limit = "group_limit"
-    max_allocation = "max_allocation"
-
-
 class Aggregation(str, Enum):
     sum = "sum"
     avg = "avg"
