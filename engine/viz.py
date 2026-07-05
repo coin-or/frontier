@@ -45,7 +45,9 @@ def _scatter_exact_layer(problem: Problem, run: Run, objectives: list,
     """Provenance + optional exact-overlay for the frontier scatter.
 
     `provenance` labels the rendered frontier — `kind` heuristic vs exact, the precise `solver`,
-    and `exact_certified` (a zero-gap MILP certification). `exact_overlay` is attached only when a
+    and `exact_certified` (every point carries an optimality certificate: always on the
+    continuous LP/QP path, on MILP only at a zero gap — `solvers.run_is_certified` is the
+    single classifier). `exact_overlay` is attached only when a
     *heuristic* base-case frontier is shown while an exact-solver overlay exists for the same
     problem: it carries the exact-certified points to draw on top, plus the heuristic points the
     exact front strictly dominates (`dominated_ids`) — so the chart can show "these looked
@@ -53,13 +55,13 @@ def _scatter_exact_layer(problem: Problem, run: Run, objectives: list,
     in `_frontier_provenance`, so the overlay never leaks onto a scenario frontier (scenario runs
     are NSGA-only; the base-case exact overlay doesn't apply to them).
     """
-    from solvers import is_exact_solver
+    from solvers import is_exact_solver, run_is_certified
 
     is_exact = is_exact_solver(run.solver)
     provenance = {
         "kind": "exact" if is_exact else "heuristic",
         "solver": run.solver,
-        "exact_certified": bool(run.exact),
+        "exact_certified": run_is_certified(run, problem.approach),
     }
     exact_run = problem.exact_run
     if (scenario is not None or is_exact or exact_run is None
@@ -84,7 +86,7 @@ def _scatter_exact_layer(problem: Problem, run: Run, objectives: list,
                      if any(_dominates_min(E[k], N[i]) for k in exact_front)]
     overlay = {
         "solver": exact_run.solver,
-        "exact_certified": bool(exact_run.exact),
+        "exact_certified": run_is_certified(exact_run, problem.approach),
         "points": [{"solution_id": s.solution_id, "values": dict(s.objective_values)}
                    for s in exact_run.solutions],
         "dominated_ids": dominated_ids,

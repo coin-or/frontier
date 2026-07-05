@@ -610,3 +610,41 @@ def test_solution_has_option_context(solved_problem):
     sol = get_solution(solved_problem, sols[0]["solution_id"])
     assert "option_context" in sol
     assert all(0.0 <= v <= 1.0 for v in sol["option_context"].values())
+
+
+class TestShadowPriceTrend:
+    """Size-aware trend: frontier-length row dumps get downsampled, never shipped whole
+    (the live rationing test returned 182 rows); -0.0 is folded at the display layer."""
+
+    @staticmethod
+    def _sols(n):
+        from engine.models import ShadowPrice, SolutionSensitivity
+        return [Solution(solution_id=i, selected_options=["A"],
+                         objective_values={"Return": float(i)},
+                         sensitivity=SolutionSensitivity(shadow_prices=[
+                             ShadowPrice(name="Return", role="linear_floor",
+                                         shadow_price=float(i))]))
+                for i in range(n)]
+
+    def test_small_frontier_passes_whole(self):
+        from engine.explorer import _shadow_price_trend
+        trend, elided = _shadow_price_trend(self._sols(5))
+        assert len(trend) == 5 and elided is None
+
+    def test_portfolio_scale_downsampled_endpoints_kept(self):
+        from engine.explorer import _TREND_MAX_POINTS, _shadow_price_trend
+        trend, elided = _shadow_price_trend(self._sols(182))
+        assert len(trend) == _TREND_MAX_POINTS
+        assert trend[0]["solution_id"] == 0 and trend[-1]["solution_id"] == 181
+        assert elided["total_points"] == 182 and elided["shown"] == _TREND_MAX_POINTS
+        assert "downsampled" in elided["note"]
+
+    def test_negative_zero_folded(self):
+        import math
+        from engine.models import ShadowPrice, SolutionSensitivity
+        from engine.explorer import _shadow_price_trend
+        s = Solution(solution_id=0, selected_options=["A"], objective_values={"Return": 1.0},
+                     sensitivity=SolutionSensitivity(shadow_prices=[
+                         ShadowPrice(name="Return", role="linear_floor", shadow_price=-0.0)]))
+        trend, _ = _shadow_price_trend([s])
+        assert math.copysign(1.0, trend[0]["shadow_price"]) == 1.0

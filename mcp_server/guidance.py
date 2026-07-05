@@ -11,6 +11,7 @@ keep working.
 from __future__ import annotations
 
 import functools
+import html
 import re
 from pathlib import Path
 
@@ -36,9 +37,16 @@ def _skill_files(dirname: str) -> list[Path]:
     return [f for f in files if f.exists()]
 
 
+def _norm_heading(s: str) -> str:
+    """Heading match key: case-, whitespace-, and HTML-entity-insensitive. MCP clients
+    escape tool-call strings, so a heading like 'Shadow Prices & Reduced Costs' arrives
+    as '...&amp;...' — unescape before matching or the section is unreachable."""
+    return " ".join(html.unescape(s).split()).lower()
+
+
 def _extract_section(text: str, section: str) -> str | None:
     """Return one markdown section (heading through next same-or-higher heading)."""
-    want = section.strip().lower()
+    want = _norm_heading(section)
     out: list[str] = []
     level: int | None = None
     for ln in text.splitlines(keepends=True):
@@ -46,7 +54,7 @@ def _extract_section(text: str, section: str) -> str | None:
         if m:
             if level is not None and len(m.group(1)) <= level:
                 break
-            if level is None and m.group(2).strip().lower() == want:
+            if level is None and _norm_heading(m.group(2)) == want:
                 level = len(m.group(1))
         if level is not None:
             out.append(ln)

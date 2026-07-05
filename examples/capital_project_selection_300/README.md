@@ -44,7 +44,7 @@
 2. *“Which projects should we fund? Show me the real choices — where we can push value, where risk bites, and where the budget pinches.”*
    `solve run` → `explore tradeoffs`: the NPV/cost/risk/strategic-fit frontier — extremes, a balanced plan, inflection points, and the binding read (the budget and category caps).
 3. *“Keep the balanced plan and the safest one as finalists. How much should I trust these?”*
-   `explore curate` per pick (each carries a `quality` gate) → `solve solver="highs"` → `explore certify`: the exact-MILP overlay names which heuristic points it dominates — the headline at 300 binary options — plus coverage, the NSGA-never-dominates invariant, and corner sharpening.
+   `explore curate` per pick (each carries a `quality` gate) → `solve solver="highs"` → `explore certify`: the exact-MILP overlay names which heuristic points it dominates — the headline at 300 binary options — plus coverage, the NSGA-never-dominates invariant, and corner sharpening. When a finalist lands among the dominated points, re-curate its exact counterpart (`explore curate` on the certified point that beats it) so the step-6 handoff carries certified plans.
 4. *“Which picks survive cost inflation, and what does the delivery crunch cost us?”*
    `solve run_scenarios` → `explore scenario_results`: the frontier re-solved per future — which projects hold their place when every cost reads 12% higher against the same $1,550M, and what the 45–70 execution cap prices out (the base frontier's median portfolio is 70 projects, so the crunch bites half of it).
 5. *“What's the tightest lever, and can you guarantee we never blow the risk ceiling, whichever feasible plan we land on?”*

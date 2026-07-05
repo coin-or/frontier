@@ -86,7 +86,7 @@ A complete matrix isn't necessarily a useful one. The `model update` response in
 
 - **Low variance**: If `score_variance_by_objective` shows a value near zero, all options score similarly on that objective and it won't drive differentiation. Flag it: "ROI scores range 7-8 — this objective won't distinguish options. Consider dropping it or re-scoring with finer granularity."
 - **Scale mismatch**: When variances differ by 100x+ across objectives (e.g., ROI=1600 vs Alignment=1.3), the raw scales are very different. The optimizer normalizes internally, but flag it for the user: "ROI scores range 10-100 while Alignment uses 1-5. Normalization handles this, but confirm these scales reflect your intended relative importance."
-- **Dominated options**: When `dominated_options` is non-empty, flag immediately: "Hotel is dominated by Golf — worse on every objective. Consider removing it to reduce noise."
+- **Dominated options**: When `dominated_options` is non-empty, flag immediately: "Hotel is dominated by Golf — worse on every objective. Consider removing it to reduce noise." At scale the list is capped (`dominated_options_total` carries the full count) — and remember constraints can keep a dominated option in every plan (a floor or force-include is commitment, not merit).
 
 ### Aggregation Implications
 
