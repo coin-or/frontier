@@ -39,7 +39,7 @@
    Framing that input (`model create` + `model update`) lands on exactly this problem — the ask plus the data reconstruct `problem.json` and `scores.json` verbatim (guarded by `tests/test_upstream_kits.py`). `model load source="claims_investigation_triage"` is the shortcut: it skips framing and restores the pre-solved runs too.
 
 2. *“Which claims should we work this month? Show me my real choices across recovery, hours, and how much we'd annoy legitimate customers — and how the picture changes if the CAT event pulls one of my seniors.”*
-   `solve run` + `solve run_scenarios` → `explore tradeoffs`: the frontier over 2^180 plans (at the recovery target, friction spans 313 to ~430 — the axis a recovery-per-hour ranking can't see) plus the `capacity_cut` scenario frontier; the hours capacity and the Auto line cap bind.
+   `solve run` + `solve run_scenarios` → `explore tradeoffs`: the frontier over 2^180 plans (at the recovery target, friction spans ~328 to ~387 — the axis a recovery-per-hour ranking can't see; the step-3 exact overlay widens the endpoints to ~313–417) plus the `capacity_cut` scenario frontier; the hours capacity and the Auto line cap bind.
 3. *“Keep the balanced plan and the gentlest one that still hits the target. How much should I trust these?”*
    `explore curate` per pick → `solve solver="highs"` → `explore certify`: the exact-MILP overlay — its dominance audit is the scale story at 180 binary options — plus coverage, the invariant, and quality gates.
 4. *“Is there any legal plan that skips the regulator referrals or any of the four big-ticket claims? And is LIA-1002 covered too?”*

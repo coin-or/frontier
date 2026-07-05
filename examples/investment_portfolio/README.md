@@ -40,7 +40,7 @@
 3. *“Keep the balanced portfolio and the calmest one. Are these optimal, or just decent?”*
    `explore curate` per pick (the proportional quality checks are live — concentration, cap-pinning) → `solve solver="highs"` → `explore certify`: the exact mean-variance QP overlay, sharpest at the volatility corner.
 4. *“At the balanced portfolio, which of my rules is costing me the most — and which allocations hold up across all three macro futures?”*
-   `explore sensitivity` → `explore scenario_results`: solver-exact duals — Yield the costlier axis to push (~3× Return's price at the balanced anchor), the Return shadow price falling to ~0 along the frontier, the near-miss read naming the closest excluded fund, HYG pinned at its 30% cap (duals are anchor-specific — expect the values to shift at another frontier point or after a re-solve) — then robustness tiers, scenario risk, and per-scenario `varies`/`held_fixed`.
+   `explore sensitivity` → `explore scenario_results`: solver-exact duals — Yield the costlier axis to push (~4× Return's price at the balanced anchor), the Return shadow price falling to ~0 along the frontier, the near-miss read naming the closest excluded fund, HYG pinned at its 30% cap (duals are anchor-specific — expect the values to shift at another frontier point or after a re-solve) — then robustness tiers, scenario risk, and per-scenario `varies`/`held_fixed`.
 5. *“Write the shortlist up for the investment committee.”*
    `explore curated format="markdown"`: the handoff table with per-finalist quality.
 

@@ -35,7 +35,7 @@
    Framing that input (`model create` + `model update`) lands on exactly this problem — the ask plus the data reconstruct `problem.json` and `scores.json` verbatim (guarded by `tests/test_upstream_kits.py`). `model load source="research_cohort_selection"` is the shortcut: it skips framing and restores the pre-solved runs too.
 
 2. *“Help me pick the strongest 24-person cohort from these 144 volunteers — signal against dropout risk against cost.”*
-   `solve run` → `explore tradeoffs`: the frontier of exact-24 cohorts — it reaches ~99% of a top-24-by-signal ranking's signal at lower risk *and* cost, because the floors leave real choice inside each stratum.
+   `solve run` → `explore tradeoffs`: the frontier of exact-24 cohorts — it reaches ~99% of the best floor-feasible top-by-signal ranking's signal at lower risk *and* cost, because the floors leave real choice inside each stratum.
 3. *“Keep the balanced cohort and the max-signal one. Are these actually optimal?”*
    `explore curate` per pick → `solve solver="highs"` → `explore certify`: the exact MILP overlay; the binding read reports the site caps and stratum floors (the floor read prices one extra member above the floor).
 4. *“Tell me something the protocol doesn't say: how many rare-variant (F) volunteers can any legal cohort carry — does "at most 6" hold across every one, and does "at most 5"?”*

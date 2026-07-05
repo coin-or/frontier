@@ -24,8 +24,8 @@ Under the hood it maps the **Pareto frontier** (every outcome where improving on
 <sub>Investment portfolio: risk / return / yield frontier with a plain-language tradeoff read</sub>
 </td>
 <td width="50%" valign="top">
-<img src="assets/example-capital.png" alt="Capital project formulation and per-scenario frontiers" /><br/>
-<sub>Capital project selection: model formulation and per-scenario frontiers</sub>
+<img src="assets/example-capital.png" alt="Capital project formulation and the exact-certified frontier" /><br/>
+<sub>Capital project selection: model formulation and the exact-certified frontier</sub>
 </td>
 </tr>
 </table>

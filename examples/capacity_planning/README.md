@@ -9,7 +9,7 @@
 - **`data.csv` + `variability_interactions.csv` + `variability_low_renewables.csv`**: the raw inputs a decision owner would actually have — everything step 1 pastes.
 - **`problem.json`**: 5 objectives (LCOE / CO2 / VariabilityRisk / LandUse minimize, Firmness maximize; VariabilityRisk is quadratic), proportional approach, constraints (no project >25%, CO2 ≤0.20 t/MWh, Firmness ≥50), and two scenarios (`carbon_price`, `low_renewables_year`).
 - **`scores.json`**: 22 projects across 9 technologies with LCOE/CO2/Firmness/LandUse/VariabilityRisk scores, plus the VariabilityRisk covariance matrix (stacking correlated renewables raises portfolio risk super-linearly).
-- **`solutions.json`**: the exploratory NSGA `run` plus the per-scenario `scenario_run`.
+- **`solutions.json`**: the exploratory NSGA `run`, the exact mean-variance QP `exact_run` overlay (HiGHS) with solver-exact duals per point, and the per-scenario `scenario_run`.
 
 ## The runbook
 

@@ -9,7 +9,7 @@
 - **`data.csv` + `concentration_interactions.csv`**: the raw inputs a decision owner would actually have — everything step 1 pastes.
 - **`problem.json`**: 5 objectives (Cost / LeadTime / ESGRisk / ConcentrationRisk minimize, Reliability maximize; ConcentrationRisk is quadratic), proportional approach, constraints (≤15% per supplier, ≤3 active suppliers per region, weighted reliability ≥78), and two scenarios (`china_disruption`, `demand_surge`).
 - **`scores.json`**: 25 suppliers across 6 regions with per-objective scores, plus the `ConcentrationRisk` interaction matrix (high within-region correlation, ~0 across regions).
-- **`solutions.json`**: the exploratory NSGA `run` plus the per-scenario `scenario_run`.
+- **`solutions.json`**: the exploratory NSGA `run`, the exact mean-variance QP `exact_run` overlay (HiGHS) with solver-exact duals per point, and the per-scenario `scenario_run`.
 
 ## The runbook
 
