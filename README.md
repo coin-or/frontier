@@ -52,6 +52,16 @@ Spreadsheets hit a complexity wall once options and constraints in a decision mu
 
 **When it fits:** any decision that picks a subset from many options or splits an allocation across them, under conflicting objectives and hard constraints, with data to score the options. Pairwise interactions between options, where one's value depends on another, make the problem genuinely nonlinear: beyond what a ranking or weighted sum can capture. **When it's overkill:** one objective, a handful of options, or goals that mostly agree; a spreadsheet or a sorted ranking already answers those.
 
+**The shape map.** Two decision shapes cover the space — **select a subset** (each option in or out) or **split an allocation** (each option gets a share). Every shape runs the full workflow on the evolutionary engine — the frontier, scenarios, curation, and composition mining come standard — and the shape and structure determine which proof layer lights up on top. Each row links a [worked example](examples/) that owns that cell:
+
+| Shape | Structure | Proof layer on top | Flagship example |
+|---|---|---|---|
+| Select a subset | linear totals | exact MILP certification + `audit` guarantees over every feasible plan | [Capital projects (300)](examples/capital_project_selection_300/), [Claims triage](examples/claims_investigation_triage/) |
+| Select a subset | pairwise interactions | `audit` guarantees (feasibility proofs) | [Charging network siting](examples/charging_network_siting/) |
+| Split an allocation | linear | exact LP certification + solver duals (shadow prices, the price of a floor) | [Scarce supply rationing](examples/scarce_supply_rationing/) |
+| Split an allocation | mean-variance risk | exact QP certification + solver duals | [Investment portfolio](examples/investment_portfolio/) |
+| Split an allocation | pairwise interactions | the approximate frontier end to end | [Marketing channel budget](examples/channel_budget/) |
+
 **What it adds beyond an LLM alone** (its design principles):
 - **The full frontier**: every Pareto-optimal plan, yours to weigh.
 - **Explore broadly, certify selectively**: the heuristic maps the whole space; an exact solver then proves the finalists you'd commit to on supported shapes, catching dominated points the heuristic showed as efficient. It can only confirm or improve them.
