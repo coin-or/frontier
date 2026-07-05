@@ -52,7 +52,7 @@ Spreadsheets hit a complexity wall once options and constraints in a decision mu
 
 **When it fits:** any decision that picks a subset from many options or splits an allocation across them, under conflicting objectives and hard constraints, with data to score the options. Pairwise interactions between options, where one's value depends on another, make the problem genuinely nonlinear: beyond what a ranking or weighted sum can capture. **When it's overkill:** one objective, a handful of options, or goals that mostly agree; a spreadsheet or a sorted ranking already answers those.
 
-**The shape map.** The [examples table](examples/) maps all twelve:
+**Target problem types.** The [examples table](examples/) maps all twelve:
 
 | Shape | Structure | Examples |
 |---|---|---|
