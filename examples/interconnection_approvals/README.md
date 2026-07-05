@@ -11,41 +11,39 @@
 - **`scores.json`**: the 58 options scored per objective; enabler upgrades carry negative ReliabilityRisk (they relieve system stress), the two speculative ones carry nothing.
 - **`solutions.json`**: the base NSGA `run`, the exact-MILP `exact_run` overlay, and the per-budget `scenario_run`.
 
-## Step 1 — the ask
-
-Paste this, together with `data.csv`, into a fresh session:
-
-> We're deciding this cycle's interconnection approvals (`data.csv`): 42 large-load
-> requests plus 16 enabling substation upgrades, each with net value ($M), capex ($M),
-> and a reliability-risk score (upgrades relieve system stress, so theirs can be
-> negative), plus the request's zone, any enabler it requires (several requests share
-> one; upgrade U12 is the staged second phase of U11), and any mutually-exclusive
-> node-headroom rival.
->
-> The decision is which requests and upgrades to approve — each is in or out. Maximize
-> total net value; minimize total capex and total reliability risk.
->
-> Hard rules:
-> - Total capex at or below the $400M envelope.
-> - At most 9 approvals per zone (the `zone` column).
-> - An option with a `requires` entry can only be approved if its enabler is approved.
-> - For each mutually-exclusive pair, approve at most one.
->
-> And the real question is budget-shaped: run four capex envelopes as futures —
-> **$320M / $400M / $480M / $560M** — same rules each time, only the capex ceiling
-> moves. Which approvals survive every envelope, and what does each step up buy?
-
-Framing that input (`model create` + `model update`) lands on exactly this problem — the ask plus the data reconstruct `problem.json` and `scores.json` verbatim (guarded by `tests/test_upstream_kits.py`). `model load source="interconnection_approvals"` is the shortcut: it skips framing and restores the pre-solved runs too.
-
 ## The runbook
 
-1. *“Which requests should we approve this cycle at the $400M envelope? Show me the real value/capex/reliability choices.”*
+1. **Frame it from the raw inputs** — paste this ask, together with `data.csv`, into a fresh session:
+
+   > We're deciding this cycle's interconnection approvals (`data.csv`): 42 large-load
+   > requests plus 16 enabling substation upgrades, each with net value ($M), capex ($M),
+   > and a reliability-risk score (upgrades relieve system stress, so theirs can be
+   > negative), plus the request's zone, any enabler it requires (several requests share
+   > one; upgrade U12 is the staged second phase of U11), and any mutually-exclusive
+   > node-headroom rival.
+   >
+   > The decision is which requests and upgrades to approve — each is in or out. Maximize
+   > total net value; minimize total capex and total reliability risk.
+   >
+   > Hard rules:
+   > - Total capex at or below the $400M envelope.
+   > - At most 9 approvals per zone (the `zone` column).
+   > - An option with a `requires` entry can only be approved if its enabler is approved.
+   > - For each mutually-exclusive pair, approve at most one.
+   >
+   > And the real question is budget-shaped: run four capex envelopes as futures —
+   > **$320M / $400M / $480M / $560M** — same rules each time, only the capex ceiling
+   > moves. Which approvals survive every envelope, and what does each step up buy?
+
+   Framing that input (`model create` + `model update`) lands on exactly this problem — the ask plus the data reconstruct `problem.json` and `scores.json` verbatim (guarded by `tests/test_upstream_kits.py`). `model load source="interconnection_approvals"` is the shortcut: it skips framing and restores the pre-solved runs too.
+
+2. *“Which requests should we approve this cycle at the $400M envelope? Show me the real value/capex/reliability choices.”*
    `solve run` → `explore tradeoffs`: the base approval frontier over 2^58 portfolios.
-2. *“Run all four budget levels: which approvals survive every envelope, and what does each step up to $560M actually buy?”*
+3. *“Run all four budget levels: which approvals survive every envelope, and what does each step up to $560M actually buy?”*
    `solve run_scenarios` → `explore scenario_frontiers` + `explore scenario_results`: max net value climbs $941M → $1,020M → $1,167M → $1,370M; R33 and R41 sit in the value-oriented plans at *every* envelope, and the stretch envelope admits a nameable block — U4 with R04, R08, and R12, a shared enabler arriving *with* the requests that pay for it.
-3. *“Keep the base pick and the stretch portfolio. How sure can we be — and which upgrades earn their cost only through what they unlock?”*
+4. *“Keep the base pick and the stretch portfolio. How sure can we be — and which upgrades earn their cost only through what they unlock?”*
    `explore curate` per pick → `solve solver="highs"` → `explore certify` (the overlay never buys the two speculative upgrades — the cheapest sanity check in the bundle) → `explore composition`: U2 unlocks five requests and appears wherever two or more of them do; the staged U11→U12 chain means stage two never appears without stage one.
-4. *“Write the approval recommendation up for the commission.”*
+5. *“Write the approval recommendation up for the commission.”*
    `explore curated format="markdown"`: the handoff table.
 
 **Scale note.** Fifty-eight options keeps the curated finalists narratable while 2^58 portfolios with 31 dependencies and 5 exclusions is far past hand-pruning. For the same binary MILP arc at 300-option scale (where exact coverage reclaim is the headline), see [`capital_project_selection_300`](../capital_project_selection_300/); for scenarios that shock *scores* rather than the constraint set, see [`supplier_selection`](../supplier_selection/) and [`charging_network_siting`](../charging_network_siting/).

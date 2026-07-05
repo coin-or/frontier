@@ -11,30 +11,28 @@
 - **`scores.json`**: the 8 initiatives scored on ROI (%) and reach (0–10).
 - **`solutions.json`**: the exploratory NSGA `run` plus the exact-LP `exact_run` overlay (HiGHS), with solver-exact duals per point.
 
-## Step 1 — the ask
-
-Paste this, together with `data.csv`, into a fresh session:
-
-> We're setting next year's growth budget and I want help splitting it across eight
-> candidate initiatives (`data.csv`): each is rated on ROI (%) and strategic reach (0–10).
->
-> The decision is what percent of the budget each initiative gets — shares total 100%,
-> and an initiative can get nothing. We want the highest blended ROI and the most
-> strategic reach; both read as the allocation-weighted average of the ratings.
->
-> One hard rule: no single initiative may take more than 35% of the budget.
-
-Framing that input (`model create` + `model update`) lands on exactly this problem — the ask plus the data reconstruct `problem.json` and `scores.json` verbatim (guarded by `tests/test_upstream_kits.py`). `model load source="budget_allocation"` is the shortcut: it skips framing and restores the pre-solved runs too.
-
 ## The runbook
 
-1. *“How should we split the growth budget across these eight initiatives? Show me the real ROI-versus-reach choices.”*
+1. **Frame it from the raw inputs** — paste this ask, together with `data.csv`, into a fresh session:
+
+   > We're setting next year's growth budget and I want help splitting it across eight
+   > candidate initiatives (`data.csv`): each is rated on ROI (%) and strategic reach (0–10).
+   >
+   > The decision is what percent of the budget each initiative gets — shares total 100%,
+   > and an initiative can get nothing. We want the highest blended ROI and the most
+   > strategic reach; both read as the allocation-weighted average of the ratings.
+   >
+   > One hard rule: no single initiative may take more than 35% of the budget.
+
+   Framing that input (`model create` + `model update`) lands on exactly this problem — the ask plus the data reconstruct `problem.json` and `scores.json` verbatim (guarded by `tests/test_upstream_kits.py`). `model load source="budget_allocation"` is the shortcut: it skips framing and restores the pre-solved runs too.
+
+2. *“How should we split the growth budget across these eight initiatives? Show me the real ROI-versus-reach choices.”*
    `solve run` → `explore tradeoffs`: the ROI/reach frontier — extremes, a balanced plan, and the knees.
-2. *“Keep the balanced split and the ROI-max one. Are these actually optimal?”*
+3. *“Keep the balanced split and the ROI-max one. Are these actually optimal?”*
    `explore curate` per pick → `solve solver="highs"` → `explore certify`: the exact LP overlay audits the heuristic frontier and sharpens the ROI corner.
-3. *“Which of our limits is costing us the most, and which initiative just missed the cut?”*
+4. *“Which of our limits is costing us the most, and which initiative just missed the cut?”*
    `explore sensitivity`: solver-exact duals — the Strategic Reach floor pricing at ~4.0 (each point of reach costs ~4% ROI, rising into diminishing returns), Localization the closest near-miss (reduced cost ~10), AI Copilot and Self-Serve Onboarding pinned at the 35% cap. (Values as read at the balanced anchor of the shipped exact overlay — duals are anchor-specific, so expect them to shift at another frontier point or after a re-solve.)
-4. *“Write it up for the planning review.”*
+5. *“Write it up for the planning review.”*
    `explore curated format="markdown"`: the handoff table.
 
 A small near-miss says "improve the option"; a binding cap says "lift your own limit." For the richer product-mix LP see [`production_mix`](../production_mix/); for the mean-variance QP, [`investment_portfolio`](../investment_portfolio/); for binary selection with no duals, [`capital_project_selection_300`](../capital_project_selection_300/).
