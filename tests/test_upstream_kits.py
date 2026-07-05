@@ -167,9 +167,18 @@ def test_rationing_kit_reconstructs_canonical_model_and_scenarios():
 
 def test_budget_allocation_kit():
     rows = _rows("budget_allocation")
-    scores = _scores_from(rows, "initiative", [("ROI", "roi_pct"), ("Strategic Reach", "strategic_reach")])
-    _assert_model("budget_allocation", [{"type": "max_allocation", "max": 35}], scores,
-                  [("ROI", "maximize", "avg"), ("Strategic Reach", "maximize", "avg")], "initiative")
+    built = [{"type": "max_allocation", "max": 20},
+             {"type": "objective_bound", "objective": "TimeToImpact", "operator": "max", "value": 9.0}]
+    built += [{"type": "group_limit", "options": opts, "min": 0, "max": 3}
+              for opts in _groups(rows, "initiative", "department").values()]
+    scores = _scores_from(rows, "initiative", [("ROI", "roi_pct"), ("Strategic Reach", "strategic_reach"),
+                                               ("TimeToImpact", "time_to_impact_months")])
+    p, _ = _assert_model("budget_allocation", built, scores,
+                         [("ROI", "maximize", "avg"), ("Strategic Reach", "maximize", "avg"),
+                          ("TimeToImpact", "minimize", "avg")], "initiative")
+    haircut = [{"option": r["initiative"], "objective": "ROI", "value": float(r["roi_under_downturn"])}
+               for r in rows if r["roi_under_downturn"]]
+    assert _canon_scores(_scenario(p, "downturn")["score_overrides"]) == _canon_scores(haircut)
 
 
 def test_production_mix_kit():
@@ -394,7 +403,7 @@ KIT_COVERED = [
 # this proves the ask PROSE still states those rules, so the quoted ask can't
 # drift from the model the test certifies.
 ASK_LITERALS = {
-    "budget_allocation": ["35%"],
+    "budget_allocation": ["20%", "at most 3", "9 months", "roi_under_downturn"],
     "capacity_planning": ["25%", "0.20", "at or above 50", "15% higher",
                           "variability_low_renewables.csv"],
     "capital_project_selection_300": ["$1550M", "between 45 and 100", "20 Growth",
