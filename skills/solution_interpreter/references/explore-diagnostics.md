@@ -49,7 +49,8 @@ The exact-overlay audit (`explorer.certify_against_exact`). Top-level fields:
 |---|---|---|
 | `nsga_run_id` / `exact_run_id` | str | The two runs compared (exploratory NSGA, exact overlay) |
 | `exact_solver` | str | `"highs"` \| `"cuopt"` — the engine behind the overlay |
-| `exact_certified` | bool | True only when a MILP overlay ran at a zero gap (`exact=true`) |
+| `exact_certified` | bool | Every overlay point carries an optimality certificate — always true on the continuous LP/QP path (exact by construction); on MILP only at a zero gap (`exact=true`) |
+| `rounding_bound_dips` | obj? | Proportional only: exact points whose whole-percent rounding dips a hair outside an `objective_bound` — a display artifact (the LP/QP honors the bound); present as a footnote, never as infeasibility |
 | `nsga_count` / `exact_count` | int | Frontier sizes |
 | `dominance_audit` | obj | The heuristic slack exact catches (below) |
 | `coverage` | obj\|null | Hypervolume the overlay reclaims over NSGA alone (below); `null` on a degenerate flat-axis front |

@@ -346,3 +346,23 @@ class TestFrontierQuality:
         q = frontier_quality(sols, self.objectives)
         assert q["status"] == "POOR"
         assert q["gates"]["non_trivial"] is False
+
+
+class TestDominatedOptionsCap:
+    def test_long_dominated_list_ships_head_plus_total(self):
+        """The list is echoed on every structural model update — at portfolio scale
+        (205 entries on capital-300) it's capped like missing_scores, with the full
+        count preserved."""
+        from engine.metrics import _MAX_DOMINATED_RETURNED
+
+        objs = [Objective(name="Revenue", direction="maximize"),
+                Objective(name="Effort", direction="minimize")]
+        options = [Option(name="A")] + [Option(name=f"B{i}") for i in range(25)]
+        scores = [Score(option="A", objective="Revenue", value=10),
+                  Score(option="A", objective="Effort", value=1)]
+        for i in range(25):
+            scores += [Score(option=f"B{i}", objective="Revenue", value=1),
+                       Score(option=f"B{i}", objective="Effort", value=9)]
+        m = data_metrics(Problem(objectives=objs, options=options, scores=scores))
+        assert len(m["dominated_options"]) == _MAX_DOMINATED_RETURNED
+        assert m["dominated_options_total"] == 25

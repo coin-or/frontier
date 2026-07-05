@@ -14,7 +14,7 @@ import pytest
 
 import mcp_server.server as srv
 from engine.explorer import _dominates_min, certify_against_exact
-from engine.models import CardinalityConstraint, Objective, Option, Problem, Run, Score, Solution
+from engine.models import Approach, CardinalityConstraint, Objective, Option, Problem, Run, Score, Solution
 from engine.store import Store
 
 
@@ -299,3 +299,68 @@ def test_certify_injects_solution_interpreter_only_once_per_problem(srv_tmp_stor
     second = srv.explore(action="certify", problem_id=pid)
     assert "error" not in second
     assert "_skill_guidance" not in second                                  # ...and never again
+
+
+# ── Rounding bound dips + certification flag ──
+
+
+def test_rounding_dip_under_objective_bound_is_flagged():
+    """Whole-percent rounding of a continuous optimum can dip a point a hair under an
+    objective_bound the LP itself honors (live case: StrategicValue 4.784 vs ≥ 4.8).
+    Certify names the point instead of silently contradicting the model."""
+    from engine.models import ObjectiveBoundConstraint
+
+    p = _problem(_OBJS)
+    p.constraints = [ObjectiveBoundConstraint(objective="Return", operator="min", value=4.8)]
+    nsga = _run([(5.0, 3.0)], _OBJS)
+    exact = _run([(4.784, 2.0), (4.85, 2.5)], _OBJS, solver="highs")
+    out = certify_against_exact(p, nsga, exact)
+    dips = out["rounding_bound_dips"]
+    assert [d["solution_id"] for d in dips["dips"]] == [0]
+    assert dips["dips"][0]["bound"] == "min 4.8"
+    assert "rounding" in dips["note"]
+
+
+def test_no_dips_key_when_all_points_honor_the_bounds():
+    from engine.models import ObjectiveBoundConstraint
+
+    p = _problem(_OBJS)
+    p.constraints = [ObjectiveBoundConstraint(objective="Return", operator="min", value=4.8)]
+    nsga = _run([(5.0, 3.0)], _OBJS)
+    exact = _run([(4.9, 2.0)], _OBJS, solver="highs")
+    assert "rounding_bound_dips" not in certify_against_exact(p, nsga, exact)
+
+
+def test_binary_selections_never_report_rounding_dips():
+    """Binary selections are integer by construction — no rounding, no dips key, even
+    when a bounded MILP incumbent sits outside an objective_bound for other reasons."""
+    from engine.models import ObjectiveBoundConstraint
+
+    p = _problem(_OBJS)
+    p.approach = Approach.binary
+    p.constraints = [ObjectiveBoundConstraint(objective="Return", operator="min", value=4.8)]
+    nsga = _run([(5.0, 3.0)], _OBJS)
+    exact = _run([(4.784, 2.0)], _OBJS, solver="highs")
+    assert "rounding_bound_dips" not in certify_against_exact(p, nsga, exact)
+
+
+def test_exact_certified_true_on_continuous_path_without_exact_flag():
+    """The LP/QP scalarization is exact by construction: a proportional overlay is
+    certified even when exact=True was never requested (it's a MILP-only knob) —
+    the field must not read as a failed certification (live-test confusion)."""
+    p = _problem(_OBJS)
+    nsga = _run([(5.0, 3.0)], _OBJS)
+    exact = _run([(6.0, 2.0)], _OBJS, solver="highs", exact=False)
+    assert certify_against_exact(p, nsga, exact)["exact_certified"] is True
+
+
+def test_exact_certified_on_binary_requires_zero_gap():
+    """A default binary MILP run accepts 0.1%-gap incumbents — certified only with
+    exact=True."""
+    p = _problem(_OBJS)
+    p.approach = Approach.binary
+    nsga = _run([(5.0, 3.0)], _OBJS)
+    bounded = _run([(6.0, 2.0)], _OBJS, solver="highs", exact=False)
+    zero_gap = _run([(6.0, 2.0)], _OBJS, solver="highs", exact=True)
+    assert certify_against_exact(p, nsga, bounded)["exact_certified"] is False
+    assert certify_against_exact(p, nsga, zero_gap)["exact_certified"] is True

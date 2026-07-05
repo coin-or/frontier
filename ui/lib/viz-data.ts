@@ -22,7 +22,9 @@ export type ScatterPoint = {
 };
 
 // Which frontier the scatter was computed over. `kind` distinguishes the heuristic NSGA
-// frontier from an exact-certified one; `exact_certified` is a zero-gap MILP certification.
+// frontier from an exact-certified one; `exact_certified` means every point carries an
+// optimality certificate (always on the continuous LP/QP path, on MILP only at a zero gap —
+// engine-side single classifier: solvers.run_is_certified).
 // Mirrors the engine's `frontier_source`, but lives inside viz_data so the chart can denote it.
 export type ScatterProvenance = {
   kind: "heuristic" | "exact";

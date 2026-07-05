@@ -25,6 +25,7 @@ from .models import (
 )
 
 _MAX_MISSING_SCORES_RETURNED = 20
+_MAX_DOMINATED_RETURNED = 20  # echoed on every structural model update — cap like missing_scores
 
 
 def compute_metrics(problem: Problem) -> dict:
@@ -104,10 +105,12 @@ def data_metrics(problem: Problem) -> dict:
         "score_completeness": round(completeness, 4),
         "missing_scores": missing,
         "score_variance_by_objective": variance_by_obj,
-        "dominated_options": dominated,
+        "dominated_options": dominated[:_MAX_DOMINATED_RETURNED],
     }
     if missing_total > _MAX_MISSING_SCORES_RETURNED:
         result["missing_scores_total"] = missing_total
+    if len(dominated) > _MAX_DOMINATED_RETURNED:
+        result["dominated_options_total"] = len(dominated)
 
     return result
 

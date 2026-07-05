@@ -910,6 +910,31 @@ def _coverage_gain(N: np.ndarray, E: np.ndarray, seed: int = 42) -> dict | None:
     }
 
 
+def _objective_bound_dips(problem: Problem, run: Run) -> list[dict]:
+    """Points whose objective values sit a hair outside a stated ``objective_bound``.
+
+    Whole-percent rounding of a continuous (proportional) optimum can dip a point just
+    under a floor the LP/QP itself honors — name those points instead of letting the
+    certified table silently contradict the model. Display artifact, not an infeasible
+    plan; binary selections are integer by construction and never dip."""
+    if problem.approach != Approach.proportional:
+        return []
+    dips = []
+    for c in problem.constraints or []:
+        if getattr(c, "type", "") != "objective_bound":
+            continue
+        op = getattr(c.operator, "value", c.operator)
+        bound = float(c.value)
+        for s in run.solutions:
+            v = s.objective_values.get(c.objective)
+            if v is None:
+                continue
+            if (v < bound - 1e-9) if op == "min" else (v > bound + 1e-9):
+                dips.append({"solution_id": s.solution_id, "objective": c.objective,
+                             "bound": f"{op} {bound}", "value": v})
+    return dips
+
+
 def certify_against_exact(problem: Problem, nsga_run: Run, exact_run: Run) -> dict:
     """Audit an approximate (NSGA) frontier against an exact-solver frontier — the
     explore-then-certify workflow made measurable. **Solver-agnostic:** the exact run can come
@@ -1047,6 +1072,10 @@ def certify_against_exact(problem: Problem, nsga_run: Run, exact_run: Run) -> di
             flagged.append({"solution_id": s.solution_id, "status": q["status"],
                             "checks": [f["check"] for f in q["flags"]]})
 
+    from solvers import run_is_certified   # local, matching _frontier_provenance's pattern
+
+    bound_dips = _objective_bound_dips(problem, exact_run)
+
     return {
         "quality_gates": {
             "flagged": flagged,
@@ -1057,7 +1086,13 @@ def certify_against_exact(problem: Problem, nsga_run: Run, exact_run: Run) -> di
         "nsga_run_id": nsga_run.run_id,
         "exact_run_id": exact_run.run_id,
         "exact_solver": exact_run.solver,
-        "exact_certified": bool(exact_run.exact),
+        "exact_certified": run_is_certified(exact_run, problem.approach),
+        **({"rounding_bound_dips": {
+            "dips": bound_dips,
+            "note": ("whole-percent rounding of the continuous optimum — the LP/QP "
+                     "solution honors the bound; a display artifact of the integer "
+                     "allocation, not an infeasible plan"),
+        }} if bound_dips else {}),
         "nsga_count": len(N),
         "exact_count": len(E),
         "dominance_audit": {
@@ -2848,6 +2883,7 @@ def sensitivity_analysis(problem: Problem, solution_id: int | None = None,
                     "solve run_scenarios → explore scenario_results"),
         })
 
+    trend, trend_elided = _shadow_price_trend(exact)
     return {
         "source": "solver_exact",
         "solver": run.solver,
@@ -2864,7 +2900,8 @@ def sensitivity_analysis(problem: Problem, solution_id: int | None = None,
         "near_misses": near,
         "capped_options": capped,
         **({"floored_options": floored} if floored else {}),
-        "frontier_shadow_price_trend": _shadow_price_trend(exact),
+        "frontier_shadow_price_trend": trend,
+        **({"frontier_shadow_price_trend_elided": trend_elided} if trend_elided else {}),
         "note": ("Shadow prices and reduced costs are reported at the reference solution; the "
                  "trend shows how the swept-constraint shadow price changes along the frontier "
                  "(rising = diminishing returns)."),
@@ -2913,16 +2950,18 @@ def _format_solution_sensitivity(s, objective: str | None = None, floors: dict |
     sens = s.sensitivity
     floors = floors or {}
     target = f"'{objective}'" if objective else "the optimal mix"
+    # `+ 0.0` folds IEEE -0.0 to 0.0 for display (also cleans runs captured before the
+    # solver layer normalized).
     where = [{
         "lever": sp.name,
         "role": sp.role,
-        "shadow_price": sp.shadow_price,
+        "shadow_price": sp.shadow_price + 0.0,
         "interpretation": _shadow_interpretation(sp, objective),
     } for sp in sorted(sens.shadow_prices, key=lambda x: -abs(x.shadow_price))]
 
     near = [{
         "option": rc.option,
-        "reduced_cost": rc.reduced_cost,
+        "reduced_cost": rc.reduced_cost + 0.0,
         "interpretation": (f"unheld — would enter the optimal mix if its marginal contribution "
                            f"to {target} improved by ~{abs(rc.reduced_cost):.4g}"),
     } for rc in sorted((r for r in sens.reduced_costs
@@ -2955,18 +2994,38 @@ def _format_solution_sensitivity(s, objective: str | None = None, floors: dict |
     return where, near, capped, floored
 
 
-def _shadow_price_trend(solutions) -> list[dict]:
+# Frontier-length outputs get the same size-aware treatment as scenario_results'
+# robustness table: past this many points the trend is downsampled, never dumped whole.
+_TREND_MAX_POINTS = 40
+
+
+def _shadow_price_trend(solutions) -> tuple[list[dict], dict | None]:
     """The swept-objective shadow price across the frontier, by solution_id — the
     diminishing-returns curve made exact. The swept constraint is the QP path's ``return_floor``
-    or, on the pure-linear LP path (no quadratic primary), the first objective ``linear_floor``."""
+    or, on the pure-linear LP path (no quadratic primary), the first objective ``linear_floor``.
+
+    Returns ``(trend, elided)``: at portfolio scale (one row per frontier point) the curve is
+    evenly downsampled to ``_TREND_MAX_POINTS`` with both endpoints kept — the shape survives,
+    the row dump doesn't — and ``elided`` says what was thinned; small frontiers pass whole."""
     trend = []
     for s in sorted(solutions, key=lambda x: x.solution_id):
         sp = next((x for x in s.sensitivity.shadow_prices
                    if x.role in ("return_floor", "linear_floor")), None)
         if sp is not None:
             trend.append({"solution_id": s.solution_id, "lever": sp.name,
-                          "shadow_price": sp.shadow_price})
-    return trend
+                          "shadow_price": sp.shadow_price + 0.0})
+    if len(trend) <= _TREND_MAX_POINTS:
+        return trend, None
+    total = len(trend)
+    keep = sorted({round(i * (total - 1) / (_TREND_MAX_POINTS - 1))
+                   for i in range(_TREND_MAX_POINTS)})
+    elided = {
+        "total_points": total,
+        "shown": len(keep),
+        "note": ("trend evenly downsampled (endpoints kept) — the diminishing-returns shape "
+                 "is intact; ask sensitivity at a specific solution_id for any thinned point"),
+    }
+    return [trend[i] for i in keep], elided
 
 
 def _compute_pair_rates(sorted_sols, obj_a, obj_b) -> list[dict]:

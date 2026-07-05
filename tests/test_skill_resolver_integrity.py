@@ -89,3 +89,15 @@ def test_prose_and_code_referenced_sections_resolve():
     ]
     unresolved = [f"{s}:{sec!r}" for s, sec in referenced if not _resolves(s, sec)]
     assert not unresolved, f"referenced sections that don't resolve: {unresolved}"
+
+
+def test_headings_resolve_html_escaped():
+    """MCP clients HTML-escape tool-call strings, so 'Shadow Prices & Reduced Costs'
+    arrives as '...&amp;...' — every heading must resolve in escaped form too (a live
+    user test found the &-containing sections unreachable)."""
+    import html
+
+    for skill in SKILLS:
+        for h in _headings(skill):
+            assert _resolves(skill, html.escape(h, quote=True)), (
+                f"{skill}: {h!r} unreachable when HTML-escaped")

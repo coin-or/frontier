@@ -193,3 +193,20 @@ def is_exact_solver(solver: str | None) -> bool:
     every caller classifies runs the same way.
     """
     return (solver or "") in EXACT_SOLVERS
+
+
+def run_is_certified(run, approach) -> bool:
+    """Whether every point on ``run`` carries an optimality certificate.
+
+    The one place that answers "is this overlay certified?" (the ``exact_certified``
+    surfaces): the continuous proportional path (LP/QP scalarization) is exact by
+    construction, so any exact-backend proportional run qualifies; a binary MILP run
+    qualifies only at a zero gap (``exact=True`` — the default accepts 0.1%-gap
+    incumbents); heuristic NSGA runs never do. ``approach`` is ``problem.approach``
+    (enum or plain string).
+    """
+    if not is_exact_solver(getattr(run, "solver", None)):
+        return False
+    if bool(getattr(run, "exact", False)):
+        return True
+    return getattr(approach, "value", approach) == "proportional"

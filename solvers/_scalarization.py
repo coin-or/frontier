@@ -604,15 +604,17 @@ def _build_solution_sensitivity(raw, opt_names, alloc_row, linear_idxs, obj_list
             name = bound_names[n_model] if n_model < len(bound_names) else "objective_bound"
             n_model += 1
             shadow.append(ShadowPrice(name=name, role="model_bound",
-                                      shadow_price=round(float(sp["value"]), 6)))
+                                      shadow_price=round(float(sp["value"]), 6) + 0.0))
             continue
         name = "budget" if li is None else obj_list[linear_idxs[li]].name
         shadow.append(ShadowPrice(name=name, role=sp["role"],
-                                  shadow_price=round(float(sp["value"]), 6)))
+                                  shadow_price=round(float(sp["value"]), 6) + 0.0))
     rcs = raw.get("reduced_costs") or []
     elig = raw.get("eligible") or [True] * len(opt_names)
+    # `+ 0.0` folds IEEE -0.0 (a rounded tiny negative) to 0.0 — "-0.0" in a priced
+    # lever table reads as a glitch.
     reduced = [ReducedCost(option=opt_names[i], allocation=int(alloc_row[i]),
-                           reduced_cost=round(float(rcs[i]), 6),
+                           reduced_cost=round(float(rcs[i]), 6) + 0.0,
                            eligible=bool(elig[i]) if i < len(elig) else True)
                for i in range(len(opt_names)) if i < len(rcs)]
     return SolutionSensitivity(source="solver_exact", shadow_prices=shadow,

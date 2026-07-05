@@ -320,3 +320,26 @@ class TestSolveToolSelection:
         assert p.results_stale is False
         assert p.exact_run is not None and p.exact_run.solver == "highs"
         assert p.run is None  # stale NSGA run dropped, not falsely vouched for
+
+
+class TestRunIsCertified:
+    """solvers.run_is_certified — the single exact_certified classifier: continuous
+    proportional runs are exact by construction; binary MILP needs a zero gap; NSGA never."""
+
+    def test_matrix(self):
+        from engine.models import Approach
+        from solvers import run_is_certified
+
+        class R:  # duck-typed run
+            def __init__(self, solver, exact):
+                self.solver, self.exact = solver, exact
+
+        assert run_is_certified(R("highs", False), Approach.proportional) is True
+        assert run_is_certified(R("cuopt", False), Approach.proportional) is True
+        assert run_is_certified(R("highs", False), Approach.binary) is False
+        assert run_is_certified(R("highs", True), Approach.binary) is True
+        assert run_is_certified(R("nsga-ii", False), Approach.proportional) is False
+        assert run_is_certified(R("nsga-iii", True), Approach.binary) is False
+        assert run_is_certified(R(None, False), "proportional") is False
+        # plain-string approach tolerated (schema-level callers)
+        assert run_is_certified(R("highs", False), "proportional") is True
