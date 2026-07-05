@@ -241,10 +241,12 @@ def _content_signature(selected_options: list[str], allocations: dict[str, int] 
 
 
 class ShadowPrice(BaseModel):
-    """Dual of a binding constraint — the marginal change in the optimized objective
-    per unit the constraint is relaxed. Decision read: *where to invest* — the lever
-    with the largest shadow price buys the most improvement. Exact for the continuous
-    LP/QP path only; integer/MILP solutions carry no exact duals."""
+    """Dual of a binding constraint, in the solver's COST sense: the price the
+    constraint charges the optimized objective per unit of tightening (positive =
+    tighter hurts, whichever direction that objective optimizes). Decision read:
+    *where to invest* — the lever with the largest price buys the most when
+    renegotiated. Exact for the continuous LP/QP path only; integer/MILP solutions
+    carry no exact duals."""
     name: str            # "budget", or the swept objective's name (e.g. "Return")
     role: str            # "budget" | "return_floor" | "linear_floor"
     shadow_price: float

@@ -85,6 +85,12 @@ from mcp_server.jobs import (
     _store_write_lock,
 )
 
+class _ToolDecline(ValueError):
+    """A deliberate worded decline from input parsing — the message IS the tool answer.
+    Distinct from an incidental ValueError deep in rendering, which should surface as a
+    loud failure (a defect), not masquerade as polite input feedback."""
+
+
 mcp = FastMCP(
     "Frontier",
     instructions=(
@@ -343,9 +349,9 @@ def model(
         # Malformed model input (e.g. a non-finite score, a wrong field type) — return a
         # concise error instead of an uncaught tool crash, and before anything is persisted.
         return {"error": f"Invalid input: {_format_validation_error(e)}"}
-    except ValueError as e:
-        # Worded engine declines (unknown constraint type, bad approach string, unknown
-        # problem_id) — same contract as the solve/explore tools: the message IS the answer.
+    except _ToolDecline as e:
+        # Deliberate worded declines (unknown constraint type, bad approach string) — the
+        # message IS the answer. Incidental ValueErrors still surface loudly as defects.
         return {"error": str(e)}
 
 
@@ -371,7 +377,10 @@ def _model_create(params: dict) -> dict:
         context=params.get("context", ""),
     )
     if "approach" in params:
-        kwargs["approach"] = Approach(params["approach"])
+        try:
+            kwargs["approach"] = Approach(params["approach"])
+        except ValueError:
+            raise _ToolDecline(f"Unknown approach: {params['approach']!r}. Use 'binary' or 'proportional'.")
     if "objectives" in params:
         kwargs["objectives"] = [
             Objective(**o) if isinstance(o, dict) else o for o in params["objectives"]
@@ -501,7 +510,10 @@ def _model_update(params: dict) -> dict:
 
     # Approach
     if "approach" in params:
-        p.approach = Approach(params["approach"])
+        try:
+            p.approach = Approach(params["approach"])
+        except ValueError:
+            raise _ToolDecline(f"Unknown approach: {params['approach']!r}. Use 'binary' or 'proportional'.")
         structural_change = True
         interpreter_rearm = True
 
@@ -925,34 +937,29 @@ def _model_load(params: dict) -> dict:
     return result
 
 
+# One table = one vocabulary: the dispatch and the error message can't drift apart.
+_CONSTRAINT_TYPES: dict[str, type] = {
+    "cardinality": CardinalityConstraint,
+    "force_include": ForceIncludeConstraint,
+    "force_exclude": ForceExcludeConstraint,
+    "objective_bound": ObjectiveBoundConstraint,
+    "exclusion_pair": ExclusionPairConstraint,
+    "dependency": DependencyConstraint,
+    "group_limit": GroupLimitConstraint,
+    "max_allocation": MaxAllocationConstraint,
+    "allocation_bound": AllocationBoundConstraint,
+}
+
+
 def _parse_constraint(c: dict | Constraint) -> Constraint:
     if not isinstance(c, dict):
         return c
     ctype = c.get("type")
-    match ctype:
-        case "cardinality":
-            return CardinalityConstraint(**c)
-        case "force_include":
-            return ForceIncludeConstraint(**c)
-        case "force_exclude":
-            return ForceExcludeConstraint(**c)
-        case "objective_bound":
-            return ObjectiveBoundConstraint(**c)
-        case "exclusion_pair":
-            return ExclusionPairConstraint(**c)
-        case "dependency":
-            return DependencyConstraint(**c)
-        case "group_limit":
-            return GroupLimitConstraint(**c)
-        case "max_allocation":
-            return MaxAllocationConstraint(**c)
-        case "allocation_bound":
-            return AllocationBoundConstraint(**c)
-        case _:
-            raise ValueError(
-                f"Unknown constraint type: {ctype}. Valid types: force_include, force_exclude, "
-                "exclusion_pair, dependency, cardinality, objective_bound, group_limit, "
-                "max_allocation, allocation_bound.")
+    cls = _CONSTRAINT_TYPES.get(ctype)
+    if cls is None:
+        raise _ToolDecline(f"Unknown constraint type: {ctype}. "
+                           f"Valid types: {', '.join(_CONSTRAINT_TYPES)}.")
+    return cls(**c)
 
 
 # ─── Tool 2: solve ───
@@ -1193,6 +1200,17 @@ def _solve_run_body(p: Problem, fingerprint: str, *, mode: OptimizeMode | None =
     overlay_scope = None
     use_curated = (is_exact_solver(solver) and (scope or "curated") != "full"
                    and p.run is not None and bool(p.run.solutions))
+    if use_curated:
+        # A source frontier missing a current objective would be "certified" with epsilon
+        # targets defaulting to 0.0 — a degraded overlay that then reads as fresh. Decline
+        # in the same worded terms explore uses, naming the re-solve.
+        have = set(p.run.solutions[0].objective_values)
+        missing = [o.name for o in p.objectives if o.name not in have]
+        if missing:
+            return {"feasible": False,
+                    "error": (f"the exploratory frontier predates the current objectives "
+                              f"(no values for: {', '.join(missing)}) — re-run solve first, "
+                              "then certify it with the exact solver.")}
     # Progressive certify audits ONE specific NSGA frontier — remember which, so the
     # persist gate below can tell if a concurrent solve replaced it mid-certify (the model
     # fingerprint alone wouldn't notice: same inputs, different run).

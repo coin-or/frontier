@@ -2504,3 +2504,75 @@ def test_option_removal_prunes_allocation_bound():
     srv.model(action="update", problem_id=pid, options=[{"name": n} for n in ("A", "B", "C")])
     g = srv.model(action="get", problem_id=pid, section="constraints")
     assert all(c.get("option") != "D" for c in g["constraints"])
+
+
+class TestStaleGuardCoverage:
+    """The objective-drift guard must cover every consumer — including the paths that
+    would otherwise LAUNDER stale state (certify) or zero-fill it (scenario regret)."""
+
+    def _solved_then_grown(self):
+        pid = _build_solvable_problem()
+        srv.solve(action="run", problem_id=pid, seed=42)
+        srv.model(action="update", problem_id=pid,
+                  objectives=[{"name": "Rev", "direction": "maximize"},
+                              {"name": "Eff", "direction": "minimize"},
+                              {"name": "Risk", "direction": "minimize"}],
+                  scores=[{"option": o, "objective": "Risk", "value": 1.0}
+                          for o in ("A", "B", "C", "D")])
+        return pid
+
+    def test_progressive_certify_declines_stale_source_frontier(self):
+        pid = self._solved_then_grown()
+        out = srv.solve(action="run", problem_id=pid, solver="highs")
+        assert "predates the current objectives" in out.get("error", "")
+
+    def test_explore_certify_declines_stale_runs(self):
+        pid = _build_solvable_problem()
+        srv.solve(action="run", problem_id=pid, seed=42)
+        srv.solve(action="run", problem_id=pid, solver="highs", scope="full")
+        srv.model(action="update", problem_id=pid,
+                  objectives=[{"name": "Rev", "direction": "maximize"},
+                              {"name": "Effort", "direction": "minimize"}],  # Eff renamed
+                  scores=[{"option": o, "objective": "Effort", "value": 1.0}
+                          for o in ("A", "B", "C", "D")])
+        out = srv.explore(action="certify", problem_id=pid)
+        assert "stale" in out.get("error", "")
+
+    def test_scenario_results_declines_stale_scenario_runs(self):
+        pid = _build_solvable_problem()
+        srv.model(action="update", problem_id=pid, scenario_config={
+            "enabled": True,
+            "scenarios": [{"name": "Base", "score_overrides": []}],
+        })
+        srv.solve(action="run", problem_id=pid, seed=42)
+        srv.solve(action="run_scenarios", problem_id=pid, seed=42)
+        srv.model(action="update", problem_id=pid,
+                  objectives=[{"name": "Rev", "direction": "maximize"},
+                              {"name": "Eff", "direction": "minimize"},
+                              {"name": "Risk", "direction": "minimize"}],
+                  scores=[{"option": o, "objective": "Risk", "value": 1.0}
+                          for o in ("A", "B", "C", "D")])
+        out = srv.explore(action="scenario_results", problem_id=pid)
+        assert "stale" in out.get("error", "")
+        assert "run_scenarios" in out["error"]
+
+    def test_stale_scenario_decline_names_run_scenarios(self):
+        pid = _build_solvable_problem()
+        srv.model(action="update", problem_id=pid, scenario_config={
+            "enabled": True,
+            "scenarios": [{"name": "Base", "score_overrides": []}],
+        })
+        srv.solve(action="run", problem_id=pid, seed=42)
+        srv.solve(action="run_scenarios", problem_id=pid, seed=42)
+        # base re-solve AFTER the objective change clears the base run's staleness…
+        srv.model(action="update", problem_id=pid,
+                  objectives=[{"name": "Rev", "direction": "maximize"},
+                              {"name": "Eff", "direction": "minimize"},
+                              {"name": "Risk", "direction": "minimize"}],
+                  scores=[{"option": o, "objective": "Risk", "value": 1.0}
+                          for o in ("A", "B", "C", "D")])
+        srv.solve(action="run", problem_id=pid, seed=42)
+        # …so the scenario read must name the remedy that actually clears ITS decline.
+        out = srv.explore(action="tradeoffs", problem_id=pid, scenario="Base")
+        assert "stale" in out.get("error", "")
+        assert "run_scenarios" in out["error"]

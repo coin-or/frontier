@@ -580,7 +580,6 @@ class TestLpDualDirection:
         best2 = max(p2.exact_run.solutions, key=lambda s: s.objective_values["Rev"])
         drop = best.objective_values["Rev"] - best2.objective_values["Rev"]
         expected = y.reduced_cost / 100.0
-        assert drop > 0
         assert abs(drop - expected) <= 0.5 * expected
 
     def test_shadow_interpretation_uses_cost_framing(self):
@@ -591,3 +590,30 @@ class TestLpDualDirection:
         text = _shadow_interpretation(sp, "Revenue")
         assert "worsens 'Revenue' by ~0.21" in text
         assert "shifts" not in text
+
+    def test_floored_option_always_in_support_under_caps(self):
+        """An allocation floor force-activates its option, so every decoded support —
+        the EA's and the deterministic anchors' — must admit it first: a support without
+        it is infeasible at the solver, and before this guard the per-objective anchor
+        corners could all come back infeasible and silently vanish."""
+        names = [f"o{i}" for i in range(6)]
+        # o5 scores WORST on both objectives so priority ranking would drop it last.
+        rev = [9.0, 8.0, 7.0, 6.0, 5.0, 1.0]
+        frag = [2.0, 3.0, 4.0, 5.0, 6.0, 9.0]
+        scores = []
+        for i, n in enumerate(names):
+            scores.append(Score(option=n, objective="Rev", value=rev[i]))
+            scores.append(Score(option=n, objective="Frag", value=frag[i]))
+        p = Problem(
+            name="floorcap", approach="proportional",
+            objectives=[Objective(name="Rev", direction="maximize", aggregation="sum"),
+                        Objective(name="Frag", direction="minimize", aggregation="sum")],
+            options=[Option(name=n) for n in names], scores=scores,
+            constraints=[GroupLimitConstraint(options=["o0", "o1", "o2"], max=2),
+                         CardinalityConstraint(min=1, max=3),
+                         AllocationBoundConstraint(option="o5", min=10, max=100)],
+        )
+        run = optimize(p, mode="fast", seed=1, solver="highs")
+        assert run.solutions
+        for s in run.solutions:
+            assert (s.allocations or {}).get("o5", 0) >= 10, s.allocations

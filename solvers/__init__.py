@@ -129,21 +129,16 @@ def exact_solver_fits(problem: "Problem") -> tuple[bool, str]:
             "with the NSGA heuristic."
         )
     quad = [o for o in problem.objectives if o.aggregation == Aggregation.quadratic]
-    # The QP shape has exactly one quadratic minimand swept against linear objectives: a
-    # second quadratic can be neither the minimand nor an epsilon row, and with no linear
-    # objective there is nothing to sweep — decline both rather than mis-solve.
+    # The QP shape has exactly one quadratic minimand swept against linear objectives —
+    # a second quadratic can be neither the minimand nor an epsilon row, so decline it in
+    # words rather than mis-solve. (The all-quadratic single-objective case is unreachable:
+    # engine validation requires ≥2 objectives before any solve.)
     if len(quad) > 1:
         names = ", ".join(o.name for o in quad)
         return False, (
             f"the exact QP minimizes a single variance term; {names} are all quadratic. "
             "Keep one quadratic risk objective (fold the rest into its interaction matrix, or "
             "redefine them as sum/avg), or explore with the NSGA heuristic."
-        )
-    if quad and len(problem.objectives) == len(quad):
-        return False, (
-            "the exact QP sweeps its variance minimand against at least one linear (sum/avg) "
-            "objective; this model has only the quadratic. Add a linear objective to trade it "
-            "against, or explore with the NSGA heuristic."
         )
     # A model objective_bound on the quadratic objective can't be a linear row
     # (``_model_bound_rows`` skips it). A MAX cap on the quadratic minimand is still exactly

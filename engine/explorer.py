@@ -638,6 +638,12 @@ def scenario_regret(problem: Problem) -> dict:
     """
     if not problem.scenario_run or not problem.scenario_run.scenario_runs:
         return {"available": False}
+    # Stale guard: regret re-scores base solutions per scenario over the CURRENT
+    # objectives — a missing objective would silently contribute zero regret.
+    if problem.run is not None and problem.run.solutions:
+        _consistent(problem, problem.run)
+        for _sname, _srun in problem.scenario_run.scenario_runs.items():
+            _consistent(problem, _srun, remedy="solve run_scenarios")
     if problem.run is None or not problem.run.solutions:
         return {"available": False}
     from .optimizer import make_slate_scorer
@@ -932,6 +938,10 @@ def certify_against_exact(problem: Problem, nsga_run: Run, exact_run: Run) -> di
     """
     if not nsga_run.solutions or not exact_run.solutions:
         raise ValueError("certify needs both runs to have solutions (run NSGA and an exact solver first).")
+    # Stale guard: a run missing a current objective would certify in a fabricated
+    # objective space (the value matrix fills absent names with 0.0).
+    _consistent(problem, nsga_run)
+    _consistent(problem, exact_run, remedy='the exact solve (solve solver="highs"|"cuopt")')
 
     objs = problem.objectives
     names = [o.name for o in objs]
@@ -1513,6 +1523,8 @@ def get_scenario_results(problem: Problem, cvar_alpha: float | None = None) -> d
         raise ValueError("No scenario runs found. Use solve run_scenarios first.")
     if not problem.scenario_config or not problem.scenario_config.scenarios:
         raise ValueError("No scenario config found.")
+    for _srun in problem.scenario_run.scenario_runs.values():
+        _consistent(problem, _srun, remedy="solve run_scenarios")
 
     scenario_runs = problem.scenario_run.scenario_runs
     scenarios = {s.name: s for s in problem.scenario_config.scenarios}
@@ -2226,20 +2238,23 @@ def _render_scenario_viz(result: dict) -> str:
     return "\n".join(lines)
 
 
+def _consistent(problem: Problem, run: Run, remedy: str = "solve run") -> Run:
+    """The iterate loop edits the model and peeks at previous results. Serving a run whose
+    solutions lack a current objective would KeyError deep inside a consumer — decline in
+    words instead, naming the re-solve that actually clears the decline (``remedy`` differs
+    by run kind: base solve, run_scenarios, or the exact solver)."""
+    if run.solutions:
+        have = set(run.solutions[0].objective_values)
+        missing = [o.name for o in problem.objectives if o.name not in have]
+        if missing:
+            raise ValueError(
+                f"results are stale — the model's objectives changed since this run "
+                f"(no values for: {', '.join(missing)}). Re-run {remedy} to explore the "
+                "updated model.")
+    return run
+
+
 def _require_run(problem: Problem, scenario: str | None = None, source: str | None = None) -> Run:
-    def _consistent(run: Run) -> Run:
-        # The iterate loop edits the model and peeks at the previous run's results. Serving
-        # a run whose solutions lack a current objective would KeyError deep inside an
-        # explore action — decline in words instead, naming the re-solve.
-        if run.solutions:
-            have = set(run.solutions[0].objective_values)
-            missing = [o.name for o in problem.objectives if o.name not in have]
-            if missing:
-                raise ValueError(
-                    f"results are stale — the model's objectives changed since this run "
-                    f"(no values for: {', '.join(missing)}). Re-run solve to explore the "
-                    "updated model.")
-        return run
     if scenario:
         # Scenario runs are NSGA-only, so `source` doesn't apply to them.
         if not problem.scenario_run or not problem.scenario_run.scenario_runs:
@@ -2250,12 +2265,13 @@ def _require_run(problem: Problem, scenario: str | None = None, source: str | No
         run = problem.scenario_run.scenario_runs[scenario]
         if not run.solutions:
             raise ValueError(f"Scenario '{scenario}' has no solutions.")
-        return _consistent(run)
+        return _consistent(problem, run, remedy="solve run_scenarios")
     if source == "exact":
         # Explicitly target the exact-solver frontier (e.g. when both an
         # exploratory `run` and an `exact_run` overlay exist).
         if problem.exact_run is not None and problem.exact_run.solutions:
-            return _consistent(problem.exact_run)
+            return _consistent(problem, problem.exact_run,
+                               remedy='the exact solve (solve solver="highs"|"cuopt")')
         raise ValueError("No exact_run found. Solve with an exact solver "
                          "(solver=\"highs\" or \"cuopt\") first.")
     if source not in (None, "run"):
@@ -2265,11 +2281,12 @@ def _require_run(problem: Problem, scenario: str | None = None, source: str | No
         # exact_run (the exact overlay) with no exploratory run — fall back to
         # it so those results are explorable rather than reported as "no run".
         if problem.exact_run is not None and problem.exact_run.solutions:
-            return _consistent(problem.exact_run)
+            return _consistent(problem, problem.exact_run,
+                               remedy='the exact solve (solve solver="highs"|"cuopt")')
         raise ValueError("No run found. Use solve first.")
     if not problem.run.solutions:
         raise ValueError("Run has no solutions.")
-    return _consistent(problem.run)
+    return _consistent(problem, problem.run)
 
 
 def _frontier_provenance(problem: Problem, run: Run, scenario: str | None = None) -> dict:
@@ -2723,8 +2740,9 @@ def sensitivity_analysis(problem: Problem, solution_id: int | None = None,
 
     Two reads, in decision language:
       * **where_to_invest** — constraint shadow prices for a reference solution, ranked by
-        magnitude. A shadow price is the marginal change in the optimized objective per unit a
-        binding constraint is relaxed; the largest is where relaxing buys the most.
+        magnitude, in the solver's cost sense: the price a binding constraint charges the
+        optimized objective per unit of tightening (positive = tighter hurts, whichever
+        direction the objective optimizes); the largest is where renegotiating buys the most.
       * **near_misses** — options the optimizer left at zero, ranked by reduced cost (smallest
         first = closest to entering). ``capped_options`` lists any option pinned at its
         allocation cap (a negative reduced cost — the cap binds).
