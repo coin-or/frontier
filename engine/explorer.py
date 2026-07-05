@@ -664,29 +664,41 @@ def scenario_regret(problem: Problem) -> dict:
         return min(1.0, max(0.0, gap) / span[key])
 
     per_solution = []
+    feas_count = {name: 0 for name in scen_runs}
     for s in base:
         feasible_all = True
         for name in scen_runs:
             ck = (s.content_signature, name)
             if ck not in cache:
                 cache[ck] = scorers[name](s.selected_options, s.allocations)
-            if not cache[ck]["feasible"]:
+            if cache[ck]["feasible"]:
+                feas_count[name] += 1
+            else:
                 feasible_all = False
         by_scen = {name: round(max((regret_for(s, name, ob) for ob in objs), default=0.0), 3) for name in scen_runs}
-        max_reg = max(by_scen.values(), default=0.0)
-        mean_reg = round(sum(by_scen.values()) / len(by_scen), 3) if by_scen else None
         per_solution.append({
             "solution_id": s.solution_id, "content_signature": s.content_signature,
-            "max_regret": round(max_reg, 3), "mean_regret": mean_reg,
             "by_scenario": by_scen, "feasible_in_all": feasible_all,
         })
+
+    # A total-wipeout scenario (zero feasible base solutions) makes regret uniformly 1.0
+    # there — folding it into the ranking would saturate the whole metric and hide real
+    # differences on the surviving scenarios. Exclude wipeouts from the ranking (they stay
+    # visible in by_scenario and are named in wipeout_note); when EVERY scenario is a
+    # wipeout, fall through to the existing all-saturated presentation.
+    wipeouts = [name for name in scen_runs if feas_count[name] == 0]
+    ranked = [name for name in scen_runs if name not in wipeouts] or list(scen_runs)
+    for row in per_solution:
+        ranked_vals = [row["by_scenario"][name] for name in ranked]
+        row["max_regret"] = round(max(ranked_vals, default=0.0), 3)
+        row["mean_regret"] = round(sum(ranked_vals) / len(ranked_vals), 3) if ranked_vals else None
     per_solution.sort(key=lambda x: x["max_regret"])
 
     per_objective = {}
     for ob in objs:
         best_sid, best_val = None, None
         for s in base:
-            worst = max((regret_for(s, name, ob) for name in scen_runs), default=0.0)
+            worst = max((regret_for(s, name, ob) for name in ranked), default=0.0)
             if best_val is None or worst < best_val:
                 best_val, best_sid = worst, s.solution_id
         if best_sid is not None:
@@ -723,6 +735,15 @@ def scenario_regret(problem: Problem) -> dict:
             "minimax_choice is omitted. Pick a hedge from that scenario's own frontier "
             "(explore tradeoffs scenario=<name>) or fold its constraints into the base "
             "model and re-solve."
+        )
+    elif wipeouts:
+        result["wipeout_scenarios"] = wipeouts
+        result["wipeout_note"] = (
+            f"no base-frontier solution is feasible under: {', '.join(wipeouts)} — the base "
+            "frontier cannot hedge that scenario, so it is excluded from the minimax ranking "
+            "(its regret is uniformly total; see by_scenario). Pick that scenario's plan from "
+            "its own frontier (explore tradeoffs scenario=<name>) or fold its constraints "
+            "into the base model and re-solve."
         )
     return result
 

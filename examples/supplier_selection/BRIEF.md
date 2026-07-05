@@ -16,12 +16,12 @@
 > - Weighted reliability must stay at or above 78.
 >
 > Two futures to stress-test:
-> - **China disruption** — every CN supplier goes offline (zero allocation allowed);
->   every other rule stays as-is.
+> - **China disruption** — export controls and logistics backlogs throttle every CN
+>   supplier to at most 5% of the order; every other rule stays as-is.
 > - **Demand surge** — per-supplier capacity tightens: the cap drops from 15% to 10%;
 >   every other rule stays as-is.
 
 This brief plus the two CSVs is the complete upstream input: framing it should land on
 the canonical model (proportional; four minimize + one maximize objectives with
 ConcentrationRisk quadratic; the 15% cap; six ≤3 region group limits; the reliability
-floor; both scenarios as full constraint restatements).
+floor; both scenarios as full constraint restatements — the disruption as per-CN allocation caps).

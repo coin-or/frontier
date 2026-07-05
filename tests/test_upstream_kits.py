@@ -223,7 +223,7 @@ def test_supplier_selection_kit():
                           ("ConcentrationRisk", "minimize", "quadratic")], "supplier")
     _assert_matrix("supplier_selection", "concentration_interactions.csv",
                    s["interaction_matrices"][0]["entries"])
-    china = base + [{"type": "force_exclude", "option": r["supplier"]}
+    china = base + [{"type": "allocation_bound", "option": r["supplier"], "min": 0, "max": 5}
                     for r in rows if r["region"] == "CN"]
     assert _canon(_scenario(p, "china_disruption")["constraint_overrides"]) == _canon(china)
     surge = [dict(c) for c in base]

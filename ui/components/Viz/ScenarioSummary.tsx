@@ -183,6 +183,27 @@ export function ScenarioSummary({ data }: { data: ScenarioSummaryVizData }) {
             Minimax-regret robustness
           </div>
 
+          {/* Saturation: every base plan hits max regret in some scenario, so the
+              ranking is an all-1.0 tie — a wall of 100%/✗ rows reads as broken data.
+              Surface the engine's finding instead of the meaningless table. */}
+          {regret.saturated && (
+            <div className="mb-2 rounded border border-amber-300 bg-amber-50 px-2 py-1.5 text-xs text-amber-900">
+              <span className="font-semibold">No base-frontier plan survives:</span>{" "}
+              {regret.saturation_note ??
+                "every base plan is infeasible or fully dominated in some scenario — pick a hedge from that scenario's own frontier, or fold its constraints into the base model and re-solve."}
+            </div>
+          )}
+
+          {!regret.saturated && (regret.wipeout_scenarios?.length ?? 0) > 0 && (
+            <div className="mb-2 rounded border border-amber-300 bg-amber-50 px-2 py-1.5 text-xs text-amber-900">
+              <span className="font-semibold">
+                No base plan survives {regret.wipeout_scenarios!.join(", ")}:
+              </span>{" "}
+              {regret.wipeout_note ??
+                "excluded from the minimax ranking — pick that scenario's plan from its own frontier, or fold its constraints into the base model and re-solve."}
+            </div>
+          )}
+
           {regret.minimax_choice && (
             <div className="mb-2 rounded border border-indigo-200 bg-indigo-50 px-2 py-1.5 text-xs text-indigo-900">
               <span className="font-semibold">Minimax choice:</span> solution #
@@ -192,7 +213,7 @@ export function ScenarioSummary({ data }: { data: ScenarioSummaryVizData }) {
             </div>
           )}
 
-          {regretRows.length > 0 && (
+          {!regret.saturated && regretRows.length > 0 && (
             <div className="overflow-x-auto">
               <table className="w-full border-collapse text-xs">
                 <thead className="text-stone-500">
@@ -256,7 +277,7 @@ export function ScenarioSummary({ data }: { data: ScenarioSummaryVizData }) {
             </div>
           )}
 
-          {regret.per_objective && Object.keys(regret.per_objective).length > 0 && (
+          {!regret.saturated && regret.per_objective && Object.keys(regret.per_objective).length > 0 && (
             <div className="mt-2 text-[11px] leading-relaxed text-stone-500">
               <span className="text-stone-400">lowest worst-case regret per objective:</span>{" "}
               {Object.entries(regret.per_objective).map(([obj, r], i) => (
