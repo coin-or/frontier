@@ -100,9 +100,24 @@ export type ScenarioRegret = {
     mean_regret: number | null;
     by_scenario?: Record<string, number>;
     feasible_in_all: boolean;
+    // Feasible in every RANKED scenario (wipeouts excluded) — the universe the
+    // max/mean/minimax figures are computed over. Distinguishes "fails only the
+    // excluded wipeout" from "fails a scenario that drives the ranking".
+    feasible_in_ranked?: boolean;
   }>;
   per_objective?: Record<string, { min_max_regret: number; achieved_by_solution_id: number }>;
   note?: string;
+  // True when every base-frontier solution hits max regret (infeasible or fully
+  // dominated) in some scenario — the ranking is a meaningless all-1.0 tie, the
+  // engine omits minimax_choice, and saturation_note names the scenarios + the fix.
+  saturated?: boolean;
+  saturation_note?: string;
+  // Scenarios in which NO base solution is feasible: excluded from the minimax ranking
+  // (their regret is uniformly total); wipeout_note names them and the way forward.
+  wipeout_scenarios?: string[];
+  wipeout_note?: string;
+  // Per-scenario count of base-frontier solutions feasible in that scenario.
+  survivors_by_scenario?: Record<string, number>;
 };
 
 export type ScenarioSummaryVizData = {

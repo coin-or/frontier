@@ -844,6 +844,48 @@ class TestScenarios:
         assert regret["minimax_choice"] is None
         assert all(ps["feasible_in_all"] is False for ps in regret["per_solution"])
 
+    def test_scenario_regret_partial_wipeout_excluded_from_ranking(self):
+        """A scenario NO base solution survives (total wipeout) must not saturate the whole
+        metric: it is excluded from the minimax ranking and named in wipeout_note, while the
+        surviving scenarios still produce a meaningful pick (supplier-selection eval finding —
+        one wipeout scenario turned the regret table into an all-100%/infeasible wall)."""
+        pid = _build_solvable_problem()                  # base cardinality 2-3
+        srv.model(action="update", problem_id=pid, scenario_config={
+            "enabled": True,
+            "scenarios": [
+                {"name": "Mild", "score_overrides": [
+                    {"option": "A", "objective": "Rev", "value": 50},
+                ]},
+                {"name": "Wipeout", "constraint_overrides": [
+                    {"type": "cardinality", "min": 1, "max": 1},   # every base slate infeasible
+                ]},
+            ],
+        })
+        srv.solve(action="run", problem_id=pid)
+        srv.solve(action="run_scenarios", problem_id=pid)
+        out = srv.explore(action="scenario_results", problem_id=pid)
+        regret = out["regret"]
+        assert regret["available"] is True
+        assert regret.get("saturated") is not True
+        assert regret["wipeout_scenarios"] == ["Wipeout"]
+        assert "Wipeout" in regret["wipeout_note"]
+        assert regret["minimax_choice"] is not None
+        # The note carries the ranked-scope qualifier so consumers know what max/mean span.
+        assert "ranked scenarios" in regret["note"]
+        # The ranking ignores the wipeout scenario; per-scenario detail still shows it as total.
+        first = regret["per_solution"][0]
+        assert first["by_scenario"]["Wipeout"] == 1.0
+        assert first["max_regret"] < 1.0
+        assert all(ps["feasible_in_all"] is False for ps in regret["per_solution"])
+        # feasible_in_ranked distinguishes "fails only the excluded wipeout" per row.
+        assert first["feasible_in_ranked"] is True
+        # Survivor counts: one source of truth, lifted into the per_scenario layer too.
+        assert regret["survivors_by_scenario"]["Wipeout"] == 0
+        assert regret["survivors_by_scenario"]["Mild"] > 0
+        assert out["per_scenario"]["Wipeout"]["base_plans_feasible"] == 0
+        assert out["per_scenario"]["Mild"]["base_plans_feasible"] > 0
+        assert out["per_scenario"]["Mild"]["base_plans_total"] == regret["per_solution_total"]
+
     def test_scenario_results_without_run(self):
         pid = _build_solvable_problem()
         result = srv.explore(action="scenario_results", problem_id=pid)

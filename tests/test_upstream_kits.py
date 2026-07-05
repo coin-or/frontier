@@ -1,13 +1,14 @@
-"""Upstream-kit sufficiency: BRIEF.md + data.csv (+ matrix CSVs) must reconstruct the
+"""Upstream-kit sufficiency: each README's Step-1 ask + data.csv (+ matrix CSVs) must reconstruct the
 canonical bundle.
 
-Every example ships an upstream kit (a user-voiced brief plus raw CSVs) so a session can
+Every example ships an upstream kit (a user-voiced ask in the README plus raw CSVs) so a session can
 start at FRAME the way a real user would. The kit's promise is that framing that input
 lands on exactly the shipped problem.json + scores.json — these tests reconstruct each
-model from the CSVs plus the brief's stated rules and diff it against the bundle, so the
+model from the CSVs plus the ask's stated rules and diff it against the bundle, so the
 kits can't silently drift from the canonical models (or vice versa).
 """
 import csv
+import functools
 import json
 from collections import defaultdict
 from pathlib import Path
@@ -19,9 +20,10 @@ EXAMPLES = Path(__file__).resolve().parent.parent / "examples"
 
 # ─── helpers ───
 
+@functools.lru_cache(maxsize=None)
 def _rows(example, fname="data.csv"):
     with open(EXAMPLES / example / fname, newline="") as f:
-        return list(csv.DictReader(f))
+        return tuple(csv.DictReader(f))
 
 
 def _bundle(example):
@@ -114,19 +116,19 @@ def _scenario(p, name):
 # ─── the two demo kits (validated first) ───
 
 def test_capital_kit_reconstructs_canonical_model():
-    rows = _rows("capital_project_selection_120")
-    built = [{"type": "objective_bound", "objective": "Cost", "operator": "max", "value": 610.0},
-             {"type": "cardinality", "min": 18, "max": 40}]
+    rows = _rows("capital_project_selection_300")
+    built = [{"type": "objective_bound", "objective": "Cost", "operator": "max", "value": 1550.0},
+             {"type": "cardinality", "min": 45, "max": 100}]
     built += [{"type": "force_include", "option": r["project"]} for r in rows if r["committed"] == "yes"]
     built += [{"type": "dependency", "if_option": r["project"], "then_option": r["requires"]}
               for r in rows if r["requires"]]
     built += _exclusions(rows, "project", "mutually_exclusive_with")
     groups = _groups(rows, "project", "category")
-    for cat, mx in {"Growth": 8, "Digital": 6, "R&D": 6, "Maintenance": 7}.items():
+    for cat, mx in {"Growth": 20, "Digital": 15, "R&D": 15, "Maintenance": 18}.items():
         built.append({"type": "group_limit", "options": groups[cat], "min": 0, "max": mx})
     scores = _scores_from(rows, "project", [("NPV", "npv_musd"), ("Cost", "cost_musd"),
                                             ("Risk", "risk_score"), ("StrategicFit", "strategic_fit")])
-    _assert_model("capital_project_selection_120", built, scores,
+    _assert_model("capital_project_selection_300", built, scores,
                   [("NPV", "maximize", "sum"), ("Cost", "minimize", "sum"),
                    ("Risk", "minimize", "sum"), ("StrategicFit", "maximize", "sum")], "project")
 
@@ -223,7 +225,7 @@ def test_supplier_selection_kit():
                           ("ConcentrationRisk", "minimize", "quadratic")], "supplier")
     _assert_matrix("supplier_selection", "concentration_interactions.csv",
                    s["interaction_matrices"][0]["entries"])
-    china = base + [{"type": "force_exclude", "option": r["supplier"]}
+    china = base + [{"type": "allocation_bound", "option": r["supplier"], "min": 0, "max": 5}
                     for r in rows if r["region"] == "CN"]
     assert _canon(_scenario(p, "china_disruption")["constraint_overrides"]) == _canon(china)
     surge = [dict(c) for c in base]
@@ -366,3 +368,73 @@ def test_interconnection_kit():
         envelope = [dict(c) for c in base]
         envelope[0] = {"type": "objective_bound", "objective": "Cost", "operator": "max", "value": cap}
         assert _canon(_scenario(p, name)["constraint_overrides"]) == _canon(envelope), name
+
+# ─── kit-coverage guards ───
+
+# One entry per kit test above. A bundled example missing here (or here without a
+# bundle) fails test_every_bundled_example_has_a_kit, so a new example can't land
+# without its reconstruction test and ask-literal guard.
+KIT_COVERED = [
+    "budget_allocation",
+    "capacity_planning",
+    "capital_project_selection_300",
+    "channel_budget",
+    "charging_network_siting",
+    "claims_investigation_triage",
+    "interconnection_approvals",
+    "investment_portfolio",
+    "production_mix",
+    "research_cohort_selection",
+    "scarce_supply_rationing",
+    "supplier_selection",
+]
+
+# The load-bearing numbers each kit test hardcodes, as they read in the README's
+# step-1 ask (commas stripped). The kit tests prove CSV+rules == canonical model;
+# this proves the ask PROSE still states those rules, so the quoted ask can't
+# drift from the model the test certifies.
+ASK_LITERALS = {
+    "budget_allocation": ["35%"],
+    "capacity_planning": ["25%", "0.20", "at or above 50", "15% higher",
+                          "variability_low_renewables.csv"],
+    "capital_project_selection_300": ["$1550M", "between 45 and 100", "20 Growth",
+                                      "15 Digital", "15 R&D", "18 Maintenance"],
+    "channel_budget": ["15%", "2.0x", "20% lower"],
+    "charging_network_siting": ["$34M", "between 16 and 24", "at most 4", "at most 5",
+                                "NCR-01"],
+    "claims_investigation_triage": ["1170 hours", "$4840k", "between 45 and 100",
+                                    "38 Auto", "32 Property", "28 Liability",
+                                    "26 Workers", "1140 hours"],
+    "interconnection_approvals": ["$400M", "$320M", "$480M", "$560M",
+                                  "9 approvals per zone"],
+    "investment_portfolio": ["30%", "at most 3", "20%", "15% lower",
+                             "covariance_recession.csv"],
+    "production_mix": ["30%", "25%", "at most 2 active"],
+    "research_cohort_selection": ["exactly 24", "at least 4", "at least 3",
+                                  "at least 2", "no more than 8", "at most 4", "V-118"],
+    "scarce_supply_rationing": ["8%", "at least 4.8", "8/7/5/5/4", "≥6%", "≥3%",
+                                "≤4%", "~35%"],
+    "supplier_selection": ["15%", "at most 3", "at or above 78", "at most 5%",
+                           "from 15% to 10%"],
+}
+
+
+def test_every_bundled_example_has_a_kit():
+    from engine import problem_io
+    assert problem_io.list_available()["examples"] == KIT_COVERED
+    assert sorted(ASK_LITERALS) == KIT_COVERED
+
+
+def _ask(example):
+    text = (EXAMPLES / example / "README.md").read_text()
+    quoted = [ln.lstrip().lstrip(">").strip()
+              for ln in text.splitlines() if ln.lstrip().startswith(">")]
+    return " ".join(quoted).replace(",", "")
+
+
+@pytest.mark.parametrize("example", sorted(ASK_LITERALS))
+def test_ask_prose_states_the_load_bearing_numbers(example):
+    ask = _ask(example).lower()
+    for lit in ASK_LITERALS[example]:
+        assert lit.replace(",", "").lower() in ask, \
+            f"{example}: the step-1 ask no longer states {lit!r}"

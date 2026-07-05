@@ -671,15 +671,21 @@ def _check_constraint_conflicts(
     return issues
 
 
-def _parse_constraints(problem: Problem) -> dict:
-    """Extract constraint parameters from problem. Shared by binary and proportional."""
+def _parse_constraints(problem: Problem, search_floor: bool = False) -> dict:
+    """Extract constraint parameters from problem. Shared by binary and proportional.
+
+    By default the encoding is the model as written — a model with no cardinality
+    floor legally permits the empty plan, so feasibility consumers (audit witnesses,
+    regret re-evaluation, the exact backends) get honest semantics without opting in.
+    The EA entry points pass ``search_floor=True`` to inject their never-propose-empty
+    SEARCH default; that preference belongs to the search, not the model."""
     opt_names = [o.name for o in problem.options]
     obj_list = problem.objectives
     opt_index = {name: i for i, name in enumerate(opt_names)}
 
     forced_in_idx = set()
     forced_out_idx = set()
-    cardinality_min = 1
+    cardinality_min = 1 if search_floor else 0
     cardinality_max = len(opt_names)
     obj_bounds: list[tuple[int, BoundOperator, float]] = []
     exclusion_pairs: list[tuple[int, int]] = []
@@ -1480,8 +1486,10 @@ def diagnose_conflicts(problem: Problem) -> dict:
     f0 = _feasible_without(members)
     if f0 is True:
         return {"satisfiable": True,
-                "note": "the constraint set is satisfiable — there is no contradiction to diagnose "
-                        "(an empty frontier here comes from something else, e.g. the solve budget)."}
+                "note": "the constraint set is satisfiable — there is no contradiction to diagnose. "
+                        "An empty frontier here comes from the search, not the model: the solver "
+                        "proposes only non-empty plans, so if the empty plan is the sole feasible "
+                        "one, add a cardinality or objective floor; otherwise raise the solve budget."}
     inconclusive = {"inconclusive": True,
                     "reason": "a deletion-filter solve stopped without a verdict — no conflict set "
                               "is claimed (a guessed conflict would be worse than none)."}
@@ -1778,7 +1786,7 @@ def _optimize_binary(
     opt_names = [o.name for o in problem.options]
     obj_list = problem.objectives
     score_matrix = _build_score_matrix(problem)
-    cp = _parse_constraints(problem)
+    cp = _parse_constraints(problem, search_floor=True)
     im = _build_interaction_matrices(problem)
 
     pymoo_problem = _FrontierProblem(
@@ -1840,7 +1848,7 @@ def _optimize_proportional(
     opt_names = [o.name for o in problem.options]
     obj_list = problem.objectives
     score_matrix = _build_score_matrix(problem)
-    cp = _parse_constraints(problem)
+    cp = _parse_constraints(problem, search_floor=True)
     im = _build_interaction_matrices(problem)
 
     pymoo_problem = _ProportionalProblem(
@@ -2342,6 +2350,8 @@ def analyze_infeasibility(problem: Problem) -> dict:
     exclusion_pairs = [(c.option_a, c.option_b) for c in problem.constraints if c.type == "exclusion_pair"]
     dependencies = [(c.if_option, c.then_option) for c in problem.constraints if c.type == "dependency"]
     group_limits = [(c.options, int(c.min), c.max) for c in problem.constraints if c.type == "group_limit"]
+    # Floor of 1 mirrors the EA's search_floor: this diagnoses why the SEARCH came
+    # back empty, so it reasons over the plans the search actually proposes.
     card_min, card_max = 1, n_options
     obj_bounds = []
     for c in problem.constraints:

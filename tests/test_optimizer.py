@@ -878,7 +878,7 @@ class TestExtremeSeeds:
 
         p = _make_problem(constraints=[CardinalityConstraint(min=2, max=3)])
         score_matrix = _build_score_matrix(p)
-        cp = _parse_constraints(p)
+        cp = _parse_constraints(p, search_floor=True)
         seeds = _compute_extreme_seeds(p, score_matrix, cp)
 
         assert seeds.shape[0] == len(p.objectives)
@@ -916,7 +916,7 @@ class TestExtremeSeeds:
 
         # Direct repair check on adversarial rows (all-zero, one-hot, uniform).
         from engine.optimizer import _ProportionalProblem
-        cp = _parse_constraints(p)
+        cp = _parse_constraints(p, search_floor=True)
         prob = _ProportionalProblem(n_options=5, score_matrix=_build_score_matrix(p),
                                     objectives=p.objectives, interaction_matrices={}, **cp)
         X = np.array([[0, 0, 0, 0, 0], [100, 0, 0, 0, 0], [20, 20, 20, 20, 20]], dtype=float)
@@ -982,7 +982,7 @@ class TestExtremeSeeds:
             CardinalityConstraint(min=2, max=3),
             GroupLimitConstraint(options=["D"], min=1, max=1),  # worst Revenue option, floored in
         ])
-        seeds = _compute_extreme_seeds(p, _build_score_matrix(p), _parse_constraints(p))
+        seeds = _compute_extreme_seeds(p, _build_score_matrix(p), _parse_constraints(p, search_floor=True))
         d_idx = [o.name for o in p.options].index("D")
         assert len(seeds) > 0 and all(seed[d_idx] == 1.0 for seed in seeds)
         run = optimize(p, mode="fast", seed=3)
@@ -1041,7 +1041,7 @@ class TestExtremeSeeds:
         from engine.optimizer import _build_score_matrix, _compute_extreme_seeds, _parse_constraints
 
         sm = _build_score_matrix(p)
-        corner_seeds = _compute_extreme_seeds(p, sm, _parse_constraints(p))
+        corner_seeds = _compute_extreme_seeds(p, sm, _parse_constraints(p, search_floor=True))
         seed_row = _feasibility_witness_seed(p, corner_seeds, sm)
         assert seed_row is not None and seed_row.shape == (1, n)
         sel = seed_row[0] > 0.5
@@ -1095,7 +1095,7 @@ class TestExtremeSeeds:
             ],
         )
         score_matrix = _build_score_matrix(p)
-        cp = _parse_constraints(p)
+        cp = _parse_constraints(p, search_floor=True)
         seeds = _compute_extreme_seeds(p, score_matrix, cp)
 
         assert len(seeds) == 2
@@ -1118,7 +1118,7 @@ class TestExtremeSeeds:
             GroupLimitConstraint(options=["A", "B", "C"], max=1),
         ])
         score_matrix = _build_score_matrix(p)
-        cp = _parse_constraints(p)
+        cp = _parse_constraints(p, search_floor=True)
         seeds = _compute_extreme_seeds(p, score_matrix, cp)
 
         for seed in seeds:
@@ -1141,7 +1141,7 @@ class TestExtremeSeeds:
             ForceExcludeConstraint(option="E"),
         ])
         score_matrix = _build_score_matrix(p)
-        cp = _parse_constraints(p)
+        cp = _parse_constraints(p, search_floor=True)
         seeds = _compute_extreme_seeds(p, score_matrix, cp)
 
         # All options excluded → no seed meets cardinality_min
@@ -1178,7 +1178,7 @@ class TestElitePreservation:
 
         p = _make_problem(constraints=[CardinalityConstraint(min=2, max=3)])
         score_matrix = _build_score_matrix(p)
-        cp = _parse_constraints(p)
+        cp = _parse_constraints(p, search_floor=True)
         seeds = _compute_extreme_seeds(p, score_matrix, cp)
 
         # Compute each seed's per-objective extreme value.

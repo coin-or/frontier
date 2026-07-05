@@ -118,7 +118,7 @@
     {
       "name": "china_disruption",
       "probability": null,
-      "description": "China-region suppliers offline (tariffs/port closure) \u2014 reallocate share to the remaining 20 suppliers.",
+      "description": "A China supply disruption throttles every CN supplier to at most 5% of the order (export controls and logistics backlogs \u2014 capacity cut, not fully offline); every other rule stays as-is.",
       "motivated_by": "",
       "score_overrides": [],
       "score_adjustments": [],
@@ -201,24 +201,34 @@
           "value": 78.0
         },
         {
-          "type": "force_exclude",
-          "option": "CN01"
+          "type": "allocation_bound",
+          "option": "CN01",
+          "min": 0,
+          "max": 5
         },
         {
-          "type": "force_exclude",
-          "option": "CN02"
+          "type": "allocation_bound",
+          "option": "CN02",
+          "min": 0,
+          "max": 5
         },
         {
-          "type": "force_exclude",
-          "option": "CN03"
+          "type": "allocation_bound",
+          "option": "CN03",
+          "min": 0,
+          "max": 5
         },
         {
-          "type": "force_exclude",
-          "option": "CN04"
+          "type": "allocation_bound",
+          "option": "CN04",
+          "min": 0,
+          "max": 5
         },
         {
-          "type": "force_exclude",
-          "option": "CN05"
+          "type": "allocation_bound",
+          "option": "CN05",
+          "min": 0,
+          "max": 5
         }
       ],
       "interaction_matrix_overrides": []
