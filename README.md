@@ -50,7 +50,7 @@ Two loops run throughout. **Iterate** to refine the model and re-solve as you go
 
 Spreadsheets hit a complexity wall once options and constraints in a decision multiply. Generative AI models reason about tradeoffs but can't *solve* them: reliably enumerating a huge option space, enforcing hard constraints, and producing the frontier are beyond them. Frontier fills the gap: the LLM translates and narrates, an optimizer does the math, and the judgment stays with you.
 
-**When it fits:** any decision that picks a subset from many options or splits an allocation across them, under conflicting objectives and hard constraints, with data to score the options. Pairwise interactions between options, where one's value depends on another, make the problem genuinely nonlinear: beyond what a ranking or weighted sum can capture. **When it's overkill:** one objective, a handful of options, or goals that mostly agree; a spreadsheet or a sorted ranking already answers those.
+**When Frontier helps:** any decision that picks a subset from many options or splits an allocation across them, under conflicting objectives and hard constraints, with data to score the options – the territory just past what a spreadsheet answers. Pairwise interactions between options, where one's value depends on another, make the problem genuinely nonlinear: beyond what a ranking or weighted sum can capture.
 
 **Target problem types.** The [examples table](examples/) maps all twelve:
 
