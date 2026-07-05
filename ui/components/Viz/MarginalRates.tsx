@@ -37,7 +37,9 @@ export function MarginalRates({ data }: Props) {
         {data.rates.length} transitions
         {data.inflection && (
           <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-amber-800">
-            inflection at #{data.inflection.position} · jump ×
+            {/* solution_id, not position: '#' means a solution everywhere else in the UI,
+                and position is re-indexed into the visible row window by the engine. */}
+            inflection at #{data.inflection.solution_id} · jump ×
             {data.inflection.jump_factor.toFixed(1)}
           </span>
         )}

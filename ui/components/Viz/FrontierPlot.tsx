@@ -404,6 +404,12 @@ export function FrontierPlot({ data }: { data: ScatterVizData }) {
             {kind} · {data.points.length} solutions · {nObj} objectives
           </span>
           <CertChip prov={prov} hasOverlay={hasOverlay} />
+          {/* Color view plots a single value-colored trace: the certified-overlay diamonds
+              and dominated fading are not drawn there, so say so rather than letting the
+              chip assert an overlay the view doesn't show. */}
+          {colorActive && hasOverlay && (
+            <span className="text-stone-400">exact overlay hidden in color view</span>
+          )}
         </div>
         <div className="flex items-center gap-3">
           {canScatter && <Toggle mode={mode} setMode={setMode} nObj={nObj} />}

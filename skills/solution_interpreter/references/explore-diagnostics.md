@@ -25,13 +25,15 @@ For `objective_bound`:
 
 Slope is rate of change of the objective against the constrained quantity, estimated by linear regression among near-binding solutions. Sign is *direction of improvement*: positive means relaxing helps the objective, negative means it hurts. Rare for it to be negative (would indicate the constraint is currently protecting the objective on the frontier).
 
-For `cardinality` and `group_limit`:
+For `cardinality` and `group_limit` (cap side):
 
 ```json
 {"objective": "NPV", "gain_per_additional_slot": 1.2}
 ```
 
 Discrete shadow price: expected improvement of the best-on-that-objective solution from +1 slot of capacity. Estimated as (best at binding level) − (best at adjacent level).
+
+A `group_limit` with a **floor** (`min > 0`) emits a second entry, labeled `group_limit(...) ≥ min` with key `gain_per_extra_member`: what one member above the floor achieves vs. pinned-at-floor — positive means the floor isn't pinching. Both sides can bind across one frontier (some plans pinned at the cap, others held up at the floor — or `min == max` pins every plan at both), so a single group can surface both a cap entry and a floor entry; read each by its label.
 
 ### Worked example
 
@@ -133,7 +135,7 @@ Scenario minimax-regret. For each base-frontier solution, its value under each s
 - `max_regret` is the solution's worst regret across the **ranked** (scenario, objective) pairs; `minimax_choice` minimizes it. A total-wipeout scenario (no feasible base plan — see `survivors_by_scenario`) is excluded from the ranking and named in `wipeout_scenarios` + `wipeout_note`; its uniform 1.0 stays visible in `by_scenario`, and `feasible_in_ranked` distinguishes failing only the excluded wipeout from failing a ranked scenario. A 1.0 in `by_scenario` next to a sub-1.0 `max_regret` is the wipeout exclusion, not an inconsistency — a displayed 1.0 always means total regret (infeasible or fully dominated), never rounding.
 - `feasible_in_all: false` means the solution breaks under at least one scenario's constraints — a 1.0 lands in `by_scenario` there, but it drives `max_regret` only when that scenario is ranked. Headline it when `feasible_in_ranked` is also false; when only a wipeout scenario fails, present the row normally and let `wipeout_note` carry the model-level finding.
 - In `scenario_results`, each `per_scenario` entry also carries the lift: `base_plans_feasible` / `base_plans_total` (the same survivor counts, next to that scenario's own frontier).
-- Distinct from `scenario_risk`/CVaR: CVaR is "how bad when things go wrong"; regret is "how much worse than the best I could have chosen, in hindsight." See *Regret — the hindsight lens* in SKILL.md.
+- Distinct from `scenario_risk`/CVaR: CVaR is "how bad when things go wrong"; regret is "how much worse than the best I could have chosen, in hindsight." See *Regret — the hindsight lens* under `get_skill('solution_interpreter', section='Scenario Results Presentation')`.
 
 ## `objective_redundancy` (from `tradeoffs`)
 

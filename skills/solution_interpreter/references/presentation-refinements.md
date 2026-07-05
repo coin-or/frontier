@@ -97,7 +97,8 @@ Users often care more about *which constraint is limiting them and how much it's
 | Constraint type | Shadow-price field | Template |
 |---|---|---|
 | `objective_bound` | `slope_per_unit_relaxed` | "Each unit of [constraint] relaxation looks worth about [slope] of [objective] on this frontier." |
-| `cardinality` / `group_limit` | `gain_per_additional_slot` | "Adding one more [slot / group member] appears to unlock about [gain] of [objective]." |
+| `cardinality` / `group_limit` (cap, `≤ max`) | `gain_per_additional_slot` | "Adding one more [slot / group member] appears to unlock about [gain] of [objective]." |
+| `group_limit` (floor, `≥ min`) | `gain_per_extra_member` | "Going one member above the [group] floor appears to buy about [gain] of [objective] — a positive gain says the floor isn't pinching." |
 
 **Sign convention:** shadow-price values are **directional** in each objective's own frame — positive means the objective *improves* per unit of relaxation (in its own direction), negative means it *worsens*. For minimize objectives, a negative `gain_per_additional_slot` reads naturally as "this costs us more" — reframe rather than echoing the raw number. Example: Effort has `gain_per_additional_slot: -4` → *"Adding a slot also adds ~4 person-weeks of effort — a direct cost you trade for the other gains."*
 
