@@ -562,3 +562,44 @@ def test_explore_audit_over_stdio():
     # A malformed property is validated on the engine side — proof the param really reached it
     # (a dropped param would default to None and silently return a feasibility probe instead).
     assert out["bad"].get("error") and "valid constraint" in out["bad"]["error"]
+
+
+# ─── The search-floor story, end to end ───
+
+def test_only_empty_feasible_model_audit_and_solve_tell_one_story():
+    """A model whose ONLY feasible plan is empty: the audit judges the model as written
+    (feasible, empty witness), the search returns an empty frontier because it proposes
+    only non-empty plans, and the conflicts note says exactly that — naming the floor to
+    add — instead of blaming the solve budget."""
+    from engine.optimizer import analyze_infeasibility, optimize
+
+    p = _problem(constraints=[
+        ObjectiveBoundConstraint(objective="Cost", operator="max", value=0.5)])
+    r = audit(p)
+    assert r["verdict"] == "feasible"
+    assert r["witness"]["selected_options"] == []
+    assert r["witness"]["feasible"] is True
+
+    run = optimize(p, mode="fast", seed=42)
+    assert run.solutions == []
+    diag = analyze_infeasibility(p)
+    conflicts = diag.get("conflicts") or {}
+    assert conflicts.get("satisfiable") is True
+    assert "floor" in conflicts.get("note", "")
+
+
+def test_constraint_referencing_unknown_option_declines_in_words():
+    """A stored constraint can outlive an option rename — audit must decline in words
+    (naming the constraint and the unknown reference), never raise a raw KeyError."""
+    p = _problem(constraints=[ForceIncludeConstraint(option="ZZZ")])
+    with pytest.raises(ValueError, match="unknown option 'ZZZ'"):
+        audit(p)
+
+
+def test_constraint_referencing_unknown_objective_declines_in_words():
+    from engine.optimizer import _parse_constraints
+
+    p = _problem(constraints=[
+        ObjectiveBoundConstraint(objective="Zed", operator="max", value=10)])
+    with pytest.raises(ValueError, match="unknown objective 'Zed'"):
+        _parse_constraints(p)

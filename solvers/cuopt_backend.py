@@ -647,5 +647,8 @@ def _certify_curated_cuopt(problem: Problem, source_run: Run, *, exact: bool = F
         inner, inner_sens = _solve_lp_cuopt, _solve_lp_cuopt_sensitivity
     run = certify_curated_frontier(problem, source_run, inner=inner, inner_sensitivity=inner_sens,
                                    mode=mode, max_solutions=max_solutions)
-    run.solver, run.exact = "cuopt", False
+    # Stamp the requested flag like the HiGHS twin and both full-pass paths: on the
+    # always-exact QP/LP shapes `exact` is a documented no-op, and the stamp keeps
+    # certification provenance identical across backends.
+    run.solver, run.exact = "cuopt", exact
     return run

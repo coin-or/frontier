@@ -2,7 +2,8 @@
  * Types and extractor for the structured viz_data payloads that Frontier's
  * `explore/*` tools attach alongside ASCII visualizations.
  *
- * Engine source: `engine/explorer.py` `_viz_data_*` builders.
+ * Engine source: `engine/viz.py` `_viz_data_*` builders (plus
+ * `mcp_server/server.py` `_viz_data_formulation` for the formulation card).
  * Hosts that can render charts (this web UI) consume viz_data; chat / coding-
  * agent surfaces ignore it and render the ASCII `visualization` field instead.
  */
@@ -106,6 +107,9 @@ export type ScenarioRegret = {
     feasible_in_ranked?: boolean;
   }>;
   per_objective?: Record<string, { min_max_regret: number; achieved_by_solution_id: number }>;
+  // Full base-frontier count — per_solution is the compact lowest-regret slice (≤20),
+  // so "how many more" must come from here, not from per_solution.length.
+  per_solution_total?: number;
   note?: string;
   // True when every base-frontier solution hits max regret (infeasible or fully
   // dominated) in some scenario — the ranking is a meaningless all-1.0 tie, the

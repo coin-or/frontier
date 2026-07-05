@@ -72,7 +72,9 @@ export function ScenarioSummary({ data }: { data: ScenarioSummaryVizData }) {
   const minimaxId = regret?.minimax_choice?.solution_id ?? null;
   const allRegretRows = regret?.per_solution ?? [];
   const regretRows = allRegretRows.slice(0, MAX_REGRET_ROWS);
-  const hiddenRegretCount = allRegretRows.length - regretRows.length;
+  // per_solution is the engine's compact ≤20 slice; the true frontier size ships in
+  // per_solution_total (a 300-solution frontier hides 292 rows here, not 12).
+  const hiddenRegretCount = (regret?.per_solution_total ?? allRegretRows.length) - regretRows.length;
   const wipeoutList = regret?.wipeout_scenarios?.length ? regret.wipeout_scenarios.join(", ") : null;
 
   // Group options by tier for visual hierarchy
