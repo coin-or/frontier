@@ -128,9 +128,14 @@ def test_capital_kit_reconstructs_canonical_model():
         built.append({"type": "group_limit", "options": groups[cat], "min": 0, "max": mx})
     scores = _scores_from(rows, "project", [("NPV", "npv_musd"), ("Cost", "cost_musd"),
                                             ("Risk", "risk_score"), ("StrategicFit", "strategic_fit")])
-    _assert_model("capital_project_selection_300", built, scores,
-                  [("NPV", "maximize", "sum"), ("Cost", "minimize", "sum"),
-                   ("Risk", "minimize", "sum"), ("StrategicFit", "maximize", "sum")], "project")
+    p, _ = _assert_model("capital_project_selection_300", built, scores,
+                         [("NPV", "maximize", "sum"), ("Cost", "minimize", "sum"),
+                          ("Risk", "minimize", "sum"), ("StrategicFit", "maximize", "sum")], "project")
+    assert _norm_adjustments(_scenario(p, "cost_inflation")["score_adjustments"]) == \
+           _norm_adjustments([{"objective": "Cost", "multiply": 1.12}])
+    crunch = [dict(c) for c in built]
+    crunch[1] = {"type": "cardinality", "min": 45, "max": 70}
+    assert _canon(_scenario(p, "delivery_crunch")["constraint_overrides"]) == _canon(crunch)
 
 
 def test_rationing_kit_reconstructs_canonical_model_and_scenarios():
@@ -419,7 +424,8 @@ ASK_LITERALS = {
     "capacity_planning": ["25%", "0.20", "at or above 50", "15% higher",
                           "variability_low_renewables.csv", "from 50 to 60"],
     "capital_project_selection_300": ["$1550M", "between 45 and 100", "20 Growth",
-                                      "15 Digital", "15 R&D", "18 Maintenance"],
+                                      "15 Digital", "15 R&D", "18 Maintenance",
+                                      "12% over", "at most 70"],
     "channel_budget": ["15%", "at most 2 active", "2.0x", "20% lower"],
     "charging_network_siting": ["$34M", "between 16 and 24", "at most 4", "at most 5",
                                 "NCR-01"],
