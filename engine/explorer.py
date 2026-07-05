@@ -1608,9 +1608,32 @@ def get_scenario_results(problem: Problem, cvar_alpha: float | None = None) -> d
         if 0 < len(present_in) < len(all_scenario_names):
             scenario_specific[opt] = present_in
 
-    # Sort by importance descending
-    option_robustness.sort(key=lambda x: x["importance"], reverse=True)
+    # Sort by importance, then frequency. The frequency tiebreak is load-bearing on
+    # binary problems: selections carry no allocations, so avg_weight — and with it
+    # importance — is 0 for every option, and an importance-only sort would leave the
+    # table in arbitrary option order.
+    option_robustness.sort(key=lambda x: (x["importance"], x["avg_frequency"]), reverse=True)
     robust_options = [r["option"] for r in option_robustness if r["tier"] == "core"]
+
+    # Size-aware trim: at portfolio scale (hundreds of options) the per-option table
+    # dwarfs everything else in the payload — and is copied again into viz_data — which
+    # pushes the MCP response past the inline result cap and clients get a file dump
+    # instead of readable JSON. Ship the ranked head; summarize the elided tail. Small
+    # problems (every bundled example except capital-300) pass through whole.
+    _ROBUSTNESS_TABLE_CAP = 60
+    option_robustness_elided = None
+    if len(option_robustness) > _ROBUSTNESS_TABLE_CAP:
+        tail = option_robustness[_ROBUSTNESS_TABLE_CAP:]
+        option_robustness = option_robustness[:_ROBUSTNESS_TABLE_CAP]
+        option_robustness_elided = {
+            "count": len(tail),
+            "tiers": dict(Counter(t["tier"] for t in tail)),
+            "note": ("ranked table truncated to the top "
+                     f"{_ROBUSTNESS_TABLE_CAP} by importance and cross-scenario frequency; "
+                     "the elided tail ranks below everything shown. Per-plan detail: "
+                     "explore solutions solution_id=<id>; cross-frontier selection rates: "
+                     "explore composition."),
+        }
 
     # Expected value: probability-weighted if probabilities provided, else equal-weight
     has_probabilities = all(
@@ -1685,6 +1708,8 @@ def get_scenario_results(problem: Problem, cvar_alpha: float | None = None) -> d
         "per_scenario": per_scenario,
         "robust_options": sorted(robust_options),
         "option_robustness": option_robustness,
+        **({"option_robustness_elided": option_robustness_elided}
+           if option_robustness_elided else {}),
         "scenario_specific_options": scenario_specific,
         "expected_values": expected_values,
         "scenario_risk": scenario_risk,
