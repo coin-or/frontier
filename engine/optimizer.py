@@ -671,7 +671,7 @@ def _check_constraint_conflicts(
     return issues
 
 
-def _parse_constraints(problem: Problem) -> dict:
+def _parse_constraints(problem: Problem, implicit_cardinality_floor: bool = True) -> dict:
     """Extract constraint parameters from problem. Shared by binary and proportional."""
     opt_names = [o.name for o in problem.options]
     obj_list = problem.objectives
@@ -679,7 +679,11 @@ def _parse_constraints(problem: Problem) -> dict:
 
     forced_in_idx = set()
     forced_out_idx = set()
-    cardinality_min = 1
+    # The floor of 1 is a SEARCH default (the EA should never propose the empty plan),
+    # not part of the model: callers scoring a *given* slate (audit witnesses, regret
+    # re-evaluation) pass implicit_cardinality_floor=False so feasibility reflects the
+    # constraints as written — a model with no cardinality floor legally permits empty.
+    cardinality_min = 1 if implicit_cardinality_floor else 0
     cardinality_max = len(opt_names)
     obj_bounds: list[tuple[int, BoundOperator, float]] = []
     exclusion_pairs: list[tuple[int, int]] = []
@@ -1312,7 +1316,7 @@ def make_slate_scorer(problem: Problem, scenario: "Scenario | None" = None):
     idx = {o.name: i for i, o in enumerate(p.options)}
     score_matrix = _build_score_matrix(p)
     im = _build_interaction_matrices(p)
-    cp = _parse_constraints(p)
+    cp = _parse_constraints(p, implicit_cardinality_floor=False)
     cls = _ProportionalProblem if p.approach == Approach.proportional else _FrontierProblem
     prob = cls(n_options=n, score_matrix=score_matrix, objectives=p.objectives,
                interaction_matrices=im, **cp)

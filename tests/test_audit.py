@@ -455,6 +455,15 @@ def test_explorer_payload_parses_conjunction_and_echoes_it():
         explorer.audit_property(_problem(), [{"type": "force_include", "option": "A"}, {"type": "nope"}])
 
 
+def test_feasibility_probe_witness_flag_consistent_without_cardinality_floor():
+    """A model with no cardinality constraint legally permits the empty plan; the probe's
+    witness must not be flagged infeasible by the EA's implicit select-at-least-1 search
+    default (interconnection eval finding: verdict feasible + witness feasible=False)."""
+    r = audit(_problem(constraints=[]))
+    assert r["verdict"] == "feasible"
+    assert r["witness"]["feasible"] is True
+
+
 def test_explorer_payload_defaults_floor_only_group_property():
     # A floor-only group guarantee ("at least 1 from {A,B}") omits `max`; the parser
     # defaults it to the vacuous group-size cap instead of rejecting the property.
