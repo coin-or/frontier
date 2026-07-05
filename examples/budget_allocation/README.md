@@ -40,7 +40,7 @@
 4. *"Keep the balanced split and the ROI-max one. Are these actually optimal?"*
    `explore curate` per pick → `solve solver="highs"` → `explore certify`: the exact LP overlay (57 certified points) audits the heuristic frontier and sharpens ~10% of its points.
 5. *"Which of our limits is costing us the most, and which initiative just missed the cut?"*
-   `explore sensitivity`: solver-exact duals – the Strategic Reach floor pricing at ~8.25 (each extra point of blended reach costs ~8.25 points of ROI at the margin), Brand Refresh the closest near-miss (reduced cost ~0.5), and Self-Serve Onboarding, AI Copilot, and Customer Education pinned at the 20% cap – the cap binds; they'd take more if allowed. (Values as read at the balanced anchor of the shipped exact overlay – duals are anchor-specific marginal rates, so expect them to shift at another frontier point or after a re-solve; confirm a big move by re-solving with the changed limit.)
+   `explore sensitivity`: solver-exact duals – the Strategic Reach floor pricing at ~8.25 (each extra point of blended reach costs ~8.25 points of ROI at the margin), Brand Refresh the closest near-miss (reduced cost ~0.5), and Self-Serve Onboarding, AI Copilot, Customer Education, and Lifecycle Campaigns pinned at the 20% cap – the cap binds; they'd take more if allowed. (Values as read at the balanced anchor of the shipped exact overlay – duals are anchor-specific marginal rates, so expect them to shift at another frontier point or after a re-solve; confirm a big move by re-solving with the changed limit.)
 6. *"Write it up for the planning review."*
    `explore curated format="markdown"`: the handoff table.
 
