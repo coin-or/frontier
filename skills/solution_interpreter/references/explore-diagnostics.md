@@ -25,7 +25,7 @@ For `objective_bound`:
 
 Slope is rate of change of the objective against the constrained quantity, estimated by linear regression among near-binding solutions. Sign is *direction of improvement*: positive means relaxing helps the objective, negative means it hurts. Rare for it to be negative (would indicate the constraint is currently protecting the objective on the frontier).
 
-For `cardinality` and `group_limit` (cap side):
+For `cardinality` (cap `≤ max` or floor `≥ min` — both use this key) and `group_limit` (cap side):
 
 ```json
 {"objective": "NPV", "gain_per_additional_slot": 1.2}
