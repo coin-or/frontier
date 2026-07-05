@@ -26,15 +26,15 @@ const TIER_STYLES: Record<string, string> = {
 // Cap the per-solution regret table; the full ranking lives in `explore scenario_results`.
 const MAX_REGRET_ROWS = 8;
 
-const BANNER_TONES: Record<string, { box: string; label: string }> = {
-  amber: { box: "border-amber-300 bg-amber-50 text-amber-900", label: "" },
-  indigo: { box: "border-indigo-200 bg-indigo-50 text-indigo-900", label: "" },
+const BANNER_TONES: Record<"amber" | "indigo", string> = {
+  amber: "border-amber-300 bg-amber-50 text-amber-900",
+  indigo: "border-indigo-200 bg-indigo-50 text-indigo-900",
 };
 
 // One callout shape for every engine finding rendered in this panel.
 function Banner({ tone, label, children }: { tone: "amber" | "indigo"; label: string; children: React.ReactNode }) {
   return (
-    <div className={`mb-2 rounded border px-2 py-1.5 text-xs ${BANNER_TONES[tone].box}`}>
+    <div className={`mb-2 rounded border px-2 py-1.5 text-xs ${BANNER_TONES[tone]}`}>
       <span className="font-semibold">{label}:</span> {children}
     </div>
   );
@@ -73,6 +73,7 @@ export function ScenarioSummary({ data }: { data: ScenarioSummaryVizData }) {
   const allRegretRows = regret?.per_solution ?? [];
   const regretRows = allRegretRows.slice(0, MAX_REGRET_ROWS);
   const hiddenRegretCount = allRegretRows.length - regretRows.length;
+  const wipeoutList = regret?.wipeout_scenarios?.length ? regret.wipeout_scenarios.join(", ") : null;
 
   // Group options by tier for visual hierarchy
   const byTier: Record<string, OptionRobustness[]> = {
@@ -226,8 +227,8 @@ export function ScenarioSummary({ data }: { data: ScenarioSummaryVizData }) {
             </Banner>
           )}
 
-          {(regret.wipeout_scenarios?.length ?? 0) > 0 && regret.wipeout_note && (
-            <Banner tone="amber" label={`No base plan survives ${regret.wipeout_scenarios!.join(", ")}`}>
+          {wipeoutList && regret.wipeout_note && (
+            <Banner tone="amber" label={`No base plan survives ${wipeoutList}`}>
               {regret.wipeout_note}
             </Banner>
           )}
@@ -237,8 +238,8 @@ export function ScenarioSummary({ data }: { data: ScenarioSummaryVizData }) {
               solution #{regret.minimax_choice.solution_id} · worst-case regret{" "}
               <span className="font-mono">{pct(regret.minimax_choice.max_regret)}</span>
               <span className="ml-1 text-[10px] text-indigo-500">
-                {(regret.wipeout_scenarios?.length ?? 0) > 0
-                  ? `(lowest achievable across the ranked scenarios — excludes ${regret.wipeout_scenarios!.join(", ")})`
+                {wipeoutList
+                  ? `(lowest achievable across the ranked scenarios — excludes ${wipeoutList})`
                   : "(lowest achievable)"}
               </span>
             </Banner>
@@ -304,7 +305,9 @@ export function ScenarioSummary({ data }: { data: ScenarioSummaryVizData }) {
 
           {regret.per_objective && Object.keys(regret.per_objective).length > 0 && (
             <div className="mt-2 text-[11px] leading-relaxed text-stone-500">
-              <span className="text-stone-400">lowest worst-case regret per objective:</span>{" "}
+              <span className="text-stone-400">
+                lowest worst-case regret per objective{wipeoutList ? ` (ranked scenarios — excludes ${wipeoutList})` : ""}:
+              </span>{" "}
               {Object.entries(regret.per_objective).map(([obj, r], i) => (
                 <span key={obj}>
                   {i > 0 && " · "}

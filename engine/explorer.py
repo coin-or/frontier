@@ -653,6 +653,13 @@ def scenario_regret(problem: Problem) -> dict:
     base = problem.run.solutions
     cache: dict[tuple, dict] = {}
 
+    def round_regret(v: float) -> float:
+        # 1.0 is reserved for the exact clamp (infeasible or fully dominated): a raw
+        # 0.9996 displays as 0.999, so every rendered 100% — and the saturation-note
+        # scenario naming below — means total regret, matching the raw saturated check.
+        r = round(v, 3)
+        return 0.999 if r >= 1.0 and v < 1.0 else r
+
     def regret_for(s, name, ob):
         ev = cache.get((s.content_signature, name))
         if ev is None or not ev["feasible"]:
@@ -678,7 +685,7 @@ def scenario_regret(problem: Problem) -> dict:
         raw_by_sig[s.content_signature] = raw
         per_solution.append({
             "solution_id": s.solution_id, "content_signature": s.content_signature,
-            "by_scenario": {name: round(v, 3) for name, v in raw.items()},
+            "by_scenario": {name: round_regret(v) for name, v in raw.items()},
             "feasible_in_all": all(cache[(s.content_signature, name)]["feasible"] for name in scen_runs),
         })
 
@@ -700,8 +707,8 @@ def scenario_regret(problem: Problem) -> dict:
         raw = raw_by_sig[row["content_signature"]]
         vals = [raw[name] for name in ranked]
         raw_max[row["content_signature"]] = max(vals, default=0.0)
-        row["max_regret"] = round(raw_max[row["content_signature"]], 3)
-        row["mean_regret"] = round(sum(vals) / len(vals), 3) if vals else None
+        row["max_regret"] = round_regret(raw_max[row["content_signature"]])
+        row["mean_regret"] = round_regret(sum(vals) / len(vals)) if vals else None
         row["feasible_in_ranked"] = all(cache[(row["content_signature"], name)]["feasible"]
                                         for name in ranked)
     per_solution.sort(key=lambda x: raw_max[x["content_signature"]])
@@ -714,18 +721,18 @@ def scenario_regret(problem: Problem) -> dict:
             if best_val is None or worst < best_val:
                 best_val, best_sid = worst, s.solution_id
         if best_sid is not None:
-            per_objective[ob.name] = {"min_max_regret": round(best_val, 3), "achieved_by_solution_id": best_sid}
+            per_objective[ob.name] = {"min_max_regret": round_regret(best_val), "achieved_by_solution_id": best_sid}
 
     # per_solution is sorted ascending, so the metric is saturated exactly when the BEST
     # solution already hits total regret — every base solution is infeasible or fully
     # dominated in some RANKED scenario, and "minimizes worst-case regret" would pick among
-    # an all-1.0 tie. The check runs on unrounded values (only the 1.0 clamp reaches 1.0),
-    # so a genuine 0.9996 worst case cannot round into a false saturation verdict.
+    # an all-1.0 tie. The check runs on unrounded values, and round_regret keeps the
+    # displayed values consistent with it: 1.0 anywhere in the payload means the clamp.
     saturated = bool(per_solution) and raw_max[per_solution[0]["content_signature"]] >= 1.0
     minimax = per_solution[0] if per_solution and not saturated else None
     scope_note = (
-        " max/mean/minimax are computed over the ranked scenarios only — wipeout scenarios "
-        "are excluded (see wipeout_note)." if excluded else "")
+        " max/mean/minimax and the per-objective regrets are computed over the ranked "
+        "scenarios only — wipeout scenarios are excluded (see wipeout_note)." if excluded else "")
     result = {
         "available": True,
         "method": "scenario_minimax",

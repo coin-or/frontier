@@ -122,12 +122,17 @@ Scenario minimax-regret. For each base-frontier solution, its value under each s
 | `available` | bool | False when there are no scenarios, or no base `run` to evaluate |
 | `method` | str | `"scenario_minimax"` |
 | `normalization` | str | `"per_objective_range"` — regret as a fraction of each scenario objective's achievable spread |
-| `per_objective` | dict | Per objective: `{min_max_regret, achieved_by_solution_id}` — the lowest worst-case regret on that objective and which solution achieves it |
-| `per_solution` | list | Solutions by lowest `max_regret` (compact, ≤20): `{solution_id, content_signature, max_regret, mean_regret, by_scenario, feasible_in_all}` |
+| `per_objective` | dict | Per objective: `{min_max_regret, achieved_by_solution_id}` — the lowest worst-case regret on that objective over the **ranked** scenarios, and which solution achieves it |
+| `per_solution` | list | Solutions by lowest `max_regret` (compact, ≤20): `{solution_id, content_signature, max_regret, mean_regret, by_scenario, feasible_in_all, feasible_in_ranked}` |
+| `per_solution_total` | int | Full base-frontier count behind the compact `per_solution` list |
+| `survivors_by_scenario` | dict | Per scenario: how many base plans stay feasible there |
 | `minimax_choice` | obj\|null | The regret-robust pick: `{solution_id, content_signature, max_regret}` |
+| `saturated` + `saturation_note` | bool + str | Every base plan hits total regret in some ranked scenario — the ranking is an all-1.0 tie, `minimax_choice` is omitted |
+| `wipeout_scenarios` + `wipeout_note` | list + str | Scenarios with zero surviving base plans, excluded from the ranking |
 
-- `max_regret` is the solution's worst regret across the **ranked** (scenario, objective) pairs; `minimax_choice` minimizes it. A total-wipeout scenario (no feasible base plan — see `survivors_by_scenario`) is excluded from the ranking and named in `wipeout_scenarios` + `wipeout_note`; its uniform 1.0 stays visible in `by_scenario`, and `feasible_in_ranked` distinguishes failing only the excluded wipeout from failing a ranked scenario. A 1.0 in `by_scenario` next to a sub-1.0 `max_regret` is the wipeout exclusion, not an inconsistency.
-- `feasible_in_all: false` means the solution breaks under at least one scenario's constraints — assigned worst-case regret (1.0) there; the flag is the headline, not a footnote.
+- `max_regret` is the solution's worst regret across the **ranked** (scenario, objective) pairs; `minimax_choice` minimizes it. A total-wipeout scenario (no feasible base plan — see `survivors_by_scenario`) is excluded from the ranking and named in `wipeout_scenarios` + `wipeout_note`; its uniform 1.0 stays visible in `by_scenario`, and `feasible_in_ranked` distinguishes failing only the excluded wipeout from failing a ranked scenario. A 1.0 in `by_scenario` next to a sub-1.0 `max_regret` is the wipeout exclusion, not an inconsistency — a displayed 1.0 always means total regret (infeasible or fully dominated), never rounding.
+- `feasible_in_all: false` means the solution breaks under at least one scenario's constraints — a 1.0 lands in `by_scenario` there, but it drives `max_regret` only when that scenario is ranked. Headline it when `feasible_in_ranked` is also false; when only a wipeout scenario fails, present the row normally and let `wipeout_note` carry the model-level finding.
+- In `scenario_results`, each `per_scenario` entry also carries the lift: `base_plans_feasible` / `base_plans_total` (the same survivor counts, next to that scenario's own frontier).
 - Distinct from `scenario_risk`/CVaR: CVaR is "how bad when things go wrong"; regret is "how much worse than the best I could have chosen, in hindsight." See *Regret — the hindsight lens* in SKILL.md.
 
 ## `objective_redundancy` (from `tradeoffs`)
