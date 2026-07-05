@@ -2,168 +2,300 @@
   "options": [
     {
       "name": "Search-US",
-      "description": "Google/Bing paid search, US intent"
+      "description": "Search \u00b7 intent"
     },
     {
-      "name": "Search-Intl",
-      "description": "Paid search, international markets"
+      "name": "Search-EU",
+      "description": "Search \u00b7 intent"
     },
     {
-      "name": "Meta-Prospecting",
-      "description": "Meta (FB/IG) cold prospecting audiences"
+      "name": "Search-APAC",
+      "description": "Search \u00b7 intent"
+    },
+    {
+      "name": "Search-Brand-Defense",
+      "description": "Search \u00b7 intent"
+    },
+    {
+      "name": "Meta-Prospecting-US",
+      "description": "Meta \u00b7 broad-social"
+    },
+    {
+      "name": "Meta-Prospecting-EU",
+      "description": "Meta \u00b7 broad-social"
     },
     {
       "name": "Meta-Retargeting",
-      "description": "Meta retargeting / dynamic product ads"
+      "description": "Meta \u00b7 crm"
     },
     {
-      "name": "TikTok-GenZ",
-      "description": "TikTok in-feed, Gen Z / younger demo"
+      "name": "Meta-Creators",
+      "description": "Meta \u00b7 genz"
     },
     {
-      "name": "TikTok-Spark",
-      "description": "TikTok Spark Ads / creator amplification"
+      "name": "Meta-Advantage-Plus",
+      "description": "Meta \u00b7 broad-social"
+    },
+    {
+      "name": "TikTok-GenZ-US",
+      "description": "TikTok \u00b7 genz"
+    },
+    {
+      "name": "TikTok-GenZ-Intl",
+      "description": "TikTok \u00b7 genz"
+    },
+    {
+      "name": "TikTok-Spark-Ads",
+      "description": "TikTok \u00b7 genz"
+    },
+    {
+      "name": "TikTok-Live-Shopping",
+      "description": "TikTok \u00b7 shoppers"
     },
     {
       "name": "YouTube-Awareness",
-      "description": "YouTube skippable/bumper, broad reach"
+      "description": "YouTube \u00b7 broad-video"
     },
     {
       "name": "YouTube-Shorts",
-      "description": "YouTube Shorts, younger mobile demo"
+      "description": "YouTube \u00b7 genz"
+    },
+    {
+      "name": "YouTube-Action",
+      "description": "YouTube \u00b7 intent"
     },
     {
       "name": "Display-Programmatic",
-      "description": "Open programmatic display (DSP)"
+      "description": "Display \u00b7 broad-video"
     },
     {
       "name": "Display-Native",
-      "description": "Native display placements (Taboola/Outbrain)"
+      "description": "Display \u00b7 broad-video"
     },
     {
-      "name": "Email-CRM",
-      "description": "Owned email to CRM / existing list"
+      "name": "Display-Retail-Media",
+      "description": "Display \u00b7 shoppers"
+    },
+    {
+      "name": "Email-CRM-Active",
+      "description": "Email \u00b7 crm"
+    },
+    {
+      "name": "Email-CRM-Winback",
+      "description": "Email \u00b7 crm"
+    },
+    {
+      "name": "Email-Newsletter-Spons",
+      "description": "Email \u00b7 professional"
     },
     {
       "name": "SMS-CRM",
-      "description": "SMS / push to opted-in CRM list"
+      "description": "SMS \u00b7 crm"
     },
     {
-      "name": "Affiliate",
-      "description": "Affiliate & cashback partner network"
+      "name": "SMS-Promo",
+      "description": "SMS \u00b7 crm"
     },
     {
-      "name": "Podcast",
-      "description": "Podcast host-read & dynamic insert"
+      "name": "Affiliate-Coupon",
+      "description": "Affiliate \u00b7 shoppers"
     },
     {
-      "name": "CTV-Streaming",
-      "description": "Connected TV / streaming video (OTT)"
+      "name": "Affiliate-Content",
+      "description": "Affiliate \u00b7 intent"
     },
     {
-      "name": "Influencer",
-      "description": "Influencer / creator sponsorships"
+      "name": "Affiliate-Influencer",
+      "description": "Affiliate \u00b7 genz"
     },
     {
-      "name": "Snapchat",
-      "description": "Snap Ads, younger social demo"
+      "name": "Podcast-HostRead",
+      "description": "Podcast \u00b7 professional"
     },
     {
-      "name": "Pinterest",
-      "description": "Pinterest, high-intent discovery"
+      "name": "Podcast-Programmatic",
+      "description": "Podcast \u00b7 broad-video"
     },
     {
-      "name": "LinkedIn-B2B",
-      "description": "LinkedIn sponsored, B2B / pro audience"
+      "name": "CTV-Streaming-Premium",
+      "description": "CTV \u00b7 broad-video"
     },
     {
-      "name": "Reddit",
-      "description": "Reddit promoted posts, niche communities"
+      "name": "CTV-Streaming-AVOD",
+      "description": "CTV \u00b7 broad-video"
     },
     {
-      "name": "OOH-DOOH",
-      "description": "Out-of-home / digital billboards"
+      "name": "OOH-Digital-Urban",
+      "description": "OOH \u00b7 broad"
     },
     {
-      "name": "Audio-Streaming",
-      "description": "Spotify/Pandora streaming audio"
+      "name": "OOH-Transit",
+      "description": "OOH \u00b7 broad"
+    },
+    {
+      "name": "Amazon-Sponsored-Prod",
+      "description": "Amazon \u00b7 shoppers"
+    },
+    {
+      "name": "Amazon-DSP",
+      "description": "Amazon \u00b7 shoppers"
+    },
+    {
+      "name": "LinkedIn-Sponsored",
+      "description": "LinkedIn \u00b7 professional"
+    },
+    {
+      "name": "LinkedIn-InMail",
+      "description": "LinkedIn \u00b7 professional"
+    },
+    {
+      "name": "Reddit-Communities",
+      "description": "Reddit \u00b7 genz"
+    },
+    {
+      "name": "Pinterest-Shopping",
+      "description": "Pinterest \u00b7 shoppers"
+    },
+    {
+      "name": "Twitch-Sponsorships",
+      "description": "Twitch \u00b7 genz"
     }
   ],
   "scores": [
     {
       "option": "Search-US",
       "objective": "Conversions",
-      "value": 36.95
+      "value": 36.9
     },
     {
       "option": "Search-US",
       "objective": "Reach",
-      "value": 8.25
+      "value": 8.3
     },
     {
       "option": "Search-US",
       "objective": "ROAS",
-      "value": 4.83
+      "value": 4.8
     },
     {
       "option": "Search-US",
       "objective": "BrandLift",
-      "value": 19.46
+      "value": 19.5
     },
     {
-      "option": "Search-Intl",
+      "option": "Search-EU",
       "objective": "Conversions",
-      "value": 38.31
+      "value": 33.4
     },
     {
-      "option": "Search-Intl",
+      "option": "Search-EU",
       "objective": "Reach",
-      "value": 14.77
+      "value": 10.1
     },
     {
-      "option": "Search-Intl",
+      "option": "Search-EU",
       "objective": "ROAS",
-      "value": 6.25
+      "value": 4.4
     },
     {
-      "option": "Search-Intl",
+      "option": "Search-EU",
       "objective": "BrandLift",
-      "value": 16.74
+      "value": 17.2
     },
     {
-      "option": "Meta-Prospecting",
+      "option": "Search-APAC",
       "objective": "Conversions",
-      "value": 19.06
+      "value": 29.8
     },
     {
-      "option": "Meta-Prospecting",
+      "option": "Search-APAC",
       "objective": "Reach",
-      "value": 22.54
+      "value": 12.6
     },
     {
-      "option": "Meta-Prospecting",
+      "option": "Search-APAC",
       "objective": "ROAS",
-      "value": 2.67
+      "value": 3.9
     },
     {
-      "option": "Meta-Prospecting",
+      "option": "Search-APAC",
       "objective": "BrandLift",
-      "value": 51.12
+      "value": 15.8
+    },
+    {
+      "option": "Search-Brand-Defense",
+      "objective": "Conversions",
+      "value": 40.2
+    },
+    {
+      "option": "Search-Brand-Defense",
+      "objective": "Reach",
+      "value": 5.1
+    },
+    {
+      "option": "Search-Brand-Defense",
+      "objective": "ROAS",
+      "value": 6.8
+    },
+    {
+      "option": "Search-Brand-Defense",
+      "objective": "BrandLift",
+      "value": 12.4
+    },
+    {
+      "option": "Meta-Prospecting-US",
+      "objective": "Conversions",
+      "value": 19.1
+    },
+    {
+      "option": "Meta-Prospecting-US",
+      "objective": "Reach",
+      "value": 22.5
+    },
+    {
+      "option": "Meta-Prospecting-US",
+      "objective": "ROAS",
+      "value": 2.7
+    },
+    {
+      "option": "Meta-Prospecting-US",
+      "objective": "BrandLift",
+      "value": 51.1
+    },
+    {
+      "option": "Meta-Prospecting-EU",
+      "objective": "Conversions",
+      "value": 17.4
+    },
+    {
+      "option": "Meta-Prospecting-EU",
+      "objective": "Reach",
+      "value": 20.8
+    },
+    {
+      "option": "Meta-Prospecting-EU",
+      "objective": "ROAS",
+      "value": 2.5
+    },
+    {
+      "option": "Meta-Prospecting-EU",
+      "objective": "BrandLift",
+      "value": 47.6
     },
     {
       "option": "Meta-Retargeting",
       "objective": "Conversions",
-      "value": 28.37
+      "value": 28.4
     },
     {
       "option": "Meta-Retargeting",
       "objective": "Reach",
-      "value": 9.99
+      "value": 10.0
     },
     {
       "option": "Meta-Retargeting",
       "objective": "ROAS",
-      "value": 5.69
+      "value": 5.7
     },
     {
       "option": "Meta-Retargeting",
@@ -171,364 +303,664 @@
       "value": 25.9
     },
     {
-      "option": "TikTok-GenZ",
+      "option": "Meta-Creators",
       "objective": "Conversions",
-      "value": 16.65
+      "value": 14.2
     },
     {
-      "option": "TikTok-GenZ",
+      "option": "Meta-Creators",
       "objective": "Reach",
-      "value": 32.61
+      "value": 24.3
     },
     {
-      "option": "TikTok-GenZ",
-      "objective": "ROAS",
-      "value": 3.68
-    },
-    {
-      "option": "TikTok-GenZ",
-      "objective": "BrandLift",
-      "value": 40.14
-    },
-    {
-      "option": "TikTok-Spark",
-      "objective": "Conversions",
-      "value": 23.67
-    },
-    {
-      "option": "TikTok-Spark",
-      "objective": "Reach",
-      "value": 34.57
-    },
-    {
-      "option": "TikTok-Spark",
-      "objective": "ROAS",
-      "value": 2.88
-    },
-    {
-      "option": "TikTok-Spark",
-      "objective": "BrandLift",
-      "value": 43.42
-    },
-    {
-      "option": "YouTube-Awareness",
-      "objective": "Conversions",
-      "value": 10.7
-    },
-    {
-      "option": "YouTube-Awareness",
-      "objective": "Reach",
-      "value": 56.78
-    },
-    {
-      "option": "YouTube-Awareness",
-      "objective": "ROAS",
-      "value": 1.02
-    },
-    {
-      "option": "YouTube-Awareness",
-      "objective": "BrandLift",
-      "value": 68.51
-    },
-    {
-      "option": "YouTube-Shorts",
-      "objective": "Conversions",
-      "value": 24.17
-    },
-    {
-      "option": "YouTube-Shorts",
-      "objective": "Reach",
-      "value": 32.87
-    },
-    {
-      "option": "YouTube-Shorts",
-      "objective": "ROAS",
-      "value": 3.67
-    },
-    {
-      "option": "YouTube-Shorts",
-      "objective": "BrandLift",
-      "value": 56.05
-    },
-    {
-      "option": "Display-Programmatic",
-      "objective": "Conversions",
-      "value": 7.75
-    },
-    {
-      "option": "Display-Programmatic",
-      "objective": "Reach",
-      "value": 79.06
-    },
-    {
-      "option": "Display-Programmatic",
-      "objective": "ROAS",
-      "value": 1.39
-    },
-    {
-      "option": "Display-Programmatic",
-      "objective": "BrandLift",
-      "value": 80.35
-    },
-    {
-      "option": "Display-Native",
-      "objective": "Conversions",
-      "value": 9.81
-    },
-    {
-      "option": "Display-Native",
-      "objective": "Reach",
-      "value": 66.65
-    },
-    {
-      "option": "Display-Native",
-      "objective": "ROAS",
-      "value": 2.02
-    },
-    {
-      "option": "Display-Native",
-      "objective": "BrandLift",
-      "value": 81.01
-    },
-    {
-      "option": "Email-CRM",
-      "objective": "Conversions",
-      "value": 37.86
-    },
-    {
-      "option": "Email-CRM",
-      "objective": "Reach",
-      "value": 8.46
-    },
-    {
-      "option": "Email-CRM",
-      "objective": "ROAS",
-      "value": 4.72
-    },
-    {
-      "option": "Email-CRM",
-      "objective": "BrandLift",
-      "value": 20.79
-    },
-    {
-      "option": "SMS-CRM",
-      "objective": "Conversions",
-      "value": 29.12
-    },
-    {
-      "option": "SMS-CRM",
-      "objective": "Reach",
-      "value": 10.33
-    },
-    {
-      "option": "SMS-CRM",
-      "objective": "ROAS",
-      "value": 4.43
-    },
-    {
-      "option": "SMS-CRM",
-      "objective": "BrandLift",
-      "value": 20.56
-    },
-    {
-      "option": "Affiliate",
-      "objective": "Conversions",
-      "value": 36.9
-    },
-    {
-      "option": "Affiliate",
-      "objective": "Reach",
-      "value": 11.65
-    },
-    {
-      "option": "Affiliate",
-      "objective": "ROAS",
-      "value": 5.05
-    },
-    {
-      "option": "Affiliate",
-      "objective": "BrandLift",
-      "value": 19.19
-    },
-    {
-      "option": "Podcast",
-      "objective": "Conversions",
-      "value": 5.87
-    },
-    {
-      "option": "Podcast",
-      "objective": "Reach",
-      "value": 77.78
-    },
-    {
-      "option": "Podcast",
-      "objective": "ROAS",
-      "value": 1.74
-    },
-    {
-      "option": "Podcast",
-      "objective": "BrandLift",
-      "value": 81.84
-    },
-    {
-      "option": "CTV-Streaming",
-      "objective": "Conversions",
-      "value": 5.2
-    },
-    {
-      "option": "CTV-Streaming",
-      "objective": "Reach",
-      "value": 70.52
-    },
-    {
-      "option": "CTV-Streaming",
-      "objective": "ROAS",
-      "value": 1.11
-    },
-    {
-      "option": "CTV-Streaming",
-      "objective": "BrandLift",
-      "value": 75.87
-    },
-    {
-      "option": "Influencer",
-      "objective": "Conversions",
-      "value": 10.93
-    },
-    {
-      "option": "Influencer",
-      "objective": "Reach",
-      "value": 67.4
-    },
-    {
-      "option": "Influencer",
-      "objective": "ROAS",
-      "value": 1.62
-    },
-    {
-      "option": "Influencer",
-      "objective": "BrandLift",
-      "value": 83.8
-    },
-    {
-      "option": "Snapchat",
-      "objective": "Conversions",
-      "value": 24.11
-    },
-    {
-      "option": "Snapchat",
-      "objective": "Reach",
-      "value": 35.97
-    },
-    {
-      "option": "Snapchat",
-      "objective": "ROAS",
-      "value": 2.69
-    },
-    {
-      "option": "Snapchat",
-      "objective": "BrandLift",
-      "value": 40.71
-    },
-    {
-      "option": "Pinterest",
-      "objective": "Conversions",
-      "value": 17.79
-    },
-    {
-      "option": "Pinterest",
-      "objective": "Reach",
-      "value": 26.82
-    },
-    {
-      "option": "Pinterest",
-      "objective": "ROAS",
-      "value": 2.66
-    },
-    {
-      "option": "Pinterest",
-      "objective": "BrandLift",
-      "value": 60.74
-    },
-    {
-      "option": "LinkedIn-B2B",
-      "objective": "Conversions",
-      "value": 24.52
-    },
-    {
-      "option": "LinkedIn-B2B",
-      "objective": "Reach",
-      "value": 27.66
-    },
-    {
-      "option": "LinkedIn-B2B",
-      "objective": "ROAS",
-      "value": 3.41
-    },
-    {
-      "option": "LinkedIn-B2B",
-      "objective": "BrandLift",
-      "value": 48.7
-    },
-    {
-      "option": "Reddit",
-      "objective": "Conversions",
-      "value": 24.97
-    },
-    {
-      "option": "Reddit",
-      "objective": "Reach",
-      "value": 30.26
-    },
-    {
-      "option": "Reddit",
-      "objective": "ROAS",
-      "value": 2.75
-    },
-    {
-      "option": "Reddit",
-      "objective": "BrandLift",
-      "value": 45.43
-    },
-    {
-      "option": "OOH-DOOH",
-      "objective": "Conversions",
-      "value": 7.93
-    },
-    {
-      "option": "OOH-DOOH",
-      "objective": "Reach",
-      "value": 54.2
-    },
-    {
-      "option": "OOH-DOOH",
-      "objective": "ROAS",
-      "value": 1.66
-    },
-    {
-      "option": "OOH-DOOH",
-      "objective": "BrandLift",
-      "value": 89.34
-    },
-    {
-      "option": "Audio-Streaming",
-      "objective": "Conversions",
-      "value": 6.8
-    },
-    {
-      "option": "Audio-Streaming",
-      "objective": "Reach",
-      "value": 52.68
-    },
-    {
-      "option": "Audio-Streaming",
+      "option": "Meta-Creators",
       "objective": "ROAS",
       "value": 2.2
     },
     {
-      "option": "Audio-Streaming",
+      "option": "Meta-Creators",
       "objective": "BrandLift",
-      "value": 79.25
+      "value": 55.4
+    },
+    {
+      "option": "Meta-Advantage-Plus",
+      "objective": "Conversions",
+      "value": 21.6
+    },
+    {
+      "option": "Meta-Advantage-Plus",
+      "objective": "Reach",
+      "value": 18.2
+    },
+    {
+      "option": "Meta-Advantage-Plus",
+      "objective": "ROAS",
+      "value": 3.1
+    },
+    {
+      "option": "Meta-Advantage-Plus",
+      "objective": "BrandLift",
+      "value": 38.7
+    },
+    {
+      "option": "TikTok-GenZ-US",
+      "objective": "Conversions",
+      "value": 16.7
+    },
+    {
+      "option": "TikTok-GenZ-US",
+      "objective": "Reach",
+      "value": 32.6
+    },
+    {
+      "option": "TikTok-GenZ-US",
+      "objective": "ROAS",
+      "value": 3.7
+    },
+    {
+      "option": "TikTok-GenZ-US",
+      "objective": "BrandLift",
+      "value": 40.1
+    },
+    {
+      "option": "TikTok-GenZ-Intl",
+      "objective": "Conversions",
+      "value": 14.9
+    },
+    {
+      "option": "TikTok-GenZ-Intl",
+      "objective": "Reach",
+      "value": 29.4
+    },
+    {
+      "option": "TikTok-GenZ-Intl",
+      "objective": "ROAS",
+      "value": 3.3
+    },
+    {
+      "option": "TikTok-GenZ-Intl",
+      "objective": "BrandLift",
+      "value": 37.8
+    },
+    {
+      "option": "TikTok-Spark-Ads",
+      "objective": "Conversions",
+      "value": 18.3
+    },
+    {
+      "option": "TikTok-Spark-Ads",
+      "objective": "Reach",
+      "value": 21.7
+    },
+    {
+      "option": "TikTok-Spark-Ads",
+      "objective": "ROAS",
+      "value": 3.9
+    },
+    {
+      "option": "TikTok-Spark-Ads",
+      "objective": "BrandLift",
+      "value": 33.2
+    },
+    {
+      "option": "TikTok-Live-Shopping",
+      "objective": "Conversions",
+      "value": 24.6
+    },
+    {
+      "option": "TikTok-Live-Shopping",
+      "objective": "Reach",
+      "value": 12.8
+    },
+    {
+      "option": "TikTok-Live-Shopping",
+      "objective": "ROAS",
+      "value": 4.6
+    },
+    {
+      "option": "TikTok-Live-Shopping",
+      "objective": "BrandLift",
+      "value": 22.5
+    },
+    {
+      "option": "YouTube-Awareness",
+      "objective": "Conversions",
+      "value": 8.9
+    },
+    {
+      "option": "YouTube-Awareness",
+      "objective": "Reach",
+      "value": 35.2
+    },
+    {
+      "option": "YouTube-Awareness",
+      "objective": "ROAS",
+      "value": 1.6
+    },
+    {
+      "option": "YouTube-Awareness",
+      "objective": "BrandLift",
+      "value": 58.3
+    },
+    {
+      "option": "YouTube-Shorts",
+      "objective": "Conversions",
+      "value": 12.4
+    },
+    {
+      "option": "YouTube-Shorts",
+      "objective": "Reach",
+      "value": 27.9
+    },
+    {
+      "option": "YouTube-Shorts",
+      "objective": "ROAS",
+      "value": 2.4
+    },
+    {
+      "option": "YouTube-Shorts",
+      "objective": "BrandLift",
+      "value": 44.6
+    },
+    {
+      "option": "YouTube-Action",
+      "objective": "Conversions",
+      "value": 22.7
+    },
+    {
+      "option": "YouTube-Action",
+      "objective": "Reach",
+      "value": 14.5
+    },
+    {
+      "option": "YouTube-Action",
+      "objective": "ROAS",
+      "value": 3.4
+    },
+    {
+      "option": "YouTube-Action",
+      "objective": "BrandLift",
+      "value": 28.1
+    },
+    {
+      "option": "Display-Programmatic",
+      "objective": "Conversions",
+      "value": 9.6
+    },
+    {
+      "option": "Display-Programmatic",
+      "objective": "Reach",
+      "value": 26.4
+    },
+    {
+      "option": "Display-Programmatic",
+      "objective": "ROAS",
+      "value": 1.9
+    },
+    {
+      "option": "Display-Programmatic",
+      "objective": "BrandLift",
+      "value": 24.7
+    },
+    {
+      "option": "Display-Native",
+      "objective": "Conversions",
+      "value": 11.2
+    },
+    {
+      "option": "Display-Native",
+      "objective": "Reach",
+      "value": 19.8
+    },
+    {
+      "option": "Display-Native",
+      "objective": "ROAS",
+      "value": 2.3
+    },
+    {
+      "option": "Display-Native",
+      "objective": "BrandLift",
+      "value": 27.3
+    },
+    {
+      "option": "Display-Retail-Media",
+      "objective": "Conversions",
+      "value": 26.8
+    },
+    {
+      "option": "Display-Retail-Media",
+      "objective": "Reach",
+      "value": 11.4
+    },
+    {
+      "option": "Display-Retail-Media",
+      "objective": "ROAS",
+      "value": 4.9
+    },
+    {
+      "option": "Display-Retail-Media",
+      "objective": "BrandLift",
+      "value": 18.9
+    },
+    {
+      "option": "Email-CRM-Active",
+      "objective": "Conversions",
+      "value": 34.7
+    },
+    {
+      "option": "Email-CRM-Active",
+      "objective": "Reach",
+      "value": 6.2
+    },
+    {
+      "option": "Email-CRM-Active",
+      "objective": "ROAS",
+      "value": 6.4
+    },
+    {
+      "option": "Email-CRM-Active",
+      "objective": "BrandLift",
+      "value": 14.8
+    },
+    {
+      "option": "Email-CRM-Winback",
+      "objective": "Conversions",
+      "value": 23.9
+    },
+    {
+      "option": "Email-CRM-Winback",
+      "objective": "Reach",
+      "value": 4.8
+    },
+    {
+      "option": "Email-CRM-Winback",
+      "objective": "ROAS",
+      "value": 4.1
+    },
+    {
+      "option": "Email-CRM-Winback",
+      "objective": "BrandLift",
+      "value": 11.2
+    },
+    {
+      "option": "Email-Newsletter-Spons",
+      "objective": "Conversions",
+      "value": 13.8
+    },
+    {
+      "option": "Email-Newsletter-Spons",
+      "objective": "Reach",
+      "value": 9.7
+    },
+    {
+      "option": "Email-Newsletter-Spons",
+      "objective": "ROAS",
+      "value": 2.8
+    },
+    {
+      "option": "Email-Newsletter-Spons",
+      "objective": "BrandLift",
+      "value": 31.6
+    },
+    {
+      "option": "SMS-CRM",
+      "objective": "Conversions",
+      "value": 31.2
+    },
+    {
+      "option": "SMS-CRM",
+      "objective": "Reach",
+      "value": 4.1
+    },
+    {
+      "option": "SMS-CRM",
+      "objective": "ROAS",
+      "value": 5.8
+    },
+    {
+      "option": "SMS-CRM",
+      "objective": "BrandLift",
+      "value": 9.7
+    },
+    {
+      "option": "SMS-Promo",
+      "objective": "Conversions",
+      "value": 27.5
+    },
+    {
+      "option": "SMS-Promo",
+      "objective": "Reach",
+      "value": 5.3
+    },
+    {
+      "option": "SMS-Promo",
+      "objective": "ROAS",
+      "value": 4.7
+    },
+    {
+      "option": "SMS-Promo",
+      "objective": "BrandLift",
+      "value": 8.4
+    },
+    {
+      "option": "Affiliate-Coupon",
+      "objective": "Conversions",
+      "value": 29.3
+    },
+    {
+      "option": "Affiliate-Coupon",
+      "objective": "Reach",
+      "value": 7.9
+    },
+    {
+      "option": "Affiliate-Coupon",
+      "objective": "ROAS",
+      "value": 5.2
+    },
+    {
+      "option": "Affiliate-Coupon",
+      "objective": "BrandLift",
+      "value": 10.6
+    },
+    {
+      "option": "Affiliate-Content",
+      "objective": "Conversions",
+      "value": 18.6
+    },
+    {
+      "option": "Affiliate-Content",
+      "objective": "Reach",
+      "value": 10.8
+    },
+    {
+      "option": "Affiliate-Content",
+      "objective": "ROAS",
+      "value": 3.6
+    },
+    {
+      "option": "Affiliate-Content",
+      "objective": "BrandLift",
+      "value": 26.4
+    },
+    {
+      "option": "Affiliate-Influencer",
+      "objective": "Conversions",
+      "value": 15.8
+    },
+    {
+      "option": "Affiliate-Influencer",
+      "objective": "Reach",
+      "value": 16.2
+    },
+    {
+      "option": "Affiliate-Influencer",
+      "objective": "ROAS",
+      "value": 2.9
+    },
+    {
+      "option": "Affiliate-Influencer",
+      "objective": "BrandLift",
+      "value": 42.3
+    },
+    {
+      "option": "Podcast-HostRead",
+      "objective": "Conversions",
+      "value": 12.1
+    },
+    {
+      "option": "Podcast-HostRead",
+      "objective": "Reach",
+      "value": 13.6
+    },
+    {
+      "option": "Podcast-HostRead",
+      "objective": "ROAS",
+      "value": 2.6
+    },
+    {
+      "option": "Podcast-HostRead",
+      "objective": "BrandLift",
+      "value": 48.7
+    },
+    {
+      "option": "Podcast-Programmatic",
+      "objective": "Conversions",
+      "value": 8.2
+    },
+    {
+      "option": "Podcast-Programmatic",
+      "objective": "Reach",
+      "value": 17.3
+    },
+    {
+      "option": "Podcast-Programmatic",
+      "objective": "ROAS",
+      "value": 1.8
+    },
+    {
+      "option": "Podcast-Programmatic",
+      "objective": "BrandLift",
+      "value": 32.9
+    },
+    {
+      "option": "CTV-Streaming-Premium",
+      "objective": "Conversions",
+      "value": 7.4
+    },
+    {
+      "option": "CTV-Streaming-Premium",
+      "objective": "Reach",
+      "value": 31.8
+    },
+    {
+      "option": "CTV-Streaming-Premium",
+      "objective": "ROAS",
+      "value": 1.4
+    },
+    {
+      "option": "CTV-Streaming-Premium",
+      "objective": "BrandLift",
+      "value": 61.2
+    },
+    {
+      "option": "CTV-Streaming-AVOD",
+      "objective": "Conversions",
+      "value": 9.1
+    },
+    {
+      "option": "CTV-Streaming-AVOD",
+      "objective": "Reach",
+      "value": 24.6
+    },
+    {
+      "option": "CTV-Streaming-AVOD",
+      "objective": "ROAS",
+      "value": 1.9
+    },
+    {
+      "option": "CTV-Streaming-AVOD",
+      "objective": "BrandLift",
+      "value": 46.8
+    },
+    {
+      "option": "OOH-Digital-Urban",
+      "objective": "Conversions",
+      "value": 4.6
+    },
+    {
+      "option": "OOH-Digital-Urban",
+      "objective": "Reach",
+      "value": 28.7
+    },
+    {
+      "option": "OOH-Digital-Urban",
+      "objective": "ROAS",
+      "value": 0.9
+    },
+    {
+      "option": "OOH-Digital-Urban",
+      "objective": "BrandLift",
+      "value": 52.4
+    },
+    {
+      "option": "OOH-Transit",
+      "objective": "Conversions",
+      "value": 3.8
+    },
+    {
+      "option": "OOH-Transit",
+      "objective": "Reach",
+      "value": 22.1
+    },
+    {
+      "option": "OOH-Transit",
+      "objective": "ROAS",
+      "value": 0.8
+    },
+    {
+      "option": "OOH-Transit",
+      "objective": "BrandLift",
+      "value": 38.6
+    },
+    {
+      "option": "Amazon-Sponsored-Prod",
+      "objective": "Conversions",
+      "value": 35.6
+    },
+    {
+      "option": "Amazon-Sponsored-Prod",
+      "objective": "Reach",
+      "value": 9.2
+    },
+    {
+      "option": "Amazon-Sponsored-Prod",
+      "objective": "ROAS",
+      "value": 5.9
+    },
+    {
+      "option": "Amazon-Sponsored-Prod",
+      "objective": "BrandLift",
+      "value": 13.7
+    },
+    {
+      "option": "Amazon-DSP",
+      "objective": "Conversions",
+      "value": 20.4
+    },
+    {
+      "option": "Amazon-DSP",
+      "objective": "Reach",
+      "value": 15.7
+    },
+    {
+      "option": "Amazon-DSP",
+      "objective": "ROAS",
+      "value": 3.2
+    },
+    {
+      "option": "Amazon-DSP",
+      "objective": "BrandLift",
+      "value": 24.2
+    },
+    {
+      "option": "LinkedIn-Sponsored",
+      "objective": "Conversions",
+      "value": 11.6
+    },
+    {
+      "option": "LinkedIn-Sponsored",
+      "objective": "Reach",
+      "value": 11.9
+    },
+    {
+      "option": "LinkedIn-Sponsored",
+      "objective": "ROAS",
+      "value": 2.1
+    },
+    {
+      "option": "LinkedIn-Sponsored",
+      "objective": "BrandLift",
+      "value": 45.3
+    },
+    {
+      "option": "LinkedIn-InMail",
+      "objective": "Conversions",
+      "value": 16.9
+    },
+    {
+      "option": "LinkedIn-InMail",
+      "objective": "Reach",
+      "value": 6.4
+    },
+    {
+      "option": "LinkedIn-InMail",
+      "objective": "ROAS",
+      "value": 2.7
+    },
+    {
+      "option": "LinkedIn-InMail",
+      "objective": "BrandLift",
+      "value": 21.8
+    },
+    {
+      "option": "Reddit-Communities",
+      "objective": "Conversions",
+      "value": 10.7
+    },
+    {
+      "option": "Reddit-Communities",
+      "objective": "Reach",
+      "value": 18.4
+    },
+    {
+      "option": "Reddit-Communities",
+      "objective": "ROAS",
+      "value": 2.3
+    },
+    {
+      "option": "Reddit-Communities",
+      "objective": "BrandLift",
+      "value": 36.5
+    },
+    {
+      "option": "Pinterest-Shopping",
+      "objective": "Conversions",
+      "value": 19.8
+    },
+    {
+      "option": "Pinterest-Shopping",
+      "objective": "Reach",
+      "value": 13.1
+    },
+    {
+      "option": "Pinterest-Shopping",
+      "objective": "ROAS",
+      "value": 3.5
+    },
+    {
+      "option": "Pinterest-Shopping",
+      "objective": "BrandLift",
+      "value": 29.7
+    },
+    {
+      "option": "Twitch-Sponsorships",
+      "objective": "Conversions",
+      "value": 9.4
+    },
+    {
+      "option": "Twitch-Sponsorships",
+      "objective": "Reach",
+      "value": 15.9
+    },
+    {
+      "option": "Twitch-Sponsorships",
+      "objective": "ROAS",
+      "value": 2.0
+    },
+    {
+      "option": "Twitch-Sponsorships",
+      "objective": "BrandLift",
+      "value": 39.8
     }
   ],
   "interaction_matrices": [
@@ -536,116 +968,488 @@
       "objective": "Reach",
       "entries": {
         "Search-US": {
-          "Search-US": 68.062,
-          "Search-Intl": -54.834,
-          "Meta-Retargeting": -18.132,
-          "Affiliate": -21.145
+          "Search-US": 68.89,
+          "Search-EU": -37.724,
+          "Search-APAC": -47.061,
+          "Search-Brand-Defense": -19.049,
+          "TikTok-Live-Shopping": -12.749,
+          "YouTube-Action": -30.088,
+          "Display-Retail-Media": -11.354,
+          "Affiliate-Coupon": -7.868,
+          "Affiliate-Content": -22.41,
+          "Amazon-Sponsored-Prod": -9.163,
+          "Amazon-DSP": -15.637,
+          "Pinterest-Shopping": -13.048
         },
-        "Search-Intl": {
-          "Search-Intl": 218.153,
-          "Search-US": -54.834
+        "Search-EU": {
+          "Search-EU": 102.01,
+          "Search-US": -37.724,
+          "Search-APAC": -57.267,
+          "Search-Brand-Defense": -23.179,
+          "TikTok-Live-Shopping": -15.514,
+          "YouTube-Action": -36.612,
+          "Display-Retail-Media": -13.817,
+          "Affiliate-Coupon": -9.575,
+          "Affiliate-Content": -27.27,
+          "Amazon-Sponsored-Prod": -11.15,
+          "Amazon-DSP": -19.028,
+          "Pinterest-Shopping": -15.877
         },
-        "Meta-Prospecting": {
-          "Meta-Prospecting": 508.052,
-          "Meta-Retargeting": -101.329,
-          "Pinterest": -132.995
+        "Search-APAC": {
+          "Search-APAC": 158.76,
+          "Search-US": -47.061,
+          "Search-EU": -57.267,
+          "Search-Brand-Defense": -28.917,
+          "TikTok-Live-Shopping": -19.354,
+          "YouTube-Action": -45.675,
+          "Display-Retail-Media": -17.237,
+          "Affiliate-Coupon": -11.945,
+          "Affiliate-Content": -34.02,
+          "Amazon-Sponsored-Prod": -13.91,
+          "Amazon-DSP": -23.738,
+          "Pinterest-Shopping": -19.807
+        },
+        "Search-Brand-Defense": {
+          "Search-Brand-Defense": 26.01,
+          "Search-US": -19.049,
+          "Search-EU": -23.179,
+          "Search-APAC": -28.917,
+          "TikTok-Live-Shopping": -7.834,
+          "YouTube-Action": -18.487,
+          "Display-Retail-Media": -6.977,
+          "Affiliate-Coupon": -4.835,
+          "Affiliate-Content": -13.77,
+          "Amazon-Sponsored-Prod": -5.63,
+          "Amazon-DSP": -9.608,
+          "Pinterest-Shopping": -8.017
+        },
+        "Meta-Prospecting-US": {
+          "Meta-Prospecting-US": 506.25,
+          "Meta-Prospecting-EU": -210.6,
+          "Meta-Retargeting": -101.25,
+          "Meta-Creators": -246.037,
+          "Meta-Advantage-Plus": -184.275,
+          "TikTok-GenZ-US": -88.02,
+          "TikTok-GenZ-Intl": -79.38,
+          "TikTok-Spark-Ads": -58.59,
+          "YouTube-Shorts": -75.33,
+          "Affiliate-Influencer": -43.74,
+          "Reddit-Communities": -49.68,
+          "Twitch-Sponsorships": -42.93
+        },
+        "Meta-Prospecting-EU": {
+          "Meta-Prospecting-EU": 432.64,
+          "Meta-Prospecting-US": -210.6,
+          "Meta-Retargeting": -93.6,
+          "Meta-Creators": -227.448,
+          "Meta-Advantage-Plus": -170.352,
+          "TikTok-GenZ-US": -81.37,
+          "TikTok-GenZ-Intl": -73.382,
+          "TikTok-Spark-Ads": -54.163,
+          "YouTube-Shorts": -69.638,
+          "Affiliate-Influencer": -40.435,
+          "Reddit-Communities": -45.926,
+          "Twitch-Sponsorships": -39.686
         },
         "Meta-Retargeting": {
-          "Meta-Retargeting": 99.8,
-          "Search-US": -18.132,
-          "Meta-Prospecting": -101.329,
-          "Affiliate": -25.604
+          "Meta-Retargeting": 100.0,
+          "Meta-Prospecting-US": -101.25,
+          "Meta-Prospecting-EU": -93.6,
+          "Meta-Creators": -109.35,
+          "Meta-Advantage-Plus": -81.9,
+          "Email-CRM-Active": -15.5,
+          "Email-CRM-Winback": -12.0,
+          "SMS-CRM": -10.25,
+          "SMS-Promo": -13.25
         },
-        "TikTok-GenZ": {
-          "TikTok-GenZ": 1063.412,
-          "TikTok-Spark": -507.297,
-          "YouTube-Shorts": -235.816,
-          "Influencer": -483.541,
-          "Snapchat": -258.056
+        "Meta-Creators": {
+          "Meta-Creators": 590.49,
+          "Meta-Prospecting-US": -246.038,
+          "Meta-Prospecting-EU": -227.448,
+          "Meta-Retargeting": -109.35,
+          "Meta-Advantage-Plus": -199.017,
+          "TikTok-GenZ-US": -198.045,
+          "TikTok-GenZ-Intl": -178.605,
+          "TikTok-Spark-Ads": -131.827,
+          "YouTube-Shorts": -169.493,
+          "Affiliate-Influencer": -98.415,
+          "Reddit-Communities": -111.78,
+          "Twitch-Sponsorships": -96.593
         },
-        "TikTok-Spark": {
-          "TikTok-Spark": 1195.085,
-          "TikTok-GenZ": -507.297,
-          "YouTube-Shorts": -249.989,
-          "Influencer": -512.604,
-          "Snapchat": -273.566
+        "Meta-Advantage-Plus": {
+          "Meta-Advantage-Plus": 331.24,
+          "Meta-Prospecting-US": -184.275,
+          "Meta-Prospecting-EU": -170.352,
+          "Meta-Retargeting": -81.9,
+          "Meta-Creators": -199.017,
+          "TikTok-GenZ-US": -71.198,
+          "TikTok-GenZ-Intl": -64.21,
+          "TikTok-Spark-Ads": -47.393,
+          "YouTube-Shorts": -60.934,
+          "Affiliate-Influencer": -35.381,
+          "Reddit-Communities": -40.186,
+          "Twitch-Sponsorships": -34.726
+        },
+        "TikTok-GenZ-US": {
+          "TikTok-GenZ-US": 1062.76,
+          "Meta-Prospecting-US": -88.02,
+          "Meta-Prospecting-EU": -81.37,
+          "Meta-Creators": -198.045,
+          "Meta-Advantage-Plus": -71.198,
+          "TikTok-GenZ-Intl": -431.298,
+          "TikTok-Spark-Ads": -318.339,
+          "TikTok-Live-Shopping": -187.776,
+          "YouTube-Shorts": -227.385,
+          "Affiliate-Influencer": -132.03,
+          "Reddit-Communities": -149.96,
+          "Twitch-Sponsorships": -129.585
+        },
+        "TikTok-GenZ-Intl": {
+          "TikTok-GenZ-Intl": 864.36,
+          "Meta-Prospecting-US": -79.38,
+          "Meta-Prospecting-EU": -73.382,
+          "Meta-Creators": -178.605,
+          "Meta-Advantage-Plus": -64.21,
+          "TikTok-GenZ-US": -431.298,
+          "TikTok-Spark-Ads": -287.091,
+          "TikTok-Live-Shopping": -169.344,
+          "YouTube-Shorts": -205.065,
+          "Affiliate-Influencer": -119.07,
+          "Reddit-Communities": -135.24,
+          "Twitch-Sponsorships": -116.865
+        },
+        "TikTok-Spark-Ads": {
+          "TikTok-Spark-Ads": 470.89,
+          "Meta-Prospecting-US": -58.59,
+          "Meta-Prospecting-EU": -54.163,
+          "Meta-Creators": -131.827,
+          "Meta-Advantage-Plus": -47.393,
+          "TikTok-GenZ-US": -318.339,
+          "TikTok-GenZ-Intl": -287.091,
+          "TikTok-Live-Shopping": -124.992,
+          "YouTube-Shorts": -151.357,
+          "Affiliate-Influencer": -87.885,
+          "Reddit-Communities": -99.82,
+          "Twitch-Sponsorships": -86.257
+        },
+        "TikTok-Live-Shopping": {
+          "TikTok-Live-Shopping": 163.84,
+          "Search-US": -12.749,
+          "Search-EU": -15.514,
+          "Search-APAC": -19.354,
+          "Search-Brand-Defense": -7.834,
+          "TikTok-GenZ-US": -187.776,
+          "TikTok-GenZ-Intl": -169.344,
+          "TikTok-Spark-Ads": -124.992,
+          "YouTube-Action": -22.272,
+          "Display-Retail-Media": -36.48,
+          "Affiliate-Coupon": -25.28,
+          "Affiliate-Content": -16.589,
+          "Amazon-Sponsored-Prod": -29.44,
+          "Amazon-DSP": -50.24,
+          "Pinterest-Shopping": -41.92
         },
         "YouTube-Awareness": {
-          "YouTube-Awareness": 3223.968,
-          "YouTube-Shorts": -839.861,
-          "CTV-Streaming": -880.908
+          "YouTube-Awareness": 1239.04,
+          "YouTube-Shorts": -441.936,
+          "YouTube-Action": -229.68,
+          "Display-Programmatic": -232.32,
+          "Display-Native": -174.24,
+          "Podcast-Programmatic": -152.24,
+          "CTV-Streaming-Premium": -279.84,
+          "CTV-Streaming-AVOD": -216.48,
+          "OOH-Digital-Urban": -121.229,
+          "OOH-Transit": -93.35
         },
         "YouTube-Shorts": {
-          "YouTube-Shorts": 1080.437,
-          "TikTok-GenZ": -235.816,
-          "TikTok-Spark": -249.989,
-          "YouTube-Awareness": -839.861,
-          "Influencer": -487.396,
-          "Snapchat": -260.113
+          "YouTube-Shorts": 778.41,
+          "Meta-Prospecting-US": -75.33,
+          "Meta-Prospecting-EU": -69.638,
+          "Meta-Creators": -169.493,
+          "Meta-Advantage-Plus": -60.934,
+          "TikTok-GenZ-US": -227.385,
+          "TikTok-GenZ-Intl": -205.065,
+          "TikTok-Spark-Ads": -151.357,
+          "YouTube-Awareness": -441.936,
+          "YouTube-Action": -182.047,
+          "Affiliate-Influencer": -112.995,
+          "Reddit-Communities": -128.34,
+          "Twitch-Sponsorships": -110.903
+        },
+        "YouTube-Action": {
+          "YouTube-Action": 210.25,
+          "Search-US": -30.088,
+          "Search-EU": -36.612,
+          "Search-APAC": -45.675,
+          "Search-Brand-Defense": -18.487,
+          "TikTok-Live-Shopping": -22.272,
+          "YouTube-Awareness": -229.68,
+          "YouTube-Shorts": -182.048,
+          "Display-Retail-Media": -19.836,
+          "Affiliate-Coupon": -13.746,
+          "Affiliate-Content": -39.15,
+          "Amazon-Sponsored-Prod": -16.008,
+          "Amazon-DSP": -27.318,
+          "Pinterest-Shopping": -22.794
         },
         "Display-Programmatic": {
-          "Display-Programmatic": 6250.484,
-          "Display-Native": -2371.207,
-          "Reddit": -526.318
+          "Display-Programmatic": 696.96,
+          "YouTube-Awareness": -232.32,
+          "Display-Native": -235.224,
+          "Display-Retail-Media": -135.432,
+          "Podcast-Programmatic": -114.18,
+          "CTV-Streaming-Premium": -209.88,
+          "CTV-Streaming-AVOD": -162.36,
+          "OOH-Digital-Urban": -90.922,
+          "OOH-Transit": -70.013
         },
         "Display-Native": {
-          "Display-Native": 4442.223,
-          "Display-Programmatic": -2371.207,
-          "Reddit": -443.702
+          "Display-Native": 392.04,
+          "YouTube-Awareness": -174.24,
+          "Display-Programmatic": -235.224,
+          "Display-Retail-Media": -101.574,
+          "Podcast-Programmatic": -85.635,
+          "CTV-Streaming-Premium": -157.41,
+          "CTV-Streaming-AVOD": -121.77,
+          "OOH-Digital-Urban": -68.191,
+          "OOH-Transit": -52.51
         },
-        "Email-CRM": {
-          "Email-CRM": 71.572,
-          "SMS-CRM": -39.326
+        "Display-Retail-Media": {
+          "Display-Retail-Media": 129.96,
+          "Search-US": -11.354,
+          "Search-EU": -13.817,
+          "Search-APAC": -17.237,
+          "Search-Brand-Defense": -6.977,
+          "TikTok-Live-Shopping": -36.48,
+          "YouTube-Action": -19.836,
+          "Display-Programmatic": -135.432,
+          "Display-Native": -101.574,
+          "Affiliate-Coupon": -22.515,
+          "Affiliate-Content": -14.774,
+          "Amazon-Sponsored-Prod": -26.22,
+          "Amazon-DSP": -44.745,
+          "Pinterest-Shopping": -37.335
+        },
+        "Email-CRM-Active": {
+          "Email-CRM-Active": 38.44,
+          "Meta-Retargeting": -15.5,
+          "Email-CRM-Winback": -13.392,
+          "Email-Newsletter-Spons": -27.063,
+          "SMS-CRM": -6.355,
+          "SMS-Promo": -8.215
+        },
+        "Email-CRM-Winback": {
+          "Email-CRM-Winback": 23.04,
+          "Meta-Retargeting": -12.0,
+          "Email-CRM-Active": -13.392,
+          "Email-Newsletter-Spons": -20.952,
+          "SMS-CRM": -4.92,
+          "SMS-Promo": -6.36
+        },
+        "Email-Newsletter-Spons": {
+          "Email-Newsletter-Spons": 94.09,
+          "Email-CRM-Active": -27.063,
+          "Email-CRM-Winback": -20.952,
+          "Podcast-HostRead": -32.98,
+          "LinkedIn-Sponsored": -28.857,
+          "LinkedIn-InMail": -15.52
         },
         "SMS-CRM": {
-          "SMS-CRM": 106.709,
-          "Email-CRM": -39.326
+          "SMS-CRM": 16.81,
+          "Meta-Retargeting": -10.25,
+          "Email-CRM-Active": -6.355,
+          "Email-CRM-Winback": -4.92,
+          "SMS-Promo": -9.778
         },
-        "Affiliate": {
-          "Affiliate": 135.722,
-          "Search-US": -21.145,
-          "Meta-Retargeting": -25.604
+        "SMS-Promo": {
+          "SMS-Promo": 28.09,
+          "Meta-Retargeting": -13.25,
+          "Email-CRM-Active": -8.215,
+          "Email-CRM-Winback": -6.36,
+          "SMS-CRM": -9.778
         },
-        "Podcast": {
-          "Podcast": 6049.728,
-          "Audio-Streaming": -901.439
+        "Affiliate-Coupon": {
+          "Affiliate-Coupon": 62.41,
+          "Search-US": -7.868,
+          "Search-EU": -9.575,
+          "Search-APAC": -11.945,
+          "Search-Brand-Defense": -4.835,
+          "TikTok-Live-Shopping": -25.28,
+          "YouTube-Action": -13.746,
+          "Display-Retail-Media": -22.515,
+          "Affiliate-Content": -38.394,
+          "Affiliate-Influencer": -57.591,
+          "Amazon-Sponsored-Prod": -18.17,
+          "Amazon-DSP": -31.008,
+          "Pinterest-Shopping": -25.872
         },
-        "CTV-Streaming": {
-          "CTV-Streaming": 4973.07,
-          "YouTube-Awareness": -880.908
+        "Affiliate-Content": {
+          "Affiliate-Content": 116.64,
+          "Search-US": -22.41,
+          "Search-EU": -27.27,
+          "Search-APAC": -34.02,
+          "Search-Brand-Defense": -13.77,
+          "TikTok-Live-Shopping": -16.589,
+          "YouTube-Action": -39.15,
+          "Display-Retail-Media": -14.774,
+          "Affiliate-Coupon": -38.394,
+          "Affiliate-Influencer": -78.732,
+          "Amazon-Sponsored-Prod": -11.923,
+          "Amazon-DSP": -20.347,
+          "Pinterest-Shopping": -16.978
         },
-        "Influencer": {
-          "Influencer": 4542.76,
-          "TikTok-GenZ": -483.541,
-          "TikTok-Spark": -512.604,
-          "YouTube-Shorts": -487.396,
-          "Snapchat": -533.363
+        "Affiliate-Influencer": {
+          "Affiliate-Influencer": 262.44,
+          "Meta-Prospecting-US": -43.74,
+          "Meta-Prospecting-EU": -40.435,
+          "Meta-Creators": -98.415,
+          "Meta-Advantage-Plus": -35.381,
+          "TikTok-GenZ-US": -132.03,
+          "TikTok-GenZ-Intl": -119.07,
+          "TikTok-Spark-Ads": -87.885,
+          "YouTube-Shorts": -112.995,
+          "Affiliate-Coupon": -57.591,
+          "Affiliate-Content": -78.732,
+          "Reddit-Communities": -74.52,
+          "Twitch-Sponsorships": -64.395
         },
-        "Snapchat": {
-          "Snapchat": 1293.841,
-          "TikTok-GenZ": -258.056,
-          "TikTok-Spark": -273.566,
-          "YouTube-Shorts": -260.113,
-          "Influencer": -533.363
+        "Podcast-HostRead": {
+          "Podcast-HostRead": 184.96,
+          "Email-Newsletter-Spons": -32.98,
+          "Podcast-Programmatic": -105.876,
+          "LinkedIn-Sponsored": -40.46,
+          "LinkedIn-InMail": -21.76
         },
-        "Pinterest": {
-          "Pinterest": 719.312,
-          "Meta-Prospecting": -132.995
+        "Podcast-Programmatic": {
+          "Podcast-Programmatic": 299.29,
+          "YouTube-Awareness": -152.24,
+          "Display-Programmatic": -114.18,
+          "Display-Native": -85.635,
+          "Podcast-HostRead": -105.876,
+          "CTV-Streaming-Premium": -137.535,
+          "CTV-Streaming-AVOD": -106.395,
+          "OOH-Digital-Urban": -59.581,
+          "OOH-Transit": -45.88
         },
-        "LinkedIn-B2B": {
-          "LinkedIn-B2B": 765.076
+        "CTV-Streaming-Premium": {
+          "CTV-Streaming-Premium": 1011.24,
+          "YouTube-Awareness": -279.84,
+          "Display-Programmatic": -209.88,
+          "Display-Native": -157.41,
+          "Podcast-Programmatic": -137.535,
+          "CTV-Streaming-AVOD": -352.026,
+          "OOH-Digital-Urban": -109.519,
+          "OOH-Transit": -84.334
         },
-        "Reddit": {
-          "Reddit": 915.668,
-          "Display-Programmatic": -526.318,
-          "Display-Native": -443.702
+        "CTV-Streaming-AVOD": {
+          "CTV-Streaming-AVOD": 605.16,
+          "YouTube-Awareness": -216.48,
+          "Display-Programmatic": -162.36,
+          "Display-Native": -121.77,
+          "Podcast-Programmatic": -106.395,
+          "CTV-Streaming-Premium": -352.026,
+          "OOH-Digital-Urban": -84.722,
+          "OOH-Transit": -65.239
         },
-        "OOH-DOOH": {
-          "OOH-DOOH": 2937.64
+        "OOH-Digital-Urban": {
+          "OOH-Digital-Urban": 823.69,
+          "YouTube-Awareness": -121.229,
+          "Display-Programmatic": -90.922,
+          "Display-Native": -68.191,
+          "Podcast-Programmatic": -59.581,
+          "CTV-Streaming-Premium": -109.519,
+          "CTV-Streaming-AVOD": -84.722,
+          "OOH-Transit": -285.421
         },
-        "Audio-Streaming": {
-          "Audio-Streaming": 2775.182,
-          "Podcast": -901.439
+        "OOH-Transit": {
+          "OOH-Transit": 488.41,
+          "YouTube-Awareness": -93.35,
+          "Display-Programmatic": -70.013,
+          "Display-Native": -52.51,
+          "Podcast-Programmatic": -45.88,
+          "CTV-Streaming-Premium": -84.334,
+          "CTV-Streaming-AVOD": -65.239,
+          "OOH-Digital-Urban": -285.421
+        },
+        "Amazon-Sponsored-Prod": {
+          "Amazon-Sponsored-Prod": 84.64,
+          "Search-US": -9.163,
+          "Search-EU": -11.15,
+          "Search-APAC": -13.91,
+          "Search-Brand-Defense": -5.63,
+          "TikTok-Live-Shopping": -29.44,
+          "YouTube-Action": -16.008,
+          "Display-Retail-Media": -26.22,
+          "Affiliate-Coupon": -18.17,
+          "Affiliate-Content": -11.923,
+          "Amazon-DSP": -64.998,
+          "Pinterest-Shopping": -30.13
+        },
+        "Amazon-DSP": {
+          "Amazon-DSP": 246.49,
+          "Search-US": -15.637,
+          "Search-EU": -19.028,
+          "Search-APAC": -23.738,
+          "Search-Brand-Defense": -9.608,
+          "TikTok-Live-Shopping": -50.24,
+          "YouTube-Action": -27.318,
+          "Display-Retail-Media": -44.745,
+          "Affiliate-Coupon": -31.008,
+          "Affiliate-Content": -20.347,
+          "Amazon-Sponsored-Prod": -64.998,
+          "Pinterest-Shopping": -51.417
+        },
+        "LinkedIn-Sponsored": {
+          "LinkedIn-Sponsored": 141.61,
+          "Email-Newsletter-Spons": -28.857,
+          "Podcast-HostRead": -40.46,
+          "LinkedIn-InMail": -34.272
+        },
+        "LinkedIn-InMail": {
+          "LinkedIn-InMail": 40.96,
+          "Email-Newsletter-Spons": -15.52,
+          "Podcast-HostRead": -21.76,
+          "LinkedIn-Sponsored": -34.272
+        },
+        "Reddit-Communities": {
+          "Reddit-Communities": 338.56,
+          "Meta-Prospecting-US": -49.68,
+          "Meta-Prospecting-EU": -45.926,
+          "Meta-Creators": -111.78,
+          "Meta-Advantage-Plus": -40.186,
+          "TikTok-GenZ-US": -149.96,
+          "TikTok-GenZ-Intl": -135.24,
+          "TikTok-Spark-Ads": -99.82,
+          "YouTube-Shorts": -128.34,
+          "Affiliate-Influencer": -74.52,
+          "Twitch-Sponsorships": -73.14
+        },
+        "Pinterest-Shopping": {
+          "Pinterest-Shopping": 171.61,
+          "Search-US": -13.048,
+          "Search-EU": -15.877,
+          "Search-APAC": -19.807,
+          "Search-Brand-Defense": -8.017,
+          "TikTok-Live-Shopping": -41.92,
+          "YouTube-Action": -22.794,
+          "Display-Retail-Media": -37.335,
+          "Affiliate-Coupon": -25.872,
+          "Affiliate-Content": -16.978,
+          "Amazon-Sponsored-Prod": -30.13,
+          "Amazon-DSP": -51.417
+        },
+        "Twitch-Sponsorships": {
+          "Twitch-Sponsorships": 252.81,
+          "Meta-Prospecting-US": -42.93,
+          "Meta-Prospecting-EU": -39.686,
+          "Meta-Creators": -96.593,
+          "Meta-Advantage-Plus": -34.726,
+          "TikTok-GenZ-US": -129.585,
+          "TikTok-GenZ-Intl": -116.865,
+          "TikTok-Spark-Ads": -86.257,
+          "YouTube-Shorts": -110.903,
+          "Affiliate-Influencer": -64.395,
+          "Reddit-Communities": -73.14
         }
       },
       "mode": "replace",

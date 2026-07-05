@@ -567,5 +567,571 @@
       "min": 0,
       "max": 18
     }
+  ],
+  "scenarios": [
+    {
+      "name": "cost_inflation",
+      "probability": null,
+      "description": "Construction and equipment costs run 12% over estimate across the board; the $1,550M budget holds, so the same envelope buys fewer projects.",
+      "motivated_by": "",
+      "score_overrides": [],
+      "score_adjustments": [
+        {
+          "objective": "Cost",
+          "multiply": 1.12,
+          "add": null
+        }
+      ],
+      "constraint_overrides": [],
+      "interaction_matrix_overrides": []
+    },
+    {
+      "name": "delivery_crunch",
+      "probability": null,
+      "description": "The delivery organization can execute at most 70 projects this cycle; the portfolio-size range tightens from 45-100 to 45-70.",
+      "motivated_by": "",
+      "score_overrides": [],
+      "score_adjustments": [],
+      "constraint_overrides": [
+        {
+          "type": "objective_bound",
+          "objective": "Cost",
+          "operator": "max",
+          "value": 1550.0
+        },
+        {
+          "type": "cardinality",
+          "min": 45,
+          "max": 70
+        },
+        {
+          "type": "force_include",
+          "option": "P226"
+        },
+        {
+          "type": "force_include",
+          "option": "P227"
+        },
+        {
+          "type": "force_include",
+          "option": "P228"
+        },
+        {
+          "type": "force_include",
+          "option": "P229"
+        },
+        {
+          "type": "force_include",
+          "option": "P230"
+        },
+        {
+          "type": "force_include",
+          "option": "P231"
+        },
+        {
+          "type": "force_include",
+          "option": "P232"
+        },
+        {
+          "type": "dependency",
+          "if_option": "P001",
+          "then_option": "P264"
+        },
+        {
+          "type": "dependency",
+          "if_option": "P002",
+          "then_option": "P265"
+        },
+        {
+          "type": "dependency",
+          "if_option": "P003",
+          "then_option": "P266"
+        },
+        {
+          "type": "dependency",
+          "if_option": "P004",
+          "then_option": "P267"
+        },
+        {
+          "type": "dependency",
+          "if_option": "P005",
+          "then_option": "P268"
+        },
+        {
+          "type": "dependency",
+          "if_option": "P006",
+          "then_option": "P269"
+        },
+        {
+          "type": "dependency",
+          "if_option": "P007",
+          "then_option": "P270"
+        },
+        {
+          "type": "dependency",
+          "if_option": "P008",
+          "then_option": "P271"
+        },
+        {
+          "type": "dependency",
+          "if_option": "P009",
+          "then_option": "P272"
+        },
+        {
+          "type": "dependency",
+          "if_option": "P010",
+          "then_option": "P273"
+        },
+        {
+          "type": "dependency",
+          "if_option": "P011",
+          "then_option": "P274"
+        },
+        {
+          "type": "dependency",
+          "if_option": "P012",
+          "then_option": "P275"
+        },
+        {
+          "type": "dependency",
+          "if_option": "P013",
+          "then_option": "P276"
+        },
+        {
+          "type": "dependency",
+          "if_option": "P014",
+          "then_option": "P277"
+        },
+        {
+          "type": "dependency",
+          "if_option": "P015",
+          "then_option": "P278"
+        },
+        {
+          "type": "dependency",
+          "if_option": "P076",
+          "then_option": "P279"
+        },
+        {
+          "type": "dependency",
+          "if_option": "P077",
+          "then_option": "P280"
+        },
+        {
+          "type": "dependency",
+          "if_option": "P078",
+          "then_option": "P281"
+        },
+        {
+          "type": "dependency",
+          "if_option": "P079",
+          "then_option": "P282"
+        },
+        {
+          "type": "dependency",
+          "if_option": "P080",
+          "then_option": "P283"
+        },
+        {
+          "type": "dependency",
+          "if_option": "P081",
+          "then_option": "P284"
+        },
+        {
+          "type": "dependency",
+          "if_option": "P082",
+          "then_option": "P285"
+        },
+        {
+          "type": "dependency",
+          "if_option": "P083",
+          "then_option": "P286"
+        },
+        {
+          "type": "dependency",
+          "if_option": "P084",
+          "then_option": "P287"
+        },
+        {
+          "type": "dependency",
+          "if_option": "P085",
+          "then_option": "P288"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "P001",
+          "option_b": "P002"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "P003",
+          "option_b": "P004"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "P005",
+          "option_b": "P006"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "P007",
+          "option_b": "P008"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "P009",
+          "option_b": "P010"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "P011",
+          "option_b": "P012"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "P013",
+          "option_b": "P014"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "P015",
+          "option_b": "P016"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "P017",
+          "option_b": "P018"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "P019",
+          "option_b": "P020"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "P021",
+          "option_b": "P022"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "P023",
+          "option_b": "P024"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "P126",
+          "option_b": "P127"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "P128",
+          "option_b": "P129"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "P130",
+          "option_b": "P131"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "P132",
+          "option_b": "P133"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "P134",
+          "option_b": "P135"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "P136",
+          "option_b": "P137"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "P138",
+          "option_b": "P139"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "P140",
+          "option_b": "P141"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "P142",
+          "option_b": "P143"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "P144",
+          "option_b": "P145"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "P146",
+          "option_b": "P147"
+        },
+        {
+          "type": "exclusion_pair",
+          "option_a": "P148",
+          "option_b": "P149"
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "P001",
+            "P002",
+            "P003",
+            "P004",
+            "P005",
+            "P006",
+            "P007",
+            "P008",
+            "P009",
+            "P010",
+            "P011",
+            "P012",
+            "P013",
+            "P014",
+            "P015",
+            "P016",
+            "P017",
+            "P018",
+            "P019",
+            "P020",
+            "P021",
+            "P022",
+            "P023",
+            "P024",
+            "P025",
+            "P026",
+            "P027",
+            "P028",
+            "P029",
+            "P030",
+            "P031",
+            "P032",
+            "P033",
+            "P034",
+            "P035",
+            "P036",
+            "P037",
+            "P038",
+            "P039",
+            "P040",
+            "P041",
+            "P042",
+            "P043",
+            "P044",
+            "P045",
+            "P046",
+            "P047",
+            "P048",
+            "P049",
+            "P050",
+            "P051",
+            "P052",
+            "P053",
+            "P054",
+            "P055",
+            "P056",
+            "P057",
+            "P058",
+            "P059",
+            "P060",
+            "P061",
+            "P062",
+            "P063",
+            "P064",
+            "P065",
+            "P066",
+            "P067",
+            "P068",
+            "P069",
+            "P070",
+            "P071",
+            "P072",
+            "P073",
+            "P074",
+            "P075"
+          ],
+          "min": 0,
+          "max": 20
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "P076",
+            "P077",
+            "P078",
+            "P079",
+            "P080",
+            "P081",
+            "P082",
+            "P083",
+            "P084",
+            "P085",
+            "P086",
+            "P087",
+            "P088",
+            "P089",
+            "P090",
+            "P091",
+            "P092",
+            "P093",
+            "P094",
+            "P095",
+            "P096",
+            "P097",
+            "P098",
+            "P099",
+            "P100",
+            "P101",
+            "P102",
+            "P103",
+            "P104",
+            "P105",
+            "P106",
+            "P107",
+            "P108",
+            "P109",
+            "P110",
+            "P111",
+            "P112",
+            "P113",
+            "P114",
+            "P115",
+            "P116",
+            "P117",
+            "P118",
+            "P119",
+            "P120",
+            "P121",
+            "P122",
+            "P123",
+            "P124",
+            "P125"
+          ],
+          "min": 0,
+          "max": 15
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "P126",
+            "P127",
+            "P128",
+            "P129",
+            "P130",
+            "P131",
+            "P132",
+            "P133",
+            "P134",
+            "P135",
+            "P136",
+            "P137",
+            "P138",
+            "P139",
+            "P140",
+            "P141",
+            "P142",
+            "P143",
+            "P144",
+            "P145",
+            "P146",
+            "P147",
+            "P148",
+            "P149",
+            "P150",
+            "P151",
+            "P152",
+            "P153",
+            "P154",
+            "P155",
+            "P156",
+            "P157",
+            "P158",
+            "P159",
+            "P160",
+            "P161",
+            "P162",
+            "P163",
+            "P164",
+            "P165",
+            "P166",
+            "P167",
+            "P168",
+            "P169",
+            "P170",
+            "P171",
+            "P172",
+            "P173",
+            "P174",
+            "P175"
+          ],
+          "min": 0,
+          "max": 15
+        },
+        {
+          "type": "group_limit",
+          "options": [
+            "P176",
+            "P177",
+            "P178",
+            "P179",
+            "P180",
+            "P181",
+            "P182",
+            "P183",
+            "P184",
+            "P185",
+            "P186",
+            "P187",
+            "P188",
+            "P189",
+            "P190",
+            "P191",
+            "P192",
+            "P193",
+            "P194",
+            "P195",
+            "P196",
+            "P197",
+            "P198",
+            "P199",
+            "P200",
+            "P201",
+            "P202",
+            "P203",
+            "P204",
+            "P205",
+            "P206",
+            "P207",
+            "P208",
+            "P209",
+            "P210",
+            "P211",
+            "P212",
+            "P213",
+            "P214",
+            "P215",
+            "P216",
+            "P217",
+            "P218",
+            "P219",
+            "P220",
+            "P221",
+            "P222",
+            "P223",
+            "P224",
+            "P225"
+          ],
+          "min": 0,
+          "max": 18
+        }
+      ],
+      "interaction_matrix_overrides": []
+    }
   ]
 }

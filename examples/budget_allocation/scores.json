@@ -2,35 +2,99 @@
   "options": [
     {
       "name": "AI Copilot",
-      "description": ""
+      "description": "Product initiative"
     },
     {
       "name": "Self-Serve Onboarding",
-      "description": ""
+      "description": "Product initiative"
     },
     {
       "name": "Mobile Revamp",
-      "description": ""
+      "description": "Product initiative"
     },
     {
       "name": "Marketplace",
-      "description": ""
+      "description": "Product initiative"
+    },
+    {
+      "name": "Usage-Based Pricing",
+      "description": "Product initiative"
+    },
+    {
+      "name": "Accessibility Overhaul",
+      "description": "Product initiative"
     },
     {
       "name": "Data Platform",
-      "description": ""
+      "description": "Infrastructure initiative"
     },
     {
       "name": "Enterprise SSO",
-      "description": ""
+      "description": "Infrastructure initiative"
+    },
+    {
+      "name": "API Gateway Rebuild",
+      "description": "Infrastructure initiative"
+    },
+    {
+      "name": "Observability Stack",
+      "description": "Infrastructure initiative"
+    },
+    {
+      "name": "Multi-Region Failover",
+      "description": "Infrastructure initiative"
     },
     {
       "name": "Localization",
-      "description": ""
+      "description": "Marketing initiative"
+    },
+    {
+      "name": "Brand Refresh",
+      "description": "Marketing initiative"
+    },
+    {
+      "name": "Lifecycle Campaigns",
+      "description": "Marketing initiative"
+    },
+    {
+      "name": "SEO Content Engine",
+      "description": "Marketing initiative"
+    },
+    {
+      "name": "Community Program",
+      "description": "Marketing initiative"
     },
     {
       "name": "Partner API",
-      "description": ""
+      "description": "Partnerships initiative"
+    },
+    {
+      "name": "Reseller Channel",
+      "description": "Partnerships initiative"
+    },
+    {
+      "name": "Tech Alliances",
+      "description": "Partnerships initiative"
+    },
+    {
+      "name": "Integration Marketplace",
+      "description": "Partnerships initiative"
+    },
+    {
+      "name": "Sales Enablement",
+      "description": "People initiative"
+    },
+    {
+      "name": "Solutions Engineering",
+      "description": "People initiative"
+    },
+    {
+      "name": "Developer Relations",
+      "description": "People initiative"
+    },
+    {
+      "name": "Customer Education",
+      "description": "People initiative"
     }
   ],
   "scores": [
@@ -45,6 +109,11 @@
       "value": 9.0
     },
     {
+      "option": "AI Copilot",
+      "objective": "TimeToImpact",
+      "value": 9.0
+    },
+    {
       "option": "Self-Serve Onboarding",
       "objective": "ROI",
       "value": 25.0
@@ -53,6 +122,11 @@
       "option": "Self-Serve Onboarding",
       "objective": "Strategic Reach",
       "value": 8.0
+    },
+    {
+      "option": "Self-Serve Onboarding",
+      "objective": "TimeToImpact",
+      "value": 6.0
     },
     {
       "option": "Mobile Revamp",
@@ -65,6 +139,11 @@
       "value": 7.0
     },
     {
+      "option": "Mobile Revamp",
+      "objective": "TimeToImpact",
+      "value": 8.0
+    },
+    {
       "option": "Marketplace",
       "objective": "ROI",
       "value": 30.0
@@ -72,6 +151,41 @@
     {
       "option": "Marketplace",
       "objective": "Strategic Reach",
+      "value": 5.0
+    },
+    {
+      "option": "Marketplace",
+      "objective": "TimeToImpact",
+      "value": 14.0
+    },
+    {
+      "option": "Usage-Based Pricing",
+      "objective": "ROI",
+      "value": 26.0
+    },
+    {
+      "option": "Usage-Based Pricing",
+      "objective": "Strategic Reach",
+      "value": 6.0
+    },
+    {
+      "option": "Usage-Based Pricing",
+      "objective": "TimeToImpact",
+      "value": 7.0
+    },
+    {
+      "option": "Accessibility Overhaul",
+      "objective": "ROI",
+      "value": 10.0
+    },
+    {
+      "option": "Accessibility Overhaul",
+      "objective": "Strategic Reach",
+      "value": 6.0
+    },
+    {
+      "option": "Accessibility Overhaul",
+      "objective": "TimeToImpact",
       "value": 5.0
     },
     {
@@ -85,6 +199,11 @@
       "value": 6.0
     },
     {
+      "option": "Data Platform",
+      "objective": "TimeToImpact",
+      "value": 12.0
+    },
+    {
       "option": "Enterprise SSO",
       "objective": "ROI",
       "value": 18.0
@@ -93,6 +212,56 @@
       "option": "Enterprise SSO",
       "objective": "Strategic Reach",
       "value": 4.0
+    },
+    {
+      "option": "Enterprise SSO",
+      "objective": "TimeToImpact",
+      "value": 5.0
+    },
+    {
+      "option": "API Gateway Rebuild",
+      "objective": "ROI",
+      "value": 14.0
+    },
+    {
+      "option": "API Gateway Rebuild",
+      "objective": "Strategic Reach",
+      "value": 5.0
+    },
+    {
+      "option": "API Gateway Rebuild",
+      "objective": "TimeToImpact",
+      "value": 10.0
+    },
+    {
+      "option": "Observability Stack",
+      "objective": "ROI",
+      "value": 12.0
+    },
+    {
+      "option": "Observability Stack",
+      "objective": "Strategic Reach",
+      "value": 4.0
+    },
+    {
+      "option": "Observability Stack",
+      "objective": "TimeToImpact",
+      "value": 4.0
+    },
+    {
+      "option": "Multi-Region Failover",
+      "objective": "ROI",
+      "value": 11.0
+    },
+    {
+      "option": "Multi-Region Failover",
+      "objective": "Strategic Reach",
+      "value": 7.0
+    },
+    {
+      "option": "Multi-Region Failover",
+      "objective": "TimeToImpact",
+      "value": 16.0
     },
     {
       "option": "Localization",
@@ -105,6 +274,71 @@
       "value": 7.0
     },
     {
+      "option": "Localization",
+      "objective": "TimeToImpact",
+      "value": 6.0
+    },
+    {
+      "option": "Brand Refresh",
+      "objective": "ROI",
+      "value": 9.0
+    },
+    {
+      "option": "Brand Refresh",
+      "objective": "Strategic Reach",
+      "value": 8.0
+    },
+    {
+      "option": "Brand Refresh",
+      "objective": "TimeToImpact",
+      "value": 7.0
+    },
+    {
+      "option": "Lifecycle Campaigns",
+      "objective": "ROI",
+      "value": 24.0
+    },
+    {
+      "option": "Lifecycle Campaigns",
+      "objective": "Strategic Reach",
+      "value": 4.0
+    },
+    {
+      "option": "Lifecycle Campaigns",
+      "objective": "TimeToImpact",
+      "value": 3.0
+    },
+    {
+      "option": "SEO Content Engine",
+      "objective": "ROI",
+      "value": 21.0
+    },
+    {
+      "option": "SEO Content Engine",
+      "objective": "Strategic Reach",
+      "value": 5.0
+    },
+    {
+      "option": "SEO Content Engine",
+      "objective": "TimeToImpact",
+      "value": 8.0
+    },
+    {
+      "option": "Community Program",
+      "objective": "ROI",
+      "value": 8.0
+    },
+    {
+      "option": "Community Program",
+      "objective": "Strategic Reach",
+      "value": 8.0
+    },
+    {
+      "option": "Community Program",
+      "objective": "TimeToImpact",
+      "value": 10.0
+    },
+    {
       "option": "Partner API",
       "objective": "ROI",
       "value": 20.0
@@ -113,6 +347,116 @@
       "option": "Partner API",
       "objective": "Strategic Reach",
       "value": 3.0
+    },
+    {
+      "option": "Partner API",
+      "objective": "TimeToImpact",
+      "value": 7.0
+    },
+    {
+      "option": "Reseller Channel",
+      "objective": "ROI",
+      "value": 23.0
+    },
+    {
+      "option": "Reseller Channel",
+      "objective": "Strategic Reach",
+      "value": 4.0
+    },
+    {
+      "option": "Reseller Channel",
+      "objective": "TimeToImpact",
+      "value": 11.0
+    },
+    {
+      "option": "Tech Alliances",
+      "objective": "ROI",
+      "value": 13.0
+    },
+    {
+      "option": "Tech Alliances",
+      "objective": "Strategic Reach",
+      "value": 6.0
+    },
+    {
+      "option": "Tech Alliances",
+      "objective": "TimeToImpact",
+      "value": 9.0
+    },
+    {
+      "option": "Integration Marketplace",
+      "objective": "ROI",
+      "value": 19.0
+    },
+    {
+      "option": "Integration Marketplace",
+      "objective": "Strategic Reach",
+      "value": 7.0
+    },
+    {
+      "option": "Integration Marketplace",
+      "objective": "TimeToImpact",
+      "value": 12.0
+    },
+    {
+      "option": "Sales Enablement",
+      "objective": "ROI",
+      "value": 17.0
+    },
+    {
+      "option": "Sales Enablement",
+      "objective": "Strategic Reach",
+      "value": 5.0
+    },
+    {
+      "option": "Sales Enablement",
+      "objective": "TimeToImpact",
+      "value": 4.0
+    },
+    {
+      "option": "Solutions Engineering",
+      "objective": "ROI",
+      "value": 16.0
+    },
+    {
+      "option": "Solutions Engineering",
+      "objective": "Strategic Reach",
+      "value": 6.0
+    },
+    {
+      "option": "Solutions Engineering",
+      "objective": "TimeToImpact",
+      "value": 6.0
+    },
+    {
+      "option": "Developer Relations",
+      "objective": "ROI",
+      "value": 11.0
+    },
+    {
+      "option": "Developer Relations",
+      "objective": "Strategic Reach",
+      "value": 8.0
+    },
+    {
+      "option": "Developer Relations",
+      "objective": "TimeToImpact",
+      "value": 11.0
+    },
+    {
+      "option": "Customer Education",
+      "objective": "ROI",
+      "value": 14.0
+    },
+    {
+      "option": "Customer Education",
+      "objective": "Strategic Reach",
+      "value": 7.0
+    },
+    {
+      "option": "Customer Education",
+      "objective": "TimeToImpact",
+      "value": 5.0
     }
   ]
 }

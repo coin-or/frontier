@@ -1,9 +1,25 @@
-initiative,roi_pct,strategic_reach
-AI Copilot,28.0,9.0
-Self-Serve Onboarding,25.0,8.0
-Mobile Revamp,22.0,7.0
-Marketplace,30.0,5.0
-Data Platform,15.0,6.0
-Enterprise SSO,18.0,4.0
-Localization,12.0,7.0
-Partner API,20.0,3.0
+initiative,department,roi_pct,strategic_reach,time_to_impact_months,roi_under_downturn
+AI Copilot,Product,28.0,9.0,9,
+Self-Serve Onboarding,Product,25.0,8.0,6,
+Mobile Revamp,Product,22.0,7.0,8,
+Marketplace,Product,30.0,5.0,14,19.0
+Usage-Based Pricing,Product,26.0,6.0,7,18.0
+Accessibility Overhaul,Product,10.0,6.0,5,
+Data Platform,Infrastructure,15.0,6.0,12,
+Enterprise SSO,Infrastructure,18.0,4.0,5,
+API Gateway Rebuild,Infrastructure,14.0,5.0,10,
+Observability Stack,Infrastructure,12.0,4.0,4,
+Multi-Region Failover,Infrastructure,11.0,7.0,16,
+Localization,Marketing,12.0,7.0,6,
+Brand Refresh,Marketing,9.0,8.0,7,5.0
+Lifecycle Campaigns,Marketing,24.0,4.0,3,17.0
+SEO Content Engine,Marketing,21.0,5.0,8,14.0
+Community Program,Marketing,8.0,8.0,10,4.0
+Partner API,Partnerships,20.0,3.0,7,
+Reseller Channel,Partnerships,23.0,4.0,11,14.0
+Tech Alliances,Partnerships,13.0,6.0,9,
+Integration Marketplace,Partnerships,19.0,7.0,12,12.0
+Sales Enablement,People,17.0,5.0,4,
+Solutions Engineering,People,16.0,6.0,6,
+Developer Relations,People,11.0,8.0,11,
+Customer Education,People,14.0,7.0,5,

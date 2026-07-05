@@ -1,0 +1,2286 @@
+{
+  "options": [
+    {
+      "name": "S001",
+      "description": "N13 \u00b7 Oncology \u00b7 W3N"
+    },
+    {
+      "name": "S002",
+      "description": "N03 \u00b7 ICU \u00b7 W3N"
+    },
+    {
+      "name": "S003",
+      "description": "N25 \u00b7 ICU \u00b7 W2N"
+    },
+    {
+      "name": "S004",
+      "description": "N05 \u00b7 MedSurg \u00b7 W4D"
+    },
+    {
+      "name": "S005",
+      "description": "N24 \u00b7 MedSurg \u00b7 W1N"
+    },
+    {
+      "name": "S006",
+      "description": "N22 \u00b7 ICU \u00b7 W4N"
+    },
+    {
+      "name": "S007",
+      "description": "N17 \u00b7 Oncology \u00b7 W3N"
+    },
+    {
+      "name": "S008",
+      "description": "N03 \u00b7 ED \u00b7 W4N"
+    },
+    {
+      "name": "S009",
+      "description": "N15 \u00b7 Oncology \u00b7 W2D"
+    },
+    {
+      "name": "S010",
+      "description": "N10 \u00b7 ICU \u00b7 W2N"
+    },
+    {
+      "name": "S011",
+      "description": "N26 \u00b7 ICU \u00b7 W2D"
+    },
+    {
+      "name": "S012",
+      "description": "N09 \u00b7 MedSurg \u00b7 W1N"
+    },
+    {
+      "name": "S013",
+      "description": "N05 \u00b7 MedSurg \u00b7 W1D"
+    },
+    {
+      "name": "S014",
+      "description": "N09 \u00b7 ICU \u00b7 W1N"
+    },
+    {
+      "name": "S015",
+      "description": "N16 \u00b7 ICU \u00b7 W1N"
+    },
+    {
+      "name": "S016",
+      "description": "N23 \u00b7 MedSurg \u00b7 W4N"
+    },
+    {
+      "name": "S017",
+      "description": "N01 \u00b7 LD \u00b7 W3D"
+    },
+    {
+      "name": "S018",
+      "description": "N28 \u00b7 MedSurg \u00b7 W1D"
+    },
+    {
+      "name": "S019",
+      "description": "N01 \u00b7 Oncology \u00b7 W1D"
+    },
+    {
+      "name": "S020",
+      "description": "N09 \u00b7 Oncology \u00b7 W4N"
+    },
+    {
+      "name": "S021",
+      "description": "N04 \u00b7 LD \u00b7 W4N"
+    },
+    {
+      "name": "S022",
+      "description": "N30 \u00b7 ED \u00b7 W4N"
+    },
+    {
+      "name": "S023",
+      "description": "N10 \u00b7 ED \u00b7 W3D"
+    },
+    {
+      "name": "S024",
+      "description": "N26 \u00b7 ICU \u00b7 W1D"
+    },
+    {
+      "name": "S025",
+      "description": "N24 \u00b7 LD \u00b7 W2D"
+    },
+    {
+      "name": "S026",
+      "description": "N08 \u00b7 ED \u00b7 W2N"
+    },
+    {
+      "name": "S027",
+      "description": "N14 \u00b7 ED \u00b7 W3N"
+    },
+    {
+      "name": "S028",
+      "description": "N17 \u00b7 Oncology \u00b7 W4D"
+    },
+    {
+      "name": "S029",
+      "description": "N07 \u00b7 ED \u00b7 W1D"
+    },
+    {
+      "name": "S030",
+      "description": "N13 \u00b7 MedSurg \u00b7 W3D"
+    },
+    {
+      "name": "S031",
+      "description": "N01 \u00b7 Oncology \u00b7 W2N"
+    },
+    {
+      "name": "S032",
+      "description": "N06 \u00b7 MedSurg \u00b7 W3N"
+    },
+    {
+      "name": "S033",
+      "description": "N17 \u00b7 Oncology \u00b7 W4N"
+    },
+    {
+      "name": "S034",
+      "description": "N10 \u00b7 MedSurg \u00b7 W1N"
+    },
+    {
+      "name": "S035",
+      "description": "N01 \u00b7 Oncology \u00b7 W3N"
+    },
+    {
+      "name": "S036",
+      "description": "N19 \u00b7 Oncology \u00b7 W3D"
+    },
+    {
+      "name": "S037",
+      "description": "N08 \u00b7 Oncology \u00b7 W1N"
+    },
+    {
+      "name": "S038",
+      "description": "N17 \u00b7 ICU \u00b7 W3D"
+    },
+    {
+      "name": "S039",
+      "description": "N27 \u00b7 ICU \u00b7 W1D"
+    },
+    {
+      "name": "S040",
+      "description": "N14 \u00b7 ED \u00b7 W4D"
+    },
+    {
+      "name": "S041",
+      "description": "N23 \u00b7 MedSurg \u00b7 W4N"
+    },
+    {
+      "name": "S042",
+      "description": "N27 \u00b7 LD \u00b7 W3D"
+    },
+    {
+      "name": "S043",
+      "description": "N22 \u00b7 Oncology \u00b7 W4D"
+    },
+    {
+      "name": "S044",
+      "description": "N06 \u00b7 ED \u00b7 W1N"
+    },
+    {
+      "name": "S045",
+      "description": "N29 \u00b7 MedSurg \u00b7 W3N"
+    },
+    {
+      "name": "S046",
+      "description": "N26 \u00b7 ED \u00b7 W2N"
+    },
+    {
+      "name": "S047",
+      "description": "N27 \u00b7 ED \u00b7 W3N"
+    },
+    {
+      "name": "S048",
+      "description": "N29 \u00b7 ED \u00b7 W2N"
+    },
+    {
+      "name": "S049",
+      "description": "N25 \u00b7 ED \u00b7 W1D"
+    },
+    {
+      "name": "S050",
+      "description": "N23 \u00b7 Oncology \u00b7 W3N"
+    },
+    {
+      "name": "S051",
+      "description": "N20 \u00b7 ED \u00b7 W1N"
+    },
+    {
+      "name": "S052",
+      "description": "N09 \u00b7 MedSurg \u00b7 W2D"
+    },
+    {
+      "name": "S053",
+      "description": "N27 \u00b7 LD \u00b7 W1N"
+    },
+    {
+      "name": "S054",
+      "description": "N20 \u00b7 ICU \u00b7 W2D"
+    },
+    {
+      "name": "S055",
+      "description": "N04 \u00b7 LD \u00b7 W3D"
+    },
+    {
+      "name": "S056",
+      "description": "N10 \u00b7 ICU \u00b7 W2N"
+    },
+    {
+      "name": "S057",
+      "description": "N16 \u00b7 LD \u00b7 W4N"
+    },
+    {
+      "name": "S058",
+      "description": "N03 \u00b7 ED \u00b7 W3D"
+    },
+    {
+      "name": "S059",
+      "description": "N06 \u00b7 MedSurg \u00b7 W3D"
+    },
+    {
+      "name": "S060",
+      "description": "N24 \u00b7 ICU \u00b7 W3D"
+    },
+    {
+      "name": "S061",
+      "description": "N12 \u00b7 LD \u00b7 W4D"
+    },
+    {
+      "name": "S062",
+      "description": "N20 \u00b7 Oncology \u00b7 W1N"
+    },
+    {
+      "name": "S063",
+      "description": "N19 \u00b7 LD \u00b7 W1N"
+    },
+    {
+      "name": "S064",
+      "description": "N13 \u00b7 ICU \u00b7 W1N"
+    },
+    {
+      "name": "S065",
+      "description": "N19 \u00b7 ICU \u00b7 W1D"
+    },
+    {
+      "name": "S066",
+      "description": "N12 \u00b7 Oncology \u00b7 W1D"
+    },
+    {
+      "name": "S067",
+      "description": "N04 \u00b7 LD \u00b7 W3N"
+    },
+    {
+      "name": "S068",
+      "description": "N15 \u00b7 MedSurg \u00b7 W3N"
+    },
+    {
+      "name": "S069",
+      "description": "N05 \u00b7 ICU \u00b7 W1D"
+    },
+    {
+      "name": "S070",
+      "description": "N20 \u00b7 Oncology \u00b7 W3D"
+    },
+    {
+      "name": "S071",
+      "description": "N28 \u00b7 MedSurg \u00b7 W2D"
+    },
+    {
+      "name": "S072",
+      "description": "N15 \u00b7 ICU \u00b7 W1N"
+    },
+    {
+      "name": "S073",
+      "description": "N14 \u00b7 MedSurg \u00b7 W1D"
+    },
+    {
+      "name": "S074",
+      "description": "N08 \u00b7 ED \u00b7 W4D"
+    },
+    {
+      "name": "S075",
+      "description": "N15 \u00b7 ICU \u00b7 W3N"
+    },
+    {
+      "name": "S076",
+      "description": "N04 \u00b7 ED \u00b7 W1N"
+    },
+    {
+      "name": "S077",
+      "description": "N03 \u00b7 ED \u00b7 W3N"
+    },
+    {
+      "name": "S078",
+      "description": "N30 \u00b7 ED \u00b7 W3D"
+    },
+    {
+      "name": "S079",
+      "description": "N25 \u00b7 LD \u00b7 W1D"
+    },
+    {
+      "name": "S080",
+      "description": "N22 \u00b7 LD \u00b7 W1D"
+    },
+    {
+      "name": "S081",
+      "description": "N26 \u00b7 ED \u00b7 W2N"
+    },
+    {
+      "name": "S082",
+      "description": "N22 \u00b7 MedSurg \u00b7 W4N"
+    },
+    {
+      "name": "S083",
+      "description": "N16 \u00b7 ED \u00b7 W1N"
+    },
+    {
+      "name": "S084",
+      "description": "N11 \u00b7 ED \u00b7 W1D"
+    },
+    {
+      "name": "S085",
+      "description": "N14 \u00b7 ICU \u00b7 W4D"
+    },
+    {
+      "name": "S086",
+      "description": "N23 \u00b7 LD \u00b7 W4N"
+    },
+    {
+      "name": "S087",
+      "description": "N30 \u00b7 ED \u00b7 W4N"
+    },
+    {
+      "name": "S088",
+      "description": "N19 \u00b7 ICU \u00b7 W4N"
+    },
+    {
+      "name": "S089",
+      "description": "N12 \u00b7 Oncology \u00b7 W2D"
+    },
+    {
+      "name": "S090",
+      "description": "N21 \u00b7 LD \u00b7 W3N"
+    },
+    {
+      "name": "S091",
+      "description": "N02 \u00b7 ICU \u00b7 W1N"
+    },
+    {
+      "name": "S092",
+      "description": "N12 \u00b7 LD \u00b7 W4D"
+    },
+    {
+      "name": "S093",
+      "description": "N08 \u00b7 ED \u00b7 W1D"
+    },
+    {
+      "name": "S094",
+      "description": "N21 \u00b7 Oncology \u00b7 W2D"
+    },
+    {
+      "name": "S095",
+      "description": "N11 \u00b7 LD \u00b7 W1D"
+    },
+    {
+      "name": "S096",
+      "description": "N16 \u00b7 ICU \u00b7 W1N"
+    },
+    {
+      "name": "S097",
+      "description": "N02 \u00b7 ICU \u00b7 W2N"
+    },
+    {
+      "name": "S098",
+      "description": "N30 \u00b7 Oncology \u00b7 W3D"
+    },
+    {
+      "name": "S099",
+      "description": "N18 \u00b7 ICU \u00b7 W2N"
+    },
+    {
+      "name": "S100",
+      "description": "N21 \u00b7 MedSurg \u00b7 W2N"
+    },
+    {
+      "name": "S101",
+      "description": "N06 \u00b7 ICU \u00b7 W3N"
+    },
+    {
+      "name": "S102",
+      "description": "N29 \u00b7 MedSurg \u00b7 W1N"
+    },
+    {
+      "name": "S103",
+      "description": "N02 \u00b7 Oncology \u00b7 W4N"
+    },
+    {
+      "name": "S104",
+      "description": "N02 \u00b7 MedSurg \u00b7 W4D"
+    },
+    {
+      "name": "S105",
+      "description": "N18 \u00b7 Oncology \u00b7 W3N"
+    },
+    {
+      "name": "S106",
+      "description": "N07 \u00b7 ED \u00b7 W2D"
+    },
+    {
+      "name": "S107",
+      "description": "N24 \u00b7 ED \u00b7 W3N"
+    },
+    {
+      "name": "S108",
+      "description": "N29 \u00b7 ED \u00b7 W1N"
+    },
+    {
+      "name": "S109",
+      "description": "N13 \u00b7 ED \u00b7 W1N"
+    },
+    {
+      "name": "S110",
+      "description": "N18 \u00b7 LD \u00b7 W4D"
+    },
+    {
+      "name": "S111",
+      "description": "N18 \u00b7 ICU \u00b7 W3N"
+    },
+    {
+      "name": "S112",
+      "description": "N07 \u00b7 ED \u00b7 W2N"
+    },
+    {
+      "name": "S113",
+      "description": "N05 \u00b7 ICU \u00b7 W4D"
+    },
+    {
+      "name": "S114",
+      "description": "N25 \u00b7 ED \u00b7 W2D"
+    },
+    {
+      "name": "S115",
+      "description": "N07 \u00b7 LD \u00b7 W1N"
+    },
+    {
+      "name": "S116",
+      "description": "N11 \u00b7 ED \u00b7 W3N"
+    },
+    {
+      "name": "S117",
+      "description": "N21 \u00b7 ED \u00b7 W2D"
+    },
+    {
+      "name": "S118",
+      "description": "N11 \u00b7 MedSurg \u00b7 W2D"
+    },
+    {
+      "name": "S119",
+      "description": "N28 \u00b7 ED \u00b7 W4N"
+    },
+    {
+      "name": "S120",
+      "description": "N28 \u00b7 LD \u00b7 W1D"
+    }
+  ],
+  "scores": [
+    {
+      "option": "S001",
+      "objective": "CoverageValue",
+      "value": 82.2
+    },
+    {
+      "option": "S001",
+      "objective": "Cost",
+      "value": 3.42
+    },
+    {
+      "option": "S001",
+      "objective": "FatigueRisk",
+      "value": 26.9
+    },
+    {
+      "option": "S002",
+      "objective": "CoverageValue",
+      "value": 77.9
+    },
+    {
+      "option": "S002",
+      "objective": "Cost",
+      "value": 3.3
+    },
+    {
+      "option": "S002",
+      "objective": "FatigueRisk",
+      "value": 25.5
+    },
+    {
+      "option": "S003",
+      "objective": "CoverageValue",
+      "value": 81.6
+    },
+    {
+      "option": "S003",
+      "objective": "Cost",
+      "value": 4.07
+    },
+    {
+      "option": "S003",
+      "objective": "FatigueRisk",
+      "value": 31.9
+    },
+    {
+      "option": "S004",
+      "objective": "CoverageValue",
+      "value": 70.8
+    },
+    {
+      "option": "S004",
+      "objective": "Cost",
+      "value": 3.04
+    },
+    {
+      "option": "S004",
+      "objective": "FatigueRisk",
+      "value": 15.6
+    },
+    {
+      "option": "S005",
+      "objective": "CoverageValue",
+      "value": 88.9
+    },
+    {
+      "option": "S005",
+      "objective": "Cost",
+      "value": 3.4
+    },
+    {
+      "option": "S005",
+      "objective": "FatigueRisk",
+      "value": 29.8
+    },
+    {
+      "option": "S006",
+      "objective": "CoverageValue",
+      "value": 97.1
+    },
+    {
+      "option": "S006",
+      "objective": "Cost",
+      "value": 3.51
+    },
+    {
+      "option": "S006",
+      "objective": "FatigueRisk",
+      "value": 29.2
+    },
+    {
+      "option": "S007",
+      "objective": "CoverageValue",
+      "value": 86.3
+    },
+    {
+      "option": "S007",
+      "objective": "Cost",
+      "value": 4.12
+    },
+    {
+      "option": "S007",
+      "objective": "FatigueRisk",
+      "value": 28.3
+    },
+    {
+      "option": "S008",
+      "objective": "CoverageValue",
+      "value": 89.6
+    },
+    {
+      "option": "S008",
+      "objective": "Cost",
+      "value": 3.02
+    },
+    {
+      "option": "S008",
+      "objective": "FatigueRisk",
+      "value": 30.6
+    },
+    {
+      "option": "S009",
+      "objective": "CoverageValue",
+      "value": 71.2
+    },
+    {
+      "option": "S009",
+      "objective": "Cost",
+      "value": 2.58
+    },
+    {
+      "option": "S009",
+      "objective": "FatigueRisk",
+      "value": 16.2
+    },
+    {
+      "option": "S010",
+      "objective": "CoverageValue",
+      "value": 89.8
+    },
+    {
+      "option": "S010",
+      "objective": "Cost",
+      "value": 3.41
+    },
+    {
+      "option": "S010",
+      "objective": "FatigueRisk",
+      "value": 35.8
+    },
+    {
+      "option": "S011",
+      "objective": "CoverageValue",
+      "value": 76.3
+    },
+    {
+      "option": "S011",
+      "objective": "Cost",
+      "value": 3.78
+    },
+    {
+      "option": "S011",
+      "objective": "FatigueRisk",
+      "value": 11.0
+    },
+    {
+      "option": "S012",
+      "objective": "CoverageValue",
+      "value": 67.9
+    },
+    {
+      "option": "S012",
+      "objective": "Cost",
+      "value": 3.78
+    },
+    {
+      "option": "S012",
+      "objective": "FatigueRisk",
+      "value": 27.2
+    },
+    {
+      "option": "S013",
+      "objective": "CoverageValue",
+      "value": 83.9
+    },
+    {
+      "option": "S013",
+      "objective": "Cost",
+      "value": 3.75
+    },
+    {
+      "option": "S013",
+      "objective": "FatigueRisk",
+      "value": 18.1
+    },
+    {
+      "option": "S014",
+      "objective": "CoverageValue",
+      "value": 82.3
+    },
+    {
+      "option": "S014",
+      "objective": "Cost",
+      "value": 3.54
+    },
+    {
+      "option": "S014",
+      "objective": "FatigueRisk",
+      "value": 30.2
+    },
+    {
+      "option": "S015",
+      "objective": "CoverageValue",
+      "value": 94.1
+    },
+    {
+      "option": "S015",
+      "objective": "Cost",
+      "value": 3.44
+    },
+    {
+      "option": "S015",
+      "objective": "FatigueRisk",
+      "value": 24.7
+    },
+    {
+      "option": "S016",
+      "objective": "CoverageValue",
+      "value": 81.2
+    },
+    {
+      "option": "S016",
+      "objective": "Cost",
+      "value": 4.6
+    },
+    {
+      "option": "S016",
+      "objective": "FatigueRisk",
+      "value": 27.2
+    },
+    {
+      "option": "S017",
+      "objective": "CoverageValue",
+      "value": 74.6
+    },
+    {
+      "option": "S017",
+      "objective": "Cost",
+      "value": 3.35
+    },
+    {
+      "option": "S017",
+      "objective": "FatigueRisk",
+      "value": 11.0
+    },
+    {
+      "option": "S018",
+      "objective": "CoverageValue",
+      "value": 65.1
+    },
+    {
+      "option": "S018",
+      "objective": "Cost",
+      "value": 2.81
+    },
+    {
+      "option": "S018",
+      "objective": "FatigueRisk",
+      "value": 11.5
+    },
+    {
+      "option": "S019",
+      "objective": "CoverageValue",
+      "value": 67.8
+    },
+    {
+      "option": "S019",
+      "objective": "Cost",
+      "value": 3.1
+    },
+    {
+      "option": "S019",
+      "objective": "FatigueRisk",
+      "value": 21.1
+    },
+    {
+      "option": "S020",
+      "objective": "CoverageValue",
+      "value": 81.3
+    },
+    {
+      "option": "S020",
+      "objective": "Cost",
+      "value": 3.04
+    },
+    {
+      "option": "S020",
+      "objective": "FatigueRisk",
+      "value": 32.5
+    },
+    {
+      "option": "S021",
+      "objective": "CoverageValue",
+      "value": 94.3
+    },
+    {
+      "option": "S021",
+      "objective": "Cost",
+      "value": 3.61
+    },
+    {
+      "option": "S021",
+      "objective": "FatigueRisk",
+      "value": 26.2
+    },
+    {
+      "option": "S022",
+      "objective": "CoverageValue",
+      "value": 80.2
+    },
+    {
+      "option": "S022",
+      "objective": "Cost",
+      "value": 3.31
+    },
+    {
+      "option": "S022",
+      "objective": "FatigueRisk",
+      "value": 33.1
+    },
+    {
+      "option": "S023",
+      "objective": "CoverageValue",
+      "value": 76.3
+    },
+    {
+      "option": "S023",
+      "objective": "Cost",
+      "value": 3.22
+    },
+    {
+      "option": "S023",
+      "objective": "FatigueRisk",
+      "value": 13.2
+    },
+    {
+      "option": "S024",
+      "objective": "CoverageValue",
+      "value": 71.4
+    },
+    {
+      "option": "S024",
+      "objective": "Cost",
+      "value": 3.15
+    },
+    {
+      "option": "S024",
+      "objective": "FatigueRisk",
+      "value": 10.2
+    },
+    {
+      "option": "S025",
+      "objective": "CoverageValue",
+      "value": 66.6
+    },
+    {
+      "option": "S025",
+      "objective": "Cost",
+      "value": 3.18
+    },
+    {
+      "option": "S025",
+      "objective": "FatigueRisk",
+      "value": 16.2
+    },
+    {
+      "option": "S026",
+      "objective": "CoverageValue",
+      "value": 104.5
+    },
+    {
+      "option": "S026",
+      "objective": "Cost",
+      "value": 3.81
+    },
+    {
+      "option": "S026",
+      "objective": "FatigueRisk",
+      "value": 33.8
+    },
+    {
+      "option": "S027",
+      "objective": "CoverageValue",
+      "value": 98.1
+    },
+    {
+      "option": "S027",
+      "objective": "Cost",
+      "value": 4.25
+    },
+    {
+      "option": "S027",
+      "objective": "FatigueRisk",
+      "value": 34.7
+    },
+    {
+      "option": "S028",
+      "objective": "CoverageValue",
+      "value": 72.1
+    },
+    {
+      "option": "S028",
+      "objective": "Cost",
+      "value": 3.12
+    },
+    {
+      "option": "S028",
+      "objective": "FatigueRisk",
+      "value": 12.8
+    },
+    {
+      "option": "S029",
+      "objective": "CoverageValue",
+      "value": 85.1
+    },
+    {
+      "option": "S029",
+      "objective": "Cost",
+      "value": 3.26
+    },
+    {
+      "option": "S029",
+      "objective": "FatigueRisk",
+      "value": 17.6
+    },
+    {
+      "option": "S030",
+      "objective": "CoverageValue",
+      "value": 82.8
+    },
+    {
+      "option": "S030",
+      "objective": "Cost",
+      "value": 3.53
+    },
+    {
+      "option": "S030",
+      "objective": "FatigueRisk",
+      "value": 20.0
+    },
+    {
+      "option": "S031",
+      "objective": "CoverageValue",
+      "value": 73.6
+    },
+    {
+      "option": "S031",
+      "objective": "Cost",
+      "value": 4.09
+    },
+    {
+      "option": "S031",
+      "objective": "FatigueRisk",
+      "value": 27.1
+    },
+    {
+      "option": "S032",
+      "objective": "CoverageValue",
+      "value": 68.3
+    },
+    {
+      "option": "S032",
+      "objective": "Cost",
+      "value": 3.67
+    },
+    {
+      "option": "S032",
+      "objective": "FatigueRisk",
+      "value": 28.6
+    },
+    {
+      "option": "S033",
+      "objective": "CoverageValue",
+      "value": 92.4
+    },
+    {
+      "option": "S033",
+      "objective": "Cost",
+      "value": 3.98
+    },
+    {
+      "option": "S033",
+      "objective": "FatigueRisk",
+      "value": 26.9
+    },
+    {
+      "option": "S034",
+      "objective": "CoverageValue",
+      "value": 73.0
+    },
+    {
+      "option": "S034",
+      "objective": "Cost",
+      "value": 3.54
+    },
+    {
+      "option": "S034",
+      "objective": "FatigueRisk",
+      "value": 27.2
+    },
+    {
+      "option": "S035",
+      "objective": "CoverageValue",
+      "value": 78.1
+    },
+    {
+      "option": "S035",
+      "objective": "Cost",
+      "value": 4.31
+    },
+    {
+      "option": "S035",
+      "objective": "FatigueRisk",
+      "value": 35.7
+    },
+    {
+      "option": "S036",
+      "objective": "CoverageValue",
+      "value": 67.4
+    },
+    {
+      "option": "S036",
+      "objective": "Cost",
+      "value": 2.58
+    },
+    {
+      "option": "S036",
+      "objective": "FatigueRisk",
+      "value": 20.6
+    },
+    {
+      "option": "S037",
+      "objective": "CoverageValue",
+      "value": 85.2
+    },
+    {
+      "option": "S037",
+      "objective": "Cost",
+      "value": 3.7
+    },
+    {
+      "option": "S037",
+      "objective": "FatigueRisk",
+      "value": 28.6
+    },
+    {
+      "option": "S038",
+      "objective": "CoverageValue",
+      "value": 77.4
+    },
+    {
+      "option": "S038",
+      "objective": "Cost",
+      "value": 3.56
+    },
+    {
+      "option": "S038",
+      "objective": "FatigueRisk",
+      "value": 13.0
+    },
+    {
+      "option": "S039",
+      "objective": "CoverageValue",
+      "value": 61.1
+    },
+    {
+      "option": "S039",
+      "objective": "Cost",
+      "value": 2.46
+    },
+    {
+      "option": "S039",
+      "objective": "FatigueRisk",
+      "value": 11.1
+    },
+    {
+      "option": "S040",
+      "objective": "CoverageValue",
+      "value": 84.5
+    },
+    {
+      "option": "S040",
+      "objective": "Cost",
+      "value": 3.29
+    },
+    {
+      "option": "S040",
+      "objective": "FatigueRisk",
+      "value": 13.6
+    },
+    {
+      "option": "S041",
+      "objective": "CoverageValue",
+      "value": 82.4
+    },
+    {
+      "option": "S041",
+      "objective": "Cost",
+      "value": 4.29
+    },
+    {
+      "option": "S041",
+      "objective": "FatigueRisk",
+      "value": 30.4
+    },
+    {
+      "option": "S042",
+      "objective": "CoverageValue",
+      "value": 58.6
+    },
+    {
+      "option": "S042",
+      "objective": "Cost",
+      "value": 3.09
+    },
+    {
+      "option": "S042",
+      "objective": "FatigueRisk",
+      "value": 19.4
+    },
+    {
+      "option": "S043",
+      "objective": "CoverageValue",
+      "value": 69.0
+    },
+    {
+      "option": "S043",
+      "objective": "Cost",
+      "value": 2.88
+    },
+    {
+      "option": "S043",
+      "objective": "FatigueRisk",
+      "value": 21.8
+    },
+    {
+      "option": "S044",
+      "objective": "CoverageValue",
+      "value": 79.5
+    },
+    {
+      "option": "S044",
+      "objective": "Cost",
+      "value": 3.62
+    },
+    {
+      "option": "S044",
+      "objective": "FatigueRisk",
+      "value": 25.7
+    },
+    {
+      "option": "S045",
+      "objective": "CoverageValue",
+      "value": 96.2
+    },
+    {
+      "option": "S045",
+      "objective": "Cost",
+      "value": 4.59
+    },
+    {
+      "option": "S045",
+      "objective": "FatigueRisk",
+      "value": 31.5
+    },
+    {
+      "option": "S046",
+      "objective": "CoverageValue",
+      "value": 99.1
+    },
+    {
+      "option": "S046",
+      "objective": "Cost",
+      "value": 4.21
+    },
+    {
+      "option": "S046",
+      "objective": "FatigueRisk",
+      "value": 34.9
+    },
+    {
+      "option": "S047",
+      "objective": "CoverageValue",
+      "value": 84.6
+    },
+    {
+      "option": "S047",
+      "objective": "Cost",
+      "value": 3.83
+    },
+    {
+      "option": "S047",
+      "objective": "FatigueRisk",
+      "value": 33.7
+    },
+    {
+      "option": "S048",
+      "objective": "CoverageValue",
+      "value": 98.8
+    },
+    {
+      "option": "S048",
+      "objective": "Cost",
+      "value": 4.5
+    },
+    {
+      "option": "S048",
+      "objective": "FatigueRisk",
+      "value": 32.5
+    },
+    {
+      "option": "S049",
+      "objective": "CoverageValue",
+      "value": 80.8
+    },
+    {
+      "option": "S049",
+      "objective": "Cost",
+      "value": 2.64
+    },
+    {
+      "option": "S049",
+      "objective": "FatigueRisk",
+      "value": 10.5
+    },
+    {
+      "option": "S050",
+      "objective": "CoverageValue",
+      "value": 85.3
+    },
+    {
+      "option": "S050",
+      "objective": "Cost",
+      "value": 3.8
+    },
+    {
+      "option": "S050",
+      "objective": "FatigueRisk",
+      "value": 34.0
+    },
+    {
+      "option": "S051",
+      "objective": "CoverageValue",
+      "value": 84.2
+    },
+    {
+      "option": "S051",
+      "objective": "Cost",
+      "value": 3.72
+    },
+    {
+      "option": "S051",
+      "objective": "FatigueRisk",
+      "value": 30.4
+    },
+    {
+      "option": "S052",
+      "objective": "CoverageValue",
+      "value": 66.3
+    },
+    {
+      "option": "S052",
+      "objective": "Cost",
+      "value": 2.2
+    },
+    {
+      "option": "S052",
+      "objective": "FatigueRisk",
+      "value": 19.6
+    },
+    {
+      "option": "S053",
+      "objective": "CoverageValue",
+      "value": 88.4
+    },
+    {
+      "option": "S053",
+      "objective": "Cost",
+      "value": 3.9
+    },
+    {
+      "option": "S053",
+      "objective": "FatigueRisk",
+      "value": 25.1
+    },
+    {
+      "option": "S054",
+      "objective": "CoverageValue",
+      "value": 72.5
+    },
+    {
+      "option": "S054",
+      "objective": "Cost",
+      "value": 3.64
+    },
+    {
+      "option": "S054",
+      "objective": "FatigueRisk",
+      "value": 13.0
+    },
+    {
+      "option": "S055",
+      "objective": "CoverageValue",
+      "value": 79.5
+    },
+    {
+      "option": "S055",
+      "objective": "Cost",
+      "value": 2.78
+    },
+    {
+      "option": "S055",
+      "objective": "FatigueRisk",
+      "value": 19.1
+    },
+    {
+      "option": "S056",
+      "objective": "CoverageValue",
+      "value": 95.0
+    },
+    {
+      "option": "S056",
+      "objective": "Cost",
+      "value": 4.33
+    },
+    {
+      "option": "S056",
+      "objective": "FatigueRisk",
+      "value": 29.9
+    },
+    {
+      "option": "S057",
+      "objective": "CoverageValue",
+      "value": 73.8
+    },
+    {
+      "option": "S057",
+      "objective": "Cost",
+      "value": 4.26
+    },
+    {
+      "option": "S057",
+      "objective": "FatigueRisk",
+      "value": 27.4
+    },
+    {
+      "option": "S058",
+      "objective": "CoverageValue",
+      "value": 75.2
+    },
+    {
+      "option": "S058",
+      "objective": "Cost",
+      "value": 2.84
+    },
+    {
+      "option": "S058",
+      "objective": "FatigueRisk",
+      "value": 10.9
+    },
+    {
+      "option": "S059",
+      "objective": "CoverageValue",
+      "value": 62.6
+    },
+    {
+      "option": "S059",
+      "objective": "Cost",
+      "value": 2.85
+    },
+    {
+      "option": "S059",
+      "objective": "FatigueRisk",
+      "value": 18.3
+    },
+    {
+      "option": "S060",
+      "objective": "CoverageValue",
+      "value": 74.1
+    },
+    {
+      "option": "S060",
+      "objective": "Cost",
+      "value": 2.21
+    },
+    {
+      "option": "S060",
+      "objective": "FatigueRisk",
+      "value": 10.7
+    },
+    {
+      "option": "S061",
+      "objective": "CoverageValue",
+      "value": 77.4
+    },
+    {
+      "option": "S061",
+      "objective": "Cost",
+      "value": 2.3
+    },
+    {
+      "option": "S061",
+      "objective": "FatigueRisk",
+      "value": 12.6
+    },
+    {
+      "option": "S062",
+      "objective": "CoverageValue",
+      "value": 83.7
+    },
+    {
+      "option": "S062",
+      "objective": "Cost",
+      "value": 4.22
+    },
+    {
+      "option": "S062",
+      "objective": "FatigueRisk",
+      "value": 29.6
+    },
+    {
+      "option": "S063",
+      "objective": "CoverageValue",
+      "value": 89.6
+    },
+    {
+      "option": "S063",
+      "objective": "Cost",
+      "value": 4.34
+    },
+    {
+      "option": "S063",
+      "objective": "FatigueRisk",
+      "value": 30.6
+    },
+    {
+      "option": "S064",
+      "objective": "CoverageValue",
+      "value": 100.5
+    },
+    {
+      "option": "S064",
+      "objective": "Cost",
+      "value": 4.29
+    },
+    {
+      "option": "S064",
+      "objective": "FatigueRisk",
+      "value": 24.2
+    },
+    {
+      "option": "S065",
+      "objective": "CoverageValue",
+      "value": 67.8
+    },
+    {
+      "option": "S065",
+      "objective": "Cost",
+      "value": 3.06
+    },
+    {
+      "option": "S065",
+      "objective": "FatigueRisk",
+      "value": 21.9
+    },
+    {
+      "option": "S066",
+      "objective": "CoverageValue",
+      "value": 63.9
+    },
+    {
+      "option": "S066",
+      "objective": "Cost",
+      "value": 3.12
+    },
+    {
+      "option": "S066",
+      "objective": "FatigueRisk",
+      "value": 21.2
+    },
+    {
+      "option": "S067",
+      "objective": "CoverageValue",
+      "value": 85.4
+    },
+    {
+      "option": "S067",
+      "objective": "Cost",
+      "value": 3.49
+    },
+    {
+      "option": "S067",
+      "objective": "FatigueRisk",
+      "value": 30.3
+    },
+    {
+      "option": "S068",
+      "objective": "CoverageValue",
+      "value": 70.0
+    },
+    {
+      "option": "S068",
+      "objective": "Cost",
+      "value": 3.82
+    },
+    {
+      "option": "S068",
+      "objective": "FatigueRisk",
+      "value": 30.1
+    },
+    {
+      "option": "S069",
+      "objective": "CoverageValue",
+      "value": 87.2
+    },
+    {
+      "option": "S069",
+      "objective": "Cost",
+      "value": 3.13
+    },
+    {
+      "option": "S069",
+      "objective": "FatigueRisk",
+      "value": 20.8
+    },
+    {
+      "option": "S070",
+      "objective": "CoverageValue",
+      "value": 74.1
+    },
+    {
+      "option": "S070",
+      "objective": "Cost",
+      "value": 3.06
+    },
+    {
+      "option": "S070",
+      "objective": "FatigueRisk",
+      "value": 21.4
+    },
+    {
+      "option": "S071",
+      "objective": "CoverageValue",
+      "value": 70.4
+    },
+    {
+      "option": "S071",
+      "objective": "Cost",
+      "value": 2.85
+    },
+    {
+      "option": "S071",
+      "objective": "FatigueRisk",
+      "value": 11.7
+    },
+    {
+      "option": "S072",
+      "objective": "CoverageValue",
+      "value": 81.7
+    },
+    {
+      "option": "S072",
+      "objective": "Cost",
+      "value": 3.12
+    },
+    {
+      "option": "S072",
+      "objective": "FatigueRisk",
+      "value": 28.0
+    },
+    {
+      "option": "S073",
+      "objective": "CoverageValue",
+      "value": 82.3
+    },
+    {
+      "option": "S073",
+      "objective": "Cost",
+      "value": 3.74
+    },
+    {
+      "option": "S073",
+      "objective": "FatigueRisk",
+      "value": 11.4
+    },
+    {
+      "option": "S074",
+      "objective": "CoverageValue",
+      "value": 87.4
+    },
+    {
+      "option": "S074",
+      "objective": "Cost",
+      "value": 3.8
+    },
+    {
+      "option": "S074",
+      "objective": "FatigueRisk",
+      "value": 13.5
+    },
+    {
+      "option": "S075",
+      "objective": "CoverageValue",
+      "value": 74.5
+    },
+    {
+      "option": "S075",
+      "objective": "Cost",
+      "value": 3.39
+    },
+    {
+      "option": "S075",
+      "objective": "FatigueRisk",
+      "value": 34.4
+    },
+    {
+      "option": "S076",
+      "objective": "CoverageValue",
+      "value": 86.3
+    },
+    {
+      "option": "S076",
+      "objective": "Cost",
+      "value": 3.78
+    },
+    {
+      "option": "S076",
+      "objective": "FatigueRisk",
+      "value": 27.3
+    },
+    {
+      "option": "S077",
+      "objective": "CoverageValue",
+      "value": 79.5
+    },
+    {
+      "option": "S077",
+      "objective": "Cost",
+      "value": 3.05
+    },
+    {
+      "option": "S077",
+      "objective": "FatigueRisk",
+      "value": 31.9
+    },
+    {
+      "option": "S078",
+      "objective": "CoverageValue",
+      "value": 82.5
+    },
+    {
+      "option": "S078",
+      "objective": "Cost",
+      "value": 2.45
+    },
+    {
+      "option": "S078",
+      "objective": "FatigueRisk",
+      "value": 13.2
+    },
+    {
+      "option": "S079",
+      "objective": "CoverageValue",
+      "value": 67.3
+    },
+    {
+      "option": "S079",
+      "objective": "Cost",
+      "value": 3.32
+    },
+    {
+      "option": "S079",
+      "objective": "FatigueRisk",
+      "value": 19.4
+    },
+    {
+      "option": "S080",
+      "objective": "CoverageValue",
+      "value": 80.3
+    },
+    {
+      "option": "S080",
+      "objective": "Cost",
+      "value": 3.36
+    },
+    {
+      "option": "S080",
+      "objective": "FatigueRisk",
+      "value": 17.6
+    },
+    {
+      "option": "S081",
+      "objective": "CoverageValue",
+      "value": 95.6
+    },
+    {
+      "option": "S081",
+      "objective": "Cost",
+      "value": 4.42
+    },
+    {
+      "option": "S081",
+      "objective": "FatigueRisk",
+      "value": 24.6
+    },
+    {
+      "option": "S082",
+      "objective": "CoverageValue",
+      "value": 82.4
+    },
+    {
+      "option": "S082",
+      "objective": "Cost",
+      "value": 4.1
+    },
+    {
+      "option": "S082",
+      "objective": "FatigueRisk",
+      "value": 31.7
+    },
+    {
+      "option": "S083",
+      "objective": "CoverageValue",
+      "value": 89.2
+    },
+    {
+      "option": "S083",
+      "objective": "Cost",
+      "value": 4.26
+    },
+    {
+      "option": "S083",
+      "objective": "FatigueRisk",
+      "value": 30.6
+    },
+    {
+      "option": "S084",
+      "objective": "CoverageValue",
+      "value": 81.9
+    },
+    {
+      "option": "S084",
+      "objective": "Cost",
+      "value": 3.24
+    },
+    {
+      "option": "S084",
+      "objective": "FatigueRisk",
+      "value": 13.6
+    },
+    {
+      "option": "S085",
+      "objective": "CoverageValue",
+      "value": 80.3
+    },
+    {
+      "option": "S085",
+      "objective": "Cost",
+      "value": 3.14
+    },
+    {
+      "option": "S085",
+      "objective": "FatigueRisk",
+      "value": 15.8
+    },
+    {
+      "option": "S086",
+      "objective": "CoverageValue",
+      "value": 79.8
+    },
+    {
+      "option": "S086",
+      "objective": "Cost",
+      "value": 4.34
+    },
+    {
+      "option": "S086",
+      "objective": "FatigueRisk",
+      "value": 24.9
+    },
+    {
+      "option": "S087",
+      "objective": "CoverageValue",
+      "value": 93.8
+    },
+    {
+      "option": "S087",
+      "objective": "Cost",
+      "value": 3.5
+    },
+    {
+      "option": "S087",
+      "objective": "FatigueRisk",
+      "value": 26.6
+    },
+    {
+      "option": "S088",
+      "objective": "CoverageValue",
+      "value": 100.9
+    },
+    {
+      "option": "S088",
+      "objective": "Cost",
+      "value": 3.8
+    },
+    {
+      "option": "S088",
+      "objective": "FatigueRisk",
+      "value": 25.7
+    },
+    {
+      "option": "S089",
+      "objective": "CoverageValue",
+      "value": 60.6
+    },
+    {
+      "option": "S089",
+      "objective": "Cost",
+      "value": 2.37
+    },
+    {
+      "option": "S089",
+      "objective": "FatigueRisk",
+      "value": 16.7
+    },
+    {
+      "option": "S090",
+      "objective": "CoverageValue",
+      "value": 72.5
+    },
+    {
+      "option": "S090",
+      "objective": "Cost",
+      "value": 3.26
+    },
+    {
+      "option": "S090",
+      "objective": "FatigueRisk",
+      "value": 30.8
+    },
+    {
+      "option": "S091",
+      "objective": "CoverageValue",
+      "value": 100.2
+    },
+    {
+      "option": "S091",
+      "objective": "Cost",
+      "value": 4.11
+    },
+    {
+      "option": "S091",
+      "objective": "FatigueRisk",
+      "value": 29.0
+    },
+    {
+      "option": "S092",
+      "objective": "CoverageValue",
+      "value": 63.7
+    },
+    {
+      "option": "S092",
+      "objective": "Cost",
+      "value": 2.54
+    },
+    {
+      "option": "S092",
+      "objective": "FatigueRisk",
+      "value": 10.7
+    },
+    {
+      "option": "S093",
+      "objective": "CoverageValue",
+      "value": 84.2
+    },
+    {
+      "option": "S093",
+      "objective": "Cost",
+      "value": 3.26
+    },
+    {
+      "option": "S093",
+      "objective": "FatigueRisk",
+      "value": 18.2
+    },
+    {
+      "option": "S094",
+      "objective": "CoverageValue",
+      "value": 69.5
+    },
+    {
+      "option": "S094",
+      "objective": "Cost",
+      "value": 3.06
+    },
+    {
+      "option": "S094",
+      "objective": "FatigueRisk",
+      "value": 12.6
+    },
+    {
+      "option": "S095",
+      "objective": "CoverageValue",
+      "value": 85.6
+    },
+    {
+      "option": "S095",
+      "objective": "Cost",
+      "value": 3.28
+    },
+    {
+      "option": "S095",
+      "objective": "FatigueRisk",
+      "value": 17.7
+    },
+    {
+      "option": "S096",
+      "objective": "CoverageValue",
+      "value": 99.9
+    },
+    {
+      "option": "S096",
+      "objective": "Cost",
+      "value": 4.2
+    },
+    {
+      "option": "S096",
+      "objective": "FatigueRisk",
+      "value": 34.5
+    },
+    {
+      "option": "S097",
+      "objective": "CoverageValue",
+      "value": 85.9
+    },
+    {
+      "option": "S097",
+      "objective": "Cost",
+      "value": 4.13
+    },
+    {
+      "option": "S097",
+      "objective": "FatigueRisk",
+      "value": 33.2
+    },
+    {
+      "option": "S098",
+      "objective": "CoverageValue",
+      "value": 65.9
+    },
+    {
+      "option": "S098",
+      "objective": "Cost",
+      "value": 2.79
+    },
+    {
+      "option": "S098",
+      "objective": "FatigueRisk",
+      "value": 10.0
+    },
+    {
+      "option": "S099",
+      "objective": "CoverageValue",
+      "value": 94.4
+    },
+    {
+      "option": "S099",
+      "objective": "Cost",
+      "value": 3.93
+    },
+    {
+      "option": "S099",
+      "objective": "FatigueRisk",
+      "value": 30.3
+    },
+    {
+      "option": "S100",
+      "objective": "CoverageValue",
+      "value": 89.4
+    },
+    {
+      "option": "S100",
+      "objective": "Cost",
+      "value": 3.25
+    },
+    {
+      "option": "S100",
+      "objective": "FatigueRisk",
+      "value": 25.3
+    },
+    {
+      "option": "S101",
+      "objective": "CoverageValue",
+      "value": 76.5
+    },
+    {
+      "option": "S101",
+      "objective": "Cost",
+      "value": 3.97
+    },
+    {
+      "option": "S101",
+      "objective": "FatigueRisk",
+      "value": 25.3
+    },
+    {
+      "option": "S102",
+      "objective": "CoverageValue",
+      "value": 96.5
+    },
+    {
+      "option": "S102",
+      "objective": "Cost",
+      "value": 4.59
+    },
+    {
+      "option": "S102",
+      "objective": "FatigueRisk",
+      "value": 25.0
+    },
+    {
+      "option": "S103",
+      "objective": "CoverageValue",
+      "value": 77.0
+    },
+    {
+      "option": "S103",
+      "objective": "Cost",
+      "value": 3.83
+    },
+    {
+      "option": "S103",
+      "objective": "FatigueRisk",
+      "value": 30.8
+    },
+    {
+      "option": "S104",
+      "objective": "CoverageValue",
+      "value": 79.8
+    },
+    {
+      "option": "S104",
+      "objective": "Cost",
+      "value": 3.2
+    },
+    {
+      "option": "S104",
+      "objective": "FatigueRisk",
+      "value": 11.5
+    },
+    {
+      "option": "S105",
+      "objective": "CoverageValue",
+      "value": 79.1
+    },
+    {
+      "option": "S105",
+      "objective": "Cost",
+      "value": 3.44
+    },
+    {
+      "option": "S105",
+      "objective": "FatigueRisk",
+      "value": 33.2
+    },
+    {
+      "option": "S106",
+      "objective": "CoverageValue",
+      "value": 67.6
+    },
+    {
+      "option": "S106",
+      "objective": "Cost",
+      "value": 3.07
+    },
+    {
+      "option": "S106",
+      "objective": "FatigueRisk",
+      "value": 17.0
+    },
+    {
+      "option": "S107",
+      "objective": "CoverageValue",
+      "value": 79.0
+    },
+    {
+      "option": "S107",
+      "objective": "Cost",
+      "value": 3.79
+    },
+    {
+      "option": "S107",
+      "objective": "FatigueRisk",
+      "value": 24.0
+    },
+    {
+      "option": "S108",
+      "objective": "CoverageValue",
+      "value": 89.9
+    },
+    {
+      "option": "S108",
+      "objective": "Cost",
+      "value": 4.16
+    },
+    {
+      "option": "S108",
+      "objective": "FatigueRisk",
+      "value": 35.5
+    },
+    {
+      "option": "S109",
+      "objective": "CoverageValue",
+      "value": 88.9
+    },
+    {
+      "option": "S109",
+      "objective": "Cost",
+      "value": 3.58
+    },
+    {
+      "option": "S109",
+      "objective": "FatigueRisk",
+      "value": 27.0
+    },
+    {
+      "option": "S110",
+      "objective": "CoverageValue",
+      "value": 71.2
+    },
+    {
+      "option": "S110",
+      "objective": "Cost",
+      "value": 2.51
+    },
+    {
+      "option": "S110",
+      "objective": "FatigueRisk",
+      "value": 10.3
+    },
+    {
+      "option": "S111",
+      "objective": "CoverageValue",
+      "value": 93.4
+    },
+    {
+      "option": "S111",
+      "objective": "Cost",
+      "value": 3.65
+    },
+    {
+      "option": "S111",
+      "objective": "FatigueRisk",
+      "value": 25.0
+    },
+    {
+      "option": "S112",
+      "objective": "CoverageValue",
+      "value": 93.3
+    },
+    {
+      "option": "S112",
+      "objective": "Cost",
+      "value": 4.28
+    },
+    {
+      "option": "S112",
+      "objective": "FatigueRisk",
+      "value": 26.7
+    },
+    {
+      "option": "S113",
+      "objective": "CoverageValue",
+      "value": 87.0
+    },
+    {
+      "option": "S113",
+      "objective": "Cost",
+      "value": 3.62
+    },
+    {
+      "option": "S113",
+      "objective": "FatigueRisk",
+      "value": 14.3
+    },
+    {
+      "option": "S114",
+      "objective": "CoverageValue",
+      "value": 70.6
+    },
+    {
+      "option": "S114",
+      "objective": "Cost",
+      "value": 3.35
+    },
+    {
+      "option": "S114",
+      "objective": "FatigueRisk",
+      "value": 18.9
+    },
+    {
+      "option": "S115",
+      "objective": "CoverageValue",
+      "value": 76.7
+    },
+    {
+      "option": "S115",
+      "objective": "Cost",
+      "value": 4.32
+    },
+    {
+      "option": "S115",
+      "objective": "FatigueRisk",
+      "value": 27.7
+    },
+    {
+      "option": "S116",
+      "objective": "CoverageValue",
+      "value": 88.3
+    },
+    {
+      "option": "S116",
+      "objective": "Cost",
+      "value": 3.92
+    },
+    {
+      "option": "S116",
+      "objective": "FatigueRisk",
+      "value": 33.1
+    },
+    {
+      "option": "S117",
+      "objective": "CoverageValue",
+      "value": 63.5
+    },
+    {
+      "option": "S117",
+      "objective": "Cost",
+      "value": 2.82
+    },
+    {
+      "option": "S117",
+      "objective": "FatigueRisk",
+      "value": 17.3
+    },
+    {
+      "option": "S118",
+      "objective": "CoverageValue",
+      "value": 76.2
+    },
+    {
+      "option": "S118",
+      "objective": "Cost",
+      "value": 3.81
+    },
+    {
+      "option": "S118",
+      "objective": "FatigueRisk",
+      "value": 10.7
+    },
+    {
+      "option": "S119",
+      "objective": "CoverageValue",
+      "value": 99.2
+    },
+    {
+      "option": "S119",
+      "objective": "Cost",
+      "value": 3.4
+    },
+    {
+      "option": "S119",
+      "objective": "FatigueRisk",
+      "value": 24.3
+    },
+    {
+      "option": "S120",
+      "objective": "CoverageValue",
+      "value": 69.6
+    },
+    {
+      "option": "S120",
+      "objective": "Cost",
+      "value": 3.26
+    },
+    {
+      "option": "S120",
+      "objective": "FatigueRisk",
+      "value": 12.2
+    }
+  ]
+}

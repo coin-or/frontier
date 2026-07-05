@@ -1,7 +1,7 @@
 {
   "name": "Supplier Selection",
   "domain": "procurement",
-  "context": "Allocate order share across 25 suppliers in 6 regions to balance unit cost, reliability, lead time, ESG risk, and correlated regional concentration risk. Cheaper suppliers tend to be less reliable, slower, and higher ESG/concentration risk \u2014 genuinely conflicting. No supplier over 15%, \u22643 active suppliers per region, and a weighted reliability floor. Options, scores, and the ConcentrationRisk interaction matrix are in scores.json.",
+  "context": "Split a production order across 25 global suppliers balancing unit cost, reliability, lead time, ESG risk, and correlated regional concentration risk (quadratic, via the interaction matrix). Per-region active-supplier caps, a weighted reliability floor, and two contractual minimum shares - NA01 at 5% (strategic incumbent) and CN01 at 4% (legacy contract) - couple every share to every other. The mean-variance QP shape carries exact certification and solver duals: the reduced cost on a floored supplier prices what the contract costs, correlated risk included.",
   "approach": "proportional",
   "objectives": [
     {
@@ -112,6 +112,18 @@
       "objective": "Reliability",
       "operator": "min",
       "value": 78.0
+    },
+    {
+      "type": "allocation_bound",
+      "option": "NA01",
+      "min": 5,
+      "max": 100
+    },
+    {
+      "type": "allocation_bound",
+      "option": "CN01",
+      "min": 4,
+      "max": 100
     }
   ],
   "scenarios": [
@@ -202,8 +214,14 @@
         },
         {
           "type": "allocation_bound",
+          "option": "NA01",
+          "min": 5,
+          "max": 100
+        },
+        {
+          "type": "allocation_bound",
           "option": "CN01",
-          "min": 0,
+          "min": 4,
           "max": 5
         },
         {
@@ -317,6 +335,18 @@
           "objective": "Reliability",
           "operator": "min",
           "value": 78.0
+        },
+        {
+          "type": "allocation_bound",
+          "option": "NA01",
+          "min": 5,
+          "max": 100
+        },
+        {
+          "type": "allocation_bound",
+          "option": "CN01",
+          "min": 4,
+          "max": 100
         }
       ],
       "interaction_matrix_overrides": []

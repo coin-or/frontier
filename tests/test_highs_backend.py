@@ -173,6 +173,22 @@ class TestGate:
         b = _binary_problem(constraints=[GroupLimitConstraint(options=["A", "B"], min=1, max=2)])
         assert exact_solver_fits(b)[0] is True
 
+    def test_qp_floor_off_support_reports_infeasible_instead_of_raising(self):
+        """A floored asset dropped from ``support`` makes the weight box empty (lb > ub = 0).
+        highspy raises on such a box rather than reporting infeasible, so the entry-point
+        guard must short-circuit to (zeros, False) — the EA then discards that support
+        choice. Pre-guard behavior was an exception mid-solve (QP + allocation floors)."""
+        from solvers.highs_backend import _solve_qp_highs, _solve_qp_highs_sensitivity
+
+        cov = np.eye(3)
+        mu = np.array([1.0, 2.0, 3.0])
+        min_w = np.array([0.0, 0.10, 0.0])            # floor on asset 1
+        w, ok = _solve_qp_highs(cov, mu, None, True, 0.5, support=[0, 2], min_weight=min_w)
+        assert ok is False and np.allclose(w, 0)
+        w, ok, raw = _solve_qp_highs_sensitivity(cov, mu, None, True, 0.5,
+                                                 support=[0, 2], min_weight=min_w)
+        assert ok is False and raw is None
+
     def test_exact_lp_respects_allocation_bounds_and_prices_the_floor(self):
         """E2 on the exact LP path: per-option floors/caps become variable bounds, every
         overlay point honors them, and the dual read still returns per-option reduced costs

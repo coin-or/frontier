@@ -1,7 +1,7 @@
 {
   "name": "Growth Budget Allocation",
   "domain": "product",
-  "context": "Split a fixed growth budget across initiatives to maximize projected ROI and strategic reach, with no single initiative above 35% of the budget. Two purely linear objectives over a continuous allocation make this an exact multi-objective LP \u2014 so beyond the frontier, the solver returns exact duals: which initiative is a near-miss (reduced cost) and which limit is binding (shadow price).",
+  "context": "Split a fixed growth budget across 24 candidate initiatives from five departments, trading projected ROI against strategic reach and time-to-impact. No initiative above 20% of the budget, at most 3 funded per department, and the blended time-to-impact held within 9 months. Three purely linear objectives over a continuous allocation make this an exact multi-objective LP - beyond the frontier, the solver returns exact duals: which initiative is a near-miss (reduced cost) and which limit is binding (shadow price). A downturn scenario haircuts the discretionary growth bets.",
   "approach": "proportional",
   "objectives": [
     {
@@ -15,12 +15,136 @@
       "direction": "maximize",
       "unit": "score",
       "aggregation": "avg"
+    },
+    {
+      "name": "TimeToImpact",
+      "direction": "minimize",
+      "unit": "months",
+      "aggregation": "avg"
     }
   ],
   "constraints": [
     {
       "type": "max_allocation",
-      "max": 35
+      "max": 20
+    },
+    {
+      "type": "objective_bound",
+      "objective": "TimeToImpact",
+      "operator": "max",
+      "value": 9.0
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "AI Copilot",
+        "Self-Serve Onboarding",
+        "Mobile Revamp",
+        "Marketplace",
+        "Usage-Based Pricing",
+        "Accessibility Overhaul"
+      ],
+      "min": 0,
+      "max": 3
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "Data Platform",
+        "Enterprise SSO",
+        "API Gateway Rebuild",
+        "Observability Stack",
+        "Multi-Region Failover"
+      ],
+      "min": 0,
+      "max": 3
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "Localization",
+        "Brand Refresh",
+        "Lifecycle Campaigns",
+        "SEO Content Engine",
+        "Community Program"
+      ],
+      "min": 0,
+      "max": 3
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "Partner API",
+        "Reseller Channel",
+        "Tech Alliances",
+        "Integration Marketplace"
+      ],
+      "min": 0,
+      "max": 3
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "Sales Enablement",
+        "Solutions Engineering",
+        "Developer Relations",
+        "Customer Education"
+      ],
+      "min": 0,
+      "max": 3
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "downturn",
+      "probability": null,
+      "description": "Recession stress: discretionary growth bets (marketplace plays, paid growth, channel expansion) take a 30-40% ROI haircut; defensive and efficiency initiatives hold.",
+      "motivated_by": "",
+      "score_overrides": [
+        {
+          "option": "Marketplace",
+          "objective": "ROI",
+          "value": 19.0
+        },
+        {
+          "option": "Usage-Based Pricing",
+          "objective": "ROI",
+          "value": 18.0
+        },
+        {
+          "option": "Brand Refresh",
+          "objective": "ROI",
+          "value": 5.0
+        },
+        {
+          "option": "Lifecycle Campaigns",
+          "objective": "ROI",
+          "value": 17.0
+        },
+        {
+          "option": "SEO Content Engine",
+          "objective": "ROI",
+          "value": 14.0
+        },
+        {
+          "option": "Community Program",
+          "objective": "ROI",
+          "value": 4.0
+        },
+        {
+          "option": "Reseller Channel",
+          "objective": "ROI",
+          "value": 14.0
+        },
+        {
+          "option": "Integration Marketplace",
+          "objective": "ROI",
+          "value": 12.0
+        }
+      ],
+      "score_adjustments": [],
+      "constraint_overrides": [],
+      "interaction_matrix_overrides": []
     }
   ]
 }

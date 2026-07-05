@@ -1,0 +1,659 @@
+{
+  "name": "Float-Pool Shift Coverage",
+  "domain": "healthcare operations",
+  "context": "A regional hospital accepts per-diem shift offers into next month's float pool: 120 offers from 30 nurses across five units, maximizing patient-demand-weighted coverage value while holding down cost and fatigue risk. A $210k budget, a 60-80 roster size, per-unit coverage floors, a 3-block cap per nurse, and same-block exclusions couple every acceptance. Binary all-sum shape: exact MILP certification plus explore audit - prove a coverage guarantee across every feasible roster, including night-coverage floors nobody wrote down.",
+  "approach": "binary",
+  "objectives": [
+    {
+      "name": "CoverageValue",
+      "direction": "maximize",
+      "unit": "points",
+      "aggregation": "sum"
+    },
+    {
+      "name": "Cost",
+      "direction": "minimize",
+      "unit": "$k",
+      "aggregation": "sum"
+    },
+    {
+      "name": "FatigueRisk",
+      "direction": "minimize",
+      "unit": "points",
+      "aggregation": "sum"
+    }
+  ],
+  "constraints": [
+    {
+      "type": "objective_bound",
+      "objective": "Cost",
+      "operator": "max",
+      "value": 210.0
+    },
+    {
+      "type": "cardinality",
+      "min": 60,
+      "max": 80
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "S002",
+        "S003",
+        "S006",
+        "S010",
+        "S011",
+        "S014",
+        "S015",
+        "S024",
+        "S038",
+        "S039",
+        "S054",
+        "S056",
+        "S060",
+        "S064",
+        "S065",
+        "S069",
+        "S072",
+        "S075",
+        "S085",
+        "S088",
+        "S091",
+        "S096",
+        "S097",
+        "S099",
+        "S101",
+        "S111",
+        "S113"
+      ],
+      "min": 12,
+      "max": 27
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "S008",
+        "S022",
+        "S023",
+        "S026",
+        "S027",
+        "S029",
+        "S040",
+        "S044",
+        "S046",
+        "S047",
+        "S048",
+        "S049",
+        "S051",
+        "S058",
+        "S074",
+        "S076",
+        "S077",
+        "S078",
+        "S081",
+        "S083",
+        "S084",
+        "S087",
+        "S093",
+        "S106",
+        "S107",
+        "S108",
+        "S109",
+        "S112",
+        "S114",
+        "S116",
+        "S117",
+        "S119"
+      ],
+      "min": 14,
+      "max": 32
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "S004",
+        "S005",
+        "S012",
+        "S013",
+        "S016",
+        "S018",
+        "S030",
+        "S032",
+        "S034",
+        "S041",
+        "S045",
+        "S052",
+        "S059",
+        "S068",
+        "S071",
+        "S073",
+        "S082",
+        "S100",
+        "S102",
+        "S104",
+        "S118"
+      ],
+      "min": 12,
+      "max": 21
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "S001",
+        "S007",
+        "S009",
+        "S019",
+        "S020",
+        "S028",
+        "S031",
+        "S033",
+        "S035",
+        "S036",
+        "S037",
+        "S043",
+        "S050",
+        "S062",
+        "S066",
+        "S070",
+        "S089",
+        "S094",
+        "S098",
+        "S103",
+        "S105"
+      ],
+      "min": 8,
+      "max": 21
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "S017",
+        "S021",
+        "S025",
+        "S042",
+        "S053",
+        "S055",
+        "S057",
+        "S061",
+        "S063",
+        "S067",
+        "S079",
+        "S080",
+        "S086",
+        "S090",
+        "S092",
+        "S095",
+        "S110",
+        "S115",
+        "S120"
+      ],
+      "min": 8,
+      "max": 19
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "S001",
+        "S030",
+        "S064",
+        "S109"
+      ],
+      "min": 0,
+      "max": 3
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "S002",
+        "S008",
+        "S058",
+        "S077"
+      ],
+      "min": 0,
+      "max": 3
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "S003",
+        "S049",
+        "S079",
+        "S114"
+      ],
+      "min": 0,
+      "max": 3
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "S004",
+        "S013",
+        "S069",
+        "S113"
+      ],
+      "min": 0,
+      "max": 3
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "S005",
+        "S025",
+        "S060",
+        "S107"
+      ],
+      "min": 0,
+      "max": 3
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "S006",
+        "S043",
+        "S080",
+        "S082"
+      ],
+      "min": 0,
+      "max": 3
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "S007",
+        "S028",
+        "S033",
+        "S038"
+      ],
+      "min": 0,
+      "max": 3
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "S009",
+        "S068",
+        "S072",
+        "S075"
+      ],
+      "min": 0,
+      "max": 3
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "S010",
+        "S023",
+        "S034",
+        "S056"
+      ],
+      "min": 0,
+      "max": 3
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "S011",
+        "S024",
+        "S046",
+        "S081"
+      ],
+      "min": 0,
+      "max": 3
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "S012",
+        "S014",
+        "S020",
+        "S052"
+      ],
+      "min": 0,
+      "max": 3
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "S015",
+        "S057",
+        "S083",
+        "S096"
+      ],
+      "min": 0,
+      "max": 3
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "S016",
+        "S041",
+        "S050",
+        "S086"
+      ],
+      "min": 0,
+      "max": 3
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "S017",
+        "S019",
+        "S031",
+        "S035"
+      ],
+      "min": 0,
+      "max": 3
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "S018",
+        "S071",
+        "S119",
+        "S120"
+      ],
+      "min": 0,
+      "max": 3
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "S021",
+        "S055",
+        "S067",
+        "S076"
+      ],
+      "min": 0,
+      "max": 3
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "S022",
+        "S078",
+        "S087",
+        "S098"
+      ],
+      "min": 0,
+      "max": 3
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "S026",
+        "S037",
+        "S074",
+        "S093"
+      ],
+      "min": 0,
+      "max": 3
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "S027",
+        "S040",
+        "S073",
+        "S085"
+      ],
+      "min": 0,
+      "max": 3
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "S029",
+        "S106",
+        "S112",
+        "S115"
+      ],
+      "min": 0,
+      "max": 3
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "S032",
+        "S044",
+        "S059",
+        "S101"
+      ],
+      "min": 0,
+      "max": 3
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "S036",
+        "S063",
+        "S065",
+        "S088"
+      ],
+      "min": 0,
+      "max": 3
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "S039",
+        "S042",
+        "S047",
+        "S053"
+      ],
+      "min": 0,
+      "max": 3
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "S045",
+        "S048",
+        "S102",
+        "S108"
+      ],
+      "min": 0,
+      "max": 3
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "S051",
+        "S054",
+        "S062",
+        "S070"
+      ],
+      "min": 0,
+      "max": 3
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "S061",
+        "S066",
+        "S089",
+        "S092"
+      ],
+      "min": 0,
+      "max": 3
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "S084",
+        "S095",
+        "S116",
+        "S118"
+      ],
+      "min": 0,
+      "max": 3
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "S090",
+        "S094",
+        "S100",
+        "S117"
+      ],
+      "min": 0,
+      "max": 3
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "S091",
+        "S097",
+        "S103",
+        "S104"
+      ],
+      "min": 0,
+      "max": 3
+    },
+    {
+      "type": "group_limit",
+      "options": [
+        "S099",
+        "S105",
+        "S110",
+        "S111"
+      ],
+      "min": 0,
+      "max": 3
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "S002",
+      "option_b": "S077"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "S004",
+      "option_b": "S113"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "S006",
+      "option_b": "S082"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "S010",
+      "option_b": "S056"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "S012",
+      "option_b": "S014"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "S013",
+      "option_b": "S069"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "S015",
+      "option_b": "S083"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "S015",
+      "option_b": "S096"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "S083",
+      "option_b": "S096"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "S016",
+      "option_b": "S041"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "S016",
+      "option_b": "S086"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "S041",
+      "option_b": "S086"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "S018",
+      "option_b": "S120"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "S022",
+      "option_b": "S087"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "S032",
+      "option_b": "S101"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "S040",
+      "option_b": "S085"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "S046",
+      "option_b": "S081"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "S049",
+      "option_b": "S079"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "S051",
+      "option_b": "S062"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "S061",
+      "option_b": "S092"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "S064",
+      "option_b": "S109"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "S068",
+      "option_b": "S075"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "S078",
+      "option_b": "S098"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "S084",
+      "option_b": "S095"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "S094",
+      "option_b": "S117"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "S102",
+      "option_b": "S108"
+    },
+    {
+      "type": "exclusion_pair",
+      "option_a": "S105",
+      "option_b": "S111"
+    }
+  ]
+}

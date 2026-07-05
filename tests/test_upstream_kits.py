@@ -128,9 +128,14 @@ def test_capital_kit_reconstructs_canonical_model():
         built.append({"type": "group_limit", "options": groups[cat], "min": 0, "max": mx})
     scores = _scores_from(rows, "project", [("NPV", "npv_musd"), ("Cost", "cost_musd"),
                                             ("Risk", "risk_score"), ("StrategicFit", "strategic_fit")])
-    _assert_model("capital_project_selection_300", built, scores,
-                  [("NPV", "maximize", "sum"), ("Cost", "minimize", "sum"),
-                   ("Risk", "minimize", "sum"), ("StrategicFit", "maximize", "sum")], "project")
+    p, _ = _assert_model("capital_project_selection_300", built, scores,
+                         [("NPV", "maximize", "sum"), ("Cost", "minimize", "sum"),
+                          ("Risk", "minimize", "sum"), ("StrategicFit", "maximize", "sum")], "project")
+    assert _norm_adjustments(_scenario(p, "cost_inflation")["score_adjustments"]) == \
+           _norm_adjustments([{"objective": "Cost", "multiply": 1.12}])
+    crunch = [dict(c) for c in built]
+    crunch[1] = {"type": "cardinality", "min": 45, "max": 70}
+    assert _canon(_scenario(p, "delivery_crunch")["constraint_overrides"]) == _canon(crunch)
 
 
 def test_rationing_kit_reconstructs_canonical_model_and_scenarios():
@@ -167,9 +172,18 @@ def test_rationing_kit_reconstructs_canonical_model_and_scenarios():
 
 def test_budget_allocation_kit():
     rows = _rows("budget_allocation")
-    scores = _scores_from(rows, "initiative", [("ROI", "roi_pct"), ("Strategic Reach", "strategic_reach")])
-    _assert_model("budget_allocation", [{"type": "max_allocation", "max": 35}], scores,
-                  [("ROI", "maximize", "avg"), ("Strategic Reach", "maximize", "avg")], "initiative")
+    built = [{"type": "max_allocation", "max": 20},
+             {"type": "objective_bound", "objective": "TimeToImpact", "operator": "max", "value": 9.0}]
+    built += [{"type": "group_limit", "options": opts, "min": 0, "max": 3}
+              for opts in _groups(rows, "initiative", "department").values()]
+    scores = _scores_from(rows, "initiative", [("ROI", "roi_pct"), ("Strategic Reach", "strategic_reach"),
+                                               ("TimeToImpact", "time_to_impact_months")])
+    p, _ = _assert_model("budget_allocation", built, scores,
+                         [("ROI", "maximize", "avg"), ("Strategic Reach", "maximize", "avg"),
+                          ("TimeToImpact", "minimize", "avg")], "initiative")
+    haircut = [{"option": r["initiative"], "objective": "ROI", "value": float(r["roi_under_downturn"])}
+               for r in rows if r["roi_under_downturn"]]
+    assert _canon_scores(_scenario(p, "downturn")["score_overrides"]) == _canon_scores(haircut)
 
 
 def test_production_mix_kit():
@@ -195,7 +209,7 @@ def test_channel_budget_kit():
     rows = _rows("channel_budget")
     built = [{"type": "max_allocation", "max": 15},
              {"type": "objective_bound", "objective": "ROAS", "operator": "min", "value": 2.0}]
-    built += [{"type": "group_limit", "options": opts, "min": 0, "max": 1}
+    built += [{"type": "group_limit", "options": opts, "min": 0, "max": 2}
               for opts in _groups(rows, "channel", "platform_group").values()]
     scores = _scores_from(rows, "channel", [("Conversions", "conversions"), ("Reach", "reach"),
                                             ("ROAS", "roas"), ("BrandLift", "brand_lift")])
@@ -216,6 +230,10 @@ def test_supplier_selection_kit():
             {"type": "objective_bound", "objective": "Reliability", "operator": "min", "value": 78.0}]
     base += [{"type": "group_limit", "options": opts, "min": 0, "max": 3}
              for opts in _groups(rows, "supplier", "region").values()]
+    floors = [{"type": "allocation_bound", "option": r["supplier"],
+               "min": int(r["contract_floor_pct"]), "max": 100}
+              for r in rows if r["contract_floor_pct"]]
+    base += floors
     scores = _scores_from(rows, "supplier", [("Cost", "cost_usd_unit"), ("Reliability", "reliability"),
                                              ("LeadTime", "lead_time_days"), ("ESGRisk", "esg_risk"),
                                              ("ConcentrationRisk", "concentration_risk")])
@@ -225,8 +243,13 @@ def test_supplier_selection_kit():
                           ("ConcentrationRisk", "minimize", "quadratic")], "supplier")
     _assert_matrix("supplier_selection", "concentration_interactions.csv",
                    s["interaction_matrices"][0]["entries"])
-    china = base + [{"type": "allocation_bound", "option": r["supplier"], "min": 0, "max": 5}
-                    for r in rows if r["region"] == "CN"]
+    # china_disruption: CN throttled to ≤5%; the CN01 contract floor survives as one MERGED
+    # bound (min 4, max 5) — allocation_bound is last-wins per option, so the scenario ships
+    # the intersection explicitly rather than a floor entry plus a cap entry.
+    china = [c for c in base if not (c["type"] == "allocation_bound" and c["option"] == "CN01")]
+    china += [{"type": "allocation_bound", "option": "CN01", "min": 4, "max": 5}]
+    china += [{"type": "allocation_bound", "option": r["supplier"], "min": 0, "max": 5}
+              for r in rows if r["region"] == "CN" and r["supplier"] != "CN01"]
     assert _canon(_scenario(p, "china_disruption")["constraint_overrides"]) == _canon(china)
     surge = [dict(c) for c in base]
     surge[0] = {"type": "max_allocation", "max": 10}
@@ -252,6 +275,9 @@ def test_capacity_planning_kit():
     mo = _scenario(p, "low_renewables_year")["interaction_matrix_overrides"][0]
     assert mo["objective"] == "VariabilityRisk"
     _assert_matrix("capacity_planning", "variability_low_renewables.csv", mo["entries"])
+    surge = [dict(c) for c in built]
+    surge[2] = {"type": "objective_bound", "objective": "Firmness", "operator": "min", "value": 60.0}
+    assert _canon(_scenario(p, "demand_surge")["constraint_overrides"]) == _canon(surge)
 
 
 def test_investment_portfolio_kit():
@@ -369,6 +395,49 @@ def test_interconnection_kit():
         envelope[0] = {"type": "objective_bound", "objective": "Cost", "operator": "max", "value": cap}
         assert _canon(_scenario(p, name)["constraint_overrides"]) == _canon(envelope), name
 
+
+def test_shift_coverage_staffing_kit():
+    rows = _rows("shift_coverage_staffing")
+    built = [{"type": "objective_bound", "objective": "Cost", "operator": "max", "value": 210.0},
+             {"type": "cardinality", "min": 60, "max": 80}]
+    units = _groups(rows, "offer", "unit")
+    floors = {"ICU": 12, "ED": 14, "MedSurg": 12, "Oncology": 8, "LD": 8}
+    built += [{"type": "group_limit", "options": units[u], "min": floors[u], "max": len(units[u])}
+              for u in floors]
+    built += [{"type": "group_limit", "options": offs, "min": 0, "max": 3}
+              for offs in _groups(rows, "offer", "nurse").values()]
+    # same-nurse same-block offers exclude each other — derived from the nurse+block columns
+    by_nb = defaultdict(list)
+    for r in rows:
+        by_nb[(r["nurse"], r["block"])].append(r["offer"])
+    for offs in by_nb.values():
+        for i in range(len(offs)):
+            for j in range(i + 1, len(offs)):
+                built.append({"type": "exclusion_pair", "option_a": offs[i], "option_b": offs[j]})
+    scores = _scores_from(rows, "offer", [("CoverageValue", "coverage_value"),
+                                          ("Cost", "cost_kusd"), ("FatigueRisk", "fatigue_risk")])
+    _assert_model("shift_coverage_staffing", built, scores,
+                  [("CoverageValue", "maximize", "sum"), ("Cost", "minimize", "sum"),
+                   ("FatigueRisk", "minimize", "sum")], "offer")
+
+
+def test_community_program_funding_kit():
+    rows = _rows("community_program_funding")
+    built = [{"type": "max_allocation", "max": 12},
+             {"type": "objective_bound", "objective": "DeliveryRisk", "operator": "max", "value": 2.6}]
+    built += [{"type": "allocation_bound", "option": r["program"],
+               "min": int(r["mandated_floor_pct"]), "max": 100}
+              for r in rows if r["mandated_floor_pct"]]
+    scores = _scores_from(rows, "program", [("CommunityImpact", "impact_per_1pct"),
+                                            ("ResidentsServed", "residents_k_per_1pct"),
+                                            ("DeliveryRisk", "delivery_risk_per_1pct")])
+    p, _ = _assert_model("community_program_funding", built, scores,
+                         [("CommunityImpact", "maximize", "sum"), ("ResidentsServed", "maximize", "sum"),
+                          ("DeliveryRisk", "minimize", "sum")], "program")
+    assert _norm_adjustments(_scenario(p, "overrun_wave")["score_adjustments"]) == \
+           _norm_adjustments([{"objective": "DeliveryRisk", "multiply": 1.25}])
+
+
 # ─── kit-coverage guards ───
 
 # One entry per kit test above. A bundled example missing here (or here without a
@@ -381,11 +450,13 @@ KIT_COVERED = [
     "channel_budget",
     "charging_network_siting",
     "claims_investigation_triage",
+    "community_program_funding",
     "interconnection_approvals",
     "investment_portfolio",
     "production_mix",
     "research_cohort_selection",
     "scarce_supply_rationing",
+    "shift_coverage_staffing",
     "supplier_selection",
 ]
 
@@ -394,12 +465,13 @@ KIT_COVERED = [
 # this proves the ask PROSE still states those rules, so the quoted ask can't
 # drift from the model the test certifies.
 ASK_LITERALS = {
-    "budget_allocation": ["35%"],
+    "budget_allocation": ["20%", "at most 3", "9 months", "roi_under_downturn"],
     "capacity_planning": ["25%", "0.20", "at or above 50", "15% higher",
-                          "variability_low_renewables.csv"],
+                          "variability_low_renewables.csv", "from 50 to 60"],
     "capital_project_selection_300": ["$1550M", "between 45 and 100", "20 Growth",
-                                      "15 Digital", "15 R&D", "18 Maintenance"],
-    "channel_budget": ["15%", "2.0x", "20% lower"],
+                                      "15 Digital", "15 R&D", "18 Maintenance",
+                                      "12% over", "at most 70"],
+    "channel_budget": ["15%", "at most 2 active", "2.0x", "20% lower"],
     "charging_network_siting": ["$34M", "between 16 and 24", "at most 4", "at most 5",
                                 "NCR-01"],
     "claims_investigation_triage": ["1170 hours", "$4840k", "between 45 and 100",
@@ -415,7 +487,11 @@ ASK_LITERALS = {
     "scarce_supply_rationing": ["8%", "at least 4.8", "8/7/5/5/4", "≥6%", "≥3%",
                                 "≤4%", "~35%"],
     "supplier_selection": ["15%", "at most 3", "at or above 78", "at most 5%",
-                           "from 15% to 10%"],
+                           "from 15% to 10%", "at least 5%", "at least 4%",
+                           "between 4% and 5%"],
+    "shift_coverage_staffing": ["$210k", "between 60 and 80", "12 ICU", "14 ED",
+                                "12 MedSurg", "8 Oncology", "8 LD", "more than 3"],
+    "community_program_funding": ["12%", "2.6", "5%", "6%", "3% each", "25% higher"],
 }
 
 

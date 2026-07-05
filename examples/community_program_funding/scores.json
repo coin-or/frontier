@@ -1,0 +1,614 @@
+{
+  "options": [
+    {
+      "name": "Youth-Jobs-Corps",
+      "description": "District 1 proposal"
+    },
+    {
+      "name": "Small-Business-Microgrants",
+      "description": "District 1 proposal"
+    },
+    {
+      "name": "Library-Extended-Hours",
+      "description": "District 1 proposal"
+    },
+    {
+      "name": "Night-Bus-Pilot",
+      "description": "District 1 proposal"
+    },
+    {
+      "name": "Community-Health-Workers",
+      "description": "District 2 proposal"
+    },
+    {
+      "name": "Rental-Assistance-Fund",
+      "description": "District 2 proposal"
+    },
+    {
+      "name": "Playground-Renewal",
+      "description": "District 2 proposal"
+    },
+    {
+      "name": "Food-Pantry-Network",
+      "description": "District 2 proposal"
+    },
+    {
+      "name": "Neighborhood-Safety-Retrofit",
+      "description": "District 3 proposal"
+    },
+    {
+      "name": "Streetlight-LED-Upgrade",
+      "description": "District 3 proposal"
+    },
+    {
+      "name": "Youth-Sports-League",
+      "description": "District 3 proposal"
+    },
+    {
+      "name": "Eviction-Legal-Aid",
+      "description": "District 3 proposal"
+    },
+    {
+      "name": "Senior-Center-Renovation",
+      "description": "District 4 proposal"
+    },
+    {
+      "name": "Digital-Literacy-Labs",
+      "description": "District 4 proposal"
+    },
+    {
+      "name": "Tree-Canopy-Program",
+      "description": "District 4 proposal"
+    },
+    {
+      "name": "Flood-Mitigation-Small",
+      "description": "District 4 proposal"
+    },
+    {
+      "name": "Workforce-Reentry-Program",
+      "description": "District 5 proposal"
+    },
+    {
+      "name": "Childcare-Subsidy-Pilot",
+      "description": "District 5 proposal"
+    },
+    {
+      "name": "Park-Restroom-Renewal",
+      "description": "District 5 proposal"
+    },
+    {
+      "name": "Traffic-Calming-Corridors",
+      "description": "District 5 proposal"
+    },
+    {
+      "name": "Mental-Health-Crisis-Team",
+      "description": "District 6 proposal"
+    },
+    {
+      "name": "Cooling-Centers",
+      "description": "District 6 proposal"
+    },
+    {
+      "name": "Community-Garden-Network",
+      "description": "District 6 proposal"
+    },
+    {
+      "name": "Tenant-Organizing-Support",
+      "description": "District 6 proposal"
+    },
+    {
+      "name": "Public-Wifi-Corridors",
+      "description": "District 1 proposal"
+    },
+    {
+      "name": "Arts-Micro-Grants",
+      "description": "District 2 proposal"
+    },
+    {
+      "name": "School-Crossing-Guards",
+      "description": "District 3 proposal"
+    },
+    {
+      "name": "Home-Repair-Grants",
+      "description": "District 4 proposal"
+    },
+    {
+      "name": "Summer-Youth-Employment",
+      "description": "District 5 proposal"
+    },
+    {
+      "name": "Air-Quality-Monitoring",
+      "description": "District 6 proposal"
+    },
+    {
+      "name": "Homeless-Outreach-Teams",
+      "description": "District 2 proposal"
+    },
+    {
+      "name": "Bike-Lane-Network",
+      "description": "District 3 proposal"
+    }
+  ],
+  "scores": [
+    {
+      "option": "Youth-Jobs-Corps",
+      "objective": "CommunityImpact",
+      "value": 8.4
+    },
+    {
+      "option": "Youth-Jobs-Corps",
+      "objective": "ResidentsServed",
+      "value": 2.1
+    },
+    {
+      "option": "Youth-Jobs-Corps",
+      "objective": "DeliveryRisk",
+      "value": 3.2
+    },
+    {
+      "option": "Small-Business-Microgrants",
+      "objective": "CommunityImpact",
+      "value": 7.9
+    },
+    {
+      "option": "Small-Business-Microgrants",
+      "objective": "ResidentsServed",
+      "value": 1.6
+    },
+    {
+      "option": "Small-Business-Microgrants",
+      "objective": "DeliveryRisk",
+      "value": 4.1
+    },
+    {
+      "option": "Library-Extended-Hours",
+      "objective": "CommunityImpact",
+      "value": 5.2
+    },
+    {
+      "option": "Library-Extended-Hours",
+      "objective": "ResidentsServed",
+      "value": 3.4
+    },
+    {
+      "option": "Library-Extended-Hours",
+      "objective": "DeliveryRisk",
+      "value": 1.2
+    },
+    {
+      "option": "Night-Bus-Pilot",
+      "objective": "CommunityImpact",
+      "value": 6.1
+    },
+    {
+      "option": "Night-Bus-Pilot",
+      "objective": "ResidentsServed",
+      "value": 4.2
+    },
+    {
+      "option": "Night-Bus-Pilot",
+      "objective": "DeliveryRisk",
+      "value": 2.8
+    },
+    {
+      "option": "Community-Health-Workers",
+      "objective": "CommunityImpact",
+      "value": 8.8
+    },
+    {
+      "option": "Community-Health-Workers",
+      "objective": "ResidentsServed",
+      "value": 2.6
+    },
+    {
+      "option": "Community-Health-Workers",
+      "objective": "DeliveryRisk",
+      "value": 3.6
+    },
+    {
+      "option": "Rental-Assistance-Fund",
+      "objective": "CommunityImpact",
+      "value": 7.6
+    },
+    {
+      "option": "Rental-Assistance-Fund",
+      "objective": "ResidentsServed",
+      "value": 1.9
+    },
+    {
+      "option": "Rental-Assistance-Fund",
+      "objective": "DeliveryRisk",
+      "value": 2.4
+    },
+    {
+      "option": "Playground-Renewal",
+      "objective": "CommunityImpact",
+      "value": 4.3
+    },
+    {
+      "option": "Playground-Renewal",
+      "objective": "ResidentsServed",
+      "value": 2.8
+    },
+    {
+      "option": "Playground-Renewal",
+      "objective": "DeliveryRisk",
+      "value": 1.1
+    },
+    {
+      "option": "Food-Pantry-Network",
+      "objective": "CommunityImpact",
+      "value": 6.7
+    },
+    {
+      "option": "Food-Pantry-Network",
+      "objective": "ResidentsServed",
+      "value": 3.1
+    },
+    {
+      "option": "Food-Pantry-Network",
+      "objective": "DeliveryRisk",
+      "value": 1.8
+    },
+    {
+      "option": "Neighborhood-Safety-Retrofit",
+      "objective": "CommunityImpact",
+      "value": 7.2
+    },
+    {
+      "option": "Neighborhood-Safety-Retrofit",
+      "objective": "ResidentsServed",
+      "value": 3.8
+    },
+    {
+      "option": "Neighborhood-Safety-Retrofit",
+      "objective": "DeliveryRisk",
+      "value": 2.2
+    },
+    {
+      "option": "Streetlight-LED-Upgrade",
+      "objective": "CommunityImpact",
+      "value": 5.8
+    },
+    {
+      "option": "Streetlight-LED-Upgrade",
+      "objective": "ResidentsServed",
+      "value": 5.2
+    },
+    {
+      "option": "Streetlight-LED-Upgrade",
+      "objective": "DeliveryRisk",
+      "value": 1.4
+    },
+    {
+      "option": "Youth-Sports-League",
+      "objective": "CommunityImpact",
+      "value": 4.9
+    },
+    {
+      "option": "Youth-Sports-League",
+      "objective": "ResidentsServed",
+      "value": 2.4
+    },
+    {
+      "option": "Youth-Sports-League",
+      "objective": "DeliveryRisk",
+      "value": 1.6
+    },
+    {
+      "option": "Eviction-Legal-Aid",
+      "objective": "CommunityImpact",
+      "value": 8.1
+    },
+    {
+      "option": "Eviction-Legal-Aid",
+      "objective": "ResidentsServed",
+      "value": 1.4
+    },
+    {
+      "option": "Eviction-Legal-Aid",
+      "objective": "DeliveryRisk",
+      "value": 3.4
+    },
+    {
+      "option": "Senior-Center-Renovation",
+      "objective": "CommunityImpact",
+      "value": 5.5
+    },
+    {
+      "option": "Senior-Center-Renovation",
+      "objective": "ResidentsServed",
+      "value": 1.8
+    },
+    {
+      "option": "Senior-Center-Renovation",
+      "objective": "DeliveryRisk",
+      "value": 2.6
+    },
+    {
+      "option": "Digital-Literacy-Labs",
+      "objective": "CommunityImpact",
+      "value": 6.9
+    },
+    {
+      "option": "Digital-Literacy-Labs",
+      "objective": "ResidentsServed",
+      "value": 2.2
+    },
+    {
+      "option": "Digital-Literacy-Labs",
+      "objective": "DeliveryRisk",
+      "value": 2.9
+    },
+    {
+      "option": "Tree-Canopy-Program",
+      "objective": "CommunityImpact",
+      "value": 4.6
+    },
+    {
+      "option": "Tree-Canopy-Program",
+      "objective": "ResidentsServed",
+      "value": 4.6
+    },
+    {
+      "option": "Tree-Canopy-Program",
+      "objective": "DeliveryRisk",
+      "value": 1.3
+    },
+    {
+      "option": "Flood-Mitigation-Small",
+      "objective": "CommunityImpact",
+      "value": 7.4
+    },
+    {
+      "option": "Flood-Mitigation-Small",
+      "objective": "ResidentsServed",
+      "value": 3.3
+    },
+    {
+      "option": "Flood-Mitigation-Small",
+      "objective": "DeliveryRisk",
+      "value": 4.4
+    },
+    {
+      "option": "Workforce-Reentry-Program",
+      "objective": "CommunityImpact",
+      "value": 8.6
+    },
+    {
+      "option": "Workforce-Reentry-Program",
+      "objective": "ResidentsServed",
+      "value": 1.2
+    },
+    {
+      "option": "Workforce-Reentry-Program",
+      "objective": "DeliveryRisk",
+      "value": 4.2
+    },
+    {
+      "option": "Childcare-Subsidy-Pilot",
+      "objective": "CommunityImpact",
+      "value": 8.2
+    },
+    {
+      "option": "Childcare-Subsidy-Pilot",
+      "objective": "ResidentsServed",
+      "value": 1.7
+    },
+    {
+      "option": "Childcare-Subsidy-Pilot",
+      "objective": "DeliveryRisk",
+      "value": 3.8
+    },
+    {
+      "option": "Park-Restroom-Renewal",
+      "objective": "CommunityImpact",
+      "value": 3.8
+    },
+    {
+      "option": "Park-Restroom-Renewal",
+      "objective": "ResidentsServed",
+      "value": 3.6
+    },
+    {
+      "option": "Park-Restroom-Renewal",
+      "objective": "DeliveryRisk",
+      "value": 1.0
+    },
+    {
+      "option": "Traffic-Calming-Corridors",
+      "objective": "CommunityImpact",
+      "value": 5.9
+    },
+    {
+      "option": "Traffic-Calming-Corridors",
+      "objective": "ResidentsServed",
+      "value": 4.4
+    },
+    {
+      "option": "Traffic-Calming-Corridors",
+      "objective": "DeliveryRisk",
+      "value": 2.1
+    },
+    {
+      "option": "Mental-Health-Crisis-Team",
+      "objective": "CommunityImpact",
+      "value": 9.1
+    },
+    {
+      "option": "Mental-Health-Crisis-Team",
+      "objective": "ResidentsServed",
+      "value": 2.0
+    },
+    {
+      "option": "Mental-Health-Crisis-Team",
+      "objective": "DeliveryRisk",
+      "value": 4.6
+    },
+    {
+      "option": "Cooling-Centers",
+      "objective": "CommunityImpact",
+      "value": 6.3
+    },
+    {
+      "option": "Cooling-Centers",
+      "objective": "ResidentsServed",
+      "value": 3.9
+    },
+    {
+      "option": "Cooling-Centers",
+      "objective": "DeliveryRisk",
+      "value": 1.7
+    },
+    {
+      "option": "Community-Garden-Network",
+      "objective": "CommunityImpact",
+      "value": 4.1
+    },
+    {
+      "option": "Community-Garden-Network",
+      "objective": "ResidentsServed",
+      "value": 2.3
+    },
+    {
+      "option": "Community-Garden-Network",
+      "objective": "DeliveryRisk",
+      "value": 1.2
+    },
+    {
+      "option": "Tenant-Organizing-Support",
+      "objective": "CommunityImpact",
+      "value": 6.6
+    },
+    {
+      "option": "Tenant-Organizing-Support",
+      "objective": "ResidentsServed",
+      "value": 1.5
+    },
+    {
+      "option": "Tenant-Organizing-Support",
+      "objective": "DeliveryRisk",
+      "value": 3.1
+    },
+    {
+      "option": "Public-Wifi-Corridors",
+      "objective": "CommunityImpact",
+      "value": 5.4
+    },
+    {
+      "option": "Public-Wifi-Corridors",
+      "objective": "ResidentsServed",
+      "value": 4.8
+    },
+    {
+      "option": "Public-Wifi-Corridors",
+      "objective": "DeliveryRisk",
+      "value": 2.5
+    },
+    {
+      "option": "Arts-Micro-Grants",
+      "objective": "CommunityImpact",
+      "value": 4.4
+    },
+    {
+      "option": "Arts-Micro-Grants",
+      "objective": "ResidentsServed",
+      "value": 2.0
+    },
+    {
+      "option": "Arts-Micro-Grants",
+      "objective": "DeliveryRisk",
+      "value": 1.5
+    },
+    {
+      "option": "School-Crossing-Guards",
+      "objective": "CommunityImpact",
+      "value": 5.1
+    },
+    {
+      "option": "School-Crossing-Guards",
+      "objective": "ResidentsServed",
+      "value": 3.0
+    },
+    {
+      "option": "School-Crossing-Guards",
+      "objective": "DeliveryRisk",
+      "value": 1.1
+    },
+    {
+      "option": "Home-Repair-Grants",
+      "objective": "CommunityImpact",
+      "value": 6.4
+    },
+    {
+      "option": "Home-Repair-Grants",
+      "objective": "ResidentsServed",
+      "value": 1.6
+    },
+    {
+      "option": "Home-Repair-Grants",
+      "objective": "DeliveryRisk",
+      "value": 2.7
+    },
+    {
+      "option": "Summer-Youth-Employment",
+      "objective": "CommunityImpact",
+      "value": 7.8
+    },
+    {
+      "option": "Summer-Youth-Employment",
+      "objective": "ResidentsServed",
+      "value": 2.9
+    },
+    {
+      "option": "Summer-Youth-Employment",
+      "objective": "DeliveryRisk",
+      "value": 2.9
+    },
+    {
+      "option": "Air-Quality-Monitoring",
+      "objective": "CommunityImpact",
+      "value": 4.8
+    },
+    {
+      "option": "Air-Quality-Monitoring",
+      "objective": "ResidentsServed",
+      "value": 5.1
+    },
+    {
+      "option": "Air-Quality-Monitoring",
+      "objective": "DeliveryRisk",
+      "value": 1.9
+    },
+    {
+      "option": "Homeless-Outreach-Teams",
+      "objective": "CommunityImpact",
+      "value": 8.3
+    },
+    {
+      "option": "Homeless-Outreach-Teams",
+      "objective": "ResidentsServed",
+      "value": 1.8
+    },
+    {
+      "option": "Homeless-Outreach-Teams",
+      "objective": "DeliveryRisk",
+      "value": 4.0
+    },
+    {
+      "option": "Bike-Lane-Network",
+      "objective": "CommunityImpact",
+      "value": 5.6
+    },
+    {
+      "option": "Bike-Lane-Network",
+      "objective": "ResidentsServed",
+      "value": 3.7
+    },
+    {
+      "option": "Bike-Lane-Network",
+      "objective": "DeliveryRisk",
+      "value": 2.3
+    }
+  ]
+}
