@@ -52,6 +52,15 @@ Spreadsheets hit a complexity wall once options and constraints in a decision mu
 
 **When it fits:** any decision that picks a subset from many options or splits an allocation across them, under conflicting objectives and hard constraints, with data to score the options. Pairwise interactions between options, where one's value depends on another, make the problem genuinely nonlinear: beyond what a ranking or weighted sum can capture. **When it's overkill:** one objective, a handful of options, or goals that mostly agree; a spreadsheet or a sorted ranking already answers those.
 
+**The shape map.** Two decision shapes cover the space, and both get the full exploration workflow – the frontier, scenarios, curation, and composition mining:
+
+| Shape | Structure | Examples |
+|---|---|---|
+| **Select a subset** – each option in or out | • linear totals<br>• pairwise interactions | • [Capital projects (300)](examples/capital_project_selection_300/)<br>• [Claims triage](examples/claims_investigation_triage/)<br>• [Charging network siting](examples/charging_network_siting/) |
+| **Split an allocation** – each option gets a share | • linear<br>• mean-variance risk<br>• pairwise interactions | • [Scarce supply rationing](examples/scarce_supply_rationing/)<br>• [Investment portfolio](examples/investment_portfolio/)<br>• [Marketing channel budget](examples/channel_budget/) |
+
+Proofs then scale to the shape: selections certify exactly and carry audit guarantees across every feasible plan; allocations certify exactly with solver duals; interaction structures beyond mean-variance explore on the approximate frontier end to end. The [examples table](examples/) maps all twelve.
+
 **What it adds beyond an LLM alone** (its design principles):
 - **The full frontier**: every Pareto-optimal plan, yours to weigh.
 - **Explore broadly, certify selectively**: the heuristic maps the whole space; an exact solver then proves the finalists you'd commit to on supported shapes, catching dominated points the heuristic showed as efficient. It can only confirm or improve them.
