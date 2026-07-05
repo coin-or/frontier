@@ -196,6 +196,14 @@ def _weight_box(n, max_weight, min_weight, support):
             [float(lb_vec[i]) for i in range(n)])
 
 
+def _box_infeasible(ubs, lbs, tol: float = 1e-12) -> bool:
+    """True when the weight box is empty (some lb > ub) — a floored asset dropped from
+    ``support``. The scalarization is infeasible before a solver model exists; callers must
+    short-circuit, because highspy raises on ``addVariable(lb > ub)`` (and cuOpt's DataModel
+    rejects an empty box) instead of reporting infeasibility."""
+    return any(l > u + tol for u, l in zip(ubs, lbs))
+
+
 def _qp_weights_ok(weights: "np.ndarray | None", ub, lb=None, *, tol: float = 1e-3) -> bool:
     """Feasibility gate on a QP solver's *returned* weights — not just its status. First-order
     QP solvers can terminate 'solved' on a degenerate point whose weights are non-finite or

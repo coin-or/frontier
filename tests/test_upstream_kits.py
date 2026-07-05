@@ -225,6 +225,10 @@ def test_supplier_selection_kit():
             {"type": "objective_bound", "objective": "Reliability", "operator": "min", "value": 78.0}]
     base += [{"type": "group_limit", "options": opts, "min": 0, "max": 3}
              for opts in _groups(rows, "supplier", "region").values()]
+    floors = [{"type": "allocation_bound", "option": r["supplier"],
+               "min": int(r["contract_floor_pct"]), "max": 100}
+              for r in rows if r["contract_floor_pct"]]
+    base += floors
     scores = _scores_from(rows, "supplier", [("Cost", "cost_usd_unit"), ("Reliability", "reliability"),
                                              ("LeadTime", "lead_time_days"), ("ESGRisk", "esg_risk"),
                                              ("ConcentrationRisk", "concentration_risk")])
@@ -234,8 +238,13 @@ def test_supplier_selection_kit():
                           ("ConcentrationRisk", "minimize", "quadratic")], "supplier")
     _assert_matrix("supplier_selection", "concentration_interactions.csv",
                    s["interaction_matrices"][0]["entries"])
-    china = base + [{"type": "allocation_bound", "option": r["supplier"], "min": 0, "max": 5}
-                    for r in rows if r["region"] == "CN"]
+    # china_disruption: CN throttled to ≤5%; the CN01 contract floor survives as one MERGED
+    # bound (min 4, max 5) — allocation_bound is last-wins per option, so the scenario ships
+    # the intersection explicitly rather than a floor entry plus a cap entry.
+    china = [c for c in base if not (c["type"] == "allocation_bound" and c["option"] == "CN01")]
+    china += [{"type": "allocation_bound", "option": "CN01", "min": 4, "max": 5}]
+    china += [{"type": "allocation_bound", "option": r["supplier"], "min": 0, "max": 5}
+              for r in rows if r["region"] == "CN" and r["supplier"] != "CN01"]
     assert _canon(_scenario(p, "china_disruption")["constraint_overrides"]) == _canon(china)
     surge = [dict(c) for c in base]
     surge[0] = {"type": "max_allocation", "max": 10}
@@ -261,6 +270,9 @@ def test_capacity_planning_kit():
     mo = _scenario(p, "low_renewables_year")["interaction_matrix_overrides"][0]
     assert mo["objective"] == "VariabilityRisk"
     _assert_matrix("capacity_planning", "variability_low_renewables.csv", mo["entries"])
+    surge = [dict(c) for c in built]
+    surge[2] = {"type": "objective_bound", "objective": "Firmness", "operator": "min", "value": 60.0}
+    assert _canon(_scenario(p, "demand_surge")["constraint_overrides"]) == _canon(surge)
 
 
 def test_investment_portfolio_kit():
@@ -405,7 +417,7 @@ KIT_COVERED = [
 ASK_LITERALS = {
     "budget_allocation": ["20%", "at most 3", "9 months", "roi_under_downturn"],
     "capacity_planning": ["25%", "0.20", "at or above 50", "15% higher",
-                          "variability_low_renewables.csv"],
+                          "variability_low_renewables.csv", "from 50 to 60"],
     "capital_project_selection_300": ["$1550M", "between 45 and 100", "20 Growth",
                                       "15 Digital", "15 R&D", "18 Maintenance"],
     "channel_budget": ["15%", "2.0x", "20% lower"],
@@ -424,7 +436,8 @@ ASK_LITERALS = {
     "scarce_supply_rationing": ["8%", "at least 4.8", "8/7/5/5/4", "≥6%", "≥3%",
                                 "≤4%", "~35%"],
     "supplier_selection": ["15%", "at most 3", "at or above 78", "at most 5%",
-                           "from 15% to 10%"],
+                           "from 15% to 10%", "at least 5%", "at least 4%",
+                           "between 4% and 5%"],
 }
 
 

@@ -101,6 +101,33 @@
           ]
         }
       ]
+    },
+    {
+      "name": "demand_surge",
+      "probability": null,
+      "description": "Electrification-driven load growth: the weighted firmness floor rises from 50 to 60 - the mix must lean firmer without blowing the emissions cap.",
+      "motivated_by": "",
+      "score_overrides": [],
+      "score_adjustments": [],
+      "constraint_overrides": [
+        {
+          "type": "max_allocation",
+          "max": 25
+        },
+        {
+          "type": "objective_bound",
+          "objective": "CO2",
+          "operator": "max",
+          "value": 0.2
+        },
+        {
+          "type": "objective_bound",
+          "objective": "Firmness",
+          "operator": "min",
+          "value": 60.0
+        }
+      ],
+      "interaction_matrix_overrides": []
     }
   ]
 }

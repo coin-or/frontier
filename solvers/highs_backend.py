@@ -33,6 +33,7 @@ from engine.models import Aggregation, Approach, OptimizeMode, Problem, Run
 from solvers._scalarization import (
     _build_raw_sensitivity,
     _qp_weights_ok,
+    _box_infeasible,
     _weight_box,
     certify_curated_frontier,
     optimize_lp,
@@ -130,6 +131,9 @@ def _solve_qp_highs(cov, mu, target_return, return_maximize, max_weight,
     upper bound to 0, so HiGHS solves the exact continuous QP on that subset — no MIQP.
     Returns ``(weights as fractions, ok)``. Convex and exact.
     """
+    _g_ubs, _g_lbs = _weight_box(len(mu), max_weight, min_weight, support)
+    if _box_infeasible(_g_ubs, _g_lbs):
+        return np.zeros(len(mu)), False
     h, w, _ = _build_qp_model(cov, mu, target_return, return_maximize, max_weight,
                               support, extra_linears, min_weight=min_weight)
     h.minimize()
@@ -154,6 +158,9 @@ def _solve_qp_highs_sensitivity(cov, mu, target_return, return_maximize, max_wei
     shadow prices (row duals) and per-variable reduced costs (col duals); None when the
     solve is rejected. Called only on the final-frontier re-solve, never in the EA hot loop,
     so it adds at most one dual read per surviving point (no extra solves)."""
+    _g_ubs, _g_lbs = _weight_box(len(mu), max_weight, min_weight, support)
+    if _box_infeasible(_g_ubs, _g_lbs):
+        return np.zeros(len(mu)), False, None
     n_extra = len(extra_linears or [])
     h, w, has_return = _build_qp_model(cov, mu, target_return, return_maximize, max_weight,
                                        support, extra_linears, min_weight=min_weight)
@@ -196,6 +203,9 @@ def _solve_lp_highs(primary_coef, primary_maximize, eps_list, max_weight, suppor
                    coef·w ≥/≤ target  for each (coef, target, maximize) in eps_list
 
     Returns ``(weights as fractions, ok)``. Exact."""
+    _g_ubs, _g_lbs = _weight_box(len(primary_coef), max_weight, min_weight, support)
+    if _box_infeasible(_g_ubs, _g_lbs):
+        return np.zeros(len(primary_coef)), False
     h, w = _build_lp_model(primary_coef, primary_maximize, eps_list, max_weight, support,
                            min_weight=min_weight)
     return _qp_primal(h, w, max_weight, min_weight)
@@ -207,6 +217,9 @@ def _solve_lp_highs_sensitivity(primary_coef, primary_maximize, eps_list, max_we
     ``raw_sensitivity`` carries budget + per-objective-floor shadow prices (row duals) and
     per-variable reduced costs (col duals) via the shared marshaller (``has_return=False`` — the
     primary objective is optimized, not epsilon-constrained). None when the solve is rejected."""
+    _g_ubs, _g_lbs = _weight_box(len(primary_coef), max_weight, min_weight, support)
+    if _box_infeasible(_g_ubs, _g_lbs):
+        return np.zeros(len(primary_coef)), False, None
     h, w = _build_lp_model(primary_coef, primary_maximize, eps_list, max_weight, support,
                            min_weight=min_weight)
     weights, ok = _qp_primal(h, w, max_weight, min_weight)

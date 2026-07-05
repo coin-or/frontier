@@ -33,6 +33,7 @@ from engine.models import Aggregation, Approach, OptimizeMode, Problem, Run
 from solvers._scalarization import (
     _build_raw_sensitivity,
     _qp_weights_ok,
+    _box_infeasible,
     _weight_box,
     certify_curated_frontier,
     optimize_lp,
@@ -107,6 +108,9 @@ def _solve_qp_cuopt(
     objectives (e.g. a yield floor). cuOpt is imported here so the module loads without a GPU.
     Returns ``(weights as fractions summing to 1, optimal_flag)``.
     """
+    _g_ubs, _g_lbs = _weight_box(len(mu), max_weight, min_weight, support)
+    if _box_infeasible(_g_ubs, _g_lbs):
+        return np.zeros(len(mu)), False
     from cuopt.linear_programming.problem import Problem as CuProblem, MINIMIZE
 
     n = len(mu)
@@ -232,6 +236,9 @@ def _solve_qp_cuopt_matrix(cov, mu, target_return, return_maximize, max_weight,
     Marshaling (``_qp_to_csr``) is pure and CPU-tested; only the DataModel/Solve calls below
     need a GPU, so this loads without one (like every solve in this module).
     """
+    _g_ubs, _g_lbs = _weight_box(len(mu), max_weight, min_weight, support)
+    if _box_infeasible(_g_ubs, _g_lbs):
+        return np.zeros(len(mu)), False
     from cuopt.linear_programming import DataModel, Solve
 
     n = len(mu)
@@ -299,6 +306,9 @@ def _solve_qp_cuopt_matrix_sensitivity(cov, mu, target_return, return_maximize, 
     the duals off the ``Solve`` result; ``raw_sensitivity`` is None when the solve is rejected. Called
     only on the final-frontier re-solve, never in the EA hot loop, so it adds at most one dual read per
     surviving point — no extra solves. The cuOpt twin of HiGHS ``_solve_qp_highs_sensitivity``."""
+    _g_ubs, _g_lbs = _weight_box(len(mu), max_weight, min_weight, support)
+    if _box_infeasible(_g_ubs, _g_lbs):
+        return np.zeros(len(mu)), False, None
     from cuopt.linear_programming import DataModel, Solve
 
     n = len(mu)
@@ -343,6 +353,9 @@ def _solve_qp_cuopt_sensitivity(cov, mu, target_return, return_maximize, max_wei
     """Dual-returning twin of ``_solve_qp_cuopt`` (term-by-term path): ``(weights, ok,
     raw_sensitivity)``. Mirrors ``_solve_qp_cuopt`` line-for-line, then reads the modeling-API duals;
     kept separate so the GPU-verified plain path stays untouched."""
+    _g_ubs, _g_lbs = _weight_box(len(mu), max_weight, min_weight, support)
+    if _box_infeasible(_g_ubs, _g_lbs):
+        return np.zeros(len(mu)), False, None
     from cuopt.linear_programming.problem import MINIMIZE, Problem as CuProblem
 
     n = len(mu)
@@ -429,6 +442,9 @@ def _solve_lp_cuopt(primary_coef, primary_maximize, eps_list, max_weight, suppor
     shared with HiGHS (optimize a linear objective over Σw=1, box, support, with each non-primary
     objective epsilon-constrained). Returns ``(weights as fractions, ok)``. Marshaling (``_lp_to_csr``)
     is pure/CPU-tested; only the ``Solve`` below needs a GPU."""
+    _g_ubs, _g_lbs = _weight_box(len(primary_coef), max_weight, min_weight, support)
+    if _box_infeasible(_g_ubs, _g_lbs):
+        return np.zeros(len(primary_coef)), False
     from cuopt.linear_programming import DataModel, Solve
 
     n = len(primary_coef)
@@ -471,6 +487,9 @@ def _solve_lp_cuopt_sensitivity(primary_coef, primary_maximize, eps_list, max_we
     """Dual-returning twin of ``_solve_lp_cuopt``: ``(weights, ok, raw_sensitivity)``. Same CSR build +
     ``Solve``, then reads the duals off the result; None when the solve is rejected. The cuOpt LP
     counterpart of ``_solve_lp_highs_sensitivity``."""
+    _g_ubs, _g_lbs = _weight_box(len(primary_coef), max_weight, min_weight, support)
+    if _box_infeasible(_g_ubs, _g_lbs):
+        return np.zeros(len(primary_coef)), False, None
     from cuopt.linear_programming import DataModel, Solve
 
     n = len(primary_coef)
