@@ -152,6 +152,37 @@ mcp = FastMCP(
 )
 store = Store()
 
+# ─── Wire-size guard: compact tool-result JSON ───
+#
+# The MCP SDK pretty-prints every non-str tool result (pydantic_core.to_json(..., indent=2)
+# in fastmcp/utilities/func_metadata.py), inflating the wire payload 35-65%: a 41KB
+# tradeoffs dict serves at ~68KB and crosses the client's inline-result cap, so the agent
+# receives a persisted-output file instead of readable JSON. Tool results are read by
+# agents and by the web UI's JSON.parse — never by eyes — so the indentation only burns
+# budget. Drop the indent kwarg via a module-local shim; if the SDK moves the call, the
+# getattr guard leaves serialization pretty-printed (correct, just bulkier) rather than
+# crashing. Revisit when the SDK grows a serializer hook.
+def _install_compact_tool_json() -> None:
+    try:
+        import types
+
+        import pydantic_core as _pc
+        from mcp.server.fastmcp.utilities import func_metadata as _fm
+
+        if not hasattr(_fm, "pydantic_core"):
+            return
+        _fm.pydantic_core = types.SimpleNamespace(
+            to_json=lambda v, **kw: _pc.to_json(
+                v, **{k: w for k, w in kw.items() if k != "indent"}
+            )
+        )
+    except Exception:  # pragma: no cover — serving pretty JSON beats not serving
+        pass
+
+
+_install_compact_tool_json()
+
+
 
 # Soft cap on `explore` actions that can return unbounded per-solution detail.
 # Above this, the response truncates and points the caller at full_result_path
@@ -237,7 +268,7 @@ def _format_validation_error(e: ValidationError) -> str:
     return "; ".join(parts)
 
 
-@mcp.tool()
+@mcp.tool(structured_output=False)
 def model(
     action: str,
     problem_id: str | None = None,
@@ -965,7 +996,7 @@ def _parse_constraint(c: dict | Constraint) -> Constraint:
 # ─── Tool 2: solve ───
 
 
-@mcp.tool()
+@mcp.tool(structured_output=False)
 def solve(
     action: str,
     problem_id: str | None = None,
@@ -1541,7 +1572,7 @@ def _format_explore(result: dict) -> dict:
 # ─── Tool 3: explore ───
 
 
-@mcp.tool()
+@mcp.tool(structured_output=False)
 def explore(
     action: str,
     problem_id: str,
