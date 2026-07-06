@@ -35,7 +35,7 @@
 2. *"Which offers should we accept? Show me the real coverage-versus-cost-versus-burnout choices."*
    `solve run` → `explore tradeoffs`: the three-objective roster frontier – the coverage-max roster (5,097 points at the full $210k), the lean roster (4,776 points at $197k), and the low-fatigue roster (1,190 fatigue points), most rosters landing at the 60-offer floor.
 3. *"Keep the balanced roster and the lean one. Are these actually optimal?"*
-   `explore curate` per pick → `solve solver="highs"` → `explore certify`: the exact-MILP overlay (47 certified points; NSGA dominates no exact point).
+   `explore curate` per pick → `solve solver="highs" exact=true` → `explore certify`: the zero-gap certified MILP overlay (`exact_certified: true`; NSGA dominates no exact point).
 4. *"Before I sign the roster: can you guarantee every unit keeps night coverage, whichever feasible roster we land on – and what's the least this pool can cost?"*
    `explore audit` with a compound property: ICU, ED, and MedSurg each keep **≥2 night blocks in every feasible roster** – proven in one conjunctive call, and *emergent*: no night rule exists in the model; the unit floors exceed each unit's day supply, so the arithmetic forces nights. And the minimum-spend probe: **Cost ≥ $185.7k holds across every feasible roster** (at $186.1k the audit returns a concrete counterexample roster instead) – the number finance can plan on.
 5. *"Write the roster up for the staffing huddle."*

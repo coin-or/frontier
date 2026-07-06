@@ -2,7 +2,7 @@
 
 **The decision.** Split a production order across 25 global suppliers balancing cost, reliability, lead time, ESG risk, and correlated regional disruption: the cheap suppliers are slower, less reliable, and riskier; per-region caps and a weighted reliability floor couple every share; and two contractual minimum shares are locked in – NA01 at 5% (strategic incumbent) and CN01 at 4% (a legacy contract the ESG and concentration numbers argue against).
 
-**Why Frontier.** The minimize-risk quadratic puts it on Frontier's exact mean-variance (QP) path – and the contractual floors give the duals a job the spreadsheet can't do: price each contract *including its correlated-risk cost*. On the shipped min-risk anchor the two contracts split cleanly: NA01 earns 15% on merit (its 5% floor sits slack, the contract is free), while CN01 is pinned at its 4% floor with a reduced cost of ~7.5 – the measured price of keeping the legacy commitment.
+**Why Frontier.** The minimize-risk quadratic puts it on Frontier's exact mean-variance (QP) path – and the contractual floors give the duals a job the spreadsheet can't do: price each contract *including its correlated-risk cost*. On the shipped overlay's balanced anchor the two contracts split cleanly: NA01 earns 15% on merit (its 5% floor sits slack, the contract is free), while CN01 is pinned at its 4% floor with a reduced cost of ~7.6 – the measured price of keeping the legacy commitment.
 
 **What ships here** — the raw inputs (step 1), the canonical model they frame into, and pre-solved results:
 
@@ -46,7 +46,7 @@
 3. *“Keep the balanced mix and the most reliable one. Are these actually optimal?”*
    `explore curate` per pick → `solve solver="highs"` → `explore certify`: the exact mean-variance QP overlay, sharpest at the minimum-concentration-risk corner.
 4. *“What are our contracts actually costing us, and which supplier just missed the cut?”*
-   `explore sensitivity`: solver-exact duals — at the min-risk anchor, NA01's 5% floor sits slack (it holds 15% on merit; the contract is free) while CN01 is pinned at its 4% floor with a reduced cost of ~7.5, the per-point price of the legacy commitment with correlated risk included; CN02 is the closest near-miss (~0.45), and the reliability floor prices at ~0.83 risk-units per point. (Values as read at the min-risk anchor of the shipped exact overlay — duals are anchor-specific marginal rates; confirm a big move by re-solving without the floor.)
+   `explore sensitivity`: solver-exact duals — at the default reference anchor (the balanced mid-frontier point the tool picks), NA01's 5% floor sits slack (it holds 15% on merit; the contract is free) while CN01 is pinned at its 4% floor with a reduced cost of ~7.6, the per-point price of the legacy commitment with correlated risk included; CN02 is the closest near-miss (~0.56), and the reliability floor prices at ~0.82 risk-units per point. (Values as read at that anchor of the shipped exact overlay — duals are anchor-specific marginal rates that fall toward zero at the min-risk corner; confirm a big move by re-solving without the floor.)
 5. *“Write it up for the sourcing review.”*
    `explore curated format="markdown"`: the handoff table.
 
