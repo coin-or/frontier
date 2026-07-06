@@ -53,6 +53,15 @@ _MILP_TIME_LIMIT = 30.0
 # path's budget auto-scales with problem size in _scalarization._milp_budget, shared with cuOpt.)
 _QP_BUDGET = {"fast": (60, 20), "thorough": (100, 30)}
 
+# Per-scalarization QP/LP safety deadline — the proportional twin of ``_MILP_TIME_LIMIT``.
+# HiGHS's active-set QP solver can cycle without terminating on a degenerate scalarization
+# (observed on the Linux wheel: tied coefficients on the support with an epsilon target just
+# inside the attainable extreme). ``_scalarization._feasible_eps`` snaps that geometry away;
+# this deadline bounds any residual case — a deadline stop reads as non-Optimal, so the EA
+# treats the scalarization as infeasible and moves on. Normal inner solves run in
+# milliseconds, so the deadline is pure headroom.
+_PROP_TIME_LIMIT = 10.0
+
 
 def _hessian_from_cov(cov: np.ndarray):
     """Pack 2·cov as a HiGHS Hessian in CSC lower-triangular form. HiGHS minimizes
@@ -92,6 +101,7 @@ def _build_qp_model(cov, mu, target_return, return_maximize, max_weight,
 
     h = highspy.Highs()
     h.silent()
+    h.setOptionValue("time_limit", _PROP_TIME_LIMIT)
     w = [h.addVariable(lb=lbs[i], ub=ubs[i]) for i in range(n)]
     h.addConstr(sum(w) == 1)                                          # row 0: budget
     has_return = target_return is not None
@@ -184,6 +194,7 @@ def _build_lp_model(primary_coef, primary_maximize, eps_list, max_weight, suppor
     ubs, lbs = _weight_box(n, max_weight, min_weight, support)
     h = highspy.Highs()
     h.silent()
+    h.setOptionValue("time_limit", _PROP_TIME_LIMIT)
     w = [h.addVariable(lb=lbs[i], ub=ubs[i]) for i in range(n)]
     h.addConstr(sum(w) == 1)                                          # row 0: budget
     for coef, tgt, maximize in eps_list:                             # rows 1..: objective floors

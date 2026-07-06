@@ -447,12 +447,75 @@ def _milp_anchor_sels(S, dirs, mc, n, inner_milp, exact, first_stage=None) -> li
 # --------------------------------------------------------------------------- #
 # QP genome (proportional mean-variance)
 # --------------------------------------------------------------------------- #
+# The EA's epsilon targets are sweep parameters, not user data — so a target landing in the
+# razor-thin band just inside a support's attainable extreme can be snapped TO that extreme:
+# the solved point is still exactly optimal for its (snapped) scalarization. That band is
+# precisely where an active-set QP cycles on degenerate ties (a non-terminating solve on the
+# Linux HiGHS wheel when tied coefficients share the support), so snapping removes the
+# pathological geometry rather than merely bounding its cost. Relative to the extreme's scale.
+_EPS_SNAP_REL = 1e-3
+
+
+def _attainable_extreme(coef, maximize, ubs, lbs):
+    """Closed-form extreme of ``coef·w`` over the budget simplex ``Σw=1, lbs ≤ w ≤ ubs`` —
+    floors first, then greedy fill toward the extreme (the support-box sibling of
+    ``_box_extreme``). Returns None when the budget is unreachable inside the box
+    (Σlb > 1 or Σub < 1): no feasible ``w`` exists at all."""
+    lb = np.asarray(lbs, dtype=float)
+    ub = np.asarray(ubs, dtype=float)
+    remaining = 1.0 - float(lb.sum())
+    if remaining < -1e-9 or float(ub.sum()) < 1.0 - 1e-9:
+        return None
+    c = np.asarray(coef, dtype=float)
+    w = lb.copy()
+    for i in np.argsort(-c if maximize else c):
+        if remaining <= 1e-12:
+            break
+        take = min(float(ub[i] - lb[i]), remaining)
+        w[i] += take
+        remaining -= take
+    return float(c @ w)
+
+
+def _feasible_eps(eps_values, coefs, maxs, max_weight, min_weight, support):
+    """Clamp the EA's epsilon targets into the support box's attainable ranges, or return
+    None when a target is provably unattainable — Σw=1 + the box alone rule it out, and
+    extra rows only shrink the region further, so the scalarization is infeasible with no
+    solver call spent on it. A target inside the ``_EPS_SNAP_REL`` band of its attainable
+    extreme snaps to the extreme (see the note above). Shared by the QP and LP individuals
+    so both exact paths, on either backend, pre-screen identically."""
+    n = len(coefs[0])
+    ubs, lbs = _weight_box(n, max_weight, min_weight, support)
+    if _box_infeasible(ubs, lbs):
+        return None
+    out = []
+    for eps, coef, mx in zip(eps_values, coefs, maxs):
+        ext = _attainable_extreme(coef, mx, ubs, lbs)
+        if ext is None:
+            return None
+        scale = max(1.0, abs(ext))
+        e = float(eps)
+        if mx:      # floor climbing toward the attainable max
+            if e > ext + 1e-9 * scale:
+                return None
+            out.append(ext if e > ext - _EPS_SNAP_REL * scale else e)
+        else:       # ceiling descending toward the attainable min
+            if e < ext - 1e-9 * scale:
+                return None
+            out.append(ext if e < ext + _EPS_SNAP_REL * scale else e)
+    return out
+
+
 def _solve_individual(cov, linear_coefs, linear_maximize, max_weight, eps, support, inner_qp,
                       min_weight=None, model_rows=()):
     """Inner QP for one EA individual: minimize variance subject to every linear objective k
     meeting its epsilon target ``eps[k]``, restricted to ``support``. Shared by the genome's
     ``_evaluate`` and the marshaling re-solve so the two can never disagree on what an
-    individual decodes to."""
+    individual decodes to. Targets are pre-screened by ``_feasible_eps`` — provably
+    unattainable ones return infeasible without a solver call."""
+    eps = _feasible_eps(eps, linear_coefs, linear_maximize, max_weight, min_weight, support)
+    if eps is None:
+        return np.zeros(len(linear_coefs[0])), False
     extra = [(linear_coefs[t], float(eps[t]), linear_maximize[t])
              for t in range(1, len(linear_coefs))]
     return inner_qp(cov, linear_coefs[0], float(eps[0]), linear_maximize[0],
@@ -464,6 +527,9 @@ def _solve_individual_sensitivity(cov, linear_coefs, linear_maximize, max_weight
                                   model_rows=()):
     """Dual-returning sibling of ``_solve_individual`` — same scalarization, but the inner
     solve also returns the exact duals. Returns ``(weights_frac, ok, raw_sensitivity)``."""
+    eps = _feasible_eps(eps, linear_coefs, linear_maximize, max_weight, min_weight, support)
+    if eps is None:
+        return np.zeros(len(linear_coefs[0])), False, None
     extra = [(linear_coefs[t], float(eps[t]), linear_maximize[t])
              for t in range(1, len(linear_coefs))]
     return inner_qp_sensitivity(cov, linear_coefs[0], float(eps[0]), linear_maximize[0],
@@ -477,7 +543,12 @@ def _solve_individual_lp(linear_coefs, linear_maximize, max_weight, eps, support
     the **primary** linear objective (``linear_coefs[0]``) subject to every NON-primary objective
     meeting its epsilon target ``eps[t]``, restricted to ``support``. The continuous-allocation
     analogue of ``_solve_individual`` — but one linear objective is *optimized* rather than the
-    quadratic, so the genome carries one fewer target (the primary isn't epsilon-constrained)."""
+    quadratic, so the genome carries one fewer target (the primary isn't epsilon-constrained).
+    Targets are pre-screened by ``_feasible_eps`` like the QP individuals."""
+    eps = _feasible_eps(eps, linear_coefs[1:], linear_maximize[1:], max_weight, min_weight,
+                        support)
+    if eps is None:
+        return np.zeros(len(linear_coefs[0])), False
     eps_list = [(linear_coefs[t + 1], float(eps[t]), linear_maximize[t + 1])
                 for t in range(len(eps))]
     return inner_lp(linear_coefs[0], linear_maximize[0], eps_list + list(model_rows),
@@ -488,6 +559,10 @@ def _solve_individual_lp_sensitivity(linear_coefs, linear_maximize, max_weight, 
                                      support, inner_lp_sensitivity, min_weight=None,
                                      model_rows=()):
     """Dual-returning sibling of ``_solve_individual_lp``: ``(weights_frac, ok, raw_sensitivity)``."""
+    eps = _feasible_eps(eps, linear_coefs[1:], linear_maximize[1:], max_weight, min_weight,
+                        support)
+    if eps is None:
+        return np.zeros(len(linear_coefs[0])), False, None
     eps_list = [(linear_coefs[t + 1], float(eps[t]), linear_maximize[t + 1])
                 for t in range(len(eps))]
     return inner_lp_sensitivity(linear_coefs[0], linear_maximize[0],
@@ -726,23 +801,19 @@ def optimize_qp(problem, mode, *, inner_qp, inner_qp_sensitivity=None, pop, gen,
         interaction_matrices=im, **cp,
     )
 
-    # Epsilon range per linear objective, DIRECTION-AWARE: the loose end is the objective's
-    # value at the global min-variance portfolio (one unconstrained inner solve); the tight end
-    # is the best single-asset value in that objective's own direction. A maximize objective
-    # sweeps its floor up toward max(coef); a minimize objective sweeps its ceiling down toward
-    # min(coef) — the old max(coef)-only upper bound left a minimize ceiling forever slack, so
-    # the sweep never traded variance against that objective.
-    w_mv, ok_mv = inner_qp(cov, linear_coefs[0], None, linear_maximize[0], max_weight, None,
-                           list(model_rows), min_weight=min_weight)
+    # Epsilon range per linear objective = its attainable span over the budget+box region
+    # (closed-form extremes, feasible under the cap/floors unlike raw coef extremes). The
+    # direction decides which end the sweep TIGHTENS toward — a maximize floor climbs to the
+    # max extreme, a minimize ceiling descends to the min extreme — and the opposite end is
+    # truly loose: every feasible portfolio clears it, so an all-loose epsilon vector stays
+    # feasible even with several linear objectives constrained at once. (Anchoring the loose
+    # ends at the min-variance portfolio's values instead makes them all binding
+    # simultaneously — the sweep then lives on a measure-zero boundary of the epsilon box,
+    # solvable only by floating-point luck, which the Linux HiGHS build doesn't extend.)
     eps_bounds: list[tuple[float, float]] = []
-    for coef, maximize in zip(linear_coefs, linear_maximize):
-        # Loose end: the objective's value at the min-variance portfolio; when that probe
-        # fails, fall back to the box extreme every feasible portfolio clears (min for a
-        # maximize floor, max for a minimize ceiling) so the sweep still spans the range.
-        loose_fallback = float(coef.min()) if maximize else float(coef.max())
-        at_mv = float(coef @ w_mv) if ok_mv else loose_fallback
-        tight = float(coef.max()) if maximize else float(coef.min())
-        lo, hi = (at_mv, tight) if maximize else (tight, at_mv)
+    for coef in linear_coefs:
+        lo = _box_extreme(coef, False, max_weight, min_weight)
+        hi = _box_extreme(coef, True, max_weight, min_weight)
         if hi <= lo:
             hi = lo + 1e-6  # degenerate guard (all values equal)
         eps_bounds.append((lo, hi))

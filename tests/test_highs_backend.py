@@ -633,3 +633,70 @@ class TestLpDualDirection:
         assert run.solutions
         for s in run.solutions:
             assert (s.allocations or {}).get("o5", 0) >= 10, s.allocations
+
+
+class TestEpsPrescreen:
+    """The epsilon pre-screen (`_feasible_eps`): provably unattainable targets are rejected
+    with no solver call, and targets in the razor band just inside a support's attainable
+    extreme snap TO the extreme — the geometry where the Linux HiGHS active-set QP cycles
+    without terminating (the CI hang this guards against)."""
+
+    def test_attainable_extreme_respects_support_box(self):
+        from solvers._scalarization import _attainable_extreme, _weight_box
+        coef = np.array([3.0, 5.0, 7.0, 4.0, 6.0, 3.0])
+        ubs, lbs = _weight_box(6, None, None, support=[0, 2, 5])
+        assert _attainable_extreme(coef, True, ubs, lbs) == pytest.approx(7.0)
+        assert _attainable_extreme(coef, False, ubs, lbs) == pytest.approx(3.0)
+        # Empty budget box (all caps zero off an empty support) -> no feasible w at all.
+        ubs0 = [0.0] * 6
+        assert _attainable_extreme(coef, True, ubs0, [0.0] * 6) is None
+
+    def test_unattainable_target_rejected_without_solver(self):
+        from solvers._scalarization import _feasible_eps
+        coef = np.array([3.0, 5.0, 7.0, 4.0, 6.0, 3.0])
+        # Floor of 7 is unattainable on a support whose best coefficient is 6.
+        assert _feasible_eps([7.0], [coef], [True], None, None, [1, 4, 5]) is None
+        # Ceiling of 3 is unattainable when the cheapest in-support coefficient is 4.
+        assert _feasible_eps([3.0], [coef], [False], None, None, [1, 3, 4]) is None
+
+    def test_razor_band_target_snaps_to_the_extreme(self):
+        from solvers._scalarization import _feasible_eps
+        coef = np.array([3.0, 5.0, 7.0, 4.0, 6.0, 3.0])
+        # The observed Linux cycle: floor 6.9992 on a support with tied coefficients
+        # ([3, 7, 3]) — inside the snap band, so it must leave as exactly 7.0.
+        out = _feasible_eps([6.9992], [coef], [True], None, None, [0, 2, 5])
+        assert out == [pytest.approx(7.0)]
+        # An interior target passes through unchanged.
+        out = _feasible_eps([5.5], [coef], [True], None, None, [0, 2, 5])
+        assert out == [pytest.approx(5.5)]
+
+    def test_multi_minimize_sweep_stays_jointly_feasible(self):
+        """Several epsilon-constrained linear objectives at once (the supplier_selection
+        shape): the epsilon box's loose corner must be feasible for every portfolio, so the
+        sweep produces a healthy frontier — not a boundary sliver that only survives on
+        favorable floating-point behavior."""
+        names = [f"s{i}" for i in range(8)]
+        cost = [2.0, 7.0, 3.5, 5.0, 6.0, 4.0, 5.5, 3.0]
+        lead = [9.0, 2.0, 7.0, 4.0, 3.0, 6.0, 5.0, 8.0]
+        scores = []
+        for i, n in enumerate(names):
+            scores.append(Score(option=n, objective="Cost", value=cost[i]))
+            scores.append(Score(option=n, objective="Lead", value=lead[i]))
+            scores.append(Score(option=n, objective="Risk", value=30.0))
+        cov = {a: {b: (0.3 if a == b else 0.02) for b in names} for a in names}
+        p = Problem(
+            name="multimin", approach="proportional",
+            objectives=[Objective(name="Cost", direction="minimize", aggregation="sum"),
+                        Objective(name="Lead", direction="minimize", aggregation="sum"),
+                        Objective(name="Risk", direction="minimize", aggregation="quadratic")],
+            options=[Option(name=n) for n in names], scores=scores,
+            interaction_matrices=[InteractionMatrix(objective="Risk", entries=cov)],
+        )
+        run = optimize(p, mode="fast", seed=1, solver="highs")
+        assert len(run.solutions) >= 10
+        # Both tightening directions are actually swept: the cheap corner and the
+        # short-lead corner are far apart, and each is reached.
+        costs = [s.objective_values["Cost"] for s in run.solutions]
+        leads = [s.objective_values["Lead"] for s in run.solutions]
+        assert min(costs) <= 2.5
+        assert min(leads) <= 2.5
