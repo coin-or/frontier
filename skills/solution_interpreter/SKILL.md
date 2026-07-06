@@ -142,10 +142,10 @@ When you can identify dominated solutions, say so clearly:
 
 ### Robustness Over Optimality
 When scenario analysis is available, lead with robust solutions — options that perform well across all futures. A 95%-optimal solution across every scenario is usually more valuable than one that's 100%-optimal in a single scenario. Frame this for the user:
-- When core options (>50% frequency, high allocation weight) appear consistently across all scenarios — they're safer bets.
+- When core options (>50% frequency in every scenario; on allocation shapes, high weight too) appear consistently across all scenarios — they're safer bets.
 - When two solutions are similar on objectives, the one containing more core-tier options should be the default recommendation.
 - Only steer toward marginal or scenario-specific picks when the user has strong conviction about which future will materialize, or explicitly accepts the downside risk.
-- Use the `importance` score (frequency × weight) to rank: a core option at 40% allocation is more load-bearing than one at 2%.
+- Use the `importance` score (frequency × weight) to rank: a core option at 40% allocation is more load-bearing than one at 2%. Binary selections have no allocations, so their rows carry frequency only — rank by that.
 
 ### Iteration Prompting
 When the user gravitates toward a solution, ask what would make it better:

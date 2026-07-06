@@ -27,6 +27,8 @@ from .models import (
 
 _MAX_MISSING_SCORES_RETURNED = 20
 _MAX_DOMINATED_RETURNED = 20  # echoed on every structural model update — cap like missing_scores
+_MAX_COVERAGE_RETURNED = 60   # option_coverage rides every solve response — ranked head at portfolio scale
+_MAX_NEVER_SELECTED_LISTED = 20  # beyond this, per-option diagnostics collapse to one summary entry
 
 
 def compute_metrics(problem: Problem) -> dict:
@@ -153,7 +155,7 @@ def solve_metrics(problem: Problem, run: Run | None = None) -> dict:
             if opt in coverage:
                 coverage[opt] += 1
 
-    return {
+    result = {
         "solve_success": len(solutions) > 0,
         "solution_count": len(solutions),
         "hypervolume": run.quality.hypervolume_normalized,
@@ -161,6 +163,22 @@ def solve_metrics(problem: Problem, run: Run | None = None) -> dict:
         "objective_variation": obj_variation,
         "option_coverage": coverage,
     }
+    # At portfolio scale the per-option dict dwarfs the rest of the solve response —
+    # ship the ranked head and summarize the tail (the scenario_results treatment).
+    if len(coverage) > _MAX_COVERAGE_RETURNED:
+        ranked = sorted(coverage.items(), key=lambda kv: (-kv[1], kv[0]))
+        head = dict(ranked[:_MAX_COVERAGE_RETURNED])
+        tail_max = ranked[_MAX_COVERAGE_RETURNED][1]
+        result["option_coverage"] = head
+        result["option_coverage_elided"] = {
+            "shown": len(head),
+            "total_options": len(coverage),
+            "tail_max_count": tail_max,
+            "note": ("ranked by selection count; absence below the head is elision, NOT zero — "
+                     f"an elided option may still appear in up to {tail_max} plan(s). Full "
+                     "per-option selection rates: explore composition"),
+        }
+    return result
 
 
 def frontier_quality(
@@ -389,12 +407,25 @@ def _check_option_coverage(problem, solutions, results):
     for sol in solutions:
         selected_ever.update(sol.selected_options)
 
-    never_selected = opt_names - selected_ever
-    for opt in never_selected:
+    never_selected = sorted(opt_names - selected_ever)
+    if len(never_selected) <= _MAX_NEVER_SELECTED_LISTED:
+        for opt in never_selected:
+            results.append({
+                "pattern": "option_never_selected",
+                "severity": "info",
+                "option": opt,
+            })
+    else:
+        # A ~170-entry flood of identical info rows (capital-300) buries the diagnostics
+        # that matter — collapse to one summary entry past the cap.
         results.append({
             "pattern": "option_never_selected",
             "severity": "info",
-            "option": opt,
+            "count": len(never_selected),
+            "options": never_selected[:_MAX_NEVER_SELECTED_LISTED],
+            "note": (f"{len(never_selected)} options never appear in any solution; first "
+                     f"{_MAX_NEVER_SELECTED_LISTED} listed — full selection rates: "
+                     "explore composition"),
         })
 
 

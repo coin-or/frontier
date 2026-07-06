@@ -67,9 +67,14 @@ def test_probe_satisfiable_returns_feasible_witness():
     assert r["verdict"] == "feasible"
     assert r["audit_kind"] == "feasibility_probe"
     assert r["witness"] is not None and r["witness"]["feasible"] is True
-    # Region echo pins what the verdict is conditional on; raw solver fields are not surfaced.
-    assert r["feasible_region"]["n_options"] == 4
-    assert any(c["type"] == "cardinality" for c in r["feasible_region"]["constraints"])
+    # Region pin: what the verdict is conditional on, as counts-by-type + a content
+    # fingerprint — never a verbatim constraint dump; raw solver fields are not surfaced.
+    region = r["feasible_region"]
+    assert region["n_options"] == 4
+    assert region["n_constraints"] == 1
+    assert region["constraints_by_type"] == {"cardinality": 1}
+    assert len(region["constraints_fingerprint"]) == 12
+    assert "constraints" not in region
     assert "statuses" not in r and "mode" not in r
 
 
@@ -603,3 +608,19 @@ def test_constraint_referencing_unknown_objective_declines_in_words():
         ObjectiveBoundConstraint(objective="Zed", operator="max", value=10)])
     with pytest.raises(ValueError, match="unknown objective 'Zed'"):
         _parse_constraints(p)
+
+
+def test_region_fingerprint_is_order_insensitive():
+    """The region pin identifies a constraint SET: a client re-sending the same
+    constraints reordered describes the same region and must fingerprint identically
+    (counts-by-type can't catch a bound tweak; the hash must not cry wolf on order)."""
+    from engine.optimizer import constraints_fingerprint
+
+    cons = [CardinalityConstraint(min=1, max=2), ForceIncludeConstraint(option="A")]
+    assert constraints_fingerprint(cons) == constraints_fingerprint(list(reversed(cons)))
+    # A genuine content change (bound tweak, same type counts) changes the hash.
+    tweaked = [CardinalityConstraint(min=1, max=3), ForceIncludeConstraint(option="A")]
+    assert constraints_fingerprint(cons) != constraints_fingerprint(tweaked)
+    # The audit payload pins with the same helper, so pins compare across audits.
+    r = audit(_problem(constraints=cons))
+    assert r["feasible_region"]["constraints_fingerprint"] == constraints_fingerprint(cons)
