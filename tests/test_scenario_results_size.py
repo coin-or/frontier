@@ -30,8 +30,10 @@ def test_capital_300_scenario_results_fits_inline():
 
     # The trim is announced, ranked, and mirrored into viz_data — never silent.
     elided = res["option_robustness_elided"]
-    assert elided["count"] > 0
+    assert elided["shown"] == 60 and elided["total_options"] > 60
     assert "explore solutions" in elided["note"]
+    # Binary elision must not name a ranking field the rows don't carry.
+    assert "importance" not in elided["note"]
     table = res["option_robustness"]
     assert len(table) == len(res["viz_data"]["option_robustness"])
     # Binary selections carry no allocations, so rows omit avg_weight/importance and

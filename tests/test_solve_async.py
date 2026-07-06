@@ -316,3 +316,59 @@ class TestStaleFingerprintRoundTrip:
         srv.model(action="update", problem_id=pid,
                   scores=[{"option": "o0", "objective": "obj0", "value": 99.0}])
         assert srv.store.load(pid).results_stale is True
+
+
+class TestStaleFingerprintAllRuns:
+    """results_stale vouches for EVERY stored frontier — the clear applies only when all
+    present runs (exploratory, exact overlay, scenario set) match the current inputs."""
+
+    def test_exact_only_problem_clears_on_restore(self):
+        """The exact-first workflow (where explore audit lives) gets the round-trip clear
+        too — the stamp lands on exact_run and is consulted even with p.run=None."""
+        from engine.models import Run
+        from mcp_server.jobs import _solve_fingerprint
+
+        pid = _ready()
+        p = srv.store.load(pid)
+        p.run = None
+        p.exact_run = Run(solutions=[], solver="highs",
+                          solve_fingerprint=_solve_fingerprint(p))
+        srv.store.save(p)
+
+        original = [c.model_dump(mode="json") for c in (p.constraints or [])]
+        srv.model(action="update", problem_id=pid,
+                  constraints=original + [{"type": "cardinality", "min": 1, "max": 3}])
+        assert srv.store.load(pid).results_stale is True
+        srv.model(action="update", problem_id=pid, constraints=original)
+        assert srv.store.load(pid).results_stale is False
+
+    def test_mismatched_scenario_run_blocks_the_clear(self):
+        """A scenario set solved under different inputs must keep the flag: restoring
+        p.run's inputs does not vouch for a scenario_run solved under an edit."""
+        from engine.models import ScenarioRun
+
+        pid = _ready()
+        r = srv.solve(action="run", problem_id=pid, seed=42)
+        assert r["status"] == "complete"
+        p = srv.store.load(pid)
+        p.scenario_run = ScenarioRun(scenario_runs={}, solve_fingerprint="stale-inputs")
+        srv.store.save(p)
+
+        original = [c.model_dump(mode="json") for c in (p.constraints or [])]
+        srv.model(action="update", problem_id=pid,
+                  constraints=original + [{"type": "cardinality", "min": 1, "max": 3}])
+        srv.model(action="update", problem_id=pid, constraints=original)
+        assert srv.store.load(pid).results_stale is True, (
+            "p.run matches but scenario_run was solved under other inputs — must stay stale")
+
+    def test_model_get_echoes_the_region_fingerprint(self):
+        """model get carries the same constraints_fingerprint the audit pin uses, so a
+        stored holds-verdict is checkable against the current model."""
+        from engine.optimizer import constraints_fingerprint
+
+        pid = _ready()
+        p = srv.store.load(pid)
+        got = srv.model(action="get", problem_id=pid, section="summary")
+        assert got["constraints_fingerprint"] == constraints_fingerprint(p.constraints)
+        sec = srv.model(action="get", problem_id=pid, section="constraints")
+        assert sec["constraints_fingerprint"] == got["constraints_fingerprint"]

@@ -608,3 +608,19 @@ def test_constraint_referencing_unknown_objective_declines_in_words():
         ObjectiveBoundConstraint(objective="Zed", operator="max", value=10)])
     with pytest.raises(ValueError, match="unknown objective 'Zed'"):
         _parse_constraints(p)
+
+
+def test_region_fingerprint_is_order_insensitive():
+    """The region pin identifies a constraint SET: a client re-sending the same
+    constraints reordered describes the same region and must fingerprint identically
+    (counts-by-type can't catch a bound tweak; the hash must not cry wolf on order)."""
+    from engine.optimizer import constraints_fingerprint
+
+    cons = [CardinalityConstraint(min=1, max=2), ForceIncludeConstraint(option="A")]
+    assert constraints_fingerprint(cons) == constraints_fingerprint(list(reversed(cons)))
+    # A genuine content change (bound tweak, same type counts) changes the hash.
+    tweaked = [CardinalityConstraint(min=1, max=3), ForceIncludeConstraint(option="A")]
+    assert constraints_fingerprint(cons) != constraints_fingerprint(tweaked)
+    # The audit payload pins with the same helper, so pins compare across audits.
+    r = audit(_problem(constraints=cons))
+    assert r["feasible_region"]["constraints_fingerprint"] == constraints_fingerprint(cons)

@@ -166,13 +166,17 @@ def solve_metrics(problem: Problem, run: Run | None = None) -> dict:
     # At portfolio scale the per-option dict dwarfs the rest of the solve response —
     # ship the ranked head and summarize the tail (the scenario_results treatment).
     if len(coverage) > _MAX_COVERAGE_RETURNED:
-        head = dict(sorted(coverage.items(), key=lambda kv: (-kv[1], kv[0]))[:_MAX_COVERAGE_RETURNED])
+        ranked = sorted(coverage.items(), key=lambda kv: (-kv[1], kv[0]))
+        head = dict(ranked[:_MAX_COVERAGE_RETURNED])
+        tail_max = ranked[_MAX_COVERAGE_RETURNED][1]
         result["option_coverage"] = head
         result["option_coverage_elided"] = {
             "shown": len(head),
             "total_options": len(coverage),
-            "note": ("ranked by selection count; the elided tail is selected no more often than "
-                     "anything shown — full per-option selection rates: explore composition"),
+            "tail_max_count": tail_max,
+            "note": ("ranked by selection count; absence below the head is elision, NOT zero — "
+                     f"an elided option may still appear in up to {tail_max} plan(s). Full "
+                     "per-option selection rates: explore composition"),
         }
     return result
 

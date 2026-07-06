@@ -1529,6 +1529,17 @@ def diagnose_conflicts(problem: Problem) -> dict:
     }
 
 
+def constraints_fingerprint(constraints) -> str:
+    """Order-insensitive content hash of a constraint set — the region identity behind
+    `explore audit`'s ``feasible_region`` pin, echoed by ``model get`` so a stored verdict
+    can be checked against the current model. Order-insensitive on purpose: a client that
+    re-sends the same constraints reordered describes the same region, and counts-by-type
+    can't catch a bound tweak (cardinality 5→6) that this hash does."""
+    canon = sorted(json.dumps(c.model_dump(mode="json"), sort_keys=True)
+                   for c in (constraints or []))
+    return hashlib.md5("\n".join(canon).encode()).hexdigest()[:12]
+
+
 def audit(problem: Problem, prop=None, solver: str = "highs") -> dict:
     """Witness / feasibility audit over a binary problem's whole feasible region — the auditor
     sibling of ``certify`` (which audits optimality; this audits feasibility / property claims).
@@ -1591,12 +1602,10 @@ def audit(problem: Problem, prop=None, solver: str = "highs") -> dict:
     # exactly these constraints, the traceable-claims convention the explore analytics follow.
     # Pinned as counts-by-type + a content fingerprint rather than the full constraint echo:
     # a 62-constraint region dumped verbatim (twice per violated→fix→holds arc) dominated the
-    # payload while saying nothing the fingerprint doesn't certify.
+    # payload while saying nothing the fingerprint doesn't certify. `model get` echoes the
+    # same fingerprint, so the pin is checkable against the current model, not just legible.
     cons = problem.constraints or []
     from collections import Counter
-    region_fp = hashlib.md5(
-        json.dumps([c.model_dump(mode="json") for c in cons], sort_keys=True).encode()
-    ).hexdigest()[:12]
     base = {
         "audit_kind": "feasibility_probe" if props is None else "property_audit",
         "solver": "highs",
@@ -1605,9 +1614,10 @@ def audit(problem: Problem, prop=None, solver: str = "highs") -> dict:
             "n_options": len(problem.options),
             "n_constraints": len(cons),
             "constraints_by_type": dict(sorted(Counter(c.type for c in cons).items())),
-            "constraints_fingerprint": region_fp,
-            "note": ("the verdict is conditional on exactly this constraint set "
-                     "(content-fingerprinted); full constraint detail: model get"),
+            "constraints_fingerprint": constraints_fingerprint(cons),
+            "note": ("the verdict is conditional on exactly this constraint set — "
+                     "`model get` echoes the same constraints_fingerprint, so compare the "
+                     "two before re-asserting a guarantee"),
         },
     }
 

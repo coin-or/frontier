@@ -1674,16 +1674,21 @@ def get_scenario_results(problem: Problem, cvar_alpha: float | None = None) -> d
     _ROBUSTNESS_TABLE_CAP = 60
     option_robustness_elided = None
     if len(option_robustness) > _ROBUSTNESS_TABLE_CAP:
+        total = len(option_robustness)
         tail = option_robustness[_ROBUSTNESS_TABLE_CAP:]
         option_robustness = option_robustness[:_ROBUSTNESS_TABLE_CAP]
+        # The ranking named here must match the rows above it: binary rows carry no
+        # importance field, so the note claims only the key the table actually ranks by.
+        ranking = ("importance and cross-scenario frequency" if proportional
+                   else "cross-scenario frequency")
         option_robustness_elided = {
-            "count": len(tail),
+            "shown": _ROBUSTNESS_TABLE_CAP,
+            "total_options": total,
             "tiers": dict(Counter(t["tier"] for t in tail)),
-            "note": ("ranked table truncated to the top "
-                     f"{_ROBUSTNESS_TABLE_CAP} by importance and cross-scenario frequency; "
-                     "the elided tail ranks below everything shown. Per-plan detail: "
-                     "explore solutions solution_id=<id>; cross-frontier selection rates: "
-                     "explore composition."),
+            "note": (f"ranked table truncated to the top {_ROBUSTNESS_TABLE_CAP} by "
+                     f"{ranking}; the elided tail ranks below everything shown. Per-plan "
+                     "detail: explore solutions solution_id=<id>; cross-frontier selection "
+                     "rates: explore composition."),
         }
 
     # Expected value: probability-weighted if probabilities provided, else equal-weight

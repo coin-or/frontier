@@ -408,6 +408,9 @@ class TestSolveResponseElision:
         assert len(m["option_coverage"]) == _MAX_COVERAGE_RETURNED
         elided = m["option_coverage_elided"]
         assert elided["total_options"] == 80 and elided["shown"] == _MAX_COVERAGE_RETURNED
+        # Absence below the head is elision, not zero — the summary must bound it.
+        assert elided["tail_max_count"] == 0  # this fixture's tail is all zeros
+        assert "NOT zero" in elided["note"]
         # Ranked head: every selected option outranks the zero tail and is present.
         for i in range(5):
             assert m["option_coverage"][f"o{i:03d}"] == 3

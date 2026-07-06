@@ -223,6 +223,7 @@ class ScenarioRun(BaseModel):
     """Results from per-scenario optimization."""
     scenario_runs: dict[str, Run] = {}  # scenario name → Run
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    solve_fingerprint: str | None = None  # hash of the solve-input fields as solved (see Run.solve_fingerprint)
 
 
 # --- Run / Solution ---
