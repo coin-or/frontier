@@ -531,6 +531,46 @@ class TestSupportRespectsCountCaps:
         assert costs[0] <= 2.2
         assert costs[-1] - costs[0] >= 1.0
 
+    def test_qp_sweep_spans_past_the_min_variance_point_on_multi_linear(self):
+        """Full-range epsilon box on a multi-linear QP: the frontier holds points where one
+        linear objective is WORSE than its value at the min-variance portfolio, traded for
+        another. An at-mv loose end (the old bound) made that whole region unreachable —
+        the exact overlay covered only the mv-side slice (supplier_selection: exact Cost
+        spanned 10.42–10.84 while NSGA spanned 8.64–11.75)."""
+        names = [f"o{i}" for i in range(6)]
+        # Cost and Quality are in tension by construction: the dear options are the good ones.
+        cost = [2.0, 3.0, 4.0, 6.0, 8.0, 9.0]
+        quality = [1.0, 2.0, 3.0, 6.0, 8.5, 9.5]
+        scores = []
+        for i, n in enumerate(names):
+            scores.append(Score(option=n, objective="Cost", value=cost[i]))
+            scores.append(Score(option=n, objective="Quality", value=quality[i]))
+            scores.append(Score(option=n, objective="Risk", value=30.0))
+        # Identical variances: the min-variance portfolio spreads evenly, so its Cost sits
+        # mid-range and the high-Quality corner costs strictly more than at-mv.
+        cov = {a: {b: (0.3 if a == b else 0.02) for b in names} for a in names}
+        p = Problem(
+            name="qpspan", approach="proportional",
+            objectives=[Objective(name="Risk", direction="minimize", aggregation="quadratic"),
+                        Objective(name="Cost", direction="minimize", aggregation="sum"),
+                        Objective(name="Quality", direction="maximize", aggregation="sum")],
+            options=[Option(name=n) for n in names], scores=scores,
+            interaction_matrices=[InteractionMatrix(objective="Risk", entries=cov)],
+            constraints=[MaxAllocationConstraint(max=30)],
+        )
+        run = optimize(p, mode="fast", seed=1, solver="highs")
+        assert len(run.solutions) >= 10
+        # The even mv spread costs ~5.33; the best-Quality fill under the 30% cap costs
+        # 0.3*(9+8+6)+0.1*4 = 7.3. The overlay must reach Quality corners costlier than
+        # at-mv — the region the mv-anchored loose end cut off.
+        costs = [s.objective_values["Cost"] for s in run.solutions]
+        qualities = [s.objective_values["Quality"] for s in run.solutions]
+        at_mv_cost = sum(cost) / len(cost)  # even spread ≈ the identical-variance mv mix
+        assert max(costs) > at_mv_cost + 0.5, (max(costs), at_mv_cost)
+        # And the Quality corner itself is sampled near its box-feasible extreme
+        # (0.3*9.5 + 0.3*8.5 + 0.3*6 + 0.1*3 = 7.5).
+        assert max(qualities) >= 7.0, max(qualities)
+
 
 class TestShapeGateQuadCount:
     def test_two_quadratics_declined_in_words(self):
@@ -633,3 +673,81 @@ class TestLpDualDirection:
         assert run.solutions
         for s in run.solutions:
             assert (s.allocations or {}).get("o5", 0) >= 10, s.allocations
+
+
+class TestEpsPrescreen:
+    """The epsilon pre-screen (`_feasible_eps`): provably unattainable targets are rejected
+    with no solver call, and targets in the razor band just inside a support's attainable
+    extreme are BACKED OFF to the band edge — the band is the geometry where the Linux
+    HiGHS active-set QP cycles without terminating (the CI hang this guards against), and
+    backing off (loosening) can only enlarge the feasible region, so joint feasibility
+    with the other targets is preserved."""
+
+    def test_unattainable_target_rejected_without_solver(self):
+        from solvers._scalarization import _feasible_eps
+        coef = np.array([3.0, 5.0, 7.0, 4.0, 6.0, 3.0])
+        # Floor of 7 is unattainable on a support whose best coefficient is 6.
+        assert _feasible_eps([7.0], [coef], [True], None, None, [1, 4, 5]) is None
+        # Ceiling of 3 is unattainable when the cheapest in-support coefficient is 4.
+        assert _feasible_eps([3.0], [coef], [False], None, None, [1, 3, 4]) is None
+        # A support whose caps can't cover the budget is infeasible outright.
+        assert _feasible_eps([1.0], [coef], [True], 0.15, None, [0, 1]) is None
+
+    def test_razor_band_target_backs_off_to_the_band_edge(self):
+        from solvers._scalarization import _feasible_eps
+        coef = np.array([3.0, 5.0, 7.0, 4.0, 6.0, 3.0])
+        # The observed Linux cycle: floor 6.9992 on a support with tied coefficients
+        # ([3, 7, 3]) — inside the band, so it backs off to 7.0 − 1e-3·7 = 6.993.
+        out = _feasible_eps([6.9992], [coef], [True], None, None, [0, 2, 5])
+        assert out == [pytest.approx(6.993)]
+        # An interior target passes through unchanged; a target exactly AT the extreme
+        # stays — the corner remains fully sampled (anchors pin there).
+        assert _feasible_eps([5.5], [coef], [True], None, None, [0, 2, 5]) == [pytest.approx(5.5)]
+        assert _feasible_eps([7.0], [coef], [True], None, None, [0, 2, 5]) == [pytest.approx(7.0)]
+        # Minimize direction backs off away from the attainable min the same way.
+        out = _feasible_eps([3.0004], [coef], [False], None, None, [0, 2, 5])
+        assert out == [pytest.approx(3.003)]
+
+    def test_backoff_preserves_joint_feasibility(self):
+        """Snapping UP would break this: A=0.9995 (in band of extreme 1.0) snapped to 1.0
+        plus B's floor 0.0004 makes Σw=1 infeasible; backing A off keeps both floors
+        jointly satisfiable, so the previously-feasible scalarization survives."""
+        from solvers._scalarization import _feasible_eps
+        a, b = np.array([1.0, 0.0]), np.array([0.0, 1.0])
+        out = _feasible_eps([0.9995, 0.0004], [a, b], [True, True], None, None, None)
+        assert out is not None
+        eps_a, eps_b = out
+        assert eps_a == pytest.approx(0.999)     # backed off, not snapped to 1.0
+        assert eps_b == pytest.approx(0.0004)
+        assert eps_a + eps_b <= 1.0              # jointly satisfiable on the simplex
+
+    def test_multi_minimize_sweep_stays_jointly_feasible(self):
+        """Several epsilon-constrained linear objectives at once (the supplier_selection
+        shape): the epsilon box's loose corner must be feasible for every portfolio, so the
+        sweep produces a healthy frontier — not a boundary sliver that only survives on
+        favorable floating-point behavior."""
+        names = [f"s{i}" for i in range(8)]
+        cost = [2.0, 7.0, 3.5, 5.0, 6.0, 4.0, 5.5, 3.0]
+        lead = [9.0, 2.0, 7.0, 4.0, 3.0, 6.0, 5.0, 8.0]
+        scores = []
+        for i, n in enumerate(names):
+            scores.append(Score(option=n, objective="Cost", value=cost[i]))
+            scores.append(Score(option=n, objective="Lead", value=lead[i]))
+            scores.append(Score(option=n, objective="Risk", value=30.0))
+        cov = {a: {b: (0.3 if a == b else 0.02) for b in names} for a in names}
+        p = Problem(
+            name="multimin", approach="proportional",
+            objectives=[Objective(name="Cost", direction="minimize", aggregation="sum"),
+                        Objective(name="Lead", direction="minimize", aggregation="sum"),
+                        Objective(name="Risk", direction="minimize", aggregation="quadratic")],
+            options=[Option(name=n) for n in names], scores=scores,
+            interaction_matrices=[InteractionMatrix(objective="Risk", entries=cov)],
+        )
+        run = optimize(p, mode="fast", seed=1, solver="highs")
+        assert len(run.solutions) >= 10
+        # Both tightening directions are actually swept: the cheap corner and the
+        # short-lead corner are far apart, and each is reached.
+        costs = [s.objective_values["Cost"] for s in run.solutions]
+        leads = [s.objective_values["Lead"] for s in run.solutions]
+        assert min(costs) <= 2.5
+        assert min(leads) <= 2.5
