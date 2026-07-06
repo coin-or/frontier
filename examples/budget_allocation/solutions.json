@@ -1,7 +1,7 @@
 {
   "run": {
-    "run_id": "640bc931-5b30-4439-84f7-3cc3b2070d2d",
-    "created_at": "2026-07-05T20:46:54.491076Z",
+    "run_id": "3a8e6e60-c17a-4816-887b-a5f8ffca377e",
+    "created_at": "2026-07-06T03:26:35.738746Z",
     "mode": "fast",
     "solutions": [
       {
@@ -7474,8 +7474,8 @@
     "time_limited": false
   },
   "exact_run": {
-    "run_id": "720e7955-c926-48f4-b075-1c4b17f5b3c1",
-    "created_at": "2026-07-05T20:46:55.597473Z",
+    "run_id": "adcb5fdc-05d4-43a0-bdc7-6a3614645239",
+    "created_at": "2026-07-06T03:26:36.952266Z",
     "mode": "fast",
     "solutions": [
       {
@@ -7530,17 +7530,17 @@
             {
               "name": "Strategic Reach",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "TimeToImpact",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -7745,7 +7745,7 @@
             {
               "name": "Strategic Reach",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "TimeToImpact",
@@ -7755,7 +7755,7 @@
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -7960,7 +7960,7 @@
             {
               "name": "Strategic Reach",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "TimeToImpact",
@@ -7970,7 +7970,7 @@
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -8174,17 +8174,17 @@
             {
               "name": "Strategic Reach",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "TimeToImpact",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -8389,7 +8389,7 @@
             {
               "name": "Strategic Reach",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "TimeToImpact",
@@ -8399,7 +8399,7 @@
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -8604,7 +8604,7 @@
             {
               "name": "Strategic Reach",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "TimeToImpact",
@@ -8614,7 +8614,7 @@
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -8818,17 +8818,17 @@
             {
               "name": "Strategic Reach",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "TimeToImpact",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -9038,12 +9038,12 @@
             {
               "name": "TimeToImpact",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -9247,17 +9247,17 @@
             {
               "name": "Strategic Reach",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "TimeToImpact",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -9462,7 +9462,7 @@
             {
               "name": "Strategic Reach",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "TimeToImpact",
@@ -9472,7 +9472,7 @@
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -9681,12 +9681,12 @@
             {
               "name": "TimeToImpact",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -9896,12 +9896,12 @@
             {
               "name": "TimeToImpact",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -10117,7 +10117,7 @@
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -10327,12 +10327,12 @@
             {
               "name": "TimeToImpact",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -10542,12 +10542,12 @@
             {
               "name": "TimeToImpact",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -10757,12 +10757,12 @@
             {
               "name": "TimeToImpact",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -10967,7 +10967,7 @@
             {
               "name": "Strategic Reach",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "TimeToImpact",
@@ -10977,7 +10977,7 @@
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -11186,12 +11186,12 @@
             {
               "name": "TimeToImpact",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -11396,7 +11396,7 @@
             {
               "name": "Strategic Reach",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "TimeToImpact",
@@ -11406,7 +11406,7 @@
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -11616,12 +11616,12 @@
             {
               "name": "TimeToImpact",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -11836,7 +11836,7 @@
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -12046,12 +12046,12 @@
             {
               "name": "TimeToImpact",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -12256,7 +12256,7 @@
             {
               "name": "Strategic Reach",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "TimeToImpact",
@@ -12266,7 +12266,7 @@
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -12481,7 +12481,7 @@
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -12696,7 +12696,7 @@
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -12912,7 +12912,7 @@
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -13122,12 +13122,12 @@
             {
               "name": "TimeToImpact",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -13337,12 +13337,12 @@
             {
               "name": "TimeToImpact",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -13557,7 +13557,7 @@
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -13773,7 +13773,7 @@
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -13978,7 +13978,7 @@
             {
               "name": "Strategic Reach",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "TimeToImpact",
@@ -13988,7 +13988,7 @@
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -14197,12 +14197,12 @@
             {
               "name": "TimeToImpact",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -14418,7 +14418,7 @@
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -14623,7 +14623,7 @@
             {
               "name": "Strategic Reach",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "TimeToImpact",
@@ -14633,7 +14633,7 @@
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -14849,7 +14849,7 @@
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -15054,7 +15054,7 @@
             {
               "name": "Strategic Reach",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "TimeToImpact",
@@ -15064,7 +15064,7 @@
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -15269,7 +15269,7 @@
             {
               "name": "Strategic Reach",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "TimeToImpact",
@@ -15279,7 +15279,7 @@
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -15484,7 +15484,7 @@
             {
               "name": "Strategic Reach",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "TimeToImpact",
@@ -15494,7 +15494,7 @@
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -15699,7 +15699,7 @@
             {
               "name": "Strategic Reach",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "TimeToImpact",
@@ -15709,7 +15709,7 @@
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -15914,7 +15914,7 @@
             {
               "name": "Strategic Reach",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "TimeToImpact",
@@ -15924,7 +15924,7 @@
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -16134,12 +16134,12 @@
             {
               "name": "TimeToImpact",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -16354,7 +16354,7 @@
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -16569,7 +16569,7 @@
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -16784,7 +16784,7 @@
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -16993,12 +16993,12 @@
             {
               "name": "TimeToImpact",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -17213,7 +17213,7 @@
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -17428,7 +17428,7 @@
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -17644,7 +17644,7 @@
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -17860,7 +17860,7 @@
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -18065,7 +18065,7 @@
             {
               "name": "Strategic Reach",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "TimeToImpact",
@@ -18075,7 +18075,7 @@
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -18291,7 +18291,7 @@
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -18506,7 +18506,7 @@
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -18711,7 +18711,7 @@
             {
               "name": "Strategic Reach",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "TimeToImpact",
@@ -18721,7 +18721,7 @@
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -18925,7 +18925,7 @@
             {
               "name": "Strategic Reach",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "TimeToImpact",
@@ -18935,7 +18935,7 @@
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -19151,7 +19151,7 @@
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -19360,12 +19360,12 @@
             {
               "name": "TimeToImpact",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -19581,7 +19581,7 @@
             {
               "name": "TimeToImpact",
               "role": "model_bound",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -19819,8 +19819,8 @@
   "scenario_run": {
     "scenario_runs": {
       "downturn": {
-        "run_id": "9444fc81-8441-4ab9-92f3-7c98494f76b9",
-        "created_at": "2026-07-05T20:46:54.963578Z",
+        "run_id": "d1cdec3e-58e3-47e9-9f90-ef61071086ab",
+        "created_at": "2026-07-06T03:26:36.244564Z",
         "mode": "fast",
         "solutions": [
           {
@@ -27426,6 +27426,6 @@
         "time_limited": false
       }
     },
-    "created_at": "2026-07-05T20:46:54.964269Z"
+    "created_at": "2026-07-06T03:26:36.245389Z"
   }
 }

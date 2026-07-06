@@ -1,7 +1,7 @@
 {
   "run": {
-    "run_id": "25fc4ba4-70dc-4bcf-ad5b-c8fffede1d99",
-    "created_at": "2026-07-05T20:58:59.063361Z",
+    "run_id": "aa1457f3-7d5d-49dd-828e-8b4150ea50ca",
+    "created_at": "2026-07-06T03:33:41.670952Z",
     "mode": "fast",
     "solutions": [
       {
@@ -2020,8 +2020,8 @@
   "scenario_run": {
     "scenario_runs": {
       "signal_loss": {
-        "run_id": "fac5b352-d978-493a-a366-fd58a1298134",
-        "created_at": "2026-07-05T20:59:01.902952Z",
+        "run_id": "b6e4086f-baf2-45f7-9769-ed4a7c5b4b1e",
+        "created_at": "2026-07-06T03:33:44.545443Z",
         "mode": "fast",
         "solutions": [
           {
@@ -4113,8 +4113,8 @@
         "time_limited": false
       },
       "demand_pullback": {
-        "run_id": "cc9d1ef4-394d-4e79-ba34-762b38391321",
-        "created_at": "2026-07-05T20:59:01.900945Z",
+        "run_id": "c0ad518b-436e-4f06-9720-e06ca00b4324",
+        "created_at": "2026-07-06T03:33:44.546751Z",
         "mode": "fast",
         "solutions": [
           {
@@ -6333,6 +6333,6 @@
         "time_limited": false
       }
     },
-    "created_at": "2026-07-05T20:59:01.903920Z"
+    "created_at": "2026-07-06T03:33:44.547197Z"
   }
 }
