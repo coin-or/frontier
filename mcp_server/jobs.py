@@ -126,12 +126,14 @@ def _running_handle(job: SolveJob) -> dict:
         "label": job.label,
         "started_at": job.started_at.isoformat(),
         "elapsed_s": round(elapsed, 1),
-        "poll_with": f"solve(action='status', job_id='{job.job_id}')",
+        "poll_with": f"solve(action='status', job_id='{job.job_id}', wait_seconds=30)",
         "note": (
             f"Solve is running in the background ({job.label}) — expected for thorough, exact, "
             "or large problems. Poll `solve status` with this job_id until status is 'complete'; "
-            "the run is persisted, so `explore` works once it finishes. Between polls, tell the "
-            "user it's optimizing and how long it's taken so far — don't claim results yet."
+            "pass wait_seconds and the poll holds until the job finishes or the budget lapses, "
+            "so one poll per wait window beats rapid re-polling. The run is persisted, so "
+            "`explore` works once it finishes. Between polls, tell the user it's optimizing and "
+            "how long it's taken so far — don't claim results yet."
         ),
     }
 
@@ -209,7 +211,7 @@ def _solve_dispatch(p: Problem, action: str, work_fn, *, label: str,
     return _running_handle(job)
 
 
-def _solve_status(job_id: str | None) -> dict:
+def _solve_status(job_id: str | None, wait_seconds: float | None = None) -> dict:
     if not job_id:
         return {"error": "status requires a job_id (from a prior solve run/run_scenarios response)."}
     with _solve_jobs_lock:
@@ -217,5 +219,10 @@ def _solve_status(job_id: str | None) -> dict:
     if job is None:
         return {"error": f"No solve job '{job_id}'. It may have expired (TTL) or the id is wrong."}
     if not job.done.is_set():
-        return _running_handle(job)
+        # Long-poll: hold the connection up to the caller's budget (same cap as dispatch), so
+        # an 80s exact solve resolves in 2 polls instead of 10+ immediate-return round-trips.
+        # No wait_seconds keeps the historic instant snapshot.
+        timeout = 0.0 if wait_seconds is None else max(0.0, min(float(wait_seconds), _SOLVE_WAIT_CAP))
+        if not (timeout and job.done.wait(timeout=timeout)):
+            return _running_handle(job)
     return _deliver(job.problem_id, job)

@@ -585,9 +585,14 @@ def _model_update(params: dict) -> dict:
             for rp in params["reference_points"]
         ]
 
-    # Mark results stale on structural change (preserve run for comparison)
+    # Mark results stale on solve-input change (preserve run for comparison). The stored run
+    # carries the fingerprint of the inputs it was solved on, so a round-trip edit — add a cap
+    # to audit it, then restore the original constraints — lands back at results_stale=False
+    # instead of permanently flagging a model identical to the solved one. Runs from before
+    # the stamp fall back to the blanket flag.
     if structural_change:
-        p.results_stale = True
+        solved_fp = p.run.solve_fingerprint if p.run else None
+        p.results_stale = (_solve_fingerprint(p) != solved_fp) if solved_fp else True
 
     p.updated_at = datetime.now(timezone.utc)
     store.save(p)
@@ -1084,7 +1089,9 @@ def solve(
       wait_seconds: How long to block inline for the solve before handing back a background job
             handle. Default ~10s. Pass 0 to get the handle immediately (for a known-long run, so
             you can keep talking to the user while it solves). The solve runs to completion in the
-            background regardless of this value.
+            background regardless of this value. On `status` it long-polls: the call holds until
+            the job finishes or the budget lapses (default: instant snapshot), so one poll per
+            wait window replaces rapid re-polling.
       job_id: For action="status" only — the id from a running solve's response.
 
     Key guidance:
@@ -1099,8 +1106,10 @@ def solve(
     - 5-10 solutions is healthy; very few = constraints too tight.
     """
     # `status` polls a background job by id and needs no problem load — handle it first.
+    # With wait_seconds it long-polls: the connection holds until the job finishes or the
+    # budget lapses, so a caller needs one poll per wait window, not one per round-trip.
     if action == "status":
-        return _solve_status(job_id)
+        return _solve_status(job_id, wait_seconds)
 
     if problem_id is None:
         return {"error": f"Action '{action}' requires a problem_id."}
@@ -1289,8 +1298,11 @@ def _solve_run_body(p: Problem, fingerprint: str, *, mode: OptimizeMode | None =
                          "overwritten — re-run the exact solve against the new frontier."),
             }
         if run.solutions:
-            # Snapshot constraints from the (unchanged) solved state.
+            # Snapshot constraints from the (unchanged) solved state, and stamp the
+            # solve-input fingerprint so later edits can tell "actually different model"
+            # from "edited and restored" (the update handler compares against it).
             run.constraints_snapshot = [c.model_dump() for c in p.constraints]
+            run.solve_fingerprint = fingerprint
             # An exact solve is an *overlay* — store it in exact_run and leave the exploratory
             # `run` (NSGA) intact, so a problem can hold both frontiers at once (explore-with-EA,
             # then certify). A default/NSGA run replaces `run` and archives the prior one. A solve

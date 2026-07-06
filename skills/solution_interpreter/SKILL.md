@@ -145,7 +145,7 @@ When scenario analysis is available, lead with robust solutions — options that
 - When core options (>50% frequency, high allocation weight) appear consistently across all scenarios — they're safer bets.
 - When two solutions are similar on objectives, the one containing more core-tier options should be the default recommendation.
 - Only steer toward marginal or scenario-specific picks when the user has strong conviction about which future will materialize, or explicitly accepts the downside risk.
-- Use the `importance` score (frequency × weight) to rank: a core option at 40% allocation is more load-bearing than one at 2%.
+- Use the `importance` score (frequency × weight) to rank: a core option at 40% allocation is more load-bearing than one at 2%. Binary selections have no allocations, so their rows carry frequency only — rank by that.
 
 ### Iteration Prompting
 When the user gravitates toward a solution, ask what would make it better:

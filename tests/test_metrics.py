@@ -382,3 +382,54 @@ class TestDominatedOptionsCap:
         m = data_metrics(Problem(objectives=objs, options=options, scores=scores))
         assert len(m["dominated_options"]) == _MAX_DOMINATED_RETURNED
         assert m["dominated_options_total"] == 25
+
+
+class TestSolveResponseElision:
+    """Portfolio-scale solve responses ship ranked heads, not per-option floods
+    (capital-300 returned ~170 option_never_selected rows and a 300-entry coverage dict)."""
+
+    @staticmethod
+    def _big_solved_problem(n_opt=80, n_selected=5):
+        objs = [Objective(name="Revenue", direction="maximize"),
+                Objective(name="Effort", direction="minimize")]
+        opts = [Option(name=f"o{i:03d}") for i in range(n_opt)]
+        scores = [Score(option=o.name, objective=ob.name, value=float(i % 9 + 1))
+                  for i, o in enumerate(opts) for ob in objs]
+        sols = [Solution(solution_id=k, selected_options=[f"o{i:03d}" for i in range(n_selected)],
+                         objective_values={"Revenue": 10.0 + k, "Effort": 5.0 - 0.1 * k})
+                for k in range(3)]
+        p = Problem(objectives=objs, options=opts, scores=scores)
+        p.run = Run(solutions=sols)
+        return p
+
+    def test_option_coverage_ships_ranked_head_plus_summary(self):
+        from engine.metrics import _MAX_COVERAGE_RETURNED, solve_metrics
+        m = solve_metrics(self._big_solved_problem())
+        assert len(m["option_coverage"]) == _MAX_COVERAGE_RETURNED
+        elided = m["option_coverage_elided"]
+        assert elided["total_options"] == 80 and elided["shown"] == _MAX_COVERAGE_RETURNED
+        # Ranked head: every selected option outranks the zero tail and is present.
+        for i in range(5):
+            assert m["option_coverage"][f"o{i:03d}"] == 3
+        assert "explore composition" in elided["note"]
+
+    def test_small_coverage_passes_whole(self):
+        from engine.metrics import solve_metrics
+        m = solve_metrics(self._big_solved_problem(n_opt=10))
+        assert len(m["option_coverage"]) == 10
+        assert "option_coverage_elided" not in m
+
+    def test_never_selected_collapses_to_summary_at_scale(self):
+        from engine.metrics import _MAX_NEVER_SELECTED_LISTED, diagnostics
+        diags = diagnostics(self._big_solved_problem())
+        rows = [d for d in diags if d["pattern"] == "option_never_selected"]
+        assert len(rows) == 1
+        row = rows[0]
+        assert row["count"] == 75 and len(row["options"]) == _MAX_NEVER_SELECTED_LISTED
+        assert "explore composition" in row["note"]
+
+    def test_never_selected_stays_per_option_when_few(self):
+        from engine.metrics import diagnostics
+        diags = diagnostics(self._big_solved_problem(n_opt=8, n_selected=5))
+        rows = [d for d in diags if d["pattern"] == "option_never_selected"]
+        assert {r["option"] for r in rows} == {"o005", "o006", "o007"}

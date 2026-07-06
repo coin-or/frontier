@@ -34,8 +34,12 @@ def test_capital_300_scenario_results_fits_inline():
     assert "explore solutions" in elided["note"]
     table = res["option_robustness"]
     assert len(table) == len(res["viz_data"]["option_robustness"])
-    ranks = [(r["importance"], r["avg_frequency"]) for r in table]
-    assert ranks == sorted(ranks, reverse=True), "table must ship importance/frequency-ranked"
+    # Binary selections carry no allocations, so rows omit avg_weight/importance and
+    # the table ranks by frequency alone.
+    assert all("avg_weight" not in r and "importance" not in r for r in table)
+    ranks = [r["avg_frequency"] for r in table]
+    assert ranks == sorted(ranks, reverse=True), "table must ship frequency-ranked on binary"
+    assert "WORST per-scenario frequency" in res["tier_rule"]
 
 
 def test_small_problem_scenario_results_untrimmed():
@@ -44,3 +48,8 @@ def test_small_problem_scenario_results_untrimmed():
     assert "option_robustness_elided" not in res
     # Every option that appears in any scenario solution is present, whole.
     assert len(res["option_robustness"]) <= 60
+    # Proportional shapes keep the allocation-weighted fields and importance ranking.
+    table = res["option_robustness"]
+    assert all("avg_weight" in r and "importance" in r for r in table)
+    ranks = [(r["importance"], r["avg_frequency"]) for r in table]
+    assert ranks == sorted(ranks, reverse=True)

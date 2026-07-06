@@ -1621,20 +1621,22 @@ def get_scenario_results(problem: Problem, cvar_alpha: float | None = None) -> d
             for opt in opt_count
         }
 
-    # Aggregate across scenarios: avg frequency, avg weight, importance score
+    # Aggregate across scenarios: avg frequency, avg weight, importance score.
+    # Weight-derived fields only exist where allocations do — on binary selections
+    # avg_weight/importance would read 0.0 for every option (meaningless next to a
+    # "core" tier), so the rows omit them and rank by frequency alone.
+    proportional = problem.approach == Approach.proportional
     option_robustness = []
     scenario_specific = {}
     for opt in opt_names:
         freqs = [per_scenario_freq[s].get(opt, 0) for s in all_scenario_names]
-        weights = [per_scenario_avg_weight[s].get(opt, 0) for s in all_scenario_names]
         present_in = [s for s in all_scenario_names if per_scenario_freq[s].get(opt, 0) > 0]
         avg_freq = sum(freqs) / len(freqs) if freqs else 0
-        avg_weight = sum(w for w in weights if w > 0) / max(len([w for w in weights if w > 0]), 1)
-        importance = round(avg_freq * avg_weight, 2)
 
         if avg_freq > 0:
-            # Tier: core (>50% freq in all scenarios), common (>25% or in all),
-            # marginal (<25% or missing from some)
+            # Tier keyed on the WORST per-scenario frequency (see tier_rule in the payload):
+            # core (>50% in every future), common (>25% worst-case or present in all),
+            # marginal (the rest).
             min_freq = min(freqs)
             if min_freq > 0.5:
                 tier = "core"
@@ -1643,23 +1645,25 @@ def get_scenario_results(problem: Problem, cvar_alpha: float | None = None) -> d
             else:
                 tier = "marginal"
 
-            option_robustness.append({
+            row = {
                 "option": opt,
                 "avg_frequency": round(avg_freq, 3),
-                "avg_weight": round(avg_weight, 1),
-                "importance": importance,
                 "tier": tier,
                 "scenarios_present": len(present_in),
-            })
+            }
+            if proportional:
+                weights = [per_scenario_avg_weight[s].get(opt, 0) for s in all_scenario_names]
+                avg_weight = sum(w for w in weights if w > 0) / max(len([w for w in weights if w > 0]), 1)
+                row["avg_weight"] = round(avg_weight, 1)
+                row["importance"] = round(avg_freq * avg_weight, 2)
+            option_robustness.append(row)
 
         if 0 < len(present_in) < len(all_scenario_names):
             scenario_specific[opt] = present_in
 
-    # Sort by importance, then frequency. The frequency tiebreak is load-bearing on
-    # binary problems: selections carry no allocations, so avg_weight — and with it
-    # importance — is 0 for every option, and an importance-only sort would leave the
-    # table in arbitrary option order.
-    option_robustness.sort(key=lambda x: (x["importance"], x["avg_frequency"]), reverse=True)
+    # Sort by importance where it exists (proportional), then frequency — the frequency
+    # key alone carries the binary ranking.
+    option_robustness.sort(key=lambda x: (x.get("importance", 0.0), x["avg_frequency"]), reverse=True)
     robust_options = [r["option"] for r in option_robustness if r["tier"] == "core"]
 
     # Size-aware trim: at portfolio scale (hundreds of options) the per-option table
@@ -1755,6 +1759,10 @@ def get_scenario_results(problem: Problem, cvar_alpha: float | None = None) -> d
         "per_scenario": per_scenario,
         "robust_options": sorted(robust_options),
         "option_robustness": option_robustness,
+        "tier_rule": ("tiers key on the WORST per-scenario frequency, not the average shown: "
+                      "core = in >50% of plans in EVERY future; common = >25% worst-case (or "
+                      "present in all); marginal = the rest — an option can average high yet "
+                      "tier lower because one future benches it"),
         **({"option_robustness_elided": option_robustness_elided}
            if option_robustness_elided else {}),
         "scenario_specific_options": scenario_specific,
@@ -2274,17 +2282,20 @@ def _render_scenario_viz(result: dict) -> str:
             lines.append(f"    {s_name:30s} |{range_bar}| {s_lo:.2f}–{s_hi:.2f}")
         lines.append("")
 
-    # Option robustness (frequency + allocation-weighted)
+    # Option robustness (frequency + allocation-weighted; binary rows carry frequency only)
     robustness = result.get("option_robustness", [])
-    lines.append("─── Option Robustness (frequency × avg weight) ───")
+    weighted = bool(robustness) and "avg_weight" in robustness[0]
+    lines.append("─── Option Robustness (frequency × avg weight) ───" if weighted
+                 else "─── Option Robustness (selection frequency) ───")
     if robustness:
-        lines.append(f"  {'Option':20s} {'Tier':10s} {'Freq':>6s} {'Wt%':>6s} {'Score':>7s} {'In':>4s}")
-        lines.append(f"  {'─'*20} {'─'*10} {'─'*6} {'─'*6} {'─'*7} {'─'*4}")
+        wt_cols = f" {'Wt%':>6s} {'Score':>7s}" if weighted else ""
+        lines.append(f"  {'Option':20s} {'Tier':10s} {'Freq':>6s}{wt_cols} {'In':>4s}")
+        lines.append(f"  {'─'*20} {'─'*10} {'─'*6}" + (f" {'─'*6} {'─'*7}" if weighted else "") + f" {'─'*4}")
         for r in robustness[:15]:  # Top 15
+            wt = f" {r['avg_weight']:5.1f}% {r['importance']:7.1f}" if weighted else ""
             lines.append(
                 f"  {r['option']:20s} {r['tier']:10s} "
-                f"{r['avg_frequency']:6.1%} {r['avg_weight']:5.1f}% "
-                f"{r['importance']:7.1f} {r['scenarios_present']:3d}/{len(per_scenario)}"
+                f"{r['avg_frequency']:6.1%}{wt} {r['scenarios_present']:3d}/{len(per_scenario)}"
             )
         if len(robustness) > 15:
             lines.append(f"  ... and {len(robustness) - 15} more")

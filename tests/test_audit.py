@@ -67,9 +67,14 @@ def test_probe_satisfiable_returns_feasible_witness():
     assert r["verdict"] == "feasible"
     assert r["audit_kind"] == "feasibility_probe"
     assert r["witness"] is not None and r["witness"]["feasible"] is True
-    # Region echo pins what the verdict is conditional on; raw solver fields are not surfaced.
-    assert r["feasible_region"]["n_options"] == 4
-    assert any(c["type"] == "cardinality" for c in r["feasible_region"]["constraints"])
+    # Region pin: what the verdict is conditional on, as counts-by-type + a content
+    # fingerprint — never a verbatim constraint dump; raw solver fields are not surfaced.
+    region = r["feasible_region"]
+    assert region["n_options"] == 4
+    assert region["n_constraints"] == 1
+    assert region["constraints_by_type"] == {"cardinality": 1}
+    assert len(region["constraints_fingerprint"]) == 12
+    assert "constraints" not in region
     assert "statuses" not in r and "mode" not in r
 
 

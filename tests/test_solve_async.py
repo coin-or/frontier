@@ -263,3 +263,56 @@ class TestTimeLimit:
         assert _was_time_limited(2.0, 1.99) is False     # converged just under the cap → NOT limited
         assert _was_time_limited(2.0, 2.0) is True       # hit the cap
         assert _was_time_limited(2.0, 2.5) is True        # ran past the cap (gen-boundary overshoot)
+
+
+class TestStatusLongPoll:
+    def test_status_with_wait_holds_until_complete(self):
+        """One long-poll replaces rapid re-polling: status with wait_seconds returns the
+        finished result in a single call (an 80s exact solve took 10+ instant-return
+        polls before)."""
+        pid = _ready()
+        r = srv.solve(action="run", problem_id=pid, wait_seconds=0, seed=42)
+        assert r["status"] == "running"
+        done = srv.solve(action="status", job_id=r["job_id"], wait_seconds=30)
+        assert done["status"] == "complete" and done["job_id"] == r["job_id"]
+
+    def test_status_without_wait_stays_instant_snapshot(self, monkeypatch):
+        """No wait_seconds keeps the historic behavior: an unfinished job returns a
+        running handle immediately rather than blocking on a default budget."""
+        import mcp_server.jobs as jobs
+        job = _fake_job("hold1", finished=False)  # never finishes
+        with srv._solve_jobs_lock:
+            srv._solve_jobs["hold1"] = job
+        t0 = time.monotonic()
+        s = srv.solve(action="status", job_id="hold1")
+        assert s["status"] == "running"
+        assert time.monotonic() - t0 < 1.0
+        # The handle now teaches the long-poll form.
+        assert "wait_seconds" in s["poll_with"]
+
+
+class TestStaleFingerprintRoundTrip:
+    def test_edit_and_restore_lands_back_not_stale(self):
+        """The audit fix-arc (add a cap to prove it, then restore) must not permanently
+        flag results_stale on a model identical to the solved one."""
+        pid = _ready()
+        r = srv.solve(action="run", problem_id=pid, seed=42)
+        assert r["status"] == "complete"
+        assert srv.store.load(pid).results_stale is False
+
+        original = [c.model_dump(mode="json") for c in (srv.store.load(pid).constraints or [])]
+        added = original + [{"type": "cardinality", "min": 1, "max": 3}]
+        srv.model(action="update", problem_id=pid, constraints=added)
+        assert srv.store.load(pid).results_stale is True, "a genuine edit must flag stale"
+
+        srv.model(action="update", problem_id=pid, constraints=original)
+        assert srv.store.load(pid).results_stale is False, (
+            "restoring the solved constraint set must clear the flag (fingerprint match)")
+
+    def test_score_edit_still_flags_stale(self):
+        pid = _ready()
+        r = srv.solve(action="run", problem_id=pid, seed=42)
+        assert r["status"] == "complete"
+        srv.model(action="update", problem_id=pid,
+                  scores=[{"option": "o0", "objective": "obj0", "value": 99.0}])
+        assert srv.store.load(pid).results_stale is True

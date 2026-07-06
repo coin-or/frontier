@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import hashlib
+import json
 import math
 import os
 import threading
@@ -1588,13 +1589,25 @@ def audit(problem: Problem, prop=None, solver: str = "highs") -> dict:
 
     # Pin the audited region so a `holds` is self-certifying — the guarantee is conditional on
     # exactly these constraints, the traceable-claims convention the explore analytics follow.
+    # Pinned as counts-by-type + a content fingerprint rather than the full constraint echo:
+    # a 62-constraint region dumped verbatim (twice per violated→fix→holds arc) dominated the
+    # payload while saying nothing the fingerprint doesn't certify.
+    cons = problem.constraints or []
+    from collections import Counter
+    region_fp = hashlib.md5(
+        json.dumps([c.model_dump(mode="json") for c in cons], sort_keys=True).encode()
+    ).hexdigest()[:12]
     base = {
         "audit_kind": "feasibility_probe" if props is None else "property_audit",
         "solver": "highs",
         "feasible_region": {
             "approach": problem.approach.value,
             "n_options": len(problem.options),
-            "constraints": [c.model_dump(mode="json") for c in (problem.constraints or [])],
+            "n_constraints": len(cons),
+            "constraints_by_type": dict(sorted(Counter(c.type for c in cons).items())),
+            "constraints_fingerprint": region_fp,
+            "note": ("the verdict is conditional on exactly this constraint set "
+                     "(content-fingerprinted); full constraint detail: model get"),
         },
     }
 

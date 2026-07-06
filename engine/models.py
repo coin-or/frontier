@@ -301,6 +301,7 @@ class Run(BaseModel):
     exact: bool = False  # MILP zero-gap certification was requested (no-op on the always-exact QP and on NSGA)
     time_limit: float | None = None  # wall-clock cap (s) requested for this solve; None = uncapped
     time_limited: bool = False  # True when the cap was hit, so this frontier is best-so-far, not fully converged
+    solve_fingerprint: str | None = None  # hash of the solve-input fields as solved — edits compare against it, so a round-trip edit lands back at results_stale=False
 
 
 # --- Feedback ---

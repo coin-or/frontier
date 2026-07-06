@@ -279,16 +279,16 @@ If a solution meets all aspirational targets, note that objectives may not truly
 
 When scenarios are defined and optimized, use `explore scenario_results` to present:
 
-1. **Robust options by tier** — `option_robustness` returns options ranked by importance (frequency × avg allocation weight), with tiers:
-   - **Core** (>50% frequency in all scenarios): safe bets regardless of which future materializes. Lead with these.
-   - **Common** (>25% or present in all scenarios): likely to appear but not dominant — secondary picks.
-   - **Marginal** (<25% or missing from some scenarios): conditional picks dependent on scenario view.
+1. **Robust options by tier** — `option_robustness` returns options ranked by importance (frequency × avg allocation weight; binary selections carry no allocations, so their rows have frequency only and rank by it), with tiers. Tiers key on the WORST per-scenario frequency, not the shown average (the payload's `tier_rule` states it) — an option can average high yet tier lower because one future benches it:
+   - **Core** (>50% frequency in every scenario): safe bets regardless of which future materializes. Lead with these.
+   - **Common** (>25% worst-case, or present in all scenarios): likely to appear but not dominant — secondary picks.
+   - **Marginal** (the rest): conditional picks dependent on scenario view.
 2. **Scenario-specific opportunities** — options in `scenario_specific` that excel in particular futures (grouped by scenario name → list of options). Frame: "If you believe [scenario] is likely, [option] becomes attractive."
 3. **Frame around risk tolerance** — "The core options protect your downside across all futures. The marginal options offer upside in specific scenarios. Which matters more?"
 
 Each `per_scenario` entry restates what that scenario `varies` and a `held_fixed` line (everything else inherits the base model) — read them back so the user knows exactly what the comparison isolates, and flag it if a scenario varies more than its name implies (a replace-all `constraint_overrides` is the classic case). When a scenario carries `motivated_by`, cite it: *"this scenario quantifies the [lever] that sensitivity ranked highest."* And when one scenario flips feasibility or steps an objective sharply where its neighbors don't, treat the break as a finding about the modeling assumptions until verified — name the choice creating it, and if a plausible alternative reading removes it, present both readings.
 
-Present the top 5-8 from `option_robustness` with their tier, frequency, and avg weight. Don't list every option — the tail is noise. Start with core vs scenario-specific, then drill down if the user asks. If the tiers are flat — options appear at similar frequency across every scenario — the scenarios aren't differentiating the decision; say so and suggest simplifying the scenario set rather than reading false signal into it.
+Present the top 5-8 from `option_robustness` with their tier, frequency, and (proportional shapes) avg weight. Don't list every option — the tail is noise. Start with core vs scenario-specific, then drill down if the user asks. If the tiers are flat — options appear at similar frequency across every scenario — the scenarios aren't differentiating the decision; say so and suggest simplifying the scenario set rather than reading false signal into it.
 
 **Expected values caveat**: The `expected_values` in scenario_results are ideal-point values (best-per-objective across scenarios, probability-weighted). No single solution achieves all simultaneously. Present them as "theoretical ceiling" when useful, but always caveat.
 
@@ -317,7 +317,7 @@ The `diagnostics` array in solve output contains structured signals (not pre-wri
 | `zero_solutions` | — | Problem is infeasible. Route to optimization_strategy for constraint diagnosis. |
 | `clustered_solutions` | — | "Your solutions are nearly identical — objectives may not truly conflict. Are [X] and [Y] measuring the same thing?" |
 | `low_variation_objective` | `objective`, `relative_range` | "[Objective] barely varies across solutions (range [X]%). It's not driving differentiation — consider dropping it or re-scoring." |
-| `option_never_selected` | `option` | "[Option] doesn't appear in any solution. Check if it's dominated or blocked by a constraint." |
+| `option_never_selected` | `option` — or, at portfolio scale, one summary entry with `count` + an `options` head | "[Option] doesn't appear in any solution. Check if it's dominated or blocked by a constraint." For the summary form, present the count and route detail to `explore composition`. |
 | `binding_constraint` | `constraint`, `extreme_value` | "[Constraint] is binding (solutions push right up to the limit). Relaxing it would open new tradeoff space." See the **Binding Analysis** section for shadow-price framing when `tradeoffs` is available. |
 
 Also watch for these patterns in the data even when no diagnostic is emitted:
