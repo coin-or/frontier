@@ -14,8 +14,8 @@ from engine.optimizer import certify_curated, optimize
 from engine.problem_io import from_portable
 from solvers._scalarization import (
     _box_extreme,
+    _feasible_eps,
     _prop_anchor_rows,
-    _qp_scalarization_feasible,
 )
 
 _HAS_HIGHS = _ilu.find_spec("highspy") is not None
@@ -32,29 +32,30 @@ def test_box_extreme_fills_best_assets_to_the_cap():
     assert _box_extreme(coef, False, 0.5) == pytest.approx(0.5 * 1 + 0.5 * 2)
 
 
-def test_qp_scalarization_screen_disproves_only_provable_infeasibility():
-    """The pre-solver screen rejects exactly what it can PROVE infeasible — an epsilon
-    target beyond the support's box extreme, or a support whose caps can't cover the
-    budget — and admits everything else, including a target AT the extreme (the anchor
+def test_eps_screen_disproves_only_provable_infeasibility():
+    """The pre-solver screen (`_feasible_eps`) rejects exactly what it can PROVE infeasible —
+    an epsilon target beyond the support's box extreme, or a support whose caps can't cover
+    the budget — and admits everything else, including a target AT the extreme (the anchor
     corner). Keeps unattainable scalarizations away from the QP active-set solver, whose
-    infeasibility handling is solver-build-dependent (the Linux wheel can cycle)."""
+    infeasibility handling is solver-build-dependent (the Linux wheel can cycle). Razor-band
+    snap behavior is covered in tests/test_highs_backend.py::TestEpsPrescreen."""
     coefs = [np.array([3.0, 5.0, 7.0, 4.0, 6.0, 3.0])]
     # Support without the best asset: extreme is 6.0 — a 6.5 floor is provably unattainable.
-    assert not _qp_scalarization_feasible(coefs, [True], [6.5], None, None, [0, 1, 4])
+    assert _feasible_eps([6.5], coefs, [True], None, None, [0, 1, 4]) is None
     # Same floor on a support holding the best asset: attainable, goes to the solver.
-    assert _qp_scalarization_feasible(coefs, [True], [6.5], None, None, [0, 2, 5])
+    assert _feasible_eps([6.5], coefs, [True], None, None, [0, 2, 5]) == [6.5]
     # A target exactly at the support's extreme stays feasible (anchor corners pin there).
-    assert _qp_scalarization_feasible(coefs, [True], [7.0], None, None, [0, 2, 5])
+    assert _feasible_eps([7.0], coefs, [True], None, None, [0, 2, 5]) == [pytest.approx(7.0)]
     # Minimize direction: support {7.0, 6.0} can't get below 6.0 — a 5.9 ceiling is
     # unattainable; a ceiling at the extreme is fine.
-    assert not _qp_scalarization_feasible(coefs, [False], [5.9], None, None, [2, 4])
-    assert _qp_scalarization_feasible(coefs, [False], [6.0], None, None, [2, 4])
+    assert _feasible_eps([5.9], coefs, [False], None, None, [2, 4]) is None
+    assert _feasible_eps([6.0], coefs, [False], None, None, [2, 4]) == [pytest.approx(6.0)]
     # A support whose caps can't cover the budget (2 × 0.15 < 1) is infeasible outright.
-    assert not _qp_scalarization_feasible(coefs, [True], [1.0], 0.15, None, [0, 1])
+    assert _feasible_eps([1.0], coefs, [True], 0.15, None, [0, 1]) is None
     # Per-option caps bound the extreme: a 25% cap covers the budget (6 × 0.25 ≥ 1) but
     # the best fill is 0.25 × (7+6+5+4) = 5.5 — the single-asset 7.0 is out of reach.
-    assert not _qp_scalarization_feasible(coefs, [True], [7.0], 0.25, None, None)
-    assert _qp_scalarization_feasible(coefs, [True], [5.5], 0.25, None, None)
+    assert _feasible_eps([7.0], coefs, [True], 0.25, None, None) is None
+    assert _feasible_eps([5.5], coefs, [True], 0.25, None, None) == [pytest.approx(5.5)]
 
 
 def test_prop_anchor_rows_shapes_and_loose_floors():
