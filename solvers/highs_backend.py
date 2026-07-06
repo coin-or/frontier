@@ -48,6 +48,16 @@ from solvers._scalarization import (
 _MILP_REL_GAP = 1e-3
 _MILP_TIME_LIMIT = 30.0
 
+# Per-scalarization QP safety deadline — the convex-path sibling of ``_MILP_TIME_LIMIT``.
+# HiGHS's QP active-set solver, unlike its simplex/MIP codes, can cycle instead of
+# terminating on a razor-thin feasible region (observed on the Linux wheel: an epsilon
+# floor within ~1e-4 of the support's attainable extreme spins forever; macOS solves the
+# same model instantly). The deadline turns such a cycle into a declined scalarization —
+# status != Optimal → ok=False — the exact treatment an infeasible target already gets,
+# so the EA sweep skips the point and the run completes. Generous next to the ~ms cost
+# of a healthy solve on these sizes.
+_QP_TIME_LIMIT = 5.0
+
 # QP EA budget (pop, gen) by mode. The cheap continuous QP can afford a dense search; the
 # returned frontier has at most ``pop`` points, so the population drives coverage. (The MILP
 # path's budget auto-scales with problem size in _scalarization._milp_budget, shared with cuOpt.)
@@ -92,6 +102,7 @@ def _build_qp_model(cov, mu, target_return, return_maximize, max_weight,
 
     h = highspy.Highs()
     h.silent()
+    h.setOptionValue("time_limit", _QP_TIME_LIMIT)
     w = [h.addVariable(lb=lbs[i], ub=ubs[i]) for i in range(n)]
     h.addConstr(sum(w) == 1)                                          # row 0: budget
     has_return = target_return is not None

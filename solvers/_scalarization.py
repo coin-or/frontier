@@ -447,12 +447,43 @@ def _milp_anchor_sels(S, dirs, mc, n, inner_milp, exact, first_stage=None) -> li
 # --------------------------------------------------------------------------- #
 # QP genome (proportional mean-variance)
 # --------------------------------------------------------------------------- #
+def _qp_scalarization_feasible(linear_coefs, linear_maximize, eps, max_weight, min_weight,
+                               support) -> bool:
+    """Provable-infeasibility screen for one QP scalarization, run before any solver model
+    is built: the support's caps must cover the budget (Σub ≥ 1 ≥ Σlb over the weight box),
+    and each epsilon target must be attainable at the support's own box extreme
+    (``_box_extreme`` on the masked box — closed form, exact for budget+box). Only *proofs*
+    of infeasibility short-circuit; anything the screen can't disprove (joint epsilon rows,
+    model bounds) still goes to the solver, so no feasible scalarization is ever lost.
+    This matters beyond saved work: the epsilon sweep and the capped support search
+    generate unattainable targets by the hundreds, and the QP active-set solver is the one
+    inner solve whose infeasibility handling is build-dependent (the Linux wheel can cycle
+    where macOS proves infeasibility) — a target it never sees can't misbehave."""
+    n = len(linear_coefs[0])
+    ubs, lbs = _weight_box(n, max_weight, min_weight, support)
+    if _box_infeasible(ubs, lbs):
+        return False
+    if sum(ubs) < 1.0 - 1e-9 or sum(lbs) > 1.0 + 1e-9:
+        return False
+    ub_vec, lb_vec = np.asarray(ubs, dtype=float), np.asarray(lbs, dtype=float)
+    for k, (coef, mx) in enumerate(zip(linear_coefs, linear_maximize)):
+        extreme = _box_extreme(coef, mx, ub_vec, lb_vec)
+        margin = max(1e-9, abs(extreme) * 1e-12)
+        target = float(eps[k])
+        if (target > extreme + margin) if mx else (target < extreme - margin):
+            return False
+    return True
+
+
 def _solve_individual(cov, linear_coefs, linear_maximize, max_weight, eps, support, inner_qp,
                       min_weight=None, model_rows=()):
     """Inner QP for one EA individual: minimize variance subject to every linear objective k
     meeting its epsilon target ``eps[k]``, restricted to ``support``. Shared by the genome's
     ``_evaluate`` and the marshaling re-solve so the two can never disagree on what an
     individual decodes to."""
+    if not _qp_scalarization_feasible(linear_coefs, linear_maximize, eps, max_weight,
+                                      min_weight, support):
+        return np.zeros(len(linear_coefs[0])), False
     extra = [(linear_coefs[t], float(eps[t]), linear_maximize[t])
              for t in range(1, len(linear_coefs))]
     return inner_qp(cov, linear_coefs[0], float(eps[0]), linear_maximize[0],
@@ -464,6 +495,9 @@ def _solve_individual_sensitivity(cov, linear_coefs, linear_maximize, max_weight
                                   model_rows=()):
     """Dual-returning sibling of ``_solve_individual`` — same scalarization, but the inner
     solve also returns the exact duals. Returns ``(weights_frac, ok, raw_sensitivity)``."""
+    if not _qp_scalarization_feasible(linear_coefs, linear_maximize, eps, max_weight,
+                                      min_weight, support):
+        return np.zeros(len(linear_coefs[0])), False, None
     extra = [(linear_coefs[t], float(eps[t]), linear_maximize[t])
              for t in range(1, len(linear_coefs))]
     return inner_qp_sensitivity(cov, linear_coefs[0], float(eps[0]), linear_maximize[0],
@@ -727,11 +761,15 @@ def optimize_qp(problem, mode, *, inner_qp, inner_qp_sensitivity=None, pop, gen,
     )
 
     # Epsilon range per linear objective, DIRECTION-AWARE: the loose end is the objective's
-    # value at the global min-variance portfolio (one unconstrained inner solve); the tight end
-    # is the best single-asset value in that objective's own direction. A maximize objective
-    # sweeps its floor up toward max(coef); a minimize objective sweeps its ceiling down toward
-    # min(coef) — the old max(coef)-only upper bound left a minimize ceiling forever slack, so
-    # the sweep never traded variance against that objective.
+    # value at the global min-variance portfolio (one unconstrained inner solve); the tight
+    # end is the objective's BOX-FEASIBLE extreme in its own direction (``_box_extreme``:
+    # floors first, then the best assets filled to their caps). A maximize objective sweeps
+    # its floor up toward that extreme; a minimize objective sweeps its ceiling down toward
+    # it. The extreme must be the box-feasible one, not the best single-asset coefficient:
+    # under a per-option cap the single-asset value is unattainable, and a sweep bound past
+    # attainability turns that whole slice of the epsilon box into infeasible inner solves —
+    # wasted EA budget everywhere, and (on solver builds whose QP infeasibility handling is
+    # shaky) a source of failed runs.
     w_mv, ok_mv = inner_qp(cov, linear_coefs[0], None, linear_maximize[0], max_weight, None,
                            list(model_rows), min_weight=min_weight)
     eps_bounds: list[tuple[float, float]] = []
@@ -741,7 +779,7 @@ def optimize_qp(problem, mode, *, inner_qp, inner_qp_sensitivity=None, pop, gen,
         # maximize floor, max for a minimize ceiling) so the sweep still spans the range.
         loose_fallback = float(coef.min()) if maximize else float(coef.max())
         at_mv = float(coef @ w_mv) if ok_mv else loose_fallback
-        tight = float(coef.max()) if maximize else float(coef.min())
+        tight = _box_extreme(coef, maximize, max_weight, min_weight)
         lo, hi = (at_mv, tight) if maximize else (tight, at_mv)
         if hi <= lo:
             hi = lo + 1e-6  # degenerate guard (all values equal)
@@ -1069,9 +1107,28 @@ def certify_curated_frontier(problem, source_run, *, inner=None, inner_sensitivi
         idxs = linear_idxs if is_qp else linear_idxs[1:]
         targets = [
             (np.array([src.objective_values.get(obj_list[j].name, 0.0) for j in idxs], dtype=float),
-             [opt_index[nm] for nm in src.selected_options if nm in opt_index])
+             [opt_index[nm] for nm in src.selected_options if nm in opt_index],
+             src)
             for src in source_run.solutions
         ]
+        # Re-certifying a frontier that is ALREADY exact: each source point is a certified
+        # optimum of its own scalarization, so the re-solve's job is confirm-or-sharpen. The
+        # inner solve can land on an FP-nearby continuous optimum whose whole-percent
+        # rounding is a *different* grid point — one that may even miss the source's own
+        # epsilon targets by a grid step. A re-solve therefore REPLACES an exact source
+        # point only when its rounded outcome dominates it; otherwise the source point is
+        # confirmed verbatim, which makes recert idempotent by construction (bit-stable
+        # across solver builds) instead of by rounding luck. Heuristic sources keep the
+        # replace-always behavior — their points carry no certificate to confirm.
+        from solvers import is_exact_solver
+        confirm_src = is_exact_solver(getattr(source_run, "solver", None))
+        dirs_sign = np.array([1.0 if o.direction.value == "minimize" else -1.0
+                              for o in obj_list])
+
+        def _dominates(cand_vals: dict, src_vals: dict) -> bool:
+            c = dirs_sign * np.array([cand_vals.get(o.name, 0.0) for o in obj_list])
+            s = dirs_sign * np.array([src_vals.get(o.name, 0.0) for o in obj_list])
+            return bool(np.all(c <= s + 1e-9) and np.any(c < s - 1e-9))
         # Anchor corners: the overlay samples each per-objective extreme even when the source
         # run missed one. Uncapped: support=None (every asset eligible). Under a cardinality/
         # group cap, LP anchors pair each row with the decoded top-K support for its objective
@@ -1082,13 +1139,13 @@ def certify_curated_frontier(problem, source_run, *, inner=None, inner_sensitivi
         anchor_rows = _prop_anchor_rows(linear_coefs, linear_maximize, max_weight,
                                         include_primary_eps=is_qp, min_weight=min_weight)
         if k_cap is None and not glims:
-            targets += [(row, None) for row in anchor_rows]
+            targets += [(row, None, None) for row in anchor_rows]
         elif not is_qp:
             req = _required_indices(min_weight, len(linear_coefs[0]))
             targets += [(row, _decode_support(_rank_priorities(linear_coefs[j], linear_maximize[j]),
-                                              k_cap, glims, required=req))
+                                              k_cap, glims, required=req), None)
                         for j, row in enumerate(anchor_rows)]
-        for eps, support in targets:
+        for eps, support, src in targets:
             if is_qp and inner_sensitivity is not None:
                 w_frac, ok, raw_sens = _solve_individual_sensitivity(
                     cov, linear_coefs, linear_maximize, max_weight, eps, support, inner_sensitivity,
@@ -1112,18 +1169,24 @@ def certify_curated_frontier(problem, source_run, *, inner=None, inner_sensitivi
             raw = _round_weights_to_pct(w_frac, n_options, cp.get("max_allocation"), bounds_pct)
             selected = [opt_names[i] for i in range(n_options) if raw[i] > 0]
             alloc_map = {opt_names[i]: int(raw[i]) for i in range(n_options)}
+            W_pct = raw.astype(float).reshape(1, -1)
+            obj_values = {obj.name: round(float(prop._aggregate_objective(W_pct, j)[0]), 4)
+                          for j, obj in enumerate(obj_list)}
+            sensitivity = (_build_solution_sensitivity(raw_sens, opt_names, raw, linear_idxs,
+                                                       obj_list, bound_names=bound_names)
+                           if raw_sens else None)
+            if (confirm_src and src is not None and src.allocations
+                    and not _dominates(obj_values, src.objective_values)):
+                # Confirmed, not sharpened: keep the certified source point; the duals of
+                # its scalarization's optimum still ride along.
+                selected, alloc_map = list(src.selected_options), dict(src.allocations)
+                obj_values = dict(src.objective_values)
             sig = _content_signature(selected, alloc_map)
             if sig in seen:
                 continue
             seen.add(sig)
-            W_pct = raw.astype(float).reshape(1, -1)
-            obj_values = {obj.name: round(float(prop._aggregate_objective(W_pct, j)[0]), 4)
-                          for j, obj in enumerate(obj_list)}
             if is_qp and any(obj_values.get(nm, 0.0) > v + 1e-9 for nm, v in quad_caps):
                 continue
-            sensitivity = (_build_solution_sensitivity(raw_sens, opt_names, raw, linear_idxs,
-                                                       obj_list, bound_names=bound_names)
-                           if raw_sens else None)
             solutions.append(Solution(solution_id=len(solutions), selected_options=selected,
                                       objective_values=obj_values, allocations=alloc_map, sensitivity=sensitivity))
 
