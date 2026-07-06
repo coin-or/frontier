@@ -1,7 +1,7 @@
 {
   "run": {
-    "run_id": "85cc763c-0e7b-4205-8e57-1928b82c6e7a",
-    "created_at": "2026-06-09T23:40:16.157089Z",
+    "run_id": "f8e06c7d-239c-4ee0-af04-4af0fb0ca9bc",
+    "created_at": "2026-07-06T03:36:27.977320Z",
     "mode": "fast",
     "solutions": [
       {
@@ -3112,6 +3112,7 @@
           "Medical Components",
           "Optics Housings"
         ],
+        "min": 0,
         "max": 2
       },
       {
@@ -3122,6 +3123,7 @@
           "Connectors",
           "Stamped Housings"
         ],
+        "min": 0,
         "max": 2
       },
       {
@@ -3131,6 +3133,7 @@
           "Valve Bodies",
           "Gear Sets"
         ],
+        "min": 0,
         "max": 2
       }
     ],
@@ -3141,8 +3144,8 @@
     "time_limited": false
   },
   "exact_run": {
-    "run_id": "91a5db9d-daad-49aa-8888-0f0265a3a006",
-    "created_at": "2026-07-04T17:04:20.214518Z",
+    "run_id": "07720cd8-3290-43fd-879d-b9baafd0eb98",
+    "created_at": "2026-07-06T03:36:28.776022Z",
     "mode": "fast",
     "solutions": [
       {
@@ -3182,12 +3185,12 @@
             {
               "name": "Throughput",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -3292,12 +3295,12 @@
             {
               "name": "Throughput",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -3402,12 +3405,12 @@
             {
               "name": "Throughput",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -3512,12 +3515,12 @@
             {
               "name": "Throughput",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -3628,7 +3631,7 @@
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -3739,7 +3742,7 @@
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -3844,12 +3847,12 @@
             {
               "name": "Throughput",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -3954,7 +3957,7 @@
             {
               "name": "Throughput",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             },
             {
               "name": "Sustainability",
@@ -4070,7 +4073,7 @@
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -4181,7 +4184,7 @@
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -4624,7 +4627,7 @@
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -4735,7 +4738,7 @@
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -4845,7 +4848,7 @@
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -4955,7 +4958,7 @@
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -5065,7 +5068,7 @@
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -5175,7 +5178,7 @@
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -5285,7 +5288,7 @@
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -5395,7 +5398,7 @@
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -5505,7 +5508,7 @@
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -5616,7 +5619,7 @@
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -5727,7 +5730,7 @@
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -5838,7 +5841,7 @@
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -5948,7 +5951,7 @@
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -6058,7 +6061,7 @@
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -6169,7 +6172,7 @@
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -6279,7 +6282,7 @@
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -6389,7 +6392,7 @@
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -6499,7 +6502,7 @@
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -6609,7 +6612,7 @@
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -6719,7 +6722,7 @@
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -6829,7 +6832,7 @@
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -6939,7 +6942,7 @@
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -7049,7 +7052,7 @@
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -7159,7 +7162,7 @@
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -7269,7 +7272,7 @@
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -7380,7 +7383,7 @@
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -7491,7 +7494,7 @@
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -7601,7 +7604,7 @@
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -7711,7 +7714,7 @@
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -7821,7 +7824,7 @@
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -7931,7 +7934,7 @@
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -8041,7 +8044,7 @@
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -8151,7 +8154,7 @@
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -8261,7 +8264,7 @@
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -8481,7 +8484,7 @@
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -8592,7 +8595,7 @@
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -8702,7 +8705,7 @@
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -8813,7 +8816,7 @@
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -8924,7 +8927,7 @@
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -9035,7 +9038,7 @@
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -9146,7 +9149,7 @@
             {
               "name": "Sustainability",
               "role": "linear_floor",
-              "shadow_price": -0.0
+              "shadow_price": 0.0
             }
           ],
           "reduced_costs": [
@@ -9266,8 +9269,8 @@
   "scenario_run": {
     "scenario_runs": {
       "input_cost_spike": {
-        "run_id": "68c0a500-5998-41ff-ab7d-a91247141bc7",
-        "created_at": "2026-07-04T16:53:40.254711Z",
+        "run_id": "90b58f34-df88-4f76-8a7e-0eac0534088a",
+        "created_at": "2026-07-06T03:36:28.310276Z",
         "mode": "fast",
         "solutions": [
           {
@@ -12318,7 +12321,43 @@
           "hypervolume_normalized": 0.4319,
           "spacing_cv": 0.6002
         },
-        "constraints_snapshot": [],
+        "constraints_snapshot": [
+          {
+            "type": "max_allocation",
+            "max": 30
+          },
+          {
+            "type": "group_limit",
+            "options": [
+              "Aerospace Fittings",
+              "Medical Components",
+              "Optics Housings"
+            ],
+            "min": 0,
+            "max": 2
+          },
+          {
+            "type": "group_limit",
+            "options": [
+              "Fasteners",
+              "Brackets",
+              "Connectors",
+              "Stamped Housings"
+            ],
+            "min": 0,
+            "max": 2
+          },
+          {
+            "type": "group_limit",
+            "options": [
+              "Pump Assemblies",
+              "Valve Bodies",
+              "Gear Sets"
+            ],
+            "min": 0,
+            "max": 2
+          }
+        ],
         "seed_used": 664221733,
         "solver": "nsga-ii",
         "exact": false,
@@ -12326,8 +12365,8 @@
         "time_limited": false
       },
       "capacity_crunch": {
-        "run_id": "0fe06483-4afa-4bf4-ae40-c1c0edff48f5",
-        "created_at": "2026-07-04T16:53:40.253147Z",
+        "run_id": "e09bd5b7-5c12-401c-819a-163fe737108f",
+        "created_at": "2026-07-06T03:36:28.312176Z",
         "mode": "fast",
         "solutions": [
           {
@@ -15505,7 +15544,43 @@
           "hypervolume_normalized": 0.4438,
           "spacing_cv": 0.6897
         },
-        "constraints_snapshot": [],
+        "constraints_snapshot": [
+          {
+            "type": "max_allocation",
+            "max": 25
+          },
+          {
+            "type": "group_limit",
+            "options": [
+              "Aerospace Fittings",
+              "Medical Components",
+              "Optics Housings"
+            ],
+            "min": 0,
+            "max": 2
+          },
+          {
+            "type": "group_limit",
+            "options": [
+              "Fasteners",
+              "Brackets",
+              "Connectors",
+              "Stamped Housings"
+            ],
+            "min": 0,
+            "max": 2
+          },
+          {
+            "type": "group_limit",
+            "options": [
+              "Pump Assemblies",
+              "Valve Bodies",
+              "Gear Sets"
+            ],
+            "min": 0,
+            "max": 2
+          }
+        ],
         "seed_used": 805743726,
         "solver": "nsga-ii",
         "exact": false,
@@ -15513,6 +15588,6 @@
         "time_limited": false
       }
     },
-    "created_at": "2026-07-04T16:53:40.255225Z"
+    "created_at": "2026-07-06T03:36:28.312495Z"
   }
 }

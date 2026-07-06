@@ -42,7 +42,7 @@
    Framing that input (`model create` + `model update`) lands on exactly this problem — the ask plus the data reconstruct `problem.json` and `scores.json` verbatim (guarded by `tests/test_upstream_kits.py`). `model load source="scarce_supply_rationing"` is the shortcut: it skips framing and restores the pre-solved runs too.
 
 2. *“How could we split this quarter's supply? Show me the real tradeoffs between revenue, the strategic accounts, and demand we can't count on — and what happens if the fab outage hits or spot prices spike.”*
-   `solve run` + `solve run_scenarios` → `explore tradeoffs` + `explore scenario_frontiers`: the rationing frontier plus both shocks — `fab_outage` restates the whole constraint set with *raised* floors (6/5/4/4/3 → 8/7/5/5/4: same commitments, less supply), and the distributor segment absorbs it (average share 13.9% → 13.2%).
+   `solve run` + `solve run_scenarios` → `explore tradeoffs` + `explore scenario_frontiers`: the rationing frontier plus both shocks — `fab_outage` restates the whole constraint set with *raised* floors (6/5/4/4/3 → 8/7/5/5/4: same commitments, less supply), and the distributor segment absorbs it (average share 14.6% → 13.6%).
 3. *“Keep the balanced split and the one that maximizes revenue. Are these optimal, or just plausible?”*
    `explore curate` per pick (floored accounts read as pinned at the revenue corner — that's the story, not a defect) → `solve solver="highs"` → `explore certify`: the exact multi-objective-LP overlay; every point honors the floors and the mandate — the max-revenue corner sits *at* the mandate (4.84 vs 4.8).
 4. *“At the revenue-max split, what is each of our commitments costing — the board's mandate and every contract floor? Which would I renegotiate first?”*

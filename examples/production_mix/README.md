@@ -39,7 +39,7 @@
 2. *“How should we load the plant across these ten products? Show me the margin/throughput/sustainability tradeoffs — and how they hold up under the stress scenarios.”*
    `solve run` + `solve run_scenarios` → `explore tradeoffs`: the frontier plus `input_cost_spike` and `capacity_crunch` scenarios — the knees where the exchange rate jumps, and how the achievable frontier *shrinks* under the crunch.
 3. *“Keep the balanced plan and the max-margin one. Are these actually optimal?”*
-   `explore curate` per pick → `solve solver="highs"` → `explore certify`: the exact LP overlay audits the heuristic frontier (all three per-line limits bind).
+   `explore curate` per pick → `solve solver="highs"` → `explore certify`: the exact LP overlay audits the heuristic frontier (two of the three per-line limits bind at the balanced plan).
 4. *“Where should we invest next — what's binding, and which product just missed the cut?”*
    `explore sensitivity`: the Throughput floor as the binding lever (~0.5 margin per unit, rising into diminishing returns), Gear Sets the closest near-miss, Aerospace / Optics / Fasteners pinned at the 30% cap, and the line-limited products filtered as structural exclusions. (Values as read at the balanced anchor of the shipped exact overlay — duals are anchor-specific, so expect them to shift at another frontier point or after a re-solve.)
 5. *“Write the loading plan up for the ops review.”*
