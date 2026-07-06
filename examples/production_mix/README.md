@@ -45,4 +45,4 @@
 5. *“Write the loading plan up for the ops review.”*
    `explore curated format="markdown"`: the handoff table.
 
-The interior, near-zero-reduced-cost SKU (here Pump Assemblies) is the swing that sets the marginal price; Frontier infers it from the duals today, and an exposed solver basis status would name it directly. The exact LP path runs on either backend (HiGHS on CPU, cuOpt on GPU), so the same shadow prices and reduced costs come back on GPU. For the two-objective LP see [`budget_allocation`](../budget_allocation/); for the mean-variance QP, [`investment_portfolio`](../investment_portfolio/).
+The interior, near-zero-reduced-cost SKU (here Pump Assemblies) is the swing that sets the marginal price; Frontier infers it from the duals today, and an exposed solver basis status would name it directly. The exact LP path runs on either backend (HiGHS on CPU, cuOpt on GPU), so the same shadow prices and reduced costs come back on GPU. For the sibling three-objective LP see [`budget_allocation`](../budget_allocation/); for the mean-variance QP, [`investment_portfolio`](../investment_portfolio/).
