@@ -1038,17 +1038,28 @@ def certify_against_exact(problem: Problem, nsga_run: Run, exact_run: Run) -> di
         parts.append("NSGA already matches the exact frontier here — exact confirms, adds no new points")
     under = [n for n, c in corners.items() if c["status"] == "under-sampled"]
     if under:
-        parts.append(f"under-samples {', '.join(under)} (EA budget, not a limit — raise the budget to close it)")
+        parts.append(f"under-samples {', '.join(under)} (this run's sweep sampling, not a "
+                     "capability limit — a re-run with a higher budget or a targeted exact "
+                     "solve closes it)")
     recommendation = "; ".join(parts) + "."
+
+    from solvers import run_is_certified   # local, matching _frontier_provenance's pattern
+
+    certified = run_is_certified(exact_run, problem.approach)
 
     # Hand the agent onward (the certificate is a step, not a terminus). Shape-branched: a
     # continuous/QP overlay also carries solver duals (`explore sensitivity`); a MILP overlay
     # is integer, so duals don't exist — point at the frontier-derived binding_analysis instead.
+    # Calibrated to the certificate: "optimal" without a hedge only when exact_certified —
+    # a default bounded MILP run carries 0.1%-gap incumbents, and the prose must say so.
     anchor = f"the sharpened {headline} corner" if headline else "the certified frontier"
+    optimality = ("every point is now optimal, not heuristic" if certified else
+                  "every point is now exact-solver optimal to a 0.1% gap, not heuristic "
+                  "(re-run with exact=true for zero-gap certificates)")
     if problem.approach.value == "binary":
         next_steps = (
-            f"Present {anchor} to the user as the decision anchor — every point is now optimal, "
-            "not heuristic. Integer/MILP solutions carry no exact duals; use `binding_analysis` "
+            f"Present {anchor} to the user as the decision anchor — {optimality}. "
+            "Integer/MILP solutions carry no exact duals; use `binding_analysis` "
             "from `explore tradeoffs` for shadow-price intuition. Read this certificate with the "
             "`solution_interpreter` skill ('Reading the Certificate')."
         )
@@ -1072,8 +1083,6 @@ def certify_against_exact(problem: Problem, nsga_run: Run, exact_run: Run) -> di
             flagged.append({"solution_id": s.solution_id, "status": q["status"],
                             "checks": [f["check"] for f in q["flags"]]})
 
-    from solvers import run_is_certified   # local, matching _frontier_provenance's pattern
-
     bound_dips = _objective_bound_dips(problem, exact_run)
 
     return {
@@ -1086,7 +1095,7 @@ def certify_against_exact(problem: Problem, nsga_run: Run, exact_run: Run) -> di
         "nsga_run_id": nsga_run.run_id,
         "exact_run_id": exact_run.run_id,
         "exact_solver": exact_run.solver,
-        "exact_certified": run_is_certified(exact_run, problem.approach),
+        "exact_certified": certified,
         **({"rounding_bound_dips": {
             "dips": bound_dips,
             "note": ("whole-percent rounding of the continuous optimum — the LP/QP "
@@ -1113,7 +1122,7 @@ def certify_against_exact(problem: Problem, nsga_run: Run, exact_run: Run) -> di
                        "heuristic beating a certified optimum; re-run with exact=True to certify"
                        if problem.approach == Approach.binary and not exact_run.exact else
                        "a few exact points edged out by NSGA — the integer rounding of the "
-                       "continuous QP optimum to whole-percent allocations, not a heuristic "
+                       "continuous LP/QP optimum to whole-percent allocations, not a heuristic "
                        "beating the exact solve (certified MILP corners, integer by "
                        "construction, never show this)"))
                      if exact_dominated else "NSGA dominates no exact point — exact can only confirm or improve"),
@@ -2858,9 +2867,14 @@ def sensitivity_analysis(problem: Problem, solution_id: int | None = None,
                   "the other objectives enter as floors.")
     # The sensitivity→scenario handoff: duals RANK the levers (instantaneous rates at this
     # optimum); the suggested scenarios QUANTIFY the top ones with a finite-change re-solve.
+    # Only PRICED levers earn a suggestion — at a corner/degenerate anchor every epsilon
+    # floor can carry a 0.0 dual, and a scenario "motivated by" a zero rate with
+    # highest-|rate| framing is self-contradicting; the capped/floored reduced-cost levers
+    # below then carry the handoff instead.
     suggested = []
     for w in where:
-        if w["role"] in ("return_floor", "linear_floor") and len(suggested) < 2:
+        if (w["role"] in ("return_floor", "linear_floor") and len(suggested) < 2
+                and abs(w["shadow_price"]) > 1e-9):
             suggested.append({
                 "motivated_by": f"shadow_price:{w['lever']}",
                 "rate": w["shadow_price"],
@@ -2879,6 +2893,20 @@ def sensitivity_analysis(problem: Problem, solution_id: int | None = None,
             "vary": "the max_allocation cap only (constraint_overrides in a scenario)",
             "why": (f"pinned at the cap: {capped_names} — the cap binds, and a finite raise "
                     "re-solve shows who takes more and what it buys"),
+            "how": ("model update → scenarios (copy this `motivated_by` onto the scenario) → "
+                    "solve run_scenarios → explore scenario_results"),
+        })
+    if floored and len(suggested) < 2:
+        dearest = floored[0]
+        price = abs(dearest["reduced_cost"])
+        suggested.append({
+            "motivated_by": f"reduced_cost:allocation_floor:{dearest['option']}",
+            "rate": dearest["reduced_cost"],
+            "vary": (f"'{dearest['option']}'s contractual floor only "
+                     "(constraint_overrides in a scenario)"),
+            "why": (f"'{dearest['option']}' is the dearest floor-pinned commitment at this "
+                    f"optimum (~{price:.4g} per allocation point); a finite floor-change "
+                    "re-solve shows what renegotiating the commitment actually buys"),
             "how": ("model update → scenarios (copy this `motivated_by` onto the scenario) → "
                     "solve run_scenarios → explore scenario_results"),
         })
@@ -2937,8 +2965,11 @@ def _shadow_interpretation(sp, objective: str | None) -> str:
         return (f"price of the total-budget row on {target} "
                 "(allocations are normalized to 100%; cost sense — positive means tighter hurts)")
     if sp.role in ("return_floor", "linear_floor"):
+        # Fold the sign into the verb — "worsens by ~-1.3" reads backwards next to the
+        # cost-sense convention, so a (rare) negative price renders as an improvement.
+        verb = "worsens" if sp.shadow_price >= 0 else "improves"
         return (f"marginal cost of '{sp.name}': raising the {sp.name} requirement by one unit "
-                f"worsens {target} by ~{sp.shadow_price:.4g} (in {target}'s own units)")
+                f"{verb} {target} by ~{abs(sp.shadow_price):.4g} (in {target}'s own units)")
     return (f"price of this constraint on {target} per unit it is tightened "
             "(cost sense — positive means tighter hurts)")
 

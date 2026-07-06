@@ -79,11 +79,13 @@ def exact_solver_fits(problem: "Problem") -> tuple[bool, str]:
         if nonsum:
             aggs = ", ".join(sorted({o.aggregation.value for o in nonsum}))
             names = ", ".join(o.name for o in nonsum)
+            verb = "use" if len(nonsum) > 1 else "uses"
             return False, (
-                f"the exact MILP optimizes additive (sum) objectives; on a binary selection "
-                f"{names} use {aggs} aggregation (avg is fractional, min/max/quadratic nonlinear), "
-                "out of exact scope. Redefine these as sum to certify, or keep the aggregation and "
-                "explore with the NSGA heuristic."
+                f"the exact MILP optimizes additive (sum) objectives, and on this binary "
+                f"selection {names} {verb} {aggs} aggregation — avg is fractional over a "
+                "variable-size pick and min/max/quadratic are nonlinear, so those shapes sit "
+                "outside the exact scope. Redefine these as sum to certify, or keep the "
+                "aggregation and explore with the NSGA heuristic."
             )
         return True, ""
     if problem.approach != Approach.proportional:

@@ -4,11 +4,13 @@ motivated_by provenance echo). Response-contract work over existing tools — no
 """
 from engine.explorer import get_scenario_results, sensitivity_analysis
 from engine.models import (
+    AllocationBoundConstraint,
     CardinalityConstraint,
     Objective,
     ObjectiveBoundConstraint,
     Option,
     Problem,
+    ReducedCost,
     Run,
     Scenario,
     ScenarioConfig,
@@ -83,6 +85,36 @@ def test_no_binding_levers_no_suggestions():
     p.run = _run([(5, 2), (7, 4), (9, 6)])
     out = sensitivity_analysis(p)
     assert "suggested_scenarios" not in out
+
+
+def test_zero_rate_duals_yield_no_shadow_suggestion():
+    # At a corner/degenerate anchor every epsilon floor can price at 0.0 — a scenario
+    # "motivated by" a zero rate with highest-|rate| framing is self-contradicting, so
+    # no shadow-price suggestion is emitted (and with no priced fallback, no key at all).
+    sens = [SolutionSensitivity(shadow_prices=[
+        ShadowPrice(name="Value", role="linear_floor", shadow_price=0.0)]) for _ in range(3)]
+    p = _problem(approach="proportional")
+    p.run = _run([(1, 1), (2, 3), (3, 6)], sensitivities=sens)
+    out = sensitivity_analysis(p)
+    assert out["source"] == "solver_exact"
+    assert "suggested_scenarios" not in out
+
+
+def test_floor_pinned_commitment_carries_the_handoff_when_duals_flat():
+    # Flat epsilon duals but a priced contractual floor: the handoff falls through to the
+    # actually-priced lever — the dearest floor-pinned commitment seeds the suggestion.
+    sens = [SolutionSensitivity(
+        shadow_prices=[ShadowPrice(name="Value", role="linear_floor", shadow_price=0.0)],
+        reduced_costs=[ReducedCost(option="A", allocation=5, reduced_cost=0.9, eligible=True)],
+    ) for _ in range(3)]
+    p = _problem(approach="proportional",
+                 constraints=[AllocationBoundConstraint(option="A", min=5, max=100)])
+    p.run = _run([(1, 1), (2, 3), (3, 6)], sensitivities=sens)
+    out = sensitivity_analysis(p)
+    s = out["suggested_scenarios"][0]
+    assert s["motivated_by"] == "reduced_cost:allocation_floor:A"
+    assert s["rate"] == 0.9
+    assert "renegotiating" in s["why"]
 
 
 def test_scenario_results_declines_clearly_on_unscored_option():

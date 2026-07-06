@@ -21,6 +21,7 @@ from .models import (
     Objective,
     ObjectiveBoundConstraint,
     Problem,
+    Run,
     Solution,
 )
 
@@ -115,9 +116,13 @@ def data_metrics(problem: Problem) -> dict:
     return result
 
 
-def solve_metrics(problem: Problem) -> dict:
-    """Metrics about optimization results."""
-    if problem.run is None:
+def solve_metrics(problem: Problem, run: "Run | None" = None) -> dict:
+    """Metrics about optimization results. ``run`` selects which frontier to describe
+    (an exact overlay, a scenario run); default is the exploratory ``problem.run`` —
+    callers returning a specific run must pass it, or the block silently describes a
+    different frontier than the response it rides in."""
+    run = run if run is not None else problem.run
+    if run is None:
         return {
             "solve_success": False,
             "solution_count": 0,
@@ -127,7 +132,6 @@ def solve_metrics(problem: Problem) -> dict:
             "option_coverage": {},
         }
 
-    run = problem.run
     solutions = run.solutions
 
     # Objective variation across solutions
@@ -283,22 +287,24 @@ def outcome_metrics(problem: Problem) -> dict:
 # --- Diagnostics ---
 
 
-def diagnostics(problem: Problem) -> list[dict]:
+def diagnostics(problem: Problem, run: "Run | None" = None) -> list[dict]:
     """Detect structural patterns that suggest issues or opportunities.
 
     Returns a list of diagnostic dicts with 'pattern', 'message', and 'severity'.
+    ``run`` selects the frontier to diagnose (same contract as ``solve_metrics``).
     """
     results: list[dict] = []
+    run = run if run is not None else problem.run
 
-    if problem.run is None or not problem.run.solutions:
-        if problem.run is not None:
+    if run is None or not run.solutions:
+        if run is not None:
             results.append({
                 "pattern": "zero_solutions",
                 "severity": "error",
             })
         return results
 
-    solutions = problem.run.solutions
+    solutions = run.solutions
 
     # Pre-compute per-objective stats (single pass, shared by clustering + dominance checks)
     obj_stats = _compute_obj_stats(problem, solutions)
