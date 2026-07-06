@@ -678,8 +678,10 @@ class TestLpDualDirection:
 class TestEpsPrescreen:
     """The epsilon pre-screen (`_feasible_eps`): provably unattainable targets are rejected
     with no solver call, and targets in the razor band just inside a support's attainable
-    extreme snap TO the extreme — the geometry where the Linux HiGHS active-set QP cycles
-    without terminating (the CI hang this guards against)."""
+    extreme are BACKED OFF to the band edge — the band is the geometry where the Linux
+    HiGHS active-set QP cycles without terminating (the CI hang this guards against), and
+    backing off (loosening) can only enlarge the feasible region, so joint feasibility
+    with the other targets is preserved."""
 
     def test_unattainable_target_rejected_without_solver(self):
         from solvers._scalarization import _feasible_eps
@@ -691,19 +693,33 @@ class TestEpsPrescreen:
         # A support whose caps can't cover the budget is infeasible outright.
         assert _feasible_eps([1.0], [coef], [True], 0.15, None, [0, 1]) is None
 
-    def test_razor_band_target_snaps_to_the_extreme(self):
+    def test_razor_band_target_backs_off_to_the_band_edge(self):
         from solvers._scalarization import _feasible_eps
         coef = np.array([3.0, 5.0, 7.0, 4.0, 6.0, 3.0])
         # The observed Linux cycle: floor 6.9992 on a support with tied coefficients
-        # ([3, 7, 3]) — inside the snap band, so it must leave as exactly 7.0.
+        # ([3, 7, 3]) — inside the band, so it backs off to 7.0 − 1e-3·7 = 6.993.
         out = _feasible_eps([6.9992], [coef], [True], None, None, [0, 2, 5])
-        assert out == [pytest.approx(7.0)]
-        # An interior target passes through unchanged; a target AT the extreme stays.
+        assert out == [pytest.approx(6.993)]
+        # An interior target passes through unchanged; a target exactly AT the extreme
+        # stays — the corner remains fully sampled (anchors pin there).
         assert _feasible_eps([5.5], [coef], [True], None, None, [0, 2, 5]) == [pytest.approx(5.5)]
         assert _feasible_eps([7.0], [coef], [True], None, None, [0, 2, 5]) == [pytest.approx(7.0)]
-        # Minimize direction snaps toward the attainable min the same way.
+        # Minimize direction backs off away from the attainable min the same way.
         out = _feasible_eps([3.0004], [coef], [False], None, None, [0, 2, 5])
-        assert out == [pytest.approx(3.0)]
+        assert out == [pytest.approx(3.003)]
+
+    def test_backoff_preserves_joint_feasibility(self):
+        """Snapping UP would break this: A=0.9995 (in band of extreme 1.0) snapped to 1.0
+        plus B's floor 0.0004 makes Σw=1 infeasible; backing A off keeps both floors
+        jointly satisfiable, so the previously-feasible scalarization survives."""
+        from solvers._scalarization import _feasible_eps
+        a, b = np.array([1.0, 0.0]), np.array([0.0, 1.0])
+        out = _feasible_eps([0.9995, 0.0004], [a, b], [True, True], None, None, None)
+        assert out is not None
+        eps_a, eps_b = out
+        assert eps_a == pytest.approx(0.999)     # backed off, not snapped to 1.0
+        assert eps_b == pytest.approx(0.0004)
+        assert eps_a + eps_b <= 1.0              # jointly satisfiable on the simplex
 
     def test_multi_minimize_sweep_stays_jointly_feasible(self):
         """Several epsilon-constrained linear objectives at once (the supplier_selection

@@ -447,24 +447,28 @@ def _milp_anchor_sels(S, dirs, mc, n, inner_milp, exact, first_stage=None) -> li
 # --------------------------------------------------------------------------- #
 # QP genome (proportional mean-variance)
 # --------------------------------------------------------------------------- #
-# The EA's epsilon targets are sweep parameters, not user data — so a target landing in the
-# razor-thin band just inside a support's attainable extreme can be snapped TO that extreme:
-# the solved point is still exactly optimal for its (snapped) scalarization. That band is
-# precisely where an active-set QP cycles on degenerate ties (a non-terminating solve on the
-# Linux HiGHS wheel when tied coefficients share the support), so snapping deletes the
-# pathological geometry rather than merely bounding its cost. Relative to the extreme's scale.
-_EPS_SNAP_REL = 1e-3
+# A target in the razor-thin OPEN band just inside a support's attainable extreme is the
+# geometry where an active-set QP cycles on degenerate ties (a non-terminating solve on
+# the Linux HiGHS wheel when tied coefficients share the support). Epsilon targets are
+# sweep parameters — the engine may nudge them — so ``_feasible_eps`` BACKS such a target
+# OFF to the band edge. Backing off (loosening the floor / raising the ceiling) can only
+# ENLARGE the scalarization's feasible region, so no feasible scalarization is ever lost —
+# unlike snapping UP to the extreme, which can make the JOINT scalarization infeasible
+# (one target pinned at its corner starves the others' floors). The extreme itself stays
+# fully sampled: a target exactly AT the extreme (every anchor row, every boundary sample)
+# passes through untouched — only the open band moves. Relative to the extreme's scale.
+_EPS_BACKOFF_REL = 1e-3
 
 
 def _feasible_eps(eps_values, coefs, maxs, max_weight, min_weight, support):
     """Screen + clamp one scalarization's epsilon targets before any solver model is built.
-    Returns the (possibly snapped) target list, or ``None`` when the scalarization is
+    Returns the (possibly backed-off) target list, or ``None`` when the scalarization is
     provably infeasible: the support's caps can't cover the budget (Σub ≥ 1 ≥ Σlb over the
     weight box), or a target lies beyond its box-feasible extreme (``_box_extreme`` on the
     masked box — closed form, exact for budget+box). Only *proofs* of infeasibility
-    short-circuit; anything the screen can't disprove (joint epsilon rows, model bounds)
-    still goes to the solver, so no feasible scalarization is ever lost. A target inside
-    the ``_EPS_SNAP_REL`` band of its extreme snaps to the extreme (see the note above).
+    short-circuit, and the back-off only loosens (see the note above), so no feasible
+    scalarization is ever lost; anything the screen can't disprove (joint epsilon rows,
+    model bounds) still goes to the solver.
     This matters beyond saved work: the epsilon sweep and the capped support search
     generate unattainable and razor-band targets by the hundreds, and the QP active-set
     solver is the one inner solve whose handling of both is build-dependent (the Linux
@@ -484,15 +488,20 @@ def _feasible_eps(eps_values, coefs, maxs, max_weight, min_weight, support):
     for eps, coef, mx in zip(eps_values, coefs, maxs):
         extreme = _box_extreme(coef, mx, ub_vec, lb_vec)
         scale = max(1.0, abs(extreme))
+        # Band scales with the extreme's own magnitude (no absolute floor): on a sub-unit
+        # objective a 1e-3 absolute band would swallow a visible slice of the sweep.
+        band = _EPS_BACKOFF_REL * abs(extreme)
         target = float(eps)
         if mx:      # floor climbing toward the attainable max
             if target > extreme + 1e-9 * scale:
                 return None
-            out.append(extreme if target > extreme - _EPS_SNAP_REL * scale else target)
+            in_band = extreme - band < target < extreme
+            out.append(extreme - band if in_band else min(target, extreme))
         else:       # ceiling descending toward the attainable min
             if target < extreme - 1e-9 * scale:
                 return None
-            out.append(extreme if target < extreme + _EPS_SNAP_REL * scale else target)
+            in_band = extreme < target < extreme + band
+            out.append(extreme + band if in_band else max(target, extreme))
     return out
 
 
@@ -809,8 +818,16 @@ def optimize_qp(problem, mode, *, inner_qp, inner_qp_sensitivity=None, pop, gen,
     if len(linear_coefs) == 1:
         w_mv, ok_mv = inner_qp(cov, linear_coefs[0], None, linear_maximize[0], max_weight,
                                None, list(model_rows), min_weight=min_weight)
+    # A model objective_bound on a swept objective already caps its loose side — clamp the
+    # sweep to it so the epsilon box stays inside the model-feasible region (the region
+    # beyond the bound would only produce dead inner solves, pop x gen of them).
+    model_bounds: dict[str, list] = {}
+    for c in (problem.constraints or []):
+        if getattr(c, "type", "") == "objective_bound":
+            model_bounds.setdefault(c.objective, []).append(
+                (getattr(c.operator, "value", c.operator), float(c.value)))
     eps_bounds: list[tuple[float, float]] = []
-    for coef, maximize in zip(linear_coefs, linear_maximize):
+    for k, (coef, maximize) in enumerate(zip(linear_coefs, linear_maximize)):
         if len(linear_coefs) == 1:
             # Fall back to the whole-simplex bound every feasible portfolio clears when
             # the mv probe fails, so the sweep still spans the range.
@@ -818,6 +835,11 @@ def optimize_qp(problem, mode, *, inner_qp, inner_qp_sensitivity=None, pop, gen,
             loose = float(coef @ w_mv) if ok_mv else loose_fallback
         else:
             loose = _box_extreme(coef, not maximize, max_weight, min_weight)
+        for op, v in model_bounds.get(obj_list[linear_idxs[k]].name, []):
+            if maximize and op == "min":
+                loose = max(loose, v)
+            elif not maximize and op == "max":
+                loose = min(loose, v)
         tight = _box_extreme(coef, maximize, max_weight, min_weight)
         lo, hi = (loose, tight) if maximize else (tight, loose)
         if hi <= lo:
