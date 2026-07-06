@@ -44,4 +44,4 @@
 5. *“Write the shortlist up for the investment committee.”*
    `explore curated format="markdown"`: the handoff table with per-finalist quality.
 
-**Scope.** Exact duals cover the continuous mean-variance (QP) shape; integer/MILP selection problems carry none, falling back to the frontier-inferred estimate (`source=frontier_inferred`). For the linear LP counterparts, see [`budget_allocation`](../budget_allocation/) and [`production_mix`](../production_mix/).
+**Scope.** Exact duals cover the continuous mean-variance (QP) shape; integer/MILP selection problems carry none, falling back to the frontier-inferred estimate (`source=frontier_inferred`). For the linear LP counterparts, see [`budget_allocation`](../budget_allocation/) and [`production_mix`](../production_mix/); for a quadratic shape the exact path *declines* (the approx-first showcase), [`channel_budget`](../channel_budget/).

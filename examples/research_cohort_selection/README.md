@@ -37,7 +37,7 @@
 2. *“Help me pick the strongest 24-person cohort from these 144 volunteers — signal against dropout risk against cost.”*
    `solve run` → `explore tradeoffs`: the frontier of exact-24 cohorts — it reaches ~99% of the best floor-feasible top-by-signal ranking's signal at lower risk *and* cost, because the floors leave real choice inside each stratum.
 3. *“Keep the balanced cohort and the max-signal one. Are these actually optimal?”*
-   `explore curate` per pick → `solve solver="highs"` → `explore certify`: the exact MILP overlay; the binding read reports the site caps and stratum floors (the floor read prices one extra member above the floor).
+   `explore curate` per pick → `solve solver="highs" exact=true` → `explore certify`: the exact MILP overlay; the binding read reports the site caps and stratum floors (the floor read prices one extra member above the floor).
 4. *“Tell me something the protocol doesn't say: how many rare-variant (F) volunteers can any legal cohort carry — does "at most 6" hold across every one, and does "at most 5"?”*
    `explore audit`: "at most 6 from F" `holds` across every feasible cohort — nobody wrote 6 anywhere; the floors on A–E (4+4+4+3+3) against K=24 *imply* it. "At most 5" flips to `violated`, with a witness cohort carrying exactly 6.
 5. *“Write the shortlist up for the steering committee.”*
