@@ -153,8 +153,9 @@ class TestSolveMetrics:
         m = solve_metrics(solved_problem, run=overlay)
         assert m["solution_count"] == 1
         assert m["option_coverage"]["A"] == 1
-        assert m["solution_count"] != solve_metrics(solved_problem)["solution_count"] or \
-            len(solved_problem.run.solutions) == 1
+        # The default path still describes problem.run — the two calls agree only
+        # through their run argument, never implicitly.
+        assert solve_metrics(solved_problem)["solution_count"] == len(solved_problem.run.solutions)
         d = diagnostics(solved_problem, run=Run(solutions=[]))
         assert any(x["pattern"] == "zero_solutions" for x in d)
 

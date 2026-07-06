@@ -116,7 +116,7 @@ def data_metrics(problem: Problem) -> dict:
     return result
 
 
-def solve_metrics(problem: Problem, run: "Run | None" = None) -> dict:
+def solve_metrics(problem: Problem, run: Run | None = None) -> dict:
     """Metrics about optimization results. ``run`` selects which frontier to describe
     (an exact overlay, a scenario run); default is the exploratory ``problem.run`` —
     callers returning a specific run must pass it, or the block silently describes a
@@ -287,7 +287,7 @@ def outcome_metrics(problem: Problem) -> dict:
 # --- Diagnostics ---
 
 
-def diagnostics(problem: Problem, run: "Run | None" = None) -> list[dict]:
+def diagnostics(problem: Problem, run: Run | None = None) -> list[dict]:
     """Detect structural patterns that suggest issues or opportunities.
 
     Returns a list of diagnostic dicts with 'pattern', 'message', and 'severity'.

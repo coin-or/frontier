@@ -1050,13 +1050,16 @@ def certify_against_exact(problem: Problem, nsga_run: Run, exact_run: Run) -> di
     # Hand the agent onward (the certificate is a step, not a terminus). Shape-branched: a
     # continuous/QP overlay also carries solver duals (`explore sensitivity`); a MILP overlay
     # is integer, so duals don't exist — point at the frontier-derived binding_analysis instead.
-    # Calibrated to the certificate: "optimal" without a hedge only when exact_certified —
-    # a default bounded MILP run carries 0.1%-gap incumbents, and the prose must say so.
     anchor = f"the sharpened {headline} corner" if headline else "the certified frontier"
-    optimality = ("every point is now optimal, not heuristic" if certified else
-                  "every point is now exact-solver optimal to a 0.1% gap, not heuristic "
-                  "(re-run with exact=true for zero-gap certificates)")
     if problem.approach.value == "binary":
+        # Calibrated to the certificate: "optimal" without a hedge only when exact_certified.
+        # A default bounded run proves each point to a 0.1% gap UNLESS the inner solve's
+        # safety deadline (not the gap criterion) stopped it — the run doesn't record which
+        # fired, so the bounded prose must hedge for both.
+        optimality = ("every point is now optimal, not heuristic" if certified else
+                      "every point is now exact-solver optimal to a 0.1% gap, not heuristic "
+                      "(a point whose inner solve hit its safety deadline can carry a looser "
+                      "incumbent; re-run with exact=true for zero-gap certificates)")
         next_steps = (
             f"Present {anchor} to the user as the decision anchor — {optimality}. "
             "Integer/MILP solutions carry no exact duals; use `binding_analysis` "
@@ -2782,6 +2785,16 @@ def _binding_group_limit(c, solutions, objectives) -> list[dict] | None:
     return [e for e in entries if e is not None] or None
 
 
+# One tolerance for "is this dual / reduced cost priced" across the sensitivity surface —
+# the solver layer rounds both to 6 decimals, so anything nonzero after rounding clears it.
+_DUAL_EPS = 1e-9
+
+# The one handoff instruction every scenario seed carries — a single copy so the four
+# seed variants (binding, shadow-price, cap, floor) can't drift apart.
+_SCENARIO_HOW = ("model update → scenarios (copy this `motivated_by` onto the scenario so "
+                 "scenario_results cites it) → solve run_scenarios → explore scenario_results")
+
+
 def _suggested_scenarios_from_binding(binding: list[dict]) -> list[dict]:
     """Scenario seeds from the frontier-inferred binding analysis — the same duals-rank /
     scenarios-quantify handoff on runs without solver duals. Deterministic seeds only: the
@@ -2794,8 +2807,7 @@ def _suggested_scenarios_from_binding(binding: list[dict]) -> list[dict]:
                      "the WHOLE base constraint set, so restate the unchanged constraints in it"),
             "why": (f"binding on {b['binding_fraction']:.0%} of the frontier — the tightest lever; "
                     "a scenario re-solve quantifies a finite relaxation, not just the local rate"),
-            "how": ("model update → scenarios (copy this `motivated_by` onto the scenario so "
-                    "scenario_results cites it) → solve run_scenarios → explore scenario_results"),
+            "how": _SCENARIO_HOW,
         })
     return suggested
 
@@ -2874,7 +2886,7 @@ def sensitivity_analysis(problem: Problem, solution_id: int | None = None,
     suggested = []
     for w in where:
         if (w["role"] in ("return_floor", "linear_floor") and len(suggested) < 2
-                and abs(w["shadow_price"]) > 1e-9):
+                and abs(w["shadow_price"]) > _DUAL_EPS):
             suggested.append({
                 "motivated_by": f"shadow_price:{w['lever']}",
                 "rate": w["shadow_price"],
@@ -2883,8 +2895,7 @@ def sensitivity_analysis(problem: Problem, solution_id: int | None = None,
                 "why": (f"'{w['lever']}' is the highest-|rate| lever at this optimum, so the mix is "
                         "most sensitive to its estimates; the dual is a marginal rate, and only a "
                         "scenario re-solve gives the realized effect of a finite change"),
-                "how": ("model update → scenarios (copy this `motivated_by` onto the scenario so "
-                        "scenario_results cites it) → solve run_scenarios → explore scenario_results"),
+                "how": _SCENARIO_HOW,
             })
     if capped and len(suggested) < 2:
         capped_names = ", ".join(c["option"] for c in capped[:3])
@@ -2893,22 +2904,19 @@ def sensitivity_analysis(problem: Problem, solution_id: int | None = None,
             "vary": "the max_allocation cap only (constraint_overrides in a scenario)",
             "why": (f"pinned at the cap: {capped_names} — the cap binds, and a finite raise "
                     "re-solve shows who takes more and what it buys"),
-            "how": ("model update → scenarios (copy this `motivated_by` onto the scenario) → "
-                    "solve run_scenarios → explore scenario_results"),
+            "how": _SCENARIO_HOW,
         })
     if floored and len(suggested) < 2:
-        dearest = floored[0]
-        price = abs(dearest["reduced_cost"])
+        dearest = floored[0]   # sorted dearest-first; reduced_cost > _DUAL_EPS by construction
         suggested.append({
             "motivated_by": f"reduced_cost:allocation_floor:{dearest['option']}",
             "rate": dearest["reduced_cost"],
             "vary": (f"'{dearest['option']}'s contractual floor only "
                      "(constraint_overrides in a scenario)"),
             "why": (f"'{dearest['option']}' is the dearest floor-pinned commitment at this "
-                    f"optimum (~{price:.4g} per allocation point); a finite floor-change "
-                    "re-solve shows what renegotiating the commitment actually buys"),
-            "how": ("model update → scenarios (copy this `motivated_by` onto the scenario) → "
-                    "solve run_scenarios → explore scenario_results"),
+                    f"optimum (~{dearest['reduced_cost']:.4g} per allocation point); a finite "
+                    "floor-change re-solve shows what renegotiating the commitment actually buys"),
+            "how": _SCENARIO_HOW,
         })
 
     trend, trend_elided = _shadow_price_trend(exact)
@@ -2996,7 +3004,7 @@ def _format_solution_sensitivity(s, objective: str | None = None, floors: dict |
         "interpretation": (f"unheld — would enter the optimal mix if its marginal contribution "
                            f"to {target} improved by ~{abs(rc.reduced_cost):.4g}"),
     } for rc in sorted((r for r in sens.reduced_costs
-                        if r.eligible and r.allocation == 0 and abs(r.reduced_cost) > 1e-9),
+                        if r.eligible and r.allocation == 0 and abs(r.reduced_cost) > _DUAL_EPS),
                        key=lambda x: abs(x.reduced_cost))]
 
     capped = [{
@@ -3005,7 +3013,7 @@ def _format_solution_sensitivity(s, objective: str | None = None, floors: dict |
         "reduced_cost": rc.reduced_cost,
         "interpretation": "at its allocation cap — the cap binds; it would take more if allowed",
     } for rc in sorted((r for r in sens.reduced_costs
-                        if r.allocation > 0 and r.reduced_cost < -1e-9),
+                        if r.allocation > 0 and r.reduced_cost < -_DUAL_EPS),
                        key=lambda x: x.reduced_cost)]
 
     floored = [{
@@ -3020,7 +3028,7 @@ def _format_solution_sensitivity(s, objective: str | None = None, floors: dict |
                         # +1 tolerance: integer rounding can park a floor-pinned option one
                         # percent above its floor without changing what binds.
                         if r.option in floors and r.allocation <= floors[r.option] + 1
-                        and r.reduced_cost > 1e-9),
+                        and r.reduced_cost > _DUAL_EPS),
                        key=lambda x: -x.reduced_cost)]
     return where, near, capped, floored
 
