@@ -143,6 +143,22 @@ class TestSolveMetrics:
         assert "Revenue" in m["objective_variation"]
         assert isinstance(m["option_coverage"], dict)
 
+    def test_run_param_describes_that_run_not_problem_run(self, solved_problem):
+        """An exact overlay's response metrics must describe the run being returned —
+        passing `run=` overrides the default problem.run (the NSGA-echo regression)."""
+        overlay = Run(solutions=[Solution(
+            solution_id=0, selected_options=["A"],
+            objective_values={"Revenue": 8.0, "Effort": 2.0},
+        )], quality=QualityIndicators(hypervolume_normalized=0.5, spacing_cv=0.1))
+        m = solve_metrics(solved_problem, run=overlay)
+        assert m["solution_count"] == 1
+        assert m["option_coverage"]["A"] == 1
+        # The default path still describes problem.run — the two calls agree only
+        # through their run argument, never implicitly.
+        assert solve_metrics(solved_problem)["solution_count"] == len(solved_problem.run.solutions)
+        d = diagnostics(solved_problem, run=Run(solutions=[]))
+        assert any(x["pattern"] == "zero_solutions" for x in d)
+
 
 class TestOutcomeMetrics:
     def test_no_feedback(self, solved_problem):

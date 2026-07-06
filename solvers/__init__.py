@@ -64,6 +64,8 @@ def exact_solver_fits(problem: "Problem") -> tuple[bool, str]:
 
     Anything else stays with the default NSGA engine. The ``reason`` explains a
     rejection so the tool can tell the agent *why* an exact run was declined.
+    Composition contract: reasons are complete sentences (most carry a trailing
+    period) — a caller embedding one mid-message strips the trailing period.
     """
     from engine import optimizer as _opt
     from engine.models import Aggregation, Approach, Direction
@@ -77,13 +79,20 @@ def exact_solver_fits(problem: "Problem") -> tuple[bool, str]:
         # with a redefine hint instead.
         nonsum = [o for o in problem.objectives if o.aggregation != Aggregation.sum]
         if nonsum:
-            aggs = ", ".join(sorted({o.aggregation.value for o in nonsum}))
+            present = sorted({o.aggregation.value for o in nonsum})
+            # Explain only the aggregations actually present — a decline that lectures
+            # about shapes the model doesn't use reads as a wrong diagnosis.
+            because = {"avg": "avg is fractional over a variable-size pick",
+                       "min": "min is nonlinear", "max": "max is nonlinear",
+                       "quadratic": "quadratic is nonlinear"}
             names = ", ".join(o.name for o in nonsum)
+            verb = "use" if len(nonsum) > 1 else "uses"
             return False, (
-                f"the exact MILP optimizes additive (sum) objectives; on a binary selection "
-                f"{names} use {aggs} aggregation (avg is fractional, min/max/quadratic nonlinear), "
-                "out of exact scope. Redefine these as sum to certify, or keep the aggregation and "
-                "explore with the NSGA heuristic."
+                f"the exact MILP optimizes additive (sum) objectives, and on this binary "
+                f"selection {names} {verb} {', '.join(present)} aggregation — "
+                f"{'; '.join(because[a] for a in present)} — outside the exact scope. "
+                "Redefine these as sum to certify, or keep the aggregation and explore "
+                "with the NSGA heuristic."
             )
         return True, ""
     if problem.approach != Approach.proportional:
