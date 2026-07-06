@@ -40,9 +40,9 @@
 2. *“Which requests should we approve this cycle at the $400M envelope? Show me the real value/capex/reliability choices.”*
    `solve run` → `explore tradeoffs`: the base approval frontier over 2^58 portfolios.
 3. *“Run all four budget levels: which approvals survive every envelope, and what does each step up to $560M actually buy?”*
-   `solve run_scenarios` → `explore scenario_frontiers` + `explore scenario_results`: max net value climbs $941M → $1,020M → $1,167M → $1,370M; R33 and R41 sit in the value-oriented plans at *every* envelope, and the stretch envelope admits a nameable block — U4 with R04, R08, and R12, a shared enabler arriving *with* the requests that pay for it.
+   `solve run_scenarios` → `explore scenario_frontiers` + `explore scenario_results`: the shipped scenario_run reads max net value climbing $941M → $1,020M → $1,167M → $1,370M, R41 in the value-oriented plans at *every* envelope, and the stretch envelope admitting a nameable block — U4 with R04, R08, and R12, a shared enabler arriving *with* the requests that pay for it. (A fresh re-solve resamples 2^58 portfolios per envelope, so per-envelope ceilings and block membership wobble run to run — the survivor and robustness tiers are the stable read.)
 4. *“Keep the base pick and the stretch portfolio. How sure can we be — and which upgrades earn their cost only through what they unlock?”*
-   `explore curate` per pick → `solve solver="highs"` → `explore certify` (the overlay never buys the two speculative upgrades — the cheapest sanity check in the bundle) → `explore composition`: U2 unlocks five requests and appears wherever two or more of them do; the staged U11→U12 chain means stage two never appears without stage one.
+   `explore curate` per pick → `solve solver="highs" exact=true` → `explore certify` (a zero-gap certified overlay that never buys the two speculative upgrades — the cheapest sanity check in the bundle) → `explore composition`: U2 unlocks five requests and appears wherever two or more of them do; the staged U11→U12 chain means stage two never appears without stage one.
 5. *“Write the approval recommendation up for the commission.”*
    `explore curated format="markdown"`: the handoff table.
 

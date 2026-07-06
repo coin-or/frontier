@@ -2,7 +2,7 @@
 
 **The decision.** A city splits a participatory budget across 32 program proposals from six districts, maximizing community impact and residents served while holding down delivery risk – no program above 12% of the fund, blended delivery risk capped, and six council-mandated anchor floors (one per district) locking in the equity commitment that every district's flagship program is funded.
 
-**Why Frontier.** Purely linear LP over a 32-way split with floors and a risk cap coupling every share – and the duals answer the question every council meeting argues about: *what do the equity commitments actually cost?* At the impact-max anchor the six guarantees split cleanly: four are priced (D4's flood-mitigation floor is the dearest at ~4.0 impact-points per unit of allocation; D1, D2, and D5 run ~1.2–2.0) and two are free – D3's safety retrofit and D6's cooling centers earn 12% on merit, floors slack.
+**Why Frontier.** Purely linear LP over a 32-way split with floors and a risk cap coupling every share – and the duals answer the question every council meeting argues about: *what do the equity commitments actually cost?* At the impact-max anchor the six guarantees split cleanly: one is priced – D4's flood-mitigation floor holds its program at 3% and costs ~1.85 impact-points per allocation point, the transfer the council is choosing to make – and five are free: the other districts' flagships earn the 12% cap on merit, floors slack.
 
 **What ships here** – the raw inputs (step 1), the canonical model they frame into, and pre-solved results:
 
@@ -42,9 +42,9 @@
 3. *"Which splits survive an overrun wave?"*
    `solve run_scenarios` → `explore scenario_results`: the frontier re-solved with every risk rate 25% higher against the same 2.6 cap – which programs hold their share when the fund must lean safer.
 4. *"Keep the balanced split and the impact-max one. Are these actually optimal?"*
-   `explore curate` per pick → `solve solver="highs"` → `explore certify`: the exact LP overlay (58 certified points; NSGA dominates no exact point).
+   `explore curate` per pick → `solve solver="highs"` → `explore certify`: the exact LP overlay audits the heuristic frontier point-for-point (NSGA dominates no exact point).
 5. *"What are the council's guarantees actually costing us?"*
-   `explore sensitivity`: solver-exact duals – the price-of-equity table. At the impact-max anchor, four floors are pinned and priced (Flood-Mitigation-Small ~4.0 impact-points per unit of allocation, Youth-Jobs-Corps ~2.0, Community-Health-Workers ~1.8, Summer-Youth-Employment ~1.2) and two are free (Neighborhood-Safety-Retrofit and Cooling-Centers earn the 12% cap on merit); the risk cap prices at ~1.9 impact-points per unit of risk. (Values as read at the impact-max anchor of the shipped exact overlay – duals are anchor-specific marginal rates; confirm a big move by re-solving with the changed floor.)
+   `explore sensitivity solution_id=<impact-max>`: solver-exact duals – the price-of-equity table. At the impact-max anchor, one floor is pinned and priced – Flood-Mitigation-Small held at its 3% floor, costing ~1.85 impact-points per unit of allocation – and five are free: Youth-Jobs-Corps, Community-Health-Workers, Summer-Youth-Employment, Neighborhood-Safety-Retrofit, and Cooling-Centers all earn the 12% cap on merit, floors slack (their reduced costs price the *cap*, saying they'd take more if allowed); the delivery-risk ceiling prices at ~1.15 impact-points per unit of risk. (Values as read at the impact-max anchor of the shipped exact overlay – duals are anchor-specific marginal rates; confirm a big move by re-solving with the changed floor.)
 6. *"Write it up for the council packet."*
    `explore curated format="markdown"`: the handoff table.
 
