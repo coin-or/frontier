@@ -19,7 +19,9 @@ Verify
 
 Optional third-party exact solvers
   pip install highspy   # HiGHS (CPU)  -> solve(solver="highs")
-  cuOpt (NVIDIA GPU)    # https://github.com/NVIDIA/cuopt -> solve(solver="cuopt")
+  pip install --extra-index-url=https://pypi.nvidia.com cuopt-cu12
+                        # NVIDIA cuOpt (GPU) -> solve(solver="cuopt")
+                        # https://github.com/NVIDIA/cuopt
                         # no GPU at hand? examples/cuopt_colab.ipynb is a ready Colab template
 
 Optional web UI

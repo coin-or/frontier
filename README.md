@@ -73,7 +73,7 @@ Spreadsheets hit a complexity wall once options and constraints in a decision mu
 
 <p align="center"><img src="assets/architecture.png" alt="Frontier architecture: agent clients and the web UI speak MCP to one server exposing four tools, with skills and solvers attached and a deterministic engine beneath" width="560" /></p>
 
-Frontier is a Python MCP server (FastMCP) wrapping pymoo's NSGA-II/III evolutionary solvers, with two exact-solver backends (HiGHS on CPU, cuOpt on GPU). State persists per-problem as JSON; the optimizer produces a Pareto frontier with indicators to guide the decision. Domain expertise lives in skill markdown files that the server auto-injects at workflow transitions.
+Frontier is a Python MCP server (built on the official [MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk)) wrapping pymoo's NSGA-II/III evolutionary solvers, with two exact-solver backends (HiGHS on CPU, cuOpt on GPU). State persists per-problem as JSON; the optimizer produces a Pareto frontier with indicators to guide the decision. Domain expertise lives in skill markdown files that the server auto-injects at workflow transitions.
 
 For full schemas, action parameters, data model, persistence layout, and the skill auto-injection mechanism, see [`architecture.md`](architecture.md). For skill, prompt, and MCP design principles, see [`best-practices.md`](best-practices.md).
 
@@ -161,7 +161,7 @@ FRONTIER_MCP_TOKEN=your-secret MCP_TRANSPORT=sse python -m mcp_server.server
 
 Point your MCP client at the local server – for SSE that's `http://localhost:8000/sse`. The optional web UI lives in [`ui/`](ui/) – see its [README](ui/README.md).
 
-**Exact solvers (optional).** Install `highspy` (CPU; `pip install highspy`) or cuOpt (NVIDIA GPU) to unlock `solver="highs"|"cuopt"`: exact certification (`explore certify`) and solver-exact sensitivity (`explore sensitivity`) on supported shapes. No GPU at hand? [examples/cuopt_colab.ipynb](examples/cuopt_colab.ipynb) is a ready Colab template for the cuOpt arc. How it works (the shared scalarization engine, the certify invariant, which shapes carry duals) is in [`architecture.md`](architecture.md#solver-backends-pluggable).
+**Exact solvers (optional).** Install `highspy` (CPU; `pip install highspy`) or cuOpt (NVIDIA GPU; `pip install --extra-index-url=https://pypi.nvidia.com cuopt-cu12`) to unlock `solver="highs"|"cuopt"`: exact certification (`explore certify`) and solver-exact sensitivity (`explore sensitivity`) on supported shapes. No GPU at hand? [examples/cuopt_colab.ipynb](examples/cuopt_colab.ipynb) is a ready Colab template for the cuOpt arc. How it works (the shared scalarization engine, the certify invariant, which shapes carry duals) is in [`architecture.md`](architecture.md#solver-backends-pluggable).
 
 ### Deploy your own
 
@@ -197,6 +197,8 @@ Frontier builds on open-source optimization work, with thanks to:
 - **[pymoo](https://github.com/anyoptimization/pymoo)** (Apache-2.0) – the NSGA-II / NSGA-III evolutionary solvers at Frontier's core. Blank, J. & Deb, K. (2020). *pymoo: Multi-Objective Optimization in Python.* IEEE Access, 8, 89497–89509. The underlying algorithms are Deb et al., NSGA-II (2002) and Deb & Jain, NSGA-III (2014).
 - **[HiGHS](https://github.com/ERGO-Code/HiGHS)** (MIT) – CPU exact-solver backend (`solver="highs"`). Huangfu, Q. & Hall, J.A.J. (2018). *Parallelizing the dual revised simplex method.* Mathematical Programming Computation, 10(1), 119–142.
 - **[NVIDIA cuOpt](https://github.com/NVIDIA/cuopt)** (Apache-2.0) – GPU exact-solver backend (`solver="cuopt"`).
+
+The MCP surface is built on the official [MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk); the web UI's charts render via [Plotly](https://plotly.com/javascript/) and [D3](https://d3js.org/).
 
 ## License
 
