@@ -180,7 +180,7 @@ Both pieces are plain web services – host them anywhere (Render, Fly, Railway,
 | **OpenAI** | `openai-compatible` | `OPENAI_API_KEY`, `OPENAI_MODEL` |
 | **Any OpenAI-compatible endpoint** (NVIDIA NIM / [build.nvidia.com](https://build.nvidia.com), Groq, Together, a local server, …) | `openai-compatible` | `OPENAI_BASE_URL` (the provider's URL), `OPENAI_API_KEY`, `OPENAI_MODEL` |
 
-Any OpenAI-compatible endpoint drops in by pointing `OPENAI_BASE_URL` at it — e.g. NVIDIA NIM at `https://integrate.api.nvidia.com/v1` with `OPENAI_MODEL=nvidia/nemotron-3-super-120b-a12b`. Reasoning models need no special setup: their chain-of-thought streams in a field the UI drops, so only the final answer renders. [`ui/.env.example`](ui/.env.example) has a copy-paste block per provider; keep real keys there (it's gitignored), never in the repo.
+Any OpenAI-compatible endpoint drops in by pointing `OPENAI_BASE_URL` at it — e.g. NVIDIA NIM at `https://integrate.api.nvidia.com/v1` with `OPENAI_MODEL=nvidia/nemotron-3-super-120b-a12b`. Reasoning models render cleanly out of the box on providers that stream chain-of-thought in a separate field the UI drops (NIM does) — only the final answer shows. [`ui/.env.example`](ui/.env.example) has a copy-paste block per backend; keep real keys there (it's gitignored), never in the repo.
 
 **Render (one-click example):** [`render.yaml`](render.yaml) provisions both as a blueprint.
 
