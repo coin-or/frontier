@@ -301,7 +301,9 @@ An optional web app ([`ui/`](ui/)) is the **visualize** surface – a thin chat 
 |---|---|---|---|
 | `messages-api` (prod default) | working | Anthropic server-side MCP connector | needs a public https engine (Anthropic calls it) |
 | `anthropic-local` (local default) | working | client-side, inside the web app | works with localhost or a gated engine |
-| `openai-compatible` | working | client-side | any OpenAI Chat-Completions provider |
+| `openai-compatible` | working | client-side | works with localhost or a gated engine |
+
+The `openai-compatible` backend points at any provider speaking the OpenAI Chat-Completions API — OpenAI, NVIDIA NIM ([build.nvidia.com](https://build.nvidia.com)), Groq, Together, a local server — via `OPENAI_BASE_URL` / `OPENAI_MODEL`. Reasoning models render cleanly when the provider streams chain-of-thought in a separate `reasoning_content` field (NIM does), because the adapter reads only `content`; a provider that instead inlines `<think>` tags in `content` would need a strip step.
 
 **Design invariants:**
 - **Thin system prompt, behavior fetched from the engine** (`ui/lib/system-prompt.ts`) – no skill/workflow content is *hardcoded* in the UI. Each adapter fetches the engine's MCP `instructions` (the canonical workflow + framing guidance) and folds them into the system prompt: `anthropic-local` / `openai-compatible` get them from their MCP client, and `messages-api` fetches them over a short-lived authenticated client (cached) because the Anthropic connector does **not** surface the `instructions` field. The prompt file itself holds only identity + web-UI-specific *presentation* directives (e.g. render charts, don't echo the engine's ASCII visualizations) that by definition can't live in the shared engine. Domain/workflow fixes still belong in the engine, never the prompt.

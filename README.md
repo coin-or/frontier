@@ -168,9 +168,19 @@ Point your MCP client at the local server – for SSE that's `http://localhost:8
 Both pieces are plain web services – host them anywhere (Render, Fly, Railway, a VPS, Docker):
 
 - **Engine** (Python) – `pip install ".[sse]"` (add `,highs` for the CPU exact backend), then run the SSE server as in [Self-host](#self-host), bound publicly: set `MCP_HOST=0.0.0.0` and `FRONTIER_MCP_TOKEN`, with the host supplying `$PORT`. Must be publicly reachable – Anthropic's MCP connector calls it.
-- **Web UI** (Node, in `ui/`) – `npm install && npm run build`, then `npm start`. Set `FRONTIER_MCP_URL` (the engine's `/sse`), `FRONTIER_MCP_TOKEN`, `ANTHROPIC_API_KEY`, `AGENT_BACKEND=messages-api`, and `UI_ACCESS_PASSWORD`. Long-session context management and prompt caching are env-tunable (`AGENT_CONTEXT_WINDOW`, `AGENT_CONTEXT_MANAGEMENT`, `AGENT_PROMPT_CACHE`, and related); [`architecture.md`](architecture.md#5-web-ui--hosting) documents the knobs and defaults.
+- **Web UI** (Node, in `ui/`) – `npm install && npm run build`, then `npm start`. Set `FRONTIER_MCP_URL` (the engine's `/sse`), `FRONTIER_MCP_TOKEN`, your model-provider credentials (see **Model provider** below), and `UI_ACCESS_PASSWORD`. Long-session context management and prompt caching are env-tunable (`AGENT_CONTEXT_WINDOW`, `AGENT_CONTEXT_MANAGEMENT`, `AGENT_PROMPT_CACHE`, and related); [`architecture.md`](architecture.md#5-web-ui--hosting) documents the knobs and defaults.
 
 `FRONTIER_MCP_TOKEN` must match on both – that's what authenticates the UI to the engine.
+
+**Model provider.** The web UI is provider-pluggable through one env var, `AGENT_BACKEND` — pick a backend, set its credentials, done. No code changes to switch providers.
+
+| Provider | `AGENT_BACKEND` | Credentials |
+|---|---|---|
+| **Anthropic** (default) | `messages-api` (public-https engine) or `anthropic-local` (localhost engine) | `ANTHROPIC_API_KEY`, optional `ANTHROPIC_MODEL` (default `claude-opus-4-8`) |
+| **OpenAI** | `openai-compatible` | `OPENAI_API_KEY`, `OPENAI_MODEL` |
+| **Any OpenAI-compatible endpoint** (NVIDIA NIM / [build.nvidia.com](https://build.nvidia.com), Groq, Together, a local server, …) | `openai-compatible` | `OPENAI_BASE_URL` (the provider's URL), `OPENAI_API_KEY`, `OPENAI_MODEL` |
+
+Any OpenAI-compatible endpoint drops in by pointing `OPENAI_BASE_URL` at it — e.g. NVIDIA NIM at `https://integrate.api.nvidia.com/v1` with `OPENAI_MODEL=nvidia/nemotron-3-super-120b-a12b`. Reasoning models render cleanly out of the box on providers that stream chain-of-thought in a separate field the UI drops (NIM does) — only the final answer shows. [`ui/.env.example`](ui/.env.example) has a copy-paste block per backend; keep real keys there (it's gitignored), never in the repo.
 
 **Render (one-click example):** [`render.yaml`](render.yaml) provisions both as a blueprint.
 
