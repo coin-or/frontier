@@ -107,7 +107,7 @@ pygments==2.20.0
     # via rich
 pyjwt==2.13.0
     # via mcp
-pymoo==0.6.1.6
+pymoo==0.6.2
     # via frontier (pyproject.toml)
 pyparsing==3.3.2
     # via matplotlib

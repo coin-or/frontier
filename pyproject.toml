@@ -23,7 +23,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Mathematics",
 ]
 dependencies = [
-    "pymoo>=0.6",
+    "pymoo>=0.6.2",
     "pydantic>=2.0",
     "mcp[cli]>=1.0",
     "scipy>=1.11",
