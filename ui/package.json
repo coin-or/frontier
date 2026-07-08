@@ -17,7 +17,7 @@
     "test": "node --test --experimental-strip-types lib/*.test.ts ../tests/ui/*.test.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.40.0",
+    "@anthropic-ai/sdk": "^0.110.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@types/d3": "^7.4.3",
     "@types/react-plotly.js": "^2.6.4",
