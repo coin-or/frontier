@@ -2576,3 +2576,60 @@ class TestStaleGuardCoverage:
         out = srv.explore(action="tradeoffs", problem_id=pid, scenario="Base")
         assert "stale" in out.get("error", "")
         assert "run_scenarios" in out["error"]
+
+
+class TestScenarioParamGuards:
+    """Wrong scenario-param names must return a redirect, not be silently dropped.
+
+    Surfaced by a model eval: capable agents guessed `scenarios=` on model / `scenario=`
+    / `run_scenarios=` on solve, which FastMCP silently dropped — a plain run then returned
+    the BASE frontier as if it were the scenario. The guards turn that into a clear error.
+    """
+
+    def test_model_scenarios_argument_redirects_to_scenario_config(self):
+        out = srv.model(action="update", problem_id="x", scenarios=[{"name": "s"}])
+        assert "error" in out
+        assert "scenario_config" in out["error"]
+
+    def test_solve_scenario_argument_redirects_to_run_scenarios(self):
+        out = srv.solve(action="run", problem_id="x", scenario="fab_outage")
+        assert "error" in out
+        assert "run_scenarios" in out["error"]
+
+    def test_solve_run_scenarios_flag_redirects_to_action(self):
+        out = srv.solve(action="run", problem_id="x", run_scenarios=True)
+        assert "error" in out
+        assert "run_scenarios" in out["error"]
+
+    def test_normal_solve_and_model_unaffected(self):
+        # No guard args → normal path (regression): create → update → run must still work.
+        pid = srv.model(action="create", name="G", objectives=[
+            {"name": "V", "direction": "maximize"},
+            {"name": "W", "direction": "minimize"}], options=["A", "B", "C"])["problem_id"]
+        srv.model(action="update", problem_id=pid, scores=[
+            {"option": o, "objective": obj, "value": v}
+            for o in ("A", "B", "C") for obj, v in (("V", 1.0), ("W", 2.0))])
+        assert "error" not in srv.solve(action="run", problem_id=pid, seed=1)
+
+
+class TestSensitivityAnchorAndLabelGuard:
+    """Two more eval-surfaced silent traps: sensitivity ignoring content_signature (and
+    silently anchoring on the balanced default instead), and `label` vs `custom_name`."""
+
+    def test_sensitivity_honors_content_signature(self):
+        pid = srv.model(action="load", source="scarce_supply_rationing")["problem_id"]
+        sols = srv.explore(action="solutions", problem_id=pid, source="exact")
+        sig = (sols.get("solutions") or [])[0]["content_signature"]
+        out = srv.explore(action="sensitivity", problem_id=pid, source="exact",
+                          content_signature=sig)
+        assert "error" not in out
+
+    def test_sensitivity_unmatched_signature_errors_not_silent(self):
+        pid = srv.model(action="load", source="scarce_supply_rationing")["problem_id"]
+        out = srv.explore(action="sensitivity", problem_id=pid, source="exact",
+                          content_signature="deadbeefdeadbeef")
+        assert "error" in out and "content_signature" in out["error"]
+
+    def test_explore_label_argument_redirects_to_custom_name(self):
+        out = srv.explore(action="curate", problem_id="x", solution_id=1, label="Balanced")
+        assert "error" in out and "custom_name" in out["error"]

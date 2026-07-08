@@ -2832,7 +2832,8 @@ def _suggested_scenarios_from_binding(binding: list[dict]) -> list[dict]:
 # Sensitivity analysis from exact-solver duals (explainability)
 # --------------------------------------------------------------------------- #
 def sensitivity_analysis(problem: Problem, solution_id: int | None = None,
-                         scenario: str | None = None, source: str | None = None) -> dict:
+                         scenario: str | None = None, source: str | None = None,
+                         content_signature: str | None = None) -> dict:
     """Post-optimal sensitivity from exact-solver duals — the explainability view.
 
     Two reads, in decision language:
@@ -2877,6 +2878,17 @@ def sensitivity_analysis(problem: Problem, solution_id: int | None = None,
         ref = next((s for s in exact if s.solution_id == solution_id), None)
         if ref is None:
             return {"error": f"Solution {solution_id} not found or has no solver-exact sensitivity."}
+    elif content_signature is not None:
+        # Honor an explicit anchor by content_signature — don't silently fall back to the
+        # balanced default (that returns duals for the WRONG solution with no warning).
+        ref = next((s for s in exact if s.content_signature == content_signature), None)
+        if ref is None:
+            return {"error": f"No solver-exact solution matches content_signature "
+                    f"'{content_signature[:12]}…'. An exact re-solve changes allocations, so an "
+                    "NSGA point's signature often isn't in the exact run — take the anchor's "
+                    "solution_id or content_signature from explore(action=\"solutions\", "
+                    "source=\"exact\") (or explore(action=\"tradeoffs\", source=\"exact\")) and "
+                    "pass that."}
     else:
         ref = _find_balanced(exact, problem.objectives)
 
