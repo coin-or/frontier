@@ -1644,6 +1644,7 @@ def explore(
     cvar_alpha: float | None = None,
     format: str | None = None,
     audit_property: dict | list[dict] | None = None,
+    label: str | None = None,  # guard: wrong name for custom_name (see below)
 ) -> dict:
     """Navigate results after solving — or, with `audit`, interrogate the model's feasible region
     directly (no prior solve needed). Every other action reads a run.
@@ -1751,6 +1752,14 @@ def explore(
     flow) lives in the solution_interpreter skill — injected on first solve; deep sections
     via get_skill('solution_interpreter', section=...).
     """
+    # Guard: the name for a curated pin's label is `custom_name`, not `label` — a `label`
+    # argument would otherwise be silently dropped and the pin come back unnamed.
+    if label is not None:
+        return {"error": "explore has no `label` argument — name a curated pin with "
+                "`custom_name` (e.g. explore(action=\"curate\", solution_id=…, "
+                "custom_name=\"Balanced split\")). To rename an existing pin, use "
+                "action=\"curate\", rename=\"…\" with its content_signature."}
+
     try:
         p = store.load(problem_id)
     except FileNotFoundError:
@@ -1766,7 +1775,8 @@ def explore(
         case "sensitivity":
             try:
                 result = explorer.sensitivity_analysis(
-                    p, solution_id=solution_id, scenario=scenario, source=source)
+                    p, solution_id=solution_id, scenario=scenario, source=source,
+                    content_signature=content_signature)
             except ValueError as e:
                 return {"error": str(e)}
             # Close the loop back to the decision (duals are local to the reference solution).

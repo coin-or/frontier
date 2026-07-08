@@ -2610,3 +2610,26 @@ class TestScenarioParamGuards:
             {"option": o, "objective": obj, "value": v}
             for o in ("A", "B", "C") for obj, v in (("V", 1.0), ("W", 2.0))])
         assert "error" not in srv.solve(action="run", problem_id=pid, seed=1)
+
+
+class TestSensitivityAnchorAndLabelGuard:
+    """Two more eval-surfaced silent traps: sensitivity ignoring content_signature (and
+    silently anchoring on the balanced default instead), and `label` vs `custom_name`."""
+
+    def test_sensitivity_honors_content_signature(self):
+        pid = srv.model(action="load", source="scarce_supply_rationing")["problem_id"]
+        sols = srv.explore(action="solutions", problem_id=pid, source="exact")
+        sig = (sols.get("solutions") or [])[0]["content_signature"]
+        out = srv.explore(action="sensitivity", problem_id=pid, source="exact",
+                          content_signature=sig)
+        assert "error" not in out
+
+    def test_sensitivity_unmatched_signature_errors_not_silent(self):
+        pid = srv.model(action="load", source="scarce_supply_rationing")["problem_id"]
+        out = srv.explore(action="sensitivity", problem_id=pid, source="exact",
+                          content_signature="deadbeefdeadbeef")
+        assert "error" in out and "content_signature" in out["error"]
+
+    def test_explore_label_argument_redirects_to_custom_name(self):
+        out = srv.explore(action="curate", problem_id="x", solution_id=1, label="Balanced")
+        assert "error" in out and "custom_name" in out["error"]
