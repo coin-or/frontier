@@ -1920,6 +1920,10 @@ def explore(
                 except ValueError as e:
                     return {"error": str(e)}
             if solution_id is None:
+                if solution_ids:
+                    return {"error": "curate pins one solution per call — call it once per "
+                            "finalist with a singular `solution_id` (optionally custom_name, "
+                            "notes). `solution_ids` (plural) is for compare, not curate."}
                 return {"error": "solution_id required to curate a solution."}
             try:
                 result = explorer.curate_solution(p, solution_id, custom_name or "", notes or "", scenario=scenario, source=source)

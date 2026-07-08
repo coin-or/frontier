@@ -2633,3 +2633,11 @@ class TestSensitivityAnchorAndLabelGuard:
     def test_explore_label_argument_redirects_to_custom_name(self):
         out = srv.explore(action="curate", problem_id="x", solution_id=1, label="Balanced")
         assert "error" in out and "custom_name" in out["error"]
+
+    def test_curate_solution_ids_redirects_to_singular(self):
+        # Plural solution_ids on curate (compare's param) → clear redirect, not the generic
+        # "solution_id required" that reads as if nothing was passed.
+        pid = srv.model(action="create", name="C", objectives=[
+            {"name": "V", "direction": "maximize"}], options=["A", "B"])["problem_id"]
+        out = srv.explore(action="curate", problem_id=pid, solution_ids=[1, 2])
+        assert "error" in out and "per call" in out["error"]
