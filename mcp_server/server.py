@@ -1685,7 +1685,10 @@ def explore(
                    last solve?"). Optional: run_ids (2+) for explicit historical runs.
       certify    — Audit the NSGA frontier against the exact overlay: dominance audit,
                    hypervolume coverage reclaimed, soundness invariant, per-objective corner
-                   sharpening. No params (audits `run` vs `exact_run`; flow: solve →
+                   sharpening. Frontier-level — it certifies the WHOLE frontier at once (your
+                   curated finalists are covered by that same audit), so it takes no solution
+                   scope: don't pass signatures/solution_ids (use `compare signatures=` for a
+                   finalist head-to-head). No params (audits `run` vs `exact_run`; flow: solve →
                    solve(solver="highs"|"cuopt") → certify). Optional: run_ids (exactly 2,
                    one NSGA + one exact, order-free) for explicit historical runs.
       audit      — Witness / feasibility auditor (the feasibility-side sibling of certify): reason
@@ -1843,6 +1846,21 @@ def explore(
             except ValueError as e:
                 return {"error": str(e)}
         case "certify":
+            # certify is a FRONTIER-LEVEL certificate (dominance fraction, hypervolume
+            # reclaimed, corner sharpening are properties of the whole frontier, not of one
+            # point), so solution-scoping params can't be honored. Redirect instead of
+            # silently ignoring them — the same no-silent-drop principle as the model/solve
+            # guard params. run_ids (run scope) is fine; signatures/solution_ids (solution
+            # scope) are not.
+            if signatures or solution_ids:
+                return {"error": (
+                    "certify audits the ENTIRE NSGA frontier against the exact overlay "
+                    "(dominance, hypervolume reclaimed, corner sharpening) — it is frontier-"
+                    "level, not per-solution, so it can't be scoped to signatures/solution_ids. "
+                    "Your curated finalists are already covered by that whole-frontier "
+                    "certificate. Drop them here; for a head-to-head of specific finalists use "
+                    "`explore compare signatures=[...]`, or `explore solutions solution_id=<id>` "
+                    "for one solution's detail.")}
             from solvers import is_exact_solver
             # Default: audit the exploratory NSGA run (`p.run`) against the exact overlay
             # (`p.exact_run`) — the "explore with the EA, then certify" flow the exact_run

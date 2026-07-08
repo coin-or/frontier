@@ -1178,11 +1178,20 @@ def audit_property(problem: Problem, property_dict: dict | list | None) -> dict:
     directly, so it can feasibility-probe *before* spending a solve."""
     from engine import optimizer
 
+    # The auditable constraint vocabulary + canonical shape, named once so every rejection
+    # path (non-dict, missing/unknown `type`, bad fields) points the caller at the same
+    # discoverable example instead of a cryptic discriminated-union error.
+    _AUDIT_TYPES = ("objective_bound", "force_include", "force_exclude", "cardinality",
+                    "group_limit", "exclusion_pair", "dependency")
+    _SHAPE_HINT = (
+        'give a "type" field — one of: ' + ", ".join(_AUDIT_TYPES) + '. Most common: '
+        '{"type": "objective_bound", "objective": "Cost", "operator": "max", "value": 100} '
+        '(operator is "max" or "min"; the numeric field is "value").')
+
     def _parse_one(d) -> "Constraint":
         if not isinstance(d, dict):
             raise ValueError(
-                "audit `property` must be a constraint object (or a list of them), e.g. "
-                '{"type": "objective_bound", "objective": "Cost", "operator": "max", "value": 100}.')
+                "audit `property` must be a constraint object (or a list of them) — " + _SHAPE_HINT)
         from typing import Annotated
 
         from pydantic import Field, TypeAdapter, ValidationError
@@ -1200,10 +1209,16 @@ def audit_property(problem: Problem, property_dict: dict | list | None) -> dict:
             return TypeAdapter(Annotated[Constraint, Field(discriminator="type")]).validate_python(d)
         except ValidationError as e:
             errs = e.errors()
+            # A missing/invalid `type` discriminator yields a cryptic union error — name the
+            # vocabulary + canonical shape instead (this is the discoverability trap: a dict
+            # without `type`, or with an unknown one). Field-level errors (valid type, wrong
+            # fields) keep pydantic's precise per-field detail, plus the shape reminder.
+            if any(err.get("type") in ("union_tag_not_found", "union_tag_invalid") for err in errs):
+                raise ValueError("audit `property` needs a valid constraint `type` — " + _SHAPE_HINT)
             detail = "; ".join(
                 f"{'.'.join(str(loc) for loc in err.get('loc', ())) or 'property'}: {err.get('msg', '')}"
                 for err in errs[:3]) or str(e)
-            raise ValueError(f"audit `property` isn't a valid constraint: {detail}")
+            raise ValueError(f"audit `property` isn't a valid constraint: {detail}. Shape — {_SHAPE_HINT}")
 
     prop = None
     if isinstance(property_dict, (list, tuple)):
