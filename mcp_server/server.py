@@ -100,7 +100,7 @@ mcp = FastMCP(
         "  - SCORE → model/update (the scores).\n"
         "  - EXPLORE → solve/run (approximate NSGA) [+ run_scenarios], then explore/tradeoffs [+ scenario_frontiers]: map the frontier broadly. Measure: coverage.\n"
         "  - CURATE → explore/curate: narrow to the handful the user would defend.\n"
-        "  - CERTIFY → solve(solver=\"highs\"|\"cuopt\") then `explore certify`, on a supported shape (binary selection or mean-variance QP): prove the curated finalists, each optimal at its tradeoff. Measure: the optimality gap (dominance, coverage, the NSGA-never-dominates invariant, corner sharpening).\n"
+        "  - CERTIFY → solve(solver=\"highs\"|\"cuopt\") then `explore certify`, on a supported shape (binary selection, mean-variance QP, or linear allocation LP): prove the curated finalists, each optimal at its tradeoff. Measure: the optimality gap (dominance, coverage, the NSGA-never-dominates invariant, corner sharpening).\n"
         "  - EXAMINE → read the results back in the user's terms: `explore sensitivity` (the highest-leverage lever; continuous/QP duals), `explore scenario_results` (which picks survive the scenarios), `explore audit` (a guarantee over every feasible plan), `explore composition` (why this mix).\n"
         "  - DECIDE → the user commits; `explore curated` renders the handoff. The engine lays out the options and leaves the final call to them.\n"
         "The solve is embedded: approximate in EXPLORE, exact in CERTIFY (one optimizer, two passes). Iterate throughout: refine the model, re-solve, `explore compare_runs`.\n\n"
