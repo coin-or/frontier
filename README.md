@@ -192,6 +192,7 @@ Optional background – the thinking behind Frontier and how it's evolved:
 - [Lowering the Barriers to Decision Optimization with AI](https://camafzal.substack.com/p/lowering-the-barriers-to-decision) – Sep 2025
 - [Making optimization accessible: AI as the translation layer](https://camafzal.substack.com/p/making-optimization-accessible-ai) – Jan 2026
 - [Agents have a convergent reasoning gap](https://camafzal.substack.com/p/agents-have-a-convergent-reasoning) – Apr 2026
+- [From decision exploration to certification and explanation](https://camafzal.substack.com/p/from-decision-exploration-to-certification) – Jun 2026
 
 ## Contributing
 
