@@ -2274,6 +2274,62 @@ class TestCertify:
         r = srv.explore(action="certify", problem_id=pid, run_ids=[r1, r2])
         assert "error" in r and "one NSGA run and one exact" in r["error"]
 
+    def test_certify_rejects_signatures_scope(self):
+        """certify is frontier-level, not per-solution — passing signatures (solution scope)
+        must redirect, not be silently ignored. Surfaced by a model eval: a capable agent
+        passed the curated finalists' signatures and got the whole-frontier audit anyway."""
+        pid = self._binary_pid()
+        r = srv.explore(action="certify", problem_id=pid, signatures=["abc123", "def456"])
+        assert "error" in r
+        assert "frontier-level" in r["error"] and "compare" in r["error"]
+
+    def test_certify_rejects_solution_ids_scope(self):
+        """The same guard covers the sibling solution-scope param (solution_ids)."""
+        pid = self._binary_pid()
+        r = srv.explore(action="certify", problem_id=pid, solution_ids=[1, 2])
+        assert "error" in r and "frontier-level" in r["error"]
+
+
+class TestAuditPropertyShape:
+    """explore audit — a malformed audit_property names the shape, not a cryptic
+    discriminated-union error. Surfaced by a model eval: a capable agent needed 3 tries
+    (bare string → dict without `type` → correct) before landing the objective_bound shape."""
+
+    def _pid(self):
+        return srv.model(action="create", name="A",
+                         objectives=[{"name": "V", "direction": "maximize"}],
+                         options=["A", "B", "C"])["problem_id"]
+
+    def test_bare_string_names_shape(self):
+        pid = self._pid()
+        r = srv.explore(action="audit", problem_id=pid, audit_property="Risk <= 3000")
+        assert "error" in r
+        assert "objective_bound" in r["error"] and '"value"' in r["error"]
+
+    def test_missing_type_names_vocabulary(self):
+        # The exact trap: a constraint-shaped dict with no `type` discriminator.
+        pid = self._pid()
+        r = srv.explore(action="audit", problem_id=pid,
+                        audit_property={"objective": "V", "operator": "<=", "threshold": 3000})
+        assert "error" in r
+        assert "type" in r["error"] and "objective_bound" in r["error"]
+
+    def test_unknown_type_names_vocabulary(self):
+        pid = self._pid()
+        r = srv.explore(action="audit", problem_id=pid,
+                        audit_property={"type": "not_a_constraint"})
+        assert "error" in r and "objective_bound" in r["error"]
+
+    def test_valid_type_bad_fields_keeps_per_field_detail(self):
+        # Valid `type`, wrong field names/values → precise per-field detail + shape reminder.
+        pid = self._pid()
+        r = srv.explore(action="audit", problem_id=pid,
+                        audit_property={"type": "objective_bound", "objective": "V",
+                                        "operator": "<=", "threshold": 3000})
+        assert "error" in r
+        assert ("operator" in r["error"] or "value" in r["error"])  # precise field detail
+        assert "objective_bound" in r["error"]                       # + shape reminder
+
 
 class TestDecisionGuidancePointers:
     """A2 — every explore/decision action names the skill section that governs reading it
