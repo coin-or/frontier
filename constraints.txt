@@ -42,7 +42,7 @@ deprecated==1.3.1
     # via pymoo
 fonttools==4.63.0
     # via matplotlib
-graphemeu==0.7.2
+graphemeu==0.10.0
     # via alive-progress
 h11==0.16.0
     # via
