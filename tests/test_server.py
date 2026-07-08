@@ -2576,3 +2576,37 @@ class TestStaleGuardCoverage:
         out = srv.explore(action="tradeoffs", problem_id=pid, scenario="Base")
         assert "stale" in out.get("error", "")
         assert "run_scenarios" in out["error"]
+
+
+class TestScenarioParamGuards:
+    """Wrong scenario-param names must return a redirect, not be silently dropped.
+
+    Surfaced by a model eval: capable agents guessed `scenarios=` on model / `scenario=`
+    / `run_scenarios=` on solve, which FastMCP silently dropped — a plain run then returned
+    the BASE frontier as if it were the scenario. The guards turn that into a clear error.
+    """
+
+    def test_model_scenarios_argument_redirects_to_scenario_config(self):
+        out = srv.model(action="update", problem_id="x", scenarios=[{"name": "s"}])
+        assert "error" in out
+        assert "scenario_config" in out["error"]
+
+    def test_solve_scenario_argument_redirects_to_run_scenarios(self):
+        out = srv.solve(action="run", problem_id="x", scenario="fab_outage")
+        assert "error" in out
+        assert "run_scenarios" in out["error"]
+
+    def test_solve_run_scenarios_flag_redirects_to_action(self):
+        out = srv.solve(action="run", problem_id="x", run_scenarios=True)
+        assert "error" in out
+        assert "run_scenarios" in out["error"]
+
+    def test_normal_solve_and_model_unaffected(self):
+        # No guard args → normal path (regression): create → update → run must still work.
+        pid = srv.model(action="create", name="G", objectives=[
+            {"name": "V", "direction": "maximize"},
+            {"name": "W", "direction": "minimize"}], options=["A", "B", "C"])["problem_id"]
+        srv.model(action="update", problem_id=pid, scores=[
+            {"option": o, "objective": obj, "value": v}
+            for o in ("A", "B", "C") for obj, v in (("V", 1.0), ("W", 2.0))])
+        assert "error" not in srv.solve(action="run", problem_id=pid, seed=1)

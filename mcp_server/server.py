@@ -286,6 +286,7 @@ def model(
     section: str | None = None,
     source: str | None = None,
     save_as: str | None = None,
+    scenarios: list[dict] | None = None,  # guard: wrong name for scenario_config (see below)
 ) -> dict:
     """Build and modify the optimization problem.
 
@@ -347,7 +348,16 @@ def model(
     Schema reference: see the `problem_framing` skill (read it via
     `get_skill('problem_framing')` or before calling `model/create`) for
     constraint, interaction-matrix, and scenario JSON schemas.
+
+    `scenarios` is a guard, not a feature: scenarios are set through
+    `scenario_config`, so a `scenarios=[...]` argument is a wrong-name mistake and
+    returns a redirect instead of being silently ignored.
     """
+    if scenarios is not None:
+        return {"error": "Scenarios are not set via a `scenarios` argument. Put them in "
+                "`scenario_config={\"enabled\": true, \"scenarios\": [...]}` on a model update "
+                "(each scenario: name + score_overrides and/or constraint_overrides). See the "
+                "problem_framing skill's Scenario schema."}
     params = {
         k: v for k, v in {
             "problem_id": problem_id, "name": name, "domain": domain,
@@ -1023,6 +1033,8 @@ def solve(
     time_limit: float | None = None,
     wait_seconds: float | None = None,
     job_id: str | None = None,
+    scenario: str | None = None,      # guard: solve has no scenario filter (see below)
+    run_scenarios: bool = False,      # guard: run_scenarios is an action, not a flag (see below)
 ) -> dict:
     """Validate and run the optimizer.
 
@@ -1115,6 +1127,16 @@ def solve(
     - After re-run: check explore/curated to see which curated solutions survived.
     - 5-10 solutions is healthy; very few = constraints too tight.
     """
+    # Guards: scenarios are solved by their own action, not by a filter/flag on `run`.
+    # Without these, a `scenario=`/`run_scenarios=` argument is silently dropped and a plain
+    # `run` returns the BASE frontier as if it were the scenario — a wrong answer with no error.
+    if scenario is not None or run_scenarios:
+        return {"error": "solve has no `scenario`/`run_scenarios` argument. To optimize every "
+                "scenario independently, call solve(action=\"run_scenarios\") (needs "
+                "scenario_config on the model). To then view one scenario's frontier, use "
+                "explore(action=\"tradeoffs\"|\"scenario_frontiers\", scenario=\"<name>\"). A plain "
+                "solve(action=\"run\") ignores scenarios and returns the base frontier."}
+
     # `status` polls a background job by id and needs no problem load — handle it first.
     # With wait_seconds it long-polls: the connection holds until the job finishes or the
     # budget lapses, so a caller needs one poll per wait window, not one per round-trip.
