@@ -11,7 +11,9 @@ from pathlib import Path
 from .models import Problem
 
 # store.py is at <repo-root>/engine/store.py, so two parents up is the repo root.
-DEFAULT_DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+# FRONTIER_DATA_DIR overrides the location (parallels FRONTIER_SAVED_DIR in
+# problem_io.py) — set it to isolate the store for tests, evals, or a separate deploy.
+DEFAULT_DATA_DIR = Path(os.environ.get("FRONTIER_DATA_DIR") or Path(__file__).resolve().parent.parent / "data")
 
 
 class Store:

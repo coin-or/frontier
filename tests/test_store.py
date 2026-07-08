@@ -1,10 +1,13 @@
 """Tests for JSON file store."""
 
+import importlib
+import os
 import tempfile
 from pathlib import Path
 
 import pytest
 
+import engine.store
 from engine.models import Objective, Option, Problem, Score
 from engine.store import Store
 
@@ -66,3 +69,21 @@ def test_list_scores_completeness(tmp_store):
     tmp_store.save(p)
     listing = tmp_store.list()
     assert listing[0]["status"]["scores_complete"] == 0.5
+
+
+def test_frontier_data_dir_env_override():
+    """FRONTIER_DATA_DIR relocates the default store (parallels FRONTIER_SAVED_DIR),
+    so evals/tests can isolate their store from the live data/ dir."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        prev = os.environ.get("FRONTIER_DATA_DIR")
+        os.environ["FRONTIER_DATA_DIR"] = tmpdir
+        try:
+            importlib.reload(engine.store)
+            assert str(engine.store.DEFAULT_DATA_DIR) == tmpdir
+            assert engine.store.Store().data_dir == Path(tmpdir)
+        finally:
+            if prev is None:
+                os.environ.pop("FRONTIER_DATA_DIR", None)
+            else:
+                os.environ["FRONTIER_DATA_DIR"] = prev
+            importlib.reload(engine.store)  # restore module default for other tests
