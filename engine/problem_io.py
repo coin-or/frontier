@@ -111,7 +111,26 @@ def to_portable(p: Problem) -> tuple[dict, dict, dict | None]:
     if not (solutions.get("run") or solutions.get("exact_run")
             or solutions.get("scenario_run") or solutions.get("curated_solutions")):
         solutions = None
+    if solutions is not None:
+        _strip_telemetry(solutions)
     return problem, scores, solutions
+
+
+def _strip_telemetry(node) -> None:
+    """Drop ``Run.telemetry`` from every run in a portable payload, in place.
+
+    Bundles are problem-portable, not machine history: wall-clock and solver-call
+    counts describe the machine that baked them, so they stay out of saved/ and
+    examples/. ``problem_snapshot`` stays — it is derived from the problem alone,
+    so it travels. Recursive because runs nest (``scenario_run.scenario_runs``).
+    """
+    if isinstance(node, dict):
+        node.pop("telemetry", None)
+        for v in node.values():
+            _strip_telemetry(v)
+    elif isinstance(node, list):
+        for v in node:
+            _strip_telemetry(v)
 
 
 def from_portable(

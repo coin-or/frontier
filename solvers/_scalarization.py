@@ -764,6 +764,45 @@ class _QpFrontierProblem(PymooProblem):
         out["G"] = np.where(feasible, -1.0, 1.0).reshape(-1, 1)
 
 
+class _InnerSolveStats:
+    """Count + time every inner solve within one scalarization run (``Run.telemetry``).
+
+    Wraps the injected inner-solve callables at each ``optimize_*`` /
+    ``certify_curated_frontier`` entry, so every exact subproblem — inside the EA
+    sweep, the anchor pass, or a sensitivity re-solve — is recorded at the one
+    place it executes, whichever backend supplied the callable. ``list.append``
+    is atomic under the GIL, so the ``_parallel_solve`` path needs no lock.
+    """
+
+    def __init__(self) -> None:
+        self.durations: list[float] = []
+
+    def wrap(self, fn):
+        if fn is None:
+            return None
+
+        def timed(*args, **kwargs):
+            t0 = time.monotonic()
+            try:
+                return fn(*args, **kwargs)
+            finally:
+                self.durations.append(time.monotonic() - t0)
+
+        return timed
+
+    def telemetry(self, duration_s: float, interrupted: bool) -> dict:
+        n = len(self.durations)
+        return {
+            "duration_s": round(duration_s, 3),
+            "engine_detail": {
+                "inner_solves": n,
+                "inner_solve_median_s": round(float(np.median(self.durations)), 4) if n else 0.0,
+            },
+            "evals_or_solves": n,
+            "interrupted": bool(interrupted),
+        }
+
+
 def optimize_qp(problem, mode, *, inner_qp, inner_qp_sensitivity=None, pop, gen,
                 max_solutions=None, seed=42, time_limit=None) -> Run:
     """Proportional mean-variance solve: the EA walks an epsilon-constraint target per linear
@@ -776,6 +815,10 @@ def optimize_qp(problem, mode, *, inner_qp, inner_qp_sensitivity=None, pop, gen,
     (best-effort: the cheap eps-bound and marshaling solves around the sweep are not counted).
     A capped run returns a sparser best-so-far frontier; each returned point is still optimal
     for its scalarization."""
+    _stats = _InnerSolveStats()
+    inner_qp = _stats.wrap(inner_qp)
+    inner_qp_sensitivity = _stats.wrap(inner_qp_sensitivity)
+    _t_start = time.monotonic()
     n_options = len(problem.options)
     opt_names = [o.name for o in problem.options]
     obj_list = problem.objectives
@@ -920,9 +963,11 @@ def optimize_qp(problem, mode, *, inner_qp, inner_qp_sensitivity=None, pop, gen,
     max_n = max_solutions or _opt.MAX_PARETO_SOLUTIONS
     solutions, total_found = _opt._prune_pareto(solutions, obj_list, max_n=max_n)
     solutions = _opt._sort_and_reindex(solutions, obj_list)
+    limited = _opt._was_time_limited(time_limit, _elapsed)
     return Run(solutions=solutions, total_pareto_found=total_found,
                quality=_opt._compute_quality(result, seed=seed), mode=mode, seed_used=seed,
-               time_limit=time_limit, time_limited=_opt._was_time_limited(time_limit, _elapsed))
+               time_limit=time_limit, time_limited=limited,
+               telemetry=_stats.telemetry(time.monotonic() - _t_start, limited))
 
 
 # --------------------------------------------------------------------------- #
@@ -997,6 +1042,10 @@ def optimize_lp(problem, mode, *, inner_lp, inner_lp_sensitivity=None, pop, gen,
     sibling of ``optimize_qp`` (no covariance / quadratic term); solver-exact shadow prices + reduced
     costs ride the final-frontier re-solve via ``inner_lp_sensitivity``. Returns a Run in the engine's
     exact shape, so explorer / metrics / store need no changes."""
+    _stats = _InnerSolveStats()
+    inner_lp = _stats.wrap(inner_lp)
+    inner_lp_sensitivity = _stats.wrap(inner_lp_sensitivity)
+    _t_start = time.monotonic()
     n_options = len(problem.options)
     opt_names = [o.name for o in problem.options]
     obj_list = problem.objectives
@@ -1093,9 +1142,11 @@ def optimize_lp(problem, mode, *, inner_lp, inner_lp_sensitivity=None, pop, gen,
     max_n = max_solutions or _opt.MAX_PARETO_SOLUTIONS
     solutions, total_found = _opt._prune_pareto(solutions, obj_list, max_n=max_n)
     solutions = _opt._sort_and_reindex(solutions, obj_list)
+    limited = _opt._was_time_limited(time_limit, _elapsed)
     return Run(solutions=solutions, total_pareto_found=total_found,
                quality=_opt._compute_quality(result, seed=seed), mode=mode, seed_used=seed,
-               time_limit=time_limit, time_limited=_opt._was_time_limited(time_limit, _elapsed))
+               time_limit=time_limit, time_limited=limited,
+               telemetry=_stats.telemetry(time.monotonic() - _t_start, limited))
 
 
 # --------------------------------------------------------------------------- #
@@ -1116,6 +1167,11 @@ def certify_curated_frontier(problem, source_run, *, inner=None, inner_sensitivi
     source frontier — the same auditor guarantee as the full exact pass, at a fraction of the cost.
     Like the full pass, the overlay also carries per-objective **anchor corners** (the epsilon-constraint
     payoff-table step), so it samples the frontier's extremes even when the source run missed them."""
+    _stats = _InnerSolveStats()
+    inner = _stats.wrap(inner)
+    inner_sensitivity = _stats.wrap(inner_sensitivity)
+    inner_milp = _stats.wrap(inner_milp)
+    _t_start = time.monotonic()
     n_options = len(problem.options)
     opt_names = [o.name for o in problem.options]
     opt_index = {n: i for i, n in enumerate(opt_names)}
@@ -1256,7 +1312,8 @@ def certify_curated_frontier(problem, source_run, *, inner=None, inner_sensitivi
     solutions, total_found = _opt._prune_pareto(solutions, obj_list, max_n=max_n)
     solutions = _opt._sort_and_reindex(solutions, obj_list)
     return Run(solutions=solutions, total_pareto_found=total_found,
-               quality=source_run.quality, mode=mode or source_run.mode, seed_used=source_run.seed_used)
+               quality=source_run.quality, mode=mode or source_run.mode, seed_used=source_run.seed_used,
+               telemetry=_stats.telemetry(time.monotonic() - _t_start, False))
 
 
 # --------------------------------------------------------------------------- #
@@ -1334,6 +1391,9 @@ def optimize_milp(problem, mode, *, inner_milp, max_solutions=None,
     a capped run returns a sparser best-so-far frontier, each point still exact for its
     scalarization. Best-effort — the eps-bound and marshaling solves around the sweep are not
     counted."""
+    _stats = _InnerSolveStats()
+    inner_milp = _stats.wrap(inner_milp)
+    _t_start = time.monotonic()
     n, names, S, dirs, mc = _build_milp_data(problem)
     pop, gen = _milp_budget(n)
     objs = problem.objectives
@@ -1391,6 +1451,8 @@ def optimize_milp(problem, mode, *, inner_milp, max_solutions=None,
     max_n = max_solutions or _opt.MAX_PARETO_SOLUTIONS
     solutions, total = _opt._prune_pareto(solutions, objs, max_n=max_n)
     solutions = _opt._sort_and_reindex(solutions, objs)
+    limited = _opt._was_time_limited(time_limit, _elapsed)
     return Run(solutions=solutions, total_pareto_found=total,
                quality=_opt._compute_quality(result, seed=seed), mode=mode, seed_used=seed,
-               time_limit=time_limit, time_limited=_opt._was_time_limited(time_limit, _elapsed))
+               time_limit=time_limit, time_limited=limited,
+               telemetry=_stats.telemetry(time.monotonic() - _t_start, limited))
