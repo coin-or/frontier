@@ -199,10 +199,9 @@ def exact_solver_fits(problem: "Problem") -> tuple[bool, str]:
 # boundaries on the real optimize() path (binary, 3 objectives, fast mode,
 # seed 42, max_solutions=1000, time_limit=300s, post binary-hash-dedup fix,
 # 2026-07): n=300 → 1.5s · n=1,000 → 12s · n=3,000 → 117s converged ·
-# n=10,000 → 311s (cap hit, best-so-far usable). Full table + provenance:
-# .claude/plans/scale-routing-signal.md; dev_temp/profile_dedup_scale.py
-# re-measures after engine changes; Run.telemetry (solve telemetry stage 1)
-# is the production record these get recalibrated against.
+# n=10,000 → 311s (cap hit, best-so-far usable). Re-measure after engine
+# changes; Run.telemetry (solve telemetry stage 1) is the production record
+# these get recalibrated against.
 _NSGA_BACKGROUND_N = 1_000  # 12s measured — past the ~10s inline window, expect a background job
 _NSGA_ROUTING_N = 10_000    # 311s measured, wall-clock cap hit — wants the scale posture, not just patience
 
