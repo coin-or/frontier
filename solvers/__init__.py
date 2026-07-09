@@ -193,6 +193,55 @@ def exact_solver_fits(problem: "Problem") -> tuple[bool, str]:
     return True, ""
 
 
+# --- Scale bands (advisory) --------------------------------------------------
+# The shape gate above answers "which engine CAN solve this"; the scale band
+# answers "what posture fits this size". Thresholds are measured regime
+# boundaries on the real optimize() path (binary, 3 objectives, fast mode,
+# seed 42, max_solutions=1000, time_limit=300s, post binary-hash-dedup fix,
+# 2026-07): n=300 → 1.5s · n=1,000 → 12s · n=3,000 → 117s converged ·
+# n=10,000 → 311s (cap hit, best-so-far usable). Full table + provenance:
+# .claude/plans/scale-routing-signal.md; dev_temp/profile_dedup_scale.py
+# re-measures after engine changes; Run.telemetry (solve telemetry stage 1)
+# is the production record these get recalibrated against.
+_NSGA_BACKGROUND_N = 1_000  # 12s measured — past the ~10s inline window, expect a background job
+_NSGA_ROUTING_N = 10_000    # 311s measured, wall-clock cap hit — wants the scale posture, not just patience
+
+
+def scale_band(problem: "Problem") -> dict:
+    """Advisory scale signal for ``solve validate``'s ``solvers`` block.
+
+    Routes toward the lane that fits the size, never warns users off big
+    problems: the ``note`` names the measured boundary the problem sits near
+    and the posture that fits (background polling, a ``time_limit``,
+    curated-scope certification). Advisory only — validate's ready status is
+    untouched and nothing blocks. Demo-scale problems get band ``interactive``
+    and no note: zero noise until scale actually changes the right move.
+    """
+    n = len(problem.options)
+    block: dict = {
+        "n_options": n,
+        "n_scores": len(problem.scores),
+        "interaction_matrix": bool(problem.interaction_matrices),
+        "band": "interactive",
+    }
+    if n >= _NSGA_ROUTING_N:
+        block["band"] = "needs_routing"
+        block["note"] = (
+            f"At {n:,} options a solve runs to its wall-clock budget and returns a usable "
+            "best-so-far frontier (measured: ~5 min at 10,000) — set a time_limit, keep "
+            "mode='fast', poll via solve status, and certify with scope='curated' "
+            "(targeted points) rather than a full exact pass."
+        )
+    elif n >= _NSGA_BACKGROUND_N:
+        block["band"] = "background"
+        block["note"] = (
+            f"At {n:,} options expect a background solve (measured: ~12s at 1,000, "
+            "~2 min at 3,000) — keep mode='fast' while iterating, poll via solve "
+            "status, and prefer scope='curated' for the exact overlay."
+        )
+    return block
+
+
 def is_exact_solver(solver: str | None) -> bool:
     """Whether a solver name denotes an exact backend (vs the default heuristic NSGA).
 
