@@ -245,7 +245,7 @@ def problem_features(problem: "Problem") -> dict:
     beside ``exact_solver_fits`` on purpose — the snapshot's ``exact_fits`` and the
     gate share one implementation, so features and gate can never drift.
     """
-    from engine import optimizer as _opt
+    from engine.models import Aggregation
 
     fits, reason = exact_solver_fits(problem)
     agg_mix: dict[str, int] = {}
@@ -262,7 +262,13 @@ def problem_features(problem: "Problem") -> dict:
         "approach": getattr(problem.approach, "value", str(problem.approach)),
         "aggregation_mix": agg_mix,
         "constraint_type_counts": constraint_counts,
-        "interaction_matrix": len(_opt._build_interaction_matrices(problem)) > 0,
+        # Same inclusion rule as optimizer._build_interaction_matrices (a quadratic
+        # objective with a matching matrix), WITHOUT building the dense n×n arrays —
+        # this runs on every solve, and the build is O(n²) memory at scale.
+        "interaction_matrix": bool(
+            {o.name for o in problem.objectives if o.aggregation == Aggregation.quadratic}
+            & {m.objective for m in problem.interaction_matrices}
+        ),
         "scenarios": len(problem.scenario_config.scenarios) if problem.scenario_config else 0,
         "exact_fits": fits,
         "exact_fits_reason": reason,

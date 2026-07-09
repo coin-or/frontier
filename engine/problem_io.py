@@ -116,21 +116,22 @@ def to_portable(p: Problem) -> tuple[dict, dict, dict | None]:
     return problem, scores, solutions
 
 
-def _strip_telemetry(node) -> None:
+def _strip_telemetry(solutions: dict) -> None:
     """Drop ``Run.telemetry`` from every run in a portable payload, in place.
 
     Bundles are problem-portable, not machine history: wall-clock and solver-call
     counts describe the machine that baked them, so they stay out of saved/ and
     examples/. ``problem_snapshot`` stays — it is derived from the problem alone,
-    so it travels. Recursive because runs nest (``scenario_run.scenario_runs``).
+    so it travels. Targeted to the known Run positions (run / runs / exact_run /
+    scenario_run.scenario_runs) — never a recursive key sweep, which would also
+    strip a user objective or option literally named "telemetry" out of
+    ``objective_values``/``allocations``.
     """
-    if isinstance(node, dict):
-        node.pop("telemetry", None)
-        for v in node.values():
-            _strip_telemetry(v)
-    elif isinstance(node, list):
-        for v in node:
-            _strip_telemetry(v)
+    runs = [solutions.get("run"), solutions.get("exact_run"), *(solutions.get("runs") or [])]
+    runs += list(((solutions.get("scenario_run") or {}).get("scenario_runs") or {}).values())
+    for r in runs:
+        if isinstance(r, dict):
+            r.pop("telemetry", None)
 
 
 def from_portable(

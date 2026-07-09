@@ -108,3 +108,36 @@ class TestBundlePortability:
         _, _, solutions = to_portable(p)
         assert "telemetry" not in solutions["run"]
         assert solutions["run"]["problem_snapshot"] == problem_features(p)
+
+    def test_user_objective_named_telemetry_survives_save(self):
+        # The strip targets the Run-schema position only — a user objective (or option)
+        # literally named "telemetry" must keep its values in objective_values.
+        names = [f"P{i}" for i in range(6)]
+        p = Problem(
+            approach="binary",
+            objectives=[Objective(name="telemetry", direction="maximize"),
+                        Objective(name="cost", direction="minimize")],
+            options=[Option(name=nm) for nm in names],
+            scores=[Score(option=nm, objective=o, value=float(i + j + 1))
+                    for j, o in enumerate(["telemetry", "cost"]) for i, nm in enumerate(names)],
+        )
+        p.run = optimize(p, mode=OptimizeMode.fast, seed=7)
+        _, _, solutions = to_portable(p)
+        assert "telemetry" not in solutions["run"]  # the Run field is stripped...
+        for s in solutions["run"]["solutions"]:
+            assert "telemetry" in s["objective_values"]  # ...the user objective is not
+
+
+class TestProblemFeatureSemantics:
+    def test_interaction_matrix_needs_quadratic_and_matching_matrix(self):
+        # Mirrors optimizer._build_interaction_matrices' inclusion rule without the
+        # dense n×n build: a matrix without a quadratic objective (or vice versa)
+        # is not an effective interaction matrix.
+        from engine.models import Aggregation, InteractionMatrix
+
+        p = _binary_problem()
+        assert problem_features(p)["interaction_matrix"] is False
+        p.interaction_matrices = [InteractionMatrix(objective="value", entries={})]
+        assert problem_features(p)["interaction_matrix"] is False  # no quadratic objective
+        p.objectives[0].aggregation = Aggregation.quadratic
+        assert problem_features(p)["interaction_matrix"] is True
