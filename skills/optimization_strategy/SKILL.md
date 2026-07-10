@@ -80,6 +80,8 @@ The system selects the optimization algorithm based on objective count. Know the
 
 A solve that doesn't finish within a short inline window — typically **thorough**, **exact** (`highs`/`cuopt`), or a large problem — returns a handle, not a frontier: `{status:"running", job_id, label, elapsed_s}`. This is the **normal** path for heavy runs, not an error or a failure. Quick exploratory runs still return their frontier inline as before.
 
+**Know the posture before you run**: `solve validate`'s `solvers.scale` block names the problem's measured scale band — `interactive` (results in seconds), `background` (expect a handle: keep `mode="fast"` while iterating, poll `status`, prefer `scope="curated"` for the exact overlay), or `needs_routing` (also set a `time_limit` and present the best-so-far frontier as such). Big problems are fully in scope — the band tells you which lane fits, so relay the expectation to the user instead of hesitating at size.
+
 When you get a running handle:
 - **Poll** `solve(action="status", job_id=<id>)` until `status` becomes `"complete"` (then you get the full result — frontier preview, quality, the `solution_interpreter` skill — exactly as an inline solve) or `"error"`.
 - **Narrate, don't stall.** Between polls, tell the user it's optimizing and roughly how long it's been (`elapsed_s`, `label`) — e.g. *"Running the exact solve; ~40s in."* Never present or reason about results while a solve is still running.

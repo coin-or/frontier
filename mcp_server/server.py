@@ -1186,10 +1186,11 @@ def solve(
 
 
 def _solver_availability(p: Problem) -> dict:
-    """Which solver engines this environment can run, and whether the optional exact
-    backends fit this problem's shape. Surfaced on solve/validate so the agent knows
-    before requesting an exact `solver` — keeps the choice informed, not trial-and-error."""
-    from solvers import EXACT_SOLVERS, available_solvers, exact_solver_fits
+    """Which solver engines this environment can run, whether the optional exact
+    backends fit this problem's shape, and (advisory) which scale band the problem
+    sits in. Surfaced on solve/validate so the agent knows before requesting an
+    exact `solver` or a large run — keeps the choice informed, not trial-and-error."""
+    from solvers import EXACT_SOLVERS, available_solvers, exact_solver_fits, scale_band
 
     avail = available_solvers()
     fits, reason = exact_solver_fits(p)
@@ -1199,6 +1200,7 @@ def _solver_availability(p: Problem) -> dict:
         "exact_available": [k for k in EXACT_SOLVERS if avail.get(k)],
         "exact_fits_shape": fits,
         "exact_shape_note": reason or "shape supported (binary selection / mean-variance QP / linear allocation LP)",
+        "scale": scale_band(p),
     }
 
 
