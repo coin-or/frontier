@@ -465,6 +465,7 @@ class TestScatterCertification:
         assert viz["provenance"]["kind"] == "heuristic"
         ov = viz["exact_overlay"]
         assert ov["solver"] == "highs"
+        assert ov["exact_run_id"] == p.exact_run.run_id
         assert ov["exact_certified"] is True
         assert [pt["solution_id"] for pt in ov["points"]] == [0]
         assert ov["points"][0]["values"] == {"Return": 10.0, "Risk": 2.0}
@@ -477,6 +478,23 @@ class TestScatterCertification:
         assert risk["min"] == 2.0
         ret = next(o for o in viz["objectives"] if o["name"] == "Return")
         assert ret["max"] == 12.0  # exact Return (10) within the heuristic range → unchanged
+
+    def test_dominated_ids_match_certify_dominance(self):
+        # Same inputs → same verdict: the scatter's dominated_ids and certify's dominance
+        # count must agree on identical (run, exact_run) pairs. A live test read the two at
+        # different times (the exact overlay was re-solved in between) and saw 9 vs 29 —
+        # legitimate then, but only because the semantics are identical per overlay. Pin that.
+        from engine.explorer import certify_against_exact
+        p = self._mean_variance_problem()
+        names = ["Return", "Risk"]
+        p.run = self._run([(8.0, 3.0), (12.0, 5.0), (10.0, 4.0), (6.0, 2.5)], names,
+                          solver="nsga-ii")
+        p.exact_run = self._run([(10.0, 2.0), (12.0, 4.5)], names, solver="highs", exact=True)
+        ov = get_tradeoffs(p)["viz_data"]["exact_overlay"]
+        cert = certify_against_exact(p, p.run, p.exact_run)
+        assert len(set(ov["dominated_ids"])) == cert["dominance_audit"]["nsga_dominated_by_exact"]
+        # And both sides name the overlay they measured against, so a stale read is detectable.
+        assert ov["exact_run_id"] == cert["exact_run_id"] == p.exact_run.run_id
 
     def test_scenario_frontier_does_not_leak_overlay(self, solved_problem):
         # A scenario frontier is NSGA-only; the base-case exact overlay must not attach to it

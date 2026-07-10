@@ -37,6 +37,8 @@ export type ScatterProvenance = {
 // the exact front strictly dominates ("looked efficient, but exact beats them at their cost").
 export type ScatterExactOverlay = {
   solver: string;
+  // Overlay provenance — matches certify's `exact_run_id`, so stale scatter reads are detectable.
+  exact_run_id: string;
   exact_certified: boolean;
   points: ScatterPoint[];
   dominated_ids: number[];
