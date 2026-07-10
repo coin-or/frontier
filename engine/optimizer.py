@@ -13,6 +13,7 @@ import time
 import numpy as np
 from pymoo.algorithms.moo.nsga2 import NSGA2
 from pymoo.algorithms.moo.nsga3 import NSGA3
+from pymoo.core.duplicate import DuplicateElimination
 from pymoo.core.problem import Problem as PymooProblem
 from pymoo.operators.crossover.pntx import TwoPointCrossover
 from pymoo.operators.crossover.sbx import SBX
@@ -143,6 +144,35 @@ class _SeededBinarySampling(Sampling):
         if n_seed > 0:
             X = np.concatenate([seeds, X], axis=0)
         return X
+
+
+class _BinaryHashDuplicateElimination(DuplicateElimination):
+    """Exact duplicate elimination for 0/1 genomes via a byte-packed hash set.
+
+    pymoo's ``DefaultDuplicateElimination`` computes O(pop² × n_var) float distance
+    matrices every generation — at industrial scale (n_var in the thousands) that is
+    nearly all of solve wall-clock. For binary variables exact equality IS the
+    default's duplicate semantics (bit vectors within its 1e-16 epsilon are
+    identical), so a hash set over ``np.packbits`` rows gives the same result in
+    O(pop × n_var). Keep-first within a population (the default's upper-triangle
+    rule) and mark-against-``other`` only, so fronts are bit-identical to the
+    default's at a fixed seed. Binary path only — continuous genomes need the
+    distance-based default.
+    """
+
+    def _keys(self, pop) -> list[bytes]:
+        # Operators may hand back bool or 0.0/1.0 float genomes; both pack the same.
+        X = np.asarray(self.func(pop))
+        return [row.tobytes() for row in np.packbits(X.astype(bool), axis=1)]
+
+    def _do(self, pop, other, is_duplicate):
+        seen = set() if other is None else set(self._keys(other))
+        for i, key in enumerate(self._keys(pop)):
+            if key in seen:
+                is_duplicate[i] = True
+            elif other is None:
+                seen.add(key)
+        return is_duplicate
 
 
 class _SimplexRepair(Repair):
@@ -1059,7 +1089,7 @@ def _tune_parameters(problem: Problem, mode: OptimizeMode, seed_population: np.n
             sampling=sampling,
             crossover=TwoPointCrossover(prob=0.9),
             mutation=BitflipMutation(prob=mut_prob),
-            eliminate_duplicates=True,
+            eliminate_duplicates=_BinaryHashDuplicateElimination(),
         )
     else:
         # Larger search spaces benefit from higher eta (more exploitation)
