@@ -2407,6 +2407,9 @@ class TestDecisionGuidancePointers:
         result = srv.explore(action="sensitivity", problem_id=pid)
         assert result["source"] == "frontier_inferred"
         self._assert_pointer(result, "Binding Analysis")
+        # And no duals-language caption on a duals-less response — the server's
+        # "duals are local" next_steps is solver-exact only.
+        assert "duals" not in result.get("next_steps", "").lower()
 
     def test_scenario_results_points_to_its_section(self):
         pid = _build_solvable_problem()

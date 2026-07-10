@@ -1855,7 +1855,10 @@ def explore(
             except ValueError as e:
                 return {"error": str(e)}
             # Close the loop back to the decision (duals are local to the reference solution).
-            if isinstance(result, dict) and "error" not in result:
+            # Solver-exact results only: the frontier-inferred path has no duals — its note
+            # carries the upgrade path and its pointer retargets 'Binding Analysis'.
+            if (isinstance(result, dict) and "error" not in result
+                    and result.get("source") == "solver_exact"):
                 result.setdefault(
                     "next_steps",
                     "Duals are local to this reference solution — route a large shadow price back to "
