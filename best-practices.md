@@ -5,9 +5,9 @@ A living reference for designing skills, tool descriptions, and agent instructio
 **Related docs:** [`architecture.md`](architecture.md) — system architecture, tool/skill reference, data flow | [`README.md`](README.md) — user setup and usage guide
 
 **Using this guide (by lifecycle phase)** — pull up the part that applies at each phase instead of re-reading the whole file:
-- **Designing** a new skill or MCP tool → §1 (Skill File Design), §3 (MCP Tool Description Design), §4 (Context Engineering)
-- **Developing** prompts, tool descriptions, or skill content → §2 (Prompt Best Practices)
-- **Reviewing** a skill or prompt change → §1 agent-usability criteria + conciseness; verify cross-references and MECE boundaries
+- **Designing** a new skill or MCP tool → §1 (Skill File Design), §3 (MCP Tool Description Design), §4 (Context Engineering), §5 (Division of Labor — which side of the code↔LLM boundary each piece belongs on)
+- **Developing** prompts, tool descriptions, or skill content → §2 (Prompt Best Practices), §5 payload-English cap
+- **Reviewing** a skill or prompt change → §1 agent-usability criteria + conciseness; verify cross-references and MECE boundaries; §5 gate rule (every scaffold ships with its regression gate)
 - **Testing** a new feature → §1 safety patterns (confirmation gates, validation loops)
 
 ---
@@ -182,7 +182,29 @@ How skills, tool descriptions, and server instructions work together as a system
 
 ---
 
-## 5. Patterns Applied in This Project
+## 5. Division of Labor — Deterministic Code vs LLM Judgment
+
+Frontier scaffolds a probabilistic agent with deterministic Python. The strategy is deliberate, and it has a boundary; when adding a feature, decide which side each piece belongs on before writing it.
+
+**Deterministic code earns its place in exactly three areas:**
+
+1. **Math** — compute what the LLM can't: the solve itself, hypervolume, regret, duals, dominance. Never ask the model to estimate what the engine can prove.
+2. **Structured classification** — compress raw results into a stable vocabulary of enums and verdicts (`linear_redundant`, `under_covered`, `frontier_inferred`, scale bands, certificate blocks). This vocabulary is what skills teach against ("when you see X, say Y"), what answer-key evals assert on, and what makes claims traceable. It also makes behavior portable across models — classification in code is redundancy for strong models and load-bearing for weak ones.
+3. **Guidance routing** — the injection throttle, `guidance_pointer`s, and section resolver. *When* to deliver skill content is a state-machine problem (once per phase, re-arm on shape change, point at the section governing this payload), not a judgment call.
+
+**The boundary rule: code decides what is true; skills decide how to say it and when it matters; the model decides what the user meant.** Semantic mapping of user intent stays with the model (see §2 — no keyword tables); narration and judgment stay in skills; facts, labels, and state stay in code.
+
+**No deterministic scaffold ships without its gate.** Deterministic scaffolding is brittle by nature — hardcoded section titles, payload contracts, workflow beats. That brittleness is affordable only when each scaffold has a regression gate: the resolver-integrity test guards every pointer target and heading, wire-level tests guard payload contracts, answer-key evals guard workflow beats. A scaffold without a gate is rot waiting to happen; add the gate in the same PR.
+
+**Cap payload English — a caption, not a copy.** Hand-written English inside tool responses (`note` / `next_steps` / `recommendation` / `hint`) is the bloat- and drift-prone stratum: it double-bookkeeps with skills, it's invisible to prose review, and it's where terminology drift happens. Two kinds earn their place:
+- **Epistemic captions** — a per-response fact the skill can't know: a truncation ("table capped at N"), an absence ("no adjacent-cardinality solutions to estimate from"), an artifact label ("rounding of the continuous optimum, not an infeasible plan").
+- **Routing pointers** — the next tool call or the skill section that governs the read.
+
+If a payload string starts *explaining* — teaching semantics, coaching narration, restating what a skill section says — it belongs in that skill section, with the payload shrunk to a pointer. The feature template: **new structured fields + one skill section + a pointer wiring it + at most a sentence of payload English.** When a `guidance_pointer` on the same response already names the covering section, the prose it covers is redundant — trim it.
+
+---
+
+## 6. Patterns Applied in This Project
 
 Patterns discovered during skill file auditing and refactoring:
 
