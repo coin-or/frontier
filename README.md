@@ -61,11 +61,11 @@ Spreadsheets hit a complexity wall once options and constraints in a decision mu
 
 **What it adds beyond an LLM alone** (its design principles):
 - **The full frontier**: every Pareto-optimal plan, yours to weigh.
-- **Explore broadly, certify selectively**: the heuristic maps the whole space; an exact solver then proves the finalists you'd commit to on supported shapes, catching dominated points the heuristic showed as efficient. It can only confirm or improve them.
+- **Explore broadly, certify selectively**: the heuristic maps the whole space; an exact solver then proves the finalists you'd commit to on supported shapes, catching dominated points the heuristic showed as efficient. It can only confirm or improve them. The audit runs both ways: certify also flags frontier regions the heuristic reached that the exact pass missed, and a targeted fill closes just those gaps.
 - **Constraints enforced**: nine hard types (cardinality, force include, force exclude, objective bounds, exclusion pairs, dependencies, group limits with per-group floors and caps, a global allocation cap, per-option allocation floors/caps), respected by every plan the search returns.
 - **Governance guarantees**: on selection problems, a proof that a guardrail holds for *every* feasible plan, or a concrete counterexample.
 - **Grounded and reproducible**: every number traces to a score, an objective value, a dual, or a binding constraint, and the same inputs + seed reproduce the exact frontier.
-- **Scenarios & risk**: independent frontiers per scenario, plus CVaR / worst-case / expected / minimax-regret per objective.
+- **Scenarios & risk**: independent frontiers per scenario, plus CVaR / worst-case / expected / minimax-regret per objective — with your curated finalists ranked on the same regret scale as the frontier's plans.
 - **Knowledge discovery**: mine the frontier for selection rates, recurring rules, and strategy families.
 - **Durable decisions**: problems persist across sessions; curated picks and feedback attach to the decision and survive re-runs.
 
