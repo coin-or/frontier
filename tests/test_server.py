@@ -611,6 +611,20 @@ class TestReferencePoints:
             {"type": "baseline", "name": "Current", "objective_values": {"Rev": 10, "Eff": 8}}])
         assert r["guidance_pointer"]["section"] == "Reference Point Narration"
 
+    def test_setting_scenarios_points_to_sweep_discipline(self):
+        # Setting scenario_config surfaces the sweep-construction discipline — it lives in
+        # references (not the injected core), and its checks apply to the config just written.
+        pid = _build_solvable_problem()
+        r = srv.model(action="update", problem_id=pid, scenario_config={
+            "enabled": True,
+            "scenarios": [{"name": "downturn", "score_adjustments": []}],
+        })
+        assert r["guidance_pointer"]["section"] == "Sweep Discipline — Constructing Scenarios"
+        # And the pointed-at section resolves as exactly one section.
+        body = srv.get_skill("optimization_strategy",
+                             section="Sweep Discipline — Constructing Scenarios")
+        assert body.startswith("## Sweep Discipline")
+
     def test_reference_in_tradeoffs(self):
         pid = _build_solvable_problem()
         srv.model(action="update", problem_id=pid, reference_points=[
@@ -2353,6 +2367,21 @@ class TestDecisionGuidancePointers:
         result = srv.explore(action="tradeoffs", problem_id=pid)
         self._assert_pointer(
             result, "Presentation Order: Extremes → Balanced → Inflection → Risk → Preference")
+
+    def test_tradeoffs_flagged_redundancy_names_its_playbook(self):
+        # When the payload flags a redundant/dependent pair, the pointer note must also name
+        # the Objective Redundancy section (it lives in references, not the injected core).
+        # Unit-level: drive _attach_guidance_pointer with synthetic classifications.
+        from mcp_server.guidance import _attach_guidance_pointer
+        flagged = _attach_guidance_pointer(
+            {"objective_redundancy": [{"classification": "linear_redundant"}]}, "tradeoffs")
+        assert ("get_skill('solution_interpreter', section='Objective Redundancy')"
+                in flagged["guidance_pointer"]["note"])
+        # strong_tradeoff / independent are healthy — no extra fetch demanded.
+        clean = _attach_guidance_pointer(
+            {"objective_redundancy": [{"classification": "strong_tradeoff"},
+                                      {"classification": "independent"}]}, "tradeoffs")
+        assert "Objective Redundancy" not in clean["guidance_pointer"]["note"]
 
     def test_compare_points_to_differentiating_options(self):
         pid = self._solved_pid()
