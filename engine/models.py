@@ -303,6 +303,8 @@ class Run(BaseModel):
     time_limit: float | None = None  # wall-clock cap (s) requested for this solve; None = uncapped
     time_limited: bool = False  # True when the cap was hit, so this frontier is best-so-far, not fully converged
     solve_fingerprint: str | None = None  # hash of the solve-input fields as solved — edits compare against it, so a round-trip edit lands back at results_stale=False
+    telemetry: dict | None = None  # how this solve ran: {duration_s, engine_detail, evals_or_solves} — machine-local facts, stripped from portable bundles (cap-hit lives on time_limited)
+    problem_snapshot: dict | None = None  # problem features as solved (solvers.problem_features) — pairs with telemetry so routing advice can be calibrated from real workload
 
 
 # --- Feedback ---

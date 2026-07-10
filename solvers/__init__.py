@@ -236,6 +236,45 @@ def scale_band(problem: "Problem") -> dict:
     return block
 
 
+def problem_features(problem: "Problem") -> dict:
+    """Feature snapshot of a problem at solve time — ``Run.problem_snapshot``.
+
+    The feature-space sibling of ``constraints_snapshot``: deterministic facts about
+    the problem *as solved*, recorded so solve telemetry can later be read against
+    problem scale/shape (which engine ran on what, and how long it took). Lives
+    beside ``exact_solver_fits`` on purpose — the snapshot's ``exact_fits`` and the
+    gate share one implementation, so features and gate can never drift.
+    """
+    from engine.models import Aggregation
+
+    fits, reason = exact_solver_fits(problem)
+    agg_mix: dict[str, int] = {}
+    for o in problem.objectives:
+        key = getattr(o.aggregation, "value", str(o.aggregation))
+        agg_mix[key] = agg_mix.get(key, 0) + 1
+    constraint_counts: dict[str, int] = {}
+    for c in problem.constraints or []:
+        constraint_counts[c.type] = constraint_counts.get(c.type, 0) + 1
+    return {
+        "n_options": len(problem.options),
+        "n_objectives": len(problem.objectives),
+        "n_scores": len(problem.scores),
+        "approach": getattr(problem.approach, "value", str(problem.approach)),
+        "aggregation_mix": agg_mix,
+        "constraint_type_counts": constraint_counts,
+        # Same inclusion rule as optimizer._build_interaction_matrices (a quadratic
+        # objective with a matching matrix), WITHOUT building the dense n×n arrays —
+        # this runs on every solve, and the build is O(n²) memory at scale.
+        "interaction_matrix": bool(
+            {o.name for o in problem.objectives if o.aggregation == Aggregation.quadratic}
+            & {m.objective for m in problem.interaction_matrices}
+        ),
+        "scenarios": len(problem.scenario_config.scenarios) if problem.scenario_config else 0,
+        "exact_fits": fits,
+        "exact_fits_reason": reason,
+    }
+
+
 def is_exact_solver(solver: str | None) -> bool:
     """Whether a solver name denotes an exact backend (vs the default heuristic NSGA).
 

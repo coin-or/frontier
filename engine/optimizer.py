@@ -1134,6 +1134,30 @@ def _was_time_limited(time_limit: float | None, elapsed: float) -> bool:
     return bool(time_limit) and time_limit > 0 and elapsed >= time_limit
 
 
+def _nsga_telemetry(result, n_gen: int, elapsed: float) -> dict:
+    """``Run.telemetry`` for the NSGA paths: recorded facts about how the solve ran.
+
+    Same record-what-actually-ran convention as ``seed_used``/``solver`` — pure
+    instrumentation, no judgment. ``evals_or_solves`` is pymoo's evaluation count
+    (captures early termination); ``n_gen_run`` vs ``n_gen_budget`` shows how much
+    of the generation budget a time cap left on the table. Attribute access is
+    deliberately direct: a pymoo API drift must fail loudly here, not record
+    silent zeros into the data the routing thresholds get recalibrated from.
+    (Whether a cap cut the run short is ``Run.time_limited`` — not duplicated here.)
+    """
+    alg = result.algorithm
+    return {
+        "duration_s": round(elapsed, 3),
+        "engine_detail": {
+            "pop_size": int(alg.pop_size),
+            "n_gen_budget": int(n_gen),
+            # pymoo's n_iter counts the initialization pass as iteration 1.
+            "n_gen_run": max(0, int(alg.n_iter) - 1),
+        },
+        "evals_or_solves": int(alg.evaluator.n_eval),
+    }
+
+
 def optimize(
     problem: Problem,
     mode: OptimizeMode | None = None,
@@ -1219,6 +1243,9 @@ def optimize(
     # snapshot the constraints the run was solved under, so compare_runs never reports a
     # phantom criteria diff against a direct-call run (e.g. a re-baked example bundle).
     run.constraints_snapshot = [c.model_dump() for c in problem.constraints]
+    from solvers import problem_features
+
+    run.problem_snapshot = problem_features(problem)
     return run
 
 
@@ -1248,9 +1275,14 @@ def certify_curated(
         raise ValueError(f"Exact solver '{solver}' does not fit this problem: {reason}")
     if solver == "cuopt":
         from solvers.cuopt_backend import _certify_curated_cuopt
-        return _certify_curated_cuopt(problem, source_run, exact=exact, mode=mode, max_solutions=max_solutions)
-    from solvers.highs_backend import _certify_curated_highs
-    return _certify_curated_highs(problem, source_run, exact=exact, mode=mode, max_solutions=max_solutions)
+        run = _certify_curated_cuopt(problem, source_run, exact=exact, mode=mode, max_solutions=max_solutions)
+    else:
+        from solvers.highs_backend import _certify_curated_highs
+        run = _certify_curated_highs(problem, source_run, exact=exact, mode=mode, max_solutions=max_solutions)
+    from solvers import problem_features
+
+    run.problem_snapshot = problem_features(problem)
+    return run
 
 
 def _apply_matrix_override(base: "InteractionMatrix | None", override: "InteractionMatrix") -> "InteractionMatrix":
@@ -1891,6 +1923,7 @@ def _optimize_binary(
     max_n = max_solutions or MAX_PARETO_SOLUTIONS
     solutions, total_found = _prune_pareto(solutions, obj_list, max_n=max_n)
     solutions = _sort_and_reindex(solutions, obj_list)
+    limited = _was_time_limited(time_limit, elapsed)
     return Run(
         solutions=solutions,
         total_pareto_found=total_found,
@@ -1898,7 +1931,8 @@ def _optimize_binary(
         mode=mode,
         seed_used=seed,
         time_limit=time_limit,
-        time_limited=_was_time_limited(time_limit, elapsed),
+        time_limited=limited,
+        telemetry=_nsga_telemetry(result, n_gen, elapsed),
     )
 
 
@@ -1969,6 +2003,7 @@ def _optimize_proportional(
     max_n = max_solutions or MAX_PARETO_SOLUTIONS
     solutions, total_found = _prune_pareto(solutions, obj_list, max_n=max_n)
     solutions = _sort_and_reindex(solutions, obj_list)
+    limited = _was_time_limited(time_limit, elapsed)
     return Run(
         solutions=solutions,
         total_pareto_found=total_found,
@@ -1976,7 +2011,8 @@ def _optimize_proportional(
         mode=mode,
         seed_used=seed,
         time_limit=time_limit,
-        time_limited=_was_time_limited(time_limit, elapsed),
+        time_limited=limited,
+        telemetry=_nsga_telemetry(result, n_gen, elapsed),
     )
 
 

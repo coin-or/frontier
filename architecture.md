@@ -218,7 +218,12 @@ stateDiagram-v2
     note right of Solved
         Run: solutions[], quality (hypervolume,
         spacing CV), constraints_snapshot,
-        solver / exact (engine provenance).
+        solver / exact (engine provenance),
+        telemetry (duration, pop/gen or
+        inner-solve counts – machine-local,
+        stripped from portable bundles) +
+        problem_snapshot (features as solved,
+        solvers.problem_features).
         Each solution: selected_options,
         objective_values, allocations,
         content_signature (MD5).
