@@ -878,36 +878,207 @@ def compare_runs(problem: Problem, run_ids: list[str]) -> dict:
     }
 
 
-def _coverage_gain(N: np.ndarray, E: np.ndarray, seed: int = 42) -> dict | None:
-    """Hypervolume the exact overlay reclaims over the NSGA frontier alone — the *magnitude*
-    companion to the dominance *count*, and the coverage value that grows with problem size.
-
-    Both fronts arrive in minimize-space. Normalize the *combined* set into one shared [0, 1] box
-    so a single reference point is fair to both (hypervolume is reference-point dependent), then
-    Monte-Carlo the dominated volume of NSGA alone vs NSGA∪exact against the same reference and
-    sample. Same seed → identical samples → ``combined ≥ nsga`` exactly, so the reclaimed volume
-    is never a sampling artifact. Returns ``None`` when the combined front is degenerate (a flat
-    axis), where coverage is undefined. Volumes are normalized to the box (the engine's
-    ``hypervolume_normalized`` convention), so they read on the same 0–1 scale as a run's quality.
-    """
-    from engine.optimizer import _approx_hypervolume
-
-    P = np.vstack([N, E])
+def _shared_box_masks(parts: list[np.ndarray], seed: int = 42):
+    """Joint-normalize stacked minimize-space fronts into one shared box and return a
+    ``mask(front)`` function over ONE Monte-Carlo draw — the same sampler and conventions
+    as ``optimizer._approx_hypervolume``, so a front's normalized hypervolume is exactly
+    ``mask(front).mean()`` and unions compose as mask OR (per-union cost O(|front| × samples),
+    not O(|everything| × samples)). Shared samples make ``union ≥ part`` exact, never a
+    sampling artifact. Returns ``None`` when the joint box is degenerate (a flat axis),
+    where hypervolume is undefined."""
+    P = np.vstack(parts)
     f_min = P.min(axis=0)
     spread = P.max(axis=0) - f_min
     if not np.all(spread > 0):
         return None
-    ref = np.ones(P.shape[1]) * 1.1
-    hv_box = float(np.prod(ref))
-    hv_nsga = _approx_hypervolume((N - f_min) / spread, ref, seed=seed) / hv_box
-    hv_comb = _approx_hypervolume((P - f_min) / spread, ref, seed=seed) / hv_box
-    reclaimed = max(0.0, hv_comb - hv_nsga)  # combined ≥ nsga by construction (shared seed/samples); the clamp only absorbs FP noise
+    m = P.shape[1]
+    ref = np.ones(m) * 1.1
+    samples = np.random.default_rng(seed).uniform(0, ref, size=(10000, m))
+
+    def mask(F: np.ndarray) -> np.ndarray:
+        out = np.zeros(len(samples), dtype=bool)
+        for i in range(0, len(F), 256):  # chunk the broadcast: bounded temp at large fronts
+            Fn = (F[i:i + 256] - f_min) / spread
+            out |= ((samples[:, None, :] >= Fn[None, :, :]).all(axis=2)).any(axis=1)
+        return out
+
+    return f_min, spread, mask
+
+
+def _nondominated_idx_min(E: np.ndarray) -> np.ndarray:
+    """Indices of the non-dominated subset in minimize-space — the vectorized form of
+    filtering by ``_dominates_min`` (same ±1e-9 strict-dominance epsilon)."""
+    if len(E) == 0:
+        return np.array([], dtype=int)
+    le = (E[None, :, :] <= E[:, None, :] + 1e-9).all(axis=2)  # le[i, j]: E[j] no worse than E[i]
+    lt = (E[None, :, :] < E[:, None, :] - 1e-9).any(axis=2)   # lt[i, j]: E[j] strictly better somewhere
+    return np.where(~(le & lt).any(axis=1))[0]
+
+
+def _coverage_gain(N: np.ndarray, E: np.ndarray, seed: int = 42) -> dict | None:
+    """Hypervolume the exact overlay reclaims over the NSGA frontier alone — the *magnitude*
+    companion to the dominance *count*, and the coverage value that grows with problem size.
+
+    Both fronts arrive in minimize-space. ``_shared_box_masks`` normalizes the *combined* set
+    into one shared box so a single reference point is fair to both (hypervolume is
+    reference-point dependent) and draws one shared sample set, so ``combined ≥ nsga`` exactly —
+    the reclaimed volume is never a sampling artifact. Returns ``None`` when the combined front
+    is degenerate (a flat axis), where coverage is undefined. Volumes are normalized to the box
+    (the engine's ``hypervolume_normalized`` convention), so they read on the same 0–1 scale as
+    a run's quality.
+    """
+    ctx = _shared_box_masks([N, E], seed=seed)
+    if ctx is None:
+        return None
+    _, _, mask = ctx
+    m_nsga = mask(N)
+    hv_nsga = float(m_nsga.mean())
+    hv_comb = float((m_nsga | mask(E)).mean())
+    reclaimed = max(0.0, hv_comb - hv_nsga)  # ≥ 0 by construction; the clamp only absorbs FP noise
     return {
         "nsga_hypervolume": round(hv_nsga, 4),
         "combined_hypervolume": round(hv_comb, 4),
         "exact_reclaims": round(reclaimed, 4),
         "reclaimed_fraction": round(reclaimed / hv_comb, 4) if hv_comb > 0 else 0.0,
     }
+
+
+_COMPLETENESS_NOISE = 0.005  # normalized-HV tolerance for "complete": the shared-seed MC trick
+                             # makes combined ≥ exact exact (never a sampling artifact), so this
+                             # floor only absorbs rounding/display-precision noise. Stated openly
+                             # on the payload so the verdict is auditable.
+_WITNESS_RTOL = 1e-6  # per-objective coverage tolerance, relative to the joint front's spread —
+                      # objective values are stored rounded and exact backends re-solve within
+                      # solver tolerance, so an absolute epsilon would mint phantom witnesses on
+                      # large-magnitude objectives (and the fill would chase them forever).
+
+
+def _signed_matrix(problem: Problem, run: Run) -> tuple[np.ndarray, np.ndarray]:
+    """(natural, minimize-space) objective-value matrices for a run — the one construction
+    certify, the completeness analysis, and the fill work-list all share, so no consumer can
+    drift on sign convention or missing-value fill."""
+    objs = problem.objectives
+    names = [o.name for o in objs]
+    sign = np.array([-1.0 if o.direction == Direction.maximize else 1.0 for o in objs])
+    nat = np.array([[s.objective_values.get(n, 0.0) for n in names] for s in run.solutions],
+                   dtype=float).reshape(len(run.solutions), len(names))
+    return nat, nat * sign
+
+
+def _completeness_analysis(problem: Problem, nsga_run: Run, exact_run: Run) -> dict:
+    """Shared gap detection for the certificate's ``completeness`` block AND the targeted
+    fill (``optimizer.fill_gaps``) — ONE criterion decides both the verdict and the fill
+    work-list, so a "complete" certificate and a non-no-op fill can never disagree.
+
+    Witnesses are NSGA points no exact point covers (equal-or-better on every objective,
+    within a per-objective tolerance relative to the joint spread); ``under`` is True only
+    when witnesses exist AND the hypervolume they reclaim clears ``_COMPLETENESS_NOISE``
+    (when the joint box is degenerate, hypervolume is undefined and witnesses alone decide).
+    """
+    if not nsga_run.solutions or not exact_run.solutions:
+        witness_idx = list(range(len(nsga_run.solutions)))
+        return {"witness_idx": witness_idx, "under": bool(witness_idx), "reclaims": None,
+                "hv_exact": None, "hv_comb": None, "nat_N": None, "N": None, "Eref": None,
+                "box": None}
+    nat_N, N = _signed_matrix(problem, nsga_run)
+    _, E = _signed_matrix(problem, exact_run)
+    Eref = E[_nondominated_idx_min(E)]
+    joint = np.vstack([N, Eref])
+    tol = (joint.max(axis=0) - joint.min(axis=0)) * _WITNESS_RTOL + 1e-9
+    covered = ((Eref[None, :, :] <= N[:, None, :] + tol).all(axis=2)).any(axis=1)
+    witness_idx = list(np.where(~covered)[0])
+    box = _shared_box_masks([N, Eref])
+    if box is None:
+        return {"witness_idx": witness_idx, "under": bool(witness_idx), "reclaims": None,
+                "hv_exact": None, "hv_comb": None, "nat_N": nat_N, "N": N, "Eref": Eref,
+                "box": None}
+    f_min, spread_box, mask = box
+    mask_e = mask(Eref)
+    hv_exact = float(mask_e.mean())
+    hv_comb = float((mask_e | mask(N)).mean())
+    reclaims = max(0.0, hv_comb - hv_exact)
+    return {"witness_idx": witness_idx,
+            "under": bool(witness_idx) and reclaims > _COMPLETENESS_NOISE,
+            "reclaims": reclaims, "hv_exact": hv_exact, "hv_comb": hv_comb,
+            "nat_N": nat_N, "N": N, "Eref": Eref, "box": (f_min, spread_box)}
+
+
+def gap_witness_solutions(problem: Problem, nsga_run: Run, exact_run: Run) -> list:
+    """The NSGA solutions inside detected coverage gaps of the exact overlay.
+
+    The read side of ``completeness`` and the work-list for the targeted fill
+    (``solve scope="fill_gaps"`` → ``optimizer.fill_gaps``): re-solving exactly these
+    points' scalarizations closes the gaps the certificate names. Noise-gated on the SAME
+    criterion as the certificate's verdict — a "complete" overlay yields an empty
+    work-list, so the fill's documented no-op contract can never disagree with the
+    certificate. Pure detection — no solver touched."""
+    a = _completeness_analysis(problem, nsga_run, exact_run)
+    if not a["under"]:
+        return []
+    return [nsga_run.solutions[i] for i in a["witness_idx"]]
+
+
+def _completeness_block(problem: Problem, nsga_run: Run, exact_run: Run) -> dict | None:
+    """The mirror of ``_coverage_gain``: the exact overlay audited for completeness by NSGA.
+
+    ``coverage`` measures what exact reclaims over the heuristic; this measures the inverse —
+    hypervolume the heuristic run already covers that the exact scalarization sweep never
+    sampled (supported-points-only gaps on non-convex shapes). Same joint normalization and
+    shared-seed Monte-Carlo, roles swapped. ``gap_regions`` localizes the reclaim: witnesses
+    clustered by nearest exact point in the normalized box — boxes from nondominated
+    witnesses, not ordered chords, so any objective count works — each region naming its
+    witness solution ids (self-certifying), largest first. Returns ``None`` when the joint
+    front is degenerate (hypervolume undefined)."""
+    a = _completeness_analysis(problem, nsga_run, exact_run)
+    if a["reclaims"] is None:
+        return None
+    names = [o.name for o in problem.objectives]
+    under = a["under"]
+    block: dict = {
+        "exact_hypervolume": round(a["hv_exact"], 4),
+        "combined_hypervolume": round(a["hv_comb"], 4),
+        "heuristic_reclaims": round(a["reclaims"], 4),
+        "reclaimed_fraction_over_exact": round(a["reclaims"] / a["hv_comb"], 4) if a["hv_comb"] > 0 else 0.0,
+        "noise_floor": _COMPLETENESS_NOISE,
+        "verdict": "under_covered" if under else "complete",
+        "mirror": "coverage",
+        "note": ("the heuristic holds hypervolume the exact sweep never sampled — fill the "
+                 "named regions with solve scope='fill_gaps'" if under else
+                 "the exact overlay covers everything the heuristic reached (reclaim at or "
+                 "below the noise floor)"),
+    }
+    if not under:
+        return block
+
+    # Localize: cluster witnesses by nearest exact point in the shared normalized box,
+    # largest region first. Witness count ranks the regions — a per-region hypervolume
+    # share would cost a Monte-Carlo pass per cluster for a number that is only
+    # indicative anyway (regions overlap in dominated volume), and the fill consumes
+    # ALL witnesses regardless.
+    nat_N, N, Eref = a["nat_N"], a["N"], a["Eref"]
+    f_min, spread = a["box"]
+    Nn = (N - f_min) / spread
+    En = (Eref - f_min) / spread
+    clusters: dict[int, list[int]] = {}
+    for i in a["witness_idx"]:
+        anchor = int(np.argmin(((En - Nn[i]) ** 2).sum(axis=1)))
+        clusters.setdefault(anchor, []).append(i)
+    regions = []
+    for _, members in sorted(clusters.items(), key=lambda kv: -len(kv[1])):
+        bbox = {names[j]: [round(float(nat_N[members, j].min()), 4),
+                           round(float(nat_N[members, j].max()), 4)]
+                for j in range(len(names))}
+        ids = [nsga_run.solutions[i].solution_id for i in members]
+        regions.append({
+            "witness_solution_ids": ids[:10],
+            "size": len(members),
+            "bounding_box": bbox,
+        })
+    if len(regions) > 8:  # payload compactness; the fill consumes ALL witnesses regardless
+        block["regions_truncated"] = len(regions) - 8
+        regions = regions[:8]
+    block["gap_regions"] = regions
+    return block
 
 
 def _objective_bound_dips(problem: Problem, run: Run) -> list[dict]:
@@ -958,6 +1129,11 @@ def certify_against_exact(problem: Problem, nsga_run: Run, exact_run: Run) -> di
       convex risk/variance corner (a flat bowl where heuristics wobble and a QP is exact); where
       exact looks *short* of NSGA on a corner, that's the same budget artifact (a targeted exact
       solve would match it), flagged ``under-sampled``, not a capability limit.
+    - **Completeness (the mirror audit)** — the exact overlay audited *by* NSGA: hypervolume the
+      heuristic already covers that the scalarization sweep never sampled, localized as
+      ``gap_regions`` with witness solution ids. The auditor framing's missing half — each engine
+      audits the other; an under-covered verdict routes to the targeted fill
+      (``solve scope="fill_gaps"``), which re-solves only the witnesses and merges.
 
     Returns a JSON-friendly dict (the MCP ``explore certify`` payload).
     """
@@ -981,8 +1157,7 @@ def certify_against_exact(problem: Problem, nsga_run: Run, exact_run: Run) -> di
 
     # Exact frontier reference = the non-dominated subset of the exact points (clean by
     # construction, but integer rounding can introduce a few dominated ones — re-filter).
-    exact_front = np.array([i for i in range(len(E))
-                            if not any(_dominates_min(E[j], E[i]) for j in range(len(E)) if j != i)])
+    exact_front = _nondominated_idx_min(E)
     Eref = E[exact_front]
 
     # Dominance audit: NSGA points strictly dominated by the exact frontier (heuristic slack).
@@ -1027,6 +1202,8 @@ def certify_against_exact(problem: Problem, nsga_run: Run, exact_run: Run) -> di
     else:
         headline = None
 
+    completeness = _completeness_block(problem, nsga_run, exact_run)
+
     parts = []
     if dominated_idx:
         parts.append(f"exact audits {len(dominated_idx)}/{len(N)} NSGA points as dominated (heuristic slack)")
@@ -1041,6 +1218,11 @@ def certify_against_exact(problem: Problem, nsga_run: Run, exact_run: Run) -> di
         parts.append(f"under-samples {', '.join(under)} (this run's sweep sampling, not a "
                      "capability limit — a re-run with a higher budget or a targeted exact "
                      "solve closes it)")
+    if completeness and completeness["verdict"] == "under_covered":
+        share = completeness["reclaimed_fraction_over_exact"]
+        parts.append(f"the overlay under-covers {len(completeness['gap_regions'])} region(s) the "
+                     f"heuristic reached ({share:.1%} of combined hypervolume; see "
+                     "completeness.gap_regions) — close them with solve scope='fill_gaps'")
     recommendation = "; ".join(parts) + "."
 
     from solvers import run_is_certified   # local, matching _frontier_provenance's pattern
@@ -1075,6 +1257,8 @@ def certify_against_exact(problem: Problem, nsga_run: Run, exact_run: Run) -> di
         )
 
     coverage = _coverage_gain(N, Eref)  # the cleaned exact front (as the dominance audit uses), so integer-rounding artifacts can't rescale the shared box
+    if coverage is not None:
+        coverage["mirror"] = "completeness"  # the inverse audit rides the same certificate
 
     # Quality gate over the certified points: an exact optimum can still be a degenerate plan
     # (empty, pinned, concentrated) — the certificate says "optimal for the model as written",
@@ -1113,6 +1297,7 @@ def certify_against_exact(problem: Problem, nsga_run: Run, exact_run: Run) -> di
             "examples": examples,
         },
         "coverage": coverage,
+        "completeness": completeness,
         "invariant": {
             "holds": exact_dominated == 0,
             "exact_dominated_by_nsga": exact_dominated,
