@@ -731,6 +731,51 @@ def scenario_regret(problem: Problem) -> dict:
         if best_sid is not None:
             per_objective[ob.name] = {"min_max_regret": _round_regret(best_val), "achieved_by_solution_id": best_sid}
 
+    # Curated lens: the user's shortlisted picks re-scored under each scenario with the
+    # SAME scorers, normalization, and ranked-scenario set as the base rows, so the two
+    # minimax numbers compare directly. Curated pins carry selected_options/allocations
+    # (everything score_slate needs) and are content_signature-keyed, so an
+    # exact-overlay finalist scores here even though it never appears in the base run.
+    # Absent when nothing is curated — zero noise.
+    curated_block = None
+    if problem.curated_solutions:
+        curated_rows = []
+        raw_max_cur: dict[str, float] = {}
+        for cs in problem.curated_solutions:
+            for name in scen_runs:
+                ck = (cs.content_signature, name)
+                if ck not in cache:
+                    cache[ck] = scorers[name](cs.selected_options, cs.allocations)
+            raw = {name: max((regret_for(cs, name, ob) for ob in objs), default=0.0)
+                   for name in scen_runs}
+            vals = [raw[name] for name in ranked]
+            raw_max_cur[cs.content_signature] = max(vals, default=0.0)
+            curated_rows.append({
+                "content_signature": cs.content_signature,
+                "custom_name": cs.custom_name,
+                "by_scenario": {name: _round_regret(v) for name, v in raw.items()},
+                "max_regret": _round_regret(raw_max_cur[cs.content_signature]),
+                "mean_regret": _round_regret(sum(vals) / len(vals)) if vals else None,
+                "feasible_in_all": all(cache[(cs.content_signature, name)]["feasible"]
+                                       for name in scen_runs),
+                "feasible_in_ranked": all(cache[(cs.content_signature, name)]["feasible"]
+                                          for name in ranked),
+            })
+        curated_rows.sort(key=lambda r: raw_max_cur[r["content_signature"]])
+        cur_saturated = bool(curated_rows) and raw_max_cur[curated_rows[0]["content_signature"]] >= 1.0
+        curated_block = {
+            "rows": curated_rows,
+            "minimax_choice": ({"content_signature": curated_rows[0]["content_signature"],
+                                "custom_name": curated_rows[0]["custom_name"],
+                                "max_regret": curated_rows[0]["max_regret"]}
+                               if curated_rows and not cur_saturated else None),
+            "note": ("the curated picks re-scored under each scenario — same normalization "
+                     "and ranked-scenario set as per_solution, so max_regret here compares "
+                     "directly against minimax_choice."
+                     + (" Saturated: every curated pick hits max regret over the ranked "
+                        "scenarios, so no curated minimax is nominated." if cur_saturated else "")),
+        }
+
     # per_solution is sorted ascending, so the metric is saturated exactly when the BEST
     # solution already hits total regret — every base solution is infeasible or fully
     # dominated in some RANKED scenario, and "minimizes worst-case regret" would pick among
@@ -752,6 +797,7 @@ def scenario_regret(problem: Problem) -> dict:
         "minimax_choice": ({"solution_id": minimax["solution_id"],
                             "content_signature": minimax["content_signature"],
                             "max_regret": minimax["max_regret"]} if minimax else None),
+        **({"curated": curated_block} if curated_block else {}),
         "note": ("regret = best-achievable-in-scenario minus this solution re-evaluated there, "
                  "normalized per objective range; minimax_choice minimizes worst-case regret. "
                  "per_solution lists the lowest-max-regret solutions "
