@@ -1252,7 +1252,7 @@ def certify_against_exact(problem: Problem, nsga_run: Run, exact_run: Run) -> di
 
     parts = []
     if dominated_idx:
-        parts.append(f"exact audits {len(dominated_idx)}/{len(N)} NSGA points as dominated (heuristic slack)")
+        parts.append(f"exact certifies {len(dominated_idx)}/{len(N)} NSGA points as dominated (heuristic slack)")
     if headline:
         c = corners[headline]
         corner = "risk corner" if c["is_risk_corner"] else "corner"

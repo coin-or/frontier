@@ -84,6 +84,24 @@ Narrate the shape in domain terms: "The ROI vs Risk frontier shows diminishing r
 
 Don't force a classification when the data is noisy (common in binary/combinatorial problems with discrete jumps). Say "the tradeoff is uneven" rather than inventing a smooth narrative.
 
+### Objective Redundancy
+
+The `tradeoffs` output includes an `objective_redundancy` block with a classification per pair. Each entry combines Pearson (linear) and normalized MI (any dependence) to surface when two objectives may be measuring the same thing. Narrate per classification:
+
+The `correlation` field is **direction-normalized** — positive values mean both objectives improve together (redundancy candidate), negative values mean improving one worsens the other (genuine tradeoff, which is the whole point of optimizing). Classifications reflect that:
+
+| Classification | What it means | Template |
+|---|---|---|
+| `independent` | Pairs vary freely — no action needed | (Skip — only narrate when noteworthy) |
+| `linear_redundant` | Strongly positive r — both improve together | "[A] and [B] are tracking each other closely on this frontier. One is likely redundant." |
+| `strong_tradeoff` | Strongly negative r — genuine conflict | (Don't flag as redundancy — this is the tradeoff the optimizer exists to find. Narrate via Correlation Narration instead.) |
+| `redundant` | High MI not explained by linear r — strongly dependent non-linearly | "[A] and [B] are strongly coupled — the solver isn't finding meaningful tradeoff between them." |
+| `nonlinear_dependent` | |r| low **but** MI ≥ 0.4 — move together in a bent or threshold-like way | "[A] and [B] look uncorrelated, but they're actually linked — probably through a threshold or plateau. Worth looking at the scatter before treating them as independent." |
+
+When the `mi_reliable` flag is false (fewer than 15 solutions), only Pearson-based classifications fire — note low confidence before acting on them.
+
+**What to do with a redundancy flag:** don't silently drop an objective. Route the user back to problem framing: *"The optimizer is treating [A] and [B] as the same axis — do they actually measure different things for your decision? If not, consolidating would sharpen the frontier."* See `frontier://skills/problem_framing` for the Conflict Test and consolidation pattern.
+
 ### Binding Analysis
 
 The `tradeoffs` output includes a `binding_analysis` block: one entry per binding constraint with a `binding_fraction`, a `near_binding_count`, and a list of `shadow_prices` — rates, not deltas, derived from the frontier's own slope near the constraint.
@@ -159,15 +177,15 @@ On MILP, present the frontier-inferred estimate and name it as an estimate — i
 
 ### Reading the Certificate (explore certify)
 
-`explore certify` audits the exploratory NSGA frontier against an exact overlay (`solve(solver="highs"|"cuopt")`). It answers the **trust** question — *"how do I know nothing better exists, and are my picks provably near-optimal?"* — the auditor counterpart to the produce-side narration in `optimization_strategy`. Translate the pre-built `recommendation` / `next_steps`; don't echo them. It certifies *per-scalarization optimality + dominance + coverage* — never that the whole frontier is provably optimal (no single optimum exists for a multi-objective problem), so keep the language scoped. Five blocks:
+`explore certify` checks the exploratory NSGA frontier against an exact overlay (`solve(solver="highs"|"cuopt")`). It answers the **trust** question — *"how do I know nothing better exists, and are my picks provably near-optimal?"* — the read-side counterpart to the produce-side narration in `optimization_strategy`. Translate the pre-built `recommendation` / `next_steps`; don't echo them. It certifies *per-scalarization optimality + dominance + coverage* — never that the whole frontier is provably optimal (no single optimum exists for a multi-objective problem), so keep the language scoped. Five blocks:
 
-*Dominance audit* — `dominance_audit.nsga_dominated_by_exact` / `nsga_dominated_fraction` / `examples`: the NSGA "Pareto" points the exact frontier strictly beats — heuristic slack the EA presented as efficient. The fraction is the headline trust number:
-- *"Exact audited the explored frontier: [N] of [M] points ([fraction]) are actually dominated — plans that looked efficient, but a provably better mix exists. Here's one: [examples]."*
+*Dominance check* — `dominance_audit.nsga_dominated_by_exact` / `nsga_dominated_fraction` / `examples`: the NSGA "Pareto" points the exact frontier strictly beats — heuristic slack the EA presented as efficient. The fraction is the headline trust number:
+- *"Exact checked the explored frontier: [N] of [M] points ([fraction]) are actually dominated — plans that looked efficient, but a provably better mix exists. Here's one: [examples]."*
 - Zero dominated is itself a result: *"Exact confirms every explored point is on the true frontier — the EA's picks hold up."*
 
 *Coverage* — `coverage.reclaimed_fraction`: the hypervolume the exact overlay reclaims over NSGA alone — the magnitude behind the dominance count, and the trust number that grows with problem size. Lead with it at scale; near-zero is the honest small-instance result (the heuristic already covers the frontier — exact confirms, doesn't expand). When `coverage` is `null` the combined front is degenerate (a flat axis) — skip it and lean on the dominance fraction.
 
-*Completeness* — the mirror audit: coverage asks what exact reclaims over the heuristic; `completeness` asks the inverse — does the heuristic hold hypervolume the exact sweep never sampled? `verdict: "complete"` folds into the trust story (the overlay is not just sound but covers everything the EA found). `verdict: "under_covered"` names `gap_regions` — clusters of witness points (by `witness_solution_ids`, self-certifying) with a bounding box in objective units, largest region first. Present it as an honest boundary of the certificate, not a failure: *"the certified overlay misses regions your explored frontier already holds ([reclaimed_fraction_over_exact] of the combined hypervolume) — a targeted fill closes them."* The next move is `solve(solver=…, scope="fill_gaps")` with the overlay's own backend: it re-solves **only** the witnesses and merges; a gap whose solve hits its budget is discarded and reported (count in `fill.unfilled`, ids in `fill.unfilled_witness_ids`), so those regions honestly stay heuristic-best. Re-run `explore certify` after a fill for the updated verdict.
+*Completeness* — the mirror check: coverage asks what exact reclaims over the heuristic; `completeness` asks the inverse — does the heuristic hold hypervolume the exact sweep never sampled? `verdict: "complete"` folds into the trust story (the overlay is not just sound but covers everything the EA found). `verdict: "under_covered"` names `gap_regions` — clusters of witness points (by `witness_solution_ids`, self-certifying) with a bounding box in objective units, largest region first. Present it as an honest boundary of the certificate, not a failure: *"the certified overlay misses regions your explored frontier already holds ([reclaimed_fraction_over_exact] of the combined hypervolume) — a targeted fill closes them."* The next move is `solve(solver=…, scope="fill_gaps")` with the overlay's own backend: it re-solves **only** the witnesses and merges; a gap whose solve hits its budget is discarded and reported (count in `fill.unfilled`, ids in `fill.unfilled_witness_ids`), so those regions honestly stay heuristic-best. Re-run `explore certify` after a fill for the updated verdict.
 
 *Invariant* — `invariant.holds`: NSGA should dominate **no** exact point. This is a *soundness check on the overlay* — an exact point is optimal for its scalarization (to the solver's gap), so NSGA shouldn't beat it; when it does, that's the rounding footnote below, not a heuristic win. Confirm it holds, but don't lead with it as a quality win — the substantive trust numbers are the dominance fraction and the coverage gain:
 - *"NSGA dominates no exact point — the overlay is sound; exact can only confirm or improve."*
@@ -180,11 +198,13 @@ On MILP, present the frontier-inferred estimate and name it as an estimate — i
 - **A false invariant (`invariant.holds = false`) is the QP's integer rounding.** `exact_dominated_by_nsga > 0` on a QP means whole-percent allocation rounding edged out the continuous optimum (the `note` says so) — present it as a rounding footnote, not the EA beating the exact solve. (MILP corners, integer by construction, never show this.)
 - **An `under-sampled` corner (negative `improvement`) is an EA-budget signal — and should now be rare.** Every overlay anchor-samples each objective's extreme, so this mostly appears on a cardinality/group-capped mean-variance QP (which defers corners to its seeded search). Raising the budget closes it — present it as "more search would tighten this," not "exact is worse here."
 
-**The certificate binds the model, not the world — say where it stops.** Every scope above is *internal* — it bounds what "optimal" means within the stated model (per-scalarization, not global; weakly efficient under ties; degenerate duals). The *external* boundary is the one users miss: the proof certifies each pick optimal *for the model as stated* — these objectives, these scores, these scenarios — and says nothing about whether that model is the right one. Whether the objectives are the ones that matter, the scores honest, the scenarios the futures that play out is **validation** (the V&V sense — does the model reflect reality — *not* `solve validate`'s feasibility gate), and it stays the user's judgment, not the solver's. So when you hand over a clean certificate, name the edge rather than letting "proven optimal" read as "proven right" — *"each pick is provably optimal for the numbers you gave me; whether those are the right numbers is your call, worth a look before you commit."* It's the same trust the dominance/coverage numbers earn — don't let it leak into a trust the model itself hasn't.
+**The certificate binds the model, not the world — say where it stops.** Every scope above is *internal* — it bounds what "optimal" means within the stated model (per-scalarization, not global; weakly efficient under ties; degenerate duals). The *external* boundary is the one users miss: the proof certifies each pick optimal *for the model as stated* — these objectives, these scores, these scenarios — and says nothing about whether that model is the right one.
+
+Whether the objectives are the ones that matter, the scores honest, the scenarios the futures that play out is **validation** (the V&V sense — does the model reflect reality — *not* `solve validate`'s feasibility gate), and it stays the user's judgment, not the solver's. So when you hand over a clean certificate, name the edge rather than letting "proven optimal" read as "proven right": *"each pick is provably optimal for the numbers you gave me; whether those are the right numbers is your call, worth a look before you commit."* The dominance/coverage numbers earn one kind of trust — don't let it leak into a trust the model itself hasn't earned.
 
 **Next move** — after a clean certificate, present the certified frontier with confidence, calibrated to its `exact_certified` flag: when `true`, every point is optimal, not heuristic; when `false` (a bounded binary run), say "optimal to the solver's 0.1% gap" and offer `exact=true` for zero-gap certificates — the certificate's own `next_steps` carries the matching phrasing. On a **continuous/QP** problem, offer `explore sensitivity` for the duals/explainability layer; navigate the overlay itself with `explore … source="exact"`. **Confirm you got the overlay, don't assume it:** every `explore tradeoffs`/`solutions`/`solution` result echoes `frontier_source` — its `kind` must read `exact`. If it reads `heuristic` (or flags `exact_overlay_available`), the `source` was dropped before reaching the engine — typically a stale MCP tool-schema cached at session start, or an older server process still running — so you're quoting the *heuristic* frontier, not the certified one. Trust the label over your request; reconnect (a fresh session) before presenting anything as certified.
 
-**Its sibling for the feasibility question.** Certify audits *optimality* of the frontier; it doesn't answer "could *any* feasible plan breach this guardrail?" or "is this constraint set even satisfiable?". For those, reach for `explore audit` — the feasibility-side auditor over the whole feasible region (see *Reading the Audit (explore audit)*).
+**Its sibling for the feasibility question.** Certify proves *optimality* of the frontier; it doesn't answer "could *any* feasible plan breach this guardrail?" or "is this constraint set even satisfiable?". For those, reach for `explore audit` — the feasibility-side auditor over the whole feasible region (see *Reading the Audit (explore audit)*).
 
 ### Denoting Certification — Prose & Tables
 
@@ -193,7 +213,7 @@ Once an exact overlay exists, *which* solutions are certified becomes decision-r
 - **Mark the certified solutions.** When the frontier you're presenting is exact (`frontier_source.kind == "exact"` — e.g. after `explore … source="exact"`), every solution shown is optimal for its scalarization. Say so, and in a solutions table add a short status marker (a ✓ or an "exact-certified" column) rather than leaving provenance implicit. Keep the claim scoped to per-scalarization optimality + dominance — never upgrade it to "globally best" (no single optimum exists for a multi-objective problem).
 - **Flag the superseded points.** When you present the heuristic frontier while an exact overlay exists, the points the exact front dominates are *not* certified and are provably beaten — name them by id, and don't carry them forward as efficient picks. *"#7 and #12 read as efficient, but an exact solve beats them at their own cost — leave them off the shortlist."*
 - **Keep prose and chart telling one story.** The web UI draws certified points solid and the not-yet-certified field faded; let your language match — certified reads as confirmed/optimal, heuristic as provisional/approximate. A reader moving between your table and the chart should meet the same distinction in both.
-- **Don't over-mark.** On a plain heuristic frontier with no exact run there is nothing to certify — don't add an empty status column or imply a certification you don't have. The marker earns its place only once an exact overlay exists; until then, the honest frame is "approximate frontier, exact audit available if you want it."
+- **Don't over-mark.** On a plain heuristic frontier with no exact run there is nothing to certify — don't add an empty status column or imply a certification you don't have. The marker earns its place only once an exact overlay exists; until then, the honest frame is "approximate frontier, exact certification available if you want it."
 
 ### Reading the Audit (explore audit)
 
@@ -258,7 +278,7 @@ When the user iterates (changes constraints, adds options, adjusts scores) and r
 - **Option gained coverage**: "Feature Y now appears in 60% of solutions, up from 20% — the constraint change favors it"
 - **Option lost coverage**: "Feature Z dropped out of all solutions — it can't compete under the tighter bound"
 
-Always connect the change to the user's action: "You added a force_include on SSO. That caused..."
+Always connect the change to the user's action: "You added a force_include on [Option A]. That caused..."
 
 ### Reference Point Narration
 

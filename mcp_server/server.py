@@ -1380,7 +1380,7 @@ def _solve_run_body(p: Problem, fingerprint: str, *, mode: OptimizeMode | None =
             return {
                 "status": "stale",
                 "stale": True,
-                "note": ("A new solve replaced the frontier this certify pass was auditing, so the "
+                "note": ("A new solve replaced the frontier this certify pass was certifying, so the "
                          "overlay would certify a run that is no longer current. Nothing was "
                          "overwritten — re-run the exact solve against the new frontier."),
             }
@@ -1471,7 +1471,7 @@ def _solve_run_body(p: Problem, fingerprint: str, *, mode: OptimizeMode | None =
         "full_result_path": str(full_result_path),
         "next_steps": (
             ("This is an exact overlay, stored alongside the exploratory NSGA frontier — run "
-             "`explore certify` (no params) to audit it: dominance audit, coverage gain, the NSGA-never-dominates "
+             "`explore certify` (no params) to certify it: dominance check, coverage gain, the NSGA-never-dominates "
              "invariant, and per-objective corner sharpening. Then use "
              if is_exact_solver(run.solver) else "Use ")
             + "`explore tradeoffs` for the frontier overview, `explore solutions solution_id=<id>` for a "
@@ -1748,12 +1748,12 @@ def explore(
       compare_runs — Diff two runs (criteria, frontier ranges, option coverage).
                    Default: current run vs the previous one ("what changed since my
                    last solve?"). Optional: run_ids (2+) for explicit historical runs.
-      certify    — Audit the NSGA frontier against the exact overlay: dominance audit,
+      certify    — Check the NSGA frontier against the exact overlay: dominance check,
                    hypervolume coverage reclaimed, soundness invariant, per-objective corner
                    sharpening. Frontier-level — it certifies the WHOLE frontier at once (your
-                   curated finalists are covered by that same audit), so it takes no solution
+                   curated finalists are covered by that same certificate), so it takes no solution
                    scope: don't pass signatures/solution_ids (use `compare signatures=` for a
-                   finalist head-to-head). No params (audits `run` vs `exact_run`; flow: solve →
+                   finalist head-to-head). No params (checks `run` vs `exact_run`; flow: solve →
                    solve(solver="highs"|"cuopt") → certify). Optional: run_ids (exactly 2,
                    one NSGA + one exact, order-free) for explicit historical runs.
       audit      — Witness / feasibility auditor (the feasibility-side sibling of certify): reason
@@ -1919,7 +1919,7 @@ def explore(
             # scope) are not.
             if signatures or solution_ids:
                 return {"error": (
-                    "certify audits the ENTIRE NSGA frontier against the exact overlay "
+                    "certify checks the ENTIRE NSGA frontier against the exact overlay "
                     "(dominance, hypervolume reclaimed, corner sharpening) — it is frontier-"
                     "level, not per-solution, so it can't be scoped to signatures/solution_ids. "
                     "Your curated finalists are already covered by that whole-frontier "

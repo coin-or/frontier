@@ -1,7 +1,7 @@
 ---
 name: frontier-solution-interpreter
 description: Read frontier://skills/solution_interpreter before presenting results. Use when exploring Pareto frontier results — presenting tradeoffs, eliciting preferences, curating solutions, interpreting diagnostics, and guiding the user to a decision.
-version: 1.0.0
+version: 1.1.0
 ---
 
 # Solution Interpreter
@@ -19,7 +19,7 @@ Even a provably better solution is academic until it's translated into terms the
 | Pareto frontier | **Trade-offs** — what are we giving up for what we gain? |
 | Binding constraints | **Bottlenecks** — what's preventing better outcomes? |
 | Sensitivity / scenarios | **Risks** — what could shift this answer? |
-| Exact certificate (dominance audit / corner sharpening) | **Confidence** — how do I know nothing better exists, and is each pick provably near-optimal? |
+| Exact certificate (dominance check / corner sharpening) | **Confidence** — how do I know nothing better exists, and is each pick provably near-optimal? |
 
 Always present results through this lens. Users don't need to understand Pareto dominance — they need to understand what to do, what it costs, and what could go wrong.
 
@@ -163,31 +163,13 @@ The `tradeoffs` output includes a Pearson `correlation` (and, when the frontier 
 | -0.7 to -0.3 | Mild tradeoff | "[A] and [B] are in tension — improving one tends to hurt the other" |
 | r < -0.7 | Strong tradeoff | "[A] and [B] are the core tension — the high-[A] options are the expensive-[B] ones" |
 
-Always narrate in domain terms, not statistics. "Revenue and effort are the core tension" beats "r=-0.85 indicates strong negative correlation." When MI and Pearson disagree, use the `objective_redundancy` section below — that disagreement is a specific finding worth naming.
-
-### Objective Redundancy
-
-The `tradeoffs` output includes an `objective_redundancy` block with a classification per pair. Each entry combines Pearson (linear) and normalized MI (any dependence) to surface when two objectives may be measuring the same thing. Narrate per classification:
-
-The `correlation` field is **direction-normalized** — positive values mean both objectives improve together (redundancy candidate), negative values mean improving one worsens the other (genuine tradeoff, which is the whole point of optimizing). Classifications reflect that:
-
-| Classification | What it means | Template |
-|---|---|---|
-| `independent` | Pairs vary freely — no action needed | (Skip — only narrate when noteworthy) |
-| `linear_redundant` | Strongly positive r — both improve together | "[A] and [B] are tracking each other closely on this frontier. One is likely redundant." |
-| `strong_tradeoff` | Strongly negative r — genuine conflict | (Don't flag as redundancy — this is the tradeoff the optimizer exists to find. Narrate via Correlation Narration instead.) |
-| `redundant` | High MI not explained by linear r — strongly dependent non-linearly | "[A] and [B] are strongly coupled — the solver isn't finding meaningful tradeoff between them." |
-| `nonlinear_dependent` | |r| low **but** MI ≥ 0.4 — move together in a bent or threshold-like way | "[A] and [B] look uncorrelated, but they're actually linked — probably through a threshold or plateau. Worth looking at the scatter before treating them as independent." |
-
-When the `mi_reliable` flag is false (fewer than 15 solutions), only Pearson-based classifications fire — note low confidence before acting on them.
-
-**What to do with a redundancy flag:** don't silently drop an objective. Route the user back to problem framing: *"The optimizer is treating [A] and [B] as the same axis — do they actually measure different things for your decision? If not, consolidating would sharpen the frontier."* See `frontier://skills/problem_framing` for the Conflict Test and consolidation pattern.
+Always narrate in domain terms, not statistics. "Revenue and effort are the core tension" beats "r=-0.85 indicates strong negative correlation." When MI and Pearson disagree — or the `objective_redundancy` block flags a pair — that's a specific finding worth naming: fetch the classification-by-classification read with `get_skill('solution_interpreter', section='Objective Redundancy')` before narrating it.
 
 ## Reference Sections (fetch on demand)
 
 The situational presentation playbooks live in `references/presentation-refinements.md` — part of this skill, fetched per section with `get_skill('solution_interpreter', section='<heading>')`. Explore responses name the exact section in their `guidance_pointer`; fetch it before presenting that output. The Core Judgment above is always-apply; these are the at-the-moment depth:
 
-Frontier Quality and Completeness Signals · Solution Quality Ladder · Root Cause Taxonomy · Frontier Shape Interpretation · Binding Analysis · Exact Sensitivity — Shadow Prices & Reduced Costs (solver duals) · Reading the Certificate (explore certify) · Denoting Certification — Prose & Tables · Reading the Audit (explore audit) · Marginal Analysis Interpretation · Frontier Visualization · Mining the Solution Set · Run Diff Interpretation · Reference Point Narration · Scenario Results Presentation · Sensitivity Intuition · Diagnostic Patterns · Recommendation Calibration · Preference Learning · Common Misconceptions · Solution Curation · Stakeholder Writeup & the Why-Triplet
+Frontier Quality and Completeness Signals · Solution Quality Ladder · Root Cause Taxonomy · Frontier Shape Interpretation · Objective Redundancy · Binding Analysis · Exact Sensitivity — Shadow Prices & Reduced Costs (solver duals) · Reading the Certificate (explore certify) · Denoting Certification — Prose & Tables · Reading the Audit (explore audit) · Marginal Analysis Interpretation · Frontier Visualization · Mining the Solution Set · Run Diff Interpretation · Reference Point Narration · Scenario Results Presentation · Sensitivity Intuition · Diagnostic Patterns · Recommendation Calibration · Preference Learning · Common Misconceptions · Solution Curation · Stakeholder Writeup & the Why-Triplet
 
 (`references/explore-diagnostics.md` additionally holds the raw field schemas for the tradeoffs and scenario result blocks.)
 

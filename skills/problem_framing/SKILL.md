@@ -1,7 +1,7 @@
 ---
 name: frontier-problem-framing
 description: Read frontier://skills/problem_framing before creating a problem. Use when structuring a new decision — defining objectives, options, constraints, approach, reference points, and scenarios for Frontier optimization.
-version: 1.0.0
+version: 1.1.0
 ---
 
 # Problem Framing
@@ -23,11 +23,7 @@ Before framing objectives, capture the user's driving question — the decision 
 
 **Ask**: *"What decision are you trying to make?"* or *"What question are you trying to answer?"*
 
-The answer reveals problem structure:
-- **"How much of each..."** → allocation question → proportional approach
-- **"Which ones should we..."** → selection question → binary approach
-- **"What's the best tradeoff between..."** → tradeoff question → confirms multi-objective framing
-- **"Which is the best..."** → ranking question → may not need optimization at all
+The answer reveals problem structure — classify by what the question asks for, not its exact wording. A question about *quantities* ("how much of each...") is an allocation → proportional approach. One about *membership* ("which ones should we...") is a selection → binary approach. One about *exchange rates between goals* ("what's the best tradeoff between...") confirms the multi-objective framing. One about a *single winner* ("which is the best...") is a ranking — and may not need optimization at all.
 
 If the user jumps straight to options or scores without articulating the question, slow down: *"Before we model this — what's the decision you're trying to make? What would a good answer look like?"*
 
@@ -200,9 +196,9 @@ Each objective has an aggregation mode that determines how individual option sco
 
 **The test: does funding another option *add* to this value, or *average* into it?** A quantity that accumulates (dollars, hours, count) is `sum`; a rate or score that's a property of the mix (a %, a ratio, a 1-10 rating) is `avg` — summing a rate double-counts and inflates it as the portfolio grows. Reach min/max/quadratic only when their semantics above genuinely fit. (This matches the always-on pre-create checklist in the server instructions; keep the two consistent.)
 
-**Aggregation vs. exact certification.** All five modes run on the default NSGA engine — pick the one that matches the meaning. The optional *exact* audit is narrower: a binary selection certifies only with `sum` objectives (the MILP is linear), and a mean-variance portfolio with `sum`/`avg` linear objectives plus its one **minimize**-`quadratic` risk term; `min`/`max` (and a maximize-quadratic) stay heuristic. So if an exact certificate will matter and the semantics genuinely allow a total, `sum` keeps that option open — but don't force `sum` onto an `avg`/`min`/`max` meaning just to certify (that answers a different question). Details: `optimization_strategy` → *Exact Solvers*.
+**Aggregation vs. exact certification.** All five modes run on the default NSGA engine — pick the one that matches the meaning. The optional exact certification is narrower (which aggregations certify per shape, and the redefine to offer when one doesn't: `optimization_strategy` → *Exact Solvers*). If a certificate will matter and the semantics genuinely allow a total, `sum` keeps that option open — but don't force `sum` onto an `avg`/`min`/`max` meaning just to certify (that answers a different question).
 
-**Quadratic** is for when the portfolio value depends on pairwise interactions (e.g., risk reduced by diversification). Requires an `interaction_matrices` entry with the pairwise matrix. Individual scores are still needed for display. It models *symmetric* variance/volatility — penalizing upside dispersion as much as downside — and is the only risk-as-objective Frontier optimizes. When the decision turns specifically on *downside* risk (a loss floor, tail outcomes), don't expect the optimizer to minimize a tail measure: encode the uncertainty as scenarios (see *Scenarios* below) and read the downside diagnostically — worst-case and CVaR (`frontier://skills/solution_interpreter` → *Scenario Results Presentation*).
+**Quadratic** is for when portfolio value depends on pairwise interactions (e.g., risk reduced by diversification); it requires an `interaction_matrices` entry, and individual scores are still needed for display. It models *symmetric* variance — penalizing upside dispersion as much as downside — and is the only risk-as-objective Frontier optimizes. When the decision turns on *downside* risk (a loss floor, tail outcomes), encode the uncertainty as scenarios instead (see *Scenarios* below) and read the downside diagnostically — worst-case and CVaR (`frontier://skills/solution_interpreter` → *Scenario Results Presentation*).
 
 ### Scope Calibration
 - Is this actually a portfolio selection problem? "Pick K of N" or "allocate across N" — if neither fits, this might not need Frontier.
@@ -240,12 +236,7 @@ This is a guide, not a gate. Users may provide everything at once, skip ahead, o
 
 ### Re-entry Points
 
-You're most active early, but users revisit framing throughout. When a user changes the problem structure mid-session, assess: does this change the objective landscape (re-frame), the solution space (re-score or re-constrain), or just a refinement (update and proceed)?
-
-- A new decision → restart the modeling progression
-- A new or removed objective → validate against existing ones, warn that prior results are stale
-- A new constraint → classify the type, confirm it's truly non-negotiable
-- Jumping to scores without objectives → slow down, frame first
+You're most active early, but users revisit framing throughout. When structure changes mid-session: a new decision restarts the modeling progression; a new or removed objective revalidates against the others (prior results go stale); a new constraint gets classified and confirmed as truly non-negotiable; a jump to scores without objectives means slow down and frame first.
 
 ## Activation
 Use this expertise at the start of any conversation, before any tool calls. Validate the problem structure before building it in the tool.

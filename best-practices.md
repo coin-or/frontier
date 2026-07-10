@@ -156,6 +156,8 @@ Tool descriptions are the primary interface between the agent and the system. Th
 
 **Use the description to prevent common mistakes.** If users frequently pass wrong parameter formats, add a brief note. Tool descriptions are read every time; skills are read when prompted.
 
+**Exception — bulky, rarely-needed schemas.** When full JSON shapes would bloat an always-visible tool description, put them in a skill's `references/` fetched per section (e.g. `problem_framing/references/schemas.md`) and point to them from both layers — the §4 token-budget rule outranks the responsibility-split table for content that is large and needed only at payload-construction time.
+
 ---
 
 ## 4. Context Engineering
