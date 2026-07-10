@@ -1134,25 +1134,27 @@ def _was_time_limited(time_limit: float | None, elapsed: float) -> bool:
     return bool(time_limit) and time_limit > 0 and elapsed >= time_limit
 
 
-def _nsga_telemetry(algorithm, result, n_gen: int, elapsed: float, interrupted: bool) -> dict:
+def _nsga_telemetry(result, n_gen: int, elapsed: float) -> dict:
     """``Run.telemetry`` for the NSGA paths: recorded facts about how the solve ran.
 
     Same record-what-actually-ran convention as ``seed_used``/``solver`` — pure
     instrumentation, no judgment. ``evals_or_solves`` is pymoo's evaluation count
     (captures early termination); ``n_gen_run`` vs ``n_gen_budget`` shows how much
-    of the generation budget a time cap left on the table.
+    of the generation budget a time cap left on the table. Attribute access is
+    deliberately direct: a pymoo API drift must fail loudly here, not record
+    silent zeros into the data the routing thresholds get recalibrated from.
+    (Whether a cap cut the run short is ``Run.time_limited`` — not duplicated here.)
     """
-    alg_run = getattr(result, "algorithm", None)
+    alg = result.algorithm
     return {
         "duration_s": round(elapsed, 3),
         "engine_detail": {
-            "pop_size": int(getattr(algorithm, "pop_size", 0) or 0),
+            "pop_size": int(alg.pop_size),
             "n_gen_budget": int(n_gen),
             # pymoo's n_iter counts the initialization pass as iteration 1.
-            "n_gen_run": max(0, int(getattr(alg_run, "n_iter", 0) or 0) - 1),
+            "n_gen_run": max(0, int(alg.n_iter) - 1),
         },
-        "evals_or_solves": int(getattr(getattr(alg_run, "evaluator", None), "n_eval", 0) or 0),
-        "interrupted": bool(interrupted),
+        "evals_or_solves": int(alg.evaluator.n_eval),
     }
 
 
@@ -1930,7 +1932,7 @@ def _optimize_binary(
         seed_used=seed,
         time_limit=time_limit,
         time_limited=limited,
-        telemetry=_nsga_telemetry(algorithm, result, n_gen, elapsed, limited),
+        telemetry=_nsga_telemetry(result, n_gen, elapsed),
     )
 
 
@@ -2010,7 +2012,7 @@ def _optimize_proportional(
         seed_used=seed,
         time_limit=time_limit,
         time_limited=limited,
-        telemetry=_nsga_telemetry(algorithm, result, n_gen, elapsed, limited),
+        telemetry=_nsga_telemetry(result, n_gen, elapsed),
     )
 
 

@@ -45,7 +45,6 @@ class TestNsgaTelemetry:
         assert t["engine_detail"]["n_gen_budget"] >= 50
         assert 0 < t["engine_detail"]["n_gen_run"] <= t["engine_detail"]["n_gen_budget"]
         assert t["evals_or_solves"] > 0
-        assert t["interrupted"] is False
 
         s = run.problem_snapshot
         assert s == problem_features(p)  # features and gate share one implementation
@@ -64,7 +63,7 @@ class TestNsgaTelemetry:
         # Payload sanity: the runs listing must stay inside MCP caps — scalars only.
         run = optimize(_binary_problem(), mode=OptimizeMode.fast, seed=7)
         t = run.telemetry
-        assert set(t) == {"duration_s", "engine_detail", "evals_or_solves", "interrupted"}
+        assert set(t) == {"duration_s", "engine_detail", "evals_or_solves"}
         assert all(isinstance(v, (int, float, bool)) for v in t["engine_detail"].values())
 
     def test_fingerprint_unaffected(self):

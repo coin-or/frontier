@@ -790,7 +790,7 @@ class _InnerSolveStats:
 
         return timed
 
-    def telemetry(self, duration_s: float, interrupted: bool) -> dict:
+    def telemetry(self, duration_s: float) -> dict:
         n = len(self.durations)
         return {
             "duration_s": round(duration_s, 3),
@@ -799,7 +799,6 @@ class _InnerSolveStats:
                 "inner_solve_median_s": round(float(np.median(self.durations)), 4) if n else 0.0,
             },
             "evals_or_solves": n,
-            "interrupted": bool(interrupted),
         }
 
 
@@ -967,7 +966,7 @@ def optimize_qp(problem, mode, *, inner_qp, inner_qp_sensitivity=None, pop, gen,
     return Run(solutions=solutions, total_pareto_found=total_found,
                quality=_opt._compute_quality(result, seed=seed), mode=mode, seed_used=seed,
                time_limit=time_limit, time_limited=limited,
-               telemetry=_stats.telemetry(time.monotonic() - _t_start, limited))
+               telemetry=_stats.telemetry(time.monotonic() - _t_start))
 
 
 # --------------------------------------------------------------------------- #
@@ -1146,7 +1145,7 @@ def optimize_lp(problem, mode, *, inner_lp, inner_lp_sensitivity=None, pop, gen,
     return Run(solutions=solutions, total_pareto_found=total_found,
                quality=_opt._compute_quality(result, seed=seed), mode=mode, seed_used=seed,
                time_limit=time_limit, time_limited=limited,
-               telemetry=_stats.telemetry(time.monotonic() - _t_start, limited))
+               telemetry=_stats.telemetry(time.monotonic() - _t_start))
 
 
 # --------------------------------------------------------------------------- #
@@ -1313,7 +1312,7 @@ def certify_curated_frontier(problem, source_run, *, inner=None, inner_sensitivi
     solutions = _opt._sort_and_reindex(solutions, obj_list)
     return Run(solutions=solutions, total_pareto_found=total_found,
                quality=source_run.quality, mode=mode or source_run.mode, seed_used=source_run.seed_used,
-               telemetry=_stats.telemetry(time.monotonic() - _t_start, False))
+               telemetry=_stats.telemetry(time.monotonic() - _t_start))
 
 
 # --------------------------------------------------------------------------- #
@@ -1455,4 +1454,4 @@ def optimize_milp(problem, mode, *, inner_milp, max_solutions=None,
     return Run(solutions=solutions, total_pareto_found=total,
                quality=_opt._compute_quality(result, seed=seed), mode=mode, seed_used=seed,
                time_limit=time_limit, time_limited=limited,
-               telemetry=_stats.telemetry(time.monotonic() - _t_start, limited))
+               telemetry=_stats.telemetry(time.monotonic() - _t_start))
