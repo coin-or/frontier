@@ -186,6 +186,18 @@ def _attach_guidance_pointer(result: dict, action: str) -> dict:
     if action == "sensitivity" and result.get("source") == "frontier_inferred":
         section = "Binding Analysis"
     result["guidance_pointer"] = _make_guidance_pointer(skill, section)
+    # Tradeoffs that flag a redundant/dependent objective pair also need the classification
+    # playbook — it lives in references (not the injected core), so name it in the pointer
+    # when the payload warrants rather than trusting core prose still in context.
+    if action == "tradeoffs" and any(
+        isinstance(e, dict) and e.get("classification") in (
+            "linear_redundant", "redundant", "nonlinear_dependent")
+        for e in result.get("objective_redundancy") or []
+    ):
+        result["guidance_pointer"]["note"] += (
+            " This result also flags an objective_redundancy pair — before narrating it, fetch "
+            "get_skill('solution_interpreter', section='Objective Redundancy')."
+        )
     return result
 
 

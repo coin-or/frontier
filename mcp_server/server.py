@@ -231,7 +231,7 @@ def get_skill(skill_name: str, section: str | None = None) -> str:
     Available skills:
     - problem_framing — structuring objectives, options, constraints, approach
     - data_collection — scoring best practices, anchoring, completeness
-    - optimization_strategy — mode selection, solver choice, iteration (deep: 'Exact Solvers — Depth')
+    - optimization_strategy — mode selection, solver choice, iteration (deep: 'Exact Solvers — Depth', 'Sweep Discipline — Constructing Scenarios')
     - solution_interpreter — presenting tradeoffs, preferences, curation (deep: per-output presentation sections)
 
     Returns markdown: the skill core (no section), or exactly the named section.
@@ -702,6 +702,13 @@ def _model_update(params: dict) -> dict:
     if "reference_points" in params and "guidance_pointer" not in result:
         result["guidance_pointer"] = _make_guidance_pointer(
             "solution_interpreter", "Reference Point Narration")
+
+    # Setting scenarios is the moment to verify them against the sweep discipline — it lives
+    # in references (not the injected core), and its checks (overrides replace the WHOLE
+    # constraint set; varies/held_fixed must match intent) apply to the config just written.
+    if "scenario_config" in params and "guidance_pointer" not in result:
+        result["guidance_pointer"] = _make_guidance_pointer(
+            "optimization_strategy", "Sweep Discipline — Constructing Scenarios")
 
     return result
 
