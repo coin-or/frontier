@@ -217,12 +217,7 @@ def scale_band(problem: "Problem") -> dict:
     and no note: zero noise until scale actually changes the right move.
     """
     n = len(problem.options)
-    block: dict = {
-        "n_options": n,
-        "n_scores": len(problem.scores),
-        "interaction_matrix": bool(problem.interaction_matrices),
-        "band": "interactive",
-    }
+    block: dict = {"n_options": n, "band": "interactive"}
     if n >= _NSGA_ROUTING_N:
         block["band"] = "needs_routing"
         block["note"] = (

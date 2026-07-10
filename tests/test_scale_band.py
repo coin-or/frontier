@@ -65,12 +65,11 @@ class TestBandEdges:
 
 
 class TestBlockShape:
-    def test_features_ride_every_band(self):
+    def test_lean_block_no_speculative_fields(self):
+        # n_options + band (+ note when it routes) is the whole working surface —
+        # anything more is wire noise nothing consumes.
         block = scale_band(_problem(5))
-        assert block["n_options"] == 5
-        assert block["n_scores"] == 10
-        assert block["interaction_matrix"] is False
-        assert block["band"] == "interactive"
+        assert block == {"n_options": 5, "band": "interactive"}
 
 
 class TestValidateSurface:
