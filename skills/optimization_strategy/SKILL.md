@@ -1,7 +1,7 @@
 ---
 name: frontier-optimization-strategy
 description: Read frontier://skills/optimization_strategy before running. Use when validating a problem, choosing solve mode, choosing a solver (default NSGA vs an optional exact backend), diagnosing infeasibility, interpreting solver diagnostics, or deciding whether to re-run after changes.
-version: 1.0.0
+version: 1.1.0
 ---
 
 # Optimization Strategy
@@ -12,7 +12,7 @@ version: 1.0.0
 
 In the user's decision workflow (FRAME → SCORE → EXPLORE → CURATE → CERTIFY → EXAMINE → DECIDE), this skill drives the middle: you EXPLORE the frontier (the approximate solve), help the user CURATE finalists, and CERTIFY them with an exact solver. Track where the user is and guide them forward; reading the certified results back in their terms (EXAMINE, DECIDE) is `solution_interpreter`'s job.
 
-The solve phase is a loop — **validate → run → examine → iterate → certify** — and this skill is organized around it: *Run* (set up and launch), *Examine* (read what came back), *Iterate* (refine and re-solve), *Certify* (the optional exact audit at the commit point). Validate is the entry gate (the table below).
+The solve phase is a loop — **validate → run → examine → iterate → certify** — and this skill is organized around it: *Run* (set up and launch), *Examine* (read what came back), *Iterate* (refine and re-solve), *Certify* (the optional exact certification at the commit point). Validate is the entry gate (the table below).
 
 By default Frontier uses evolutionary (approximate) methods. Unlike exact solvers that solve each scalarization to optimality, evolutionary methods explore the solution space heuristically. (Optional exact backends make each point optimal to a 0.1% gap on supported shapes — zero-gap with `exact=true` — see *Exact Solvers* — but evolutionary search is the default and the workflow's center of gravity.) This means:
 
@@ -40,9 +40,7 @@ The examine step is where most iteration happens. Few solutions? Constraints too
 
 If the user describes ranking rather than selecting or allocating, they may not need optimization — suggest weighted scoring if there's a single dominant objective. Weighted scoring has a known blind spot, though: a weighted sum can only land on the convex hull of the frontier — balanced middle solutions may be unreachable at any weights. If the user pre-commits to weights, note what a frontier view would have shown before they lock in.
 
-**Proportional mode solver differences:**
-- Solutions assign integer percentages (0-100), summing to 100
-- Cardinality constrains how many options receive non-zero allocation
+**Proportional mode solver notes** (allocation structure and semantics live in *Approach Selection*, `frontier://skills/problem_framing`):
 - Uses continuous optimization (SBX crossover, polynomial mutation) — runs are slightly longer
 - The optimizer may produce small allocations (1-2%). If this is undesirable, suggest tightening cardinality constraints
 
@@ -78,16 +76,13 @@ The system selects the optimization algorithm based on objective count. Know the
 
 ### Long Solves Run in the Background
 
-A solve that doesn't finish within a short inline window — typically **thorough**, **exact** (`highs`/`cuopt`), or a large problem — returns a handle, not a frontier: `{status:"running", job_id, label, elapsed_s}`. This is the **normal** path for heavy runs, not an error or a failure. Quick exploratory runs still return their frontier inline as before.
+A solve that doesn't finish within a short inline window — typically **thorough**, **exact** (`highs`/`cuopt`), or a large problem — returns a `{status:"running", job_id, label, elapsed_s}` handle, not a frontier. This is the **normal** path for heavy runs, not an error; quick exploratory runs still return inline. Polling mechanics live in the `solve` tool description — the judgment that stays here:
 
 **Know the posture before you run**: `solve validate`'s `solvers.scale` block names the problem's measured scale band — `interactive` (results in seconds), `background` (expect a handle: keep `mode="fast"` while iterating, poll `status`, prefer `scope="curated"` for the exact overlay), or `needs_routing` (also set a `time_limit` and present the best-so-far frontier as such). Big problems are fully in scope — the band tells you which lane fits, so relay the expectation to the user instead of hesitating at size.
 
-When you get a running handle:
-- **Poll** `solve(action="status", job_id=<id>)` until `status` becomes `"complete"` (then you get the full result — frontier preview, quality, the `solution_interpreter` skill — exactly as an inline solve) or `"error"`.
-- **Narrate, don't stall.** Between polls, tell the user it's optimizing and roughly how long it's been (`elapsed_s`, `label`) — e.g. *"Running the exact solve; ~40s in."* Never present or reason about results while a solve is still running.
-- **Results persist.** The run is saved as soon as it completes, so `explore` works even if a poll was interrupted — re-poll or just `explore` once you know it finished.
-- **Kick off and keep talking.** For a run you already expect to be long (a final thorough/exact pass), pass `wait_seconds=0` to get the handle immediately and keep the conversation moving while it solves.
-- **`stale`** means the problem was edited while the solve ran, so the frontier no longer matches the model — nothing was overwritten; just re-run.
+- **Narrate, don't stall.** Between polls, tell the user it's optimizing and roughly how long it's been (`elapsed_s`, `label`). Never present or reason about results while a solve is still running.
+- **Kick off and keep talking.** For a run you already expect to be long (a final thorough/exact pass), pass `wait_seconds=0` to get the handle immediately and keep the conversation moving.
+- **Results persist** once complete — `explore` works even if a poll was interrupted. **`stale`** means the problem was edited mid-solve, so the frontier no longer matches the model; nothing was overwritten — just re-run.
 
 ### Bounding a Run (time_limit)
 
@@ -95,17 +90,13 @@ When you get a running handle:
 
 ### Reproducibility and Stability Checks
 
-Evolutionary search is **stochastic**, but seeded: the `solve` tool accepts an optional `seed` and echoes `seed_used` on every run, so a run reproduces exactly. Same problem state + same seed → same frontier (in- and cross-process). Omit the seed and a fresh one is drawn and recorded.
+Evolutionary search is **stochastic** but seeded: `solve` accepts an optional `seed` and echoes `seed_used` on every run, so same problem state + same seed → the identical frontier (in- and cross-process). For `run_scenarios`, the parent seed propagates (per-scenario `seed_used` derived from parent + scenario name), so pinning the parent reproduces the whole multi-scenario run.
 
-| Use | What to do |
-|---|---|
-| Revisit or share a specific frontier | Note the `seed_used` from the first run; pass it as `seed` on any re-run to get the identical frontier (same problem state + same seed → same frontier). |
-| Check frontier stability | Re-run with **different** seeds on the same problem. Solutions shifting slightly is normal; the *shape* (objective ranges, key tradeoffs) should be stable. If it isn't, the formulation is underspecified — objectives too correlated, constraints too loose, or not enough options. |
-| Debug a "weird" result | Re-run with a different seed before assuming a modeling bug — one seed is one sample of the frontier, not the whole story. |
+- **Revisit or share a frontier** → note `seed_used`, pass it as `seed` on the re-run.
+- **Check stability** → re-run with **different** seeds. Solutions shifting slightly is normal; the *shape* (objective ranges, key tradeoffs) should be stable — if it isn't, the formulation is underspecified (objectives too correlated, constraints too loose, or not enough options).
+- **Debug a "weird" result** → try another seed before assuming a modeling bug; one seed is one sample of the frontier, not the whole story.
 
-For `run_scenarios`, the parent `seed` is propagated to each scenario (per-scenario `seed_used` derived from the parent + scenario name), so pinning the parent reproduces the whole multi-scenario run while each scenario starts from a distinct initialization.
-
-Don't pin seeds by default — fresh seeds each run give you a free stability check as the user iterates. Pin when reproducibility matters (handoff, regression, a specific frontier to preserve).
+Don't pin seeds by default — fresh seeds each run give a free stability check as the user iterates. Pin when reproducibility matters (handoff, regression, a specific frontier to preserve).
 
 ## Examine
 
@@ -158,9 +149,7 @@ Pick by the question: marginal "what's this lever worth right here?" → sensiti
 
 **The handoff — duals rank, scenarios quantify.** `explore sensitivity` ends with `suggested_scenarios` seeded from its top-ranked *priced* levers (absent when nothing is priced at the anchor — every dual reading 0.0 at a corner is a finding, not a missing handoff). A dual is an instantaneous rate at today's optimum; the suggested scenario is the finite-change re-solve that confirms what a real move actually buys. When you create a scenario from a suggestion, copy its `motivated_by` value onto the scenario, so `explore scenario_results` cites which marginal motivated it.
 
-**Sweep discipline (constructing scenarios):**
-- **Vary exactly what the scenario names — hold every other anchor fixed.** One lever per scenario keeps the reading causal; bundled changes are fine only when the bundle *is* the named state of the world. When the swept parameter sits inside a larger definition (a score that feeds an aggregate, a cap inside a group), re-derive the dependent quantities from the current question rather than inheriting stale constants. Remember `constraint_overrides` replace the *whole* base constraint set — restate the unchanged constraints, or the sweep silently varies more than it names. The engine restates each scenario's `varies` / `held_fixed` in `scenario_results`; check it matches your intent.
-- **A discontinuity is a finding about your assumptions until verified.** When one sweep point flips feasibility or steps an objective sharply, first identify the modeling choice that creates the break (a replace-all override, a threshold crossing, an integer cliff). If a plausible alternative reading of the parameter removes the break, report both readings and let the user pick — not just the dramatic one.
+**Sweep discipline (the short form)** — vary exactly what the scenario names and hold every other anchor fixed; treat a discontinuity as a finding about your assumptions until verified. Before *constructing* scenarios, fetch the full discipline (override replace-all semantics, re-deriving dependent quantities, reporting both readings of a break): `get_skill('optimization_strategy', section='Sweep Discipline — Constructing Scenarios')`.
 
 ## Iterate
 
@@ -204,7 +193,7 @@ This turns iteration from "re-run and hope" into cause-and-effect reasoning:
 
 ### Exact Solvers
 
-`mode` tunes how hard the *evolutionary* search works; `solver` picks *which engine* runs. The default (`solver` omitted, or `"nsga"`) is NSGA-II/III — evolutionary, fits **any** shape, the right call for exploration and almost every run. Two co-equal **exact** backends layer an optional **audit / certification** pass over it: each frontier point becomes optimal (to a 0.1% gap) for its scalarization, so an exact overlay can only *confirm or improve* the heuristic frontier, never worsen it.
+`mode` tunes how hard the *evolutionary* search works; `solver` picks *which engine* runs. The default (`solver` omitted, or `"nsga"`) is NSGA-II/III — evolutionary, fits **any** shape, the right call for exploration and almost every run. Two co-equal **exact** backends layer an optional **certification** pass over it: each frontier point becomes optimal (to a 0.1% gap) for its scalarization, so an exact overlay can only *confirm or improve* the heuristic frontier, never worsen it.
 
 | `solver` | Engine | Needs | Solves |
 |---|---|---|---|
@@ -212,7 +201,7 @@ This turns iteration from "re-run and hope" into cause-and-effect reasoning:
 | `highs` | HiGHS exact inner solve (CPU) | `pip install highspy` | binary sum-MILP · mean-variance QP · pure-linear LP |
 | `cuopt` | cuOpt exact inner solve (GPU) | NVIDIA GPU + `cuopt-cu12` | same shapes, GPU-accelerated |
 
-**Reach for it by stage, not up front**: explore and narrow with the EA → curate finalists → then certify exactly. Re-solve with `solver="highs"|"cuopt"` — by default this **certifies the frontier you explored** (`scope="curated"`: exact-solves only your NSGA run's points, fast and usually inline), so run a `solve run` first; pass `scope="full"` only for a heavier exact-*guided* pass (the exact solver on every evaluation, usually a background job to poll). Either way the result is stored as the `exact_run` **overlay** alongside the NSGA run, navigable via `explore … source="exact"`. Then `explore certify` (no params) audits NSGA against the overlay, and on continuous (QP/LP) shapes `explore sensitivity` adds solver-exact duals. `solve validate`'s `solvers` block says whether exact is installed and fits this shape before you raise it; an unfit or uninstalled request errors clearly (no silent fallback). Offer it plainly at the commit point; if the shape doesn't qualify, don't raise it — the EA frontier is the answer. Always say which engine produced a result (`solver_used`), and claim optimality **only** on an exact run.
+**Reach for it by stage, not up front**: explore and narrow with the EA → curate finalists → then certify exactly. Re-solve with `solver="highs"|"cuopt"` — by default this **certifies the frontier you explored** (`scope="curated"`: exact-solves only your NSGA run's points, fast and usually inline), so run a `solve run` first; pass `scope="full"` only for a heavier exact-*guided* pass (the exact solver on every evaluation, usually a background job to poll). Either way the result is stored as the `exact_run` **overlay** alongside the NSGA run, navigable via `explore … source="exact"`. Then `explore certify` (no params) checks NSGA against the overlay, and on continuous (QP/LP) shapes `explore sensitivity` adds solver-exact duals. `solve validate`'s `solvers` block says whether exact is installed and fits this shape before you raise it; an unfit or uninstalled request errors clearly (no silent fallback). Offer it plainly at the commit point; if the shape doesn't qualify, don't raise it — the EA frontier is the answer. Always say which engine produced a result (`solver_used`), and claim optimality **only** on an exact run.
 
 **Before narrating an exact upgrade or a gate decline**, fetch the depth — small-vs-large-scale claim calibration, why a "short" exact corner is rare (extremes are anchor-sampled) and what a residual `under-sampled` one means, which aggregations the gate declines and the redefine to offer, and when `exact=true` is actually needed: `get_skill('optimization_strategy', section='Exact Solvers — Depth')`.
 

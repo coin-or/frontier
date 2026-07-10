@@ -2453,7 +2453,7 @@ class TestDecisionGuidancePointers:
         assert "### Reading the Certificate" not in core
         # depth section from the other split skill resolves too
         depth = srv.get_skill("optimization_strategy", section="Exact Solvers — Depth")
-        assert "three formulations" in depth
+        assert "three certifiable shapes" in depth
         # unknown section errors with the available titles, not silence
         miss = srv.get_skill("solution_interpreter", section="No Such Heading")
         assert "Unknown section" in miss and "Solution Curation" in miss
