@@ -86,6 +86,9 @@ def _scatter_exact_layer(problem: Problem, run: Run, objectives: list,
                      if any(_dominates_min(E[k], N[i]) for k in exact_front)]
     overlay = {
         "solver": exact_run.solver,
+        # Which overlay produced this — certify reports the same id as `exact_run_id`, so a
+        # reader can tell a scatter rendered against an older overlay from the current certificate.
+        "exact_run_id": exact_run.run_id,
         "exact_certified": run_is_certified(exact_run, problem.approach),
         "points": [{"solution_id": s.solution_id, "values": dict(s.objective_values)}
                    for s in exact_run.solutions],
