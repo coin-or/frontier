@@ -19,8 +19,9 @@ import json
 import os
 import sys
 from datetime import datetime, timezone
+from typing import Annotated
 
-from pydantic import ValidationError
+from pydantic import Field, ValidationError
 
 from mcp.server.fastmcp import FastMCP
 
@@ -275,10 +276,18 @@ def model(
     name: str | None = None,
     domain: str | None = None,
     context: str | None = None,
-    objectives: list[dict] | None = None,
-    options: list[dict | str] | None = None,
-    scores: list[dict] | None = None,
-    constraints: list[dict] | None = None,
+    objectives: Annotated[list[dict] | None, Field(
+        description="On update: FULL REPLACEMENT — send the complete list; scores and "
+                    "constraints referencing a removed objective are dropped.")] = None,
+    options: Annotated[list[dict | str] | None, Field(
+        description="On update: FULL REPLACEMENT — send the complete list; scores and "
+                    "constraints referencing a removed option are dropped.")] = None,
+    scores: Annotated[list[dict] | None, Field(
+        description="Merge semantics: upserts by (option, objective) — send only what "
+                    "changes.")] = None,
+    constraints: Annotated[list[dict] | None, Field(
+        description="On update: FULL REPLACEMENT — always send the COMPLETE constraint "
+                    "set; a partial list silently drops every constraint it omits.")] = None,
     approach: str | None = None,
     reference_points: list[dict] | None = None,
     scenario_config: dict | None = None,
@@ -286,7 +295,11 @@ def model(
     section: str | None = None,
     source: str | None = None,
     save_as: str | None = None,
-    scenarios: list[dict] | None = None,  # guard: wrong name for scenario_config (see below)
+    # guard: wrong name for scenario_config (see below)
+    scenarios: Annotated[list[dict] | None, Field(
+        description="Do not use — scenarios are set via scenario_config={\"enabled\": true, "
+                    "\"scenarios\": [...]}. This wrong-name guard only returns a "
+                    "redirect.")] = None,
 ) -> dict:
     """Build and modify the optimization problem.
 
@@ -544,7 +557,9 @@ def _model_update(params: dict) -> dict:
         structural_change = True
 
     # Constraints — full replacement
+    constraints_before = None
     if "constraints" in params:
+        constraints_before = len(p.constraints)
         p.constraints = [_parse_constraint(c) for c in params["constraints"]]
         structural_change = True
         interpreter_rearm = True
@@ -618,6 +633,7 @@ def _model_update(params: dict) -> dict:
         "status": {
             "objectives": len(p.objectives),
             "options": len(p.options),
+            "constraints": len(p.constraints),
             "scores_complete": round(len(p.scores) / total_possible, 2) if total_possible > 0 else 0.0,
             "has_run": p.run is not None,
             "has_exact_run": p.exact_run is not None,
@@ -625,6 +641,14 @@ def _model_update(params: dict) -> dict:
             "total_runs": len(p.runs) + (1 if p.run else 0),
         },
     }
+
+    # A constraints update REPLACES the whole set — a shrink is usually an
+    # accidental partial send, so name it rather than let 62 rules vanish silently.
+    if constraints_before is not None and len(p.constraints) < constraints_before:
+        result["constraints_note"] = (
+            f"Constraint set replaced: now {len(p.constraints)} (was {constraints_before}). "
+            "Updates are full replacement — to add or edit one constraint, resend the "
+            "complete set.")
 
     # Include metrics on structural changes so the LLM can coach the user
     if structural_change:
@@ -1040,8 +1064,15 @@ def solve(
     time_limit: float | None = None,
     wait_seconds: float | None = None,
     job_id: str | None = None,
-    scenario: str | None = None,      # guard: solve has no scenario filter (see below)
-    run_scenarios: bool = False,      # guard: run_scenarios is an action, not a flag (see below)
+    # guards: scenarios are solved by their own action, not a filter/flag on `run` (see below)
+    scenario: Annotated[str | None, Field(
+        description="Do not use — solve has no scenario filter. Solve every scenario with "
+                    "action=\"run_scenarios\", then inspect one via explore(scenario=\"…\"). "
+                    "This wrong-name guard only returns a redirect.")] = None,
+    run_scenarios: Annotated[bool, Field(
+        description="Do not use — run_scenarios is an ACTION, not a flag: call "
+                    "solve(action=\"run_scenarios\"). This wrong-name guard only returns a "
+                    "redirect.")] = False,
 ) -> dict:
     """Validate and run the optimizer.
 
@@ -1716,7 +1747,11 @@ def explore(
     cvar_alpha: float | None = None,
     format: str | None = None,
     audit_property: dict | list[dict] | None = None,
-    label: str | None = None,  # guard: wrong name for custom_name (see below)
+    # guard: wrong name for custom_name (see below)
+    label: Annotated[str | None, Field(
+        description="Do not use — name a curated pin with `custom_name` (rename an existing "
+                    "pin via rename= + content_signature). This wrong-name guard only "
+                    "returns a redirect.")] = None,
 ) -> dict:
     """Navigate results after solving — or, with `audit`, interrogate the model's feasible region
     directly (no prior solve needed). Every other action reads a run.
