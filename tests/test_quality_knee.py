@@ -138,7 +138,8 @@ def test_certify_readback_flags_degenerate_exact_point():
     assert [f["solution_id"] for f in gates["flagged"]] == [0]
     assert gates["flagged"][0]["status"] == "DEGENERATE"
     assert "checks" in gates["flagged"][0]
-    assert "optimal" in gates["note"]
+    # Caption, not teaching: diagnosis prose lives in 'Reading the Certificate'.
+    assert "degenerate or pinned" in gates["note"]
 
 
 def test_certify_readback_clean_when_no_degenerate_points():

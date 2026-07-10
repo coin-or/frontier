@@ -190,6 +190,8 @@ On MILP, present the frontier-inferred estimate and name it as an estimate — i
 *Invariant* — `invariant.holds`: NSGA should dominate **no** exact point. This is a *soundness check on the overlay* — an exact point is optimal for its scalarization (to the solver's gap), so NSGA shouldn't beat it; when it does, that's the rounding footnote below, not a heuristic win. Confirm it holds, but don't lead with it as a quality win — the substantive trust numbers are the dominance fraction and the coverage gain:
 - *"NSGA dominates no exact point — the overlay is sound; exact can only confirm or improve."*
 
+*Quality gates* — `quality_gates.flagged` lists certified points that are degenerate or pinned plans (a single-option portfolio, an all-in corner). Optimal ≠ actionable: a flagged plan is provably optimal for its scalarization yet usually signals a **missing or mis-scaled constraint** — the model let the optimizer collapse into a corner a real decision wouldn't accept. Surface them to the user rather than dropping them, name the shape ("this certified pick puts everything on one option"), and when the flag recurs across runs, route back to `problem_framing` to add the constraint the collapse reveals.
+
 *Corner sharpening* — `corner_sharpening` is per-objective (`nsga_best`→`exact_best`, `improvement`, `status` ∈ `sharpened` | `matched` | `under-sampled`); `headline_corner` names the one that matters most (usually the convex risk/variance corner the decision turns on):
 - *"Exact sharpens the [headline_corner] corner the decision hinges on: [nsga_best] → [exact_best]. The EA got close; exact nails it."*
 - `matched` corners: the EA already found the optimum — confirm or stay silent.

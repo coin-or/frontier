@@ -1321,8 +1321,8 @@ def certify_against_exact(problem: Problem, nsga_run: Run, exact_run: Run) -> di
     return {
         "quality_gates": {
             "flagged": flagged,
-            "note": ("optimal ≠ actionable: these certified points are degenerate or pinned plans — "
-                     "usually a missing or mis-scaled constraint; surfaced for the user, never dropped"
+            # Diagnosis guidance lives in 'Reading the Certificate' (the guidance_pointer target).
+            "note": ("degenerate or pinned certified plans — surfaced for the user, never dropped"
                      if flagged else "no degenerate plans among the certified points"),
         },
         "nsga_run_id": nsga_run.run_id,
@@ -3108,12 +3108,12 @@ def sensitivity_analysis(problem: Problem, solution_id: int | None = None,
             "solver": run.solver,
             "frontier_source": _frontier_provenance(problem, run, scenario),
             "scope": "frontier-regression estimates — no solver-exact duals on this run",
+            # Estimate-vs-dual claim calibration lives in the skill section the
+            # guidance_pointer retargets ('Binding Analysis') — this note is the upgrade path.
             "note": ("Run solve(solver='highs' or 'cuopt') on a continuous/proportional (QP) "
                      "problem for exact shadow prices + reduced costs. Integer/MILP solutions "
                      "have no exact duals. Showing the frontier-inferred binding analysis below."),
             "binding_analysis": binding,
-            "next_steps": ("Present this as a frontier-inferred estimate, not a solver dual — read it "
-                           "with the `solution_interpreter` skill ('Binding Analysis')."),
         }
         suggested = _suggested_scenarios_from_binding(binding)
         if suggested:
@@ -3212,16 +3212,11 @@ def sensitivity_analysis(problem: Problem, solution_id: int | None = None,
         **({"floored_options": floored} if floored else {}),
         "frontier_shadow_price_trend": trend,
         **({"frontier_shadow_price_trend_elided": trend_elided} if trend_elided else {}),
+        # Narration guidance lives in the skill section the guidance_pointer names
+        # ('Exact Sensitivity') — this note is the field legend only.
         "note": ("Shadow prices and reduced costs are reported at the reference solution; the "
                  "trend shows how the swept-constraint shadow price changes along the frontier "
                  "(rising = diminishing returns)."),
-        "next_steps": ("Read these duals with the `solution_interpreter` skill ('Exact Sensitivity'): "
-                       "`where_to_invest` shortlists the binding constraints to renegotiate (price "
-                       "each lever as rate × a realistic increment before naming a top one, and "
-                       "confirm with a re-solve); the smallest `near_misses` reduced cost is the "
-                       "option closest to entering (a re-scoring / cap-relaxation prompt). Anchor "
-                       "every number in the reference solution; route a persistent near-miss back "
-                       "to problem_framing."),
     }
 
 
