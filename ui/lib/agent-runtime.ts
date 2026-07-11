@@ -18,6 +18,11 @@ import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { SYSTEM_PROMPT } from "./system-prompt";
 import { compactHistory } from "./compaction";
 import { cachedSystem, cachedTools, withCacheBreakpoint, contextManagement } from "./anthropic-request";
+import {
+  buildResponsesTools,
+  translateMessagesToResponsesInput,
+  type ResponsesInputItem,
+} from "./openai-responses";
 
 export type ChatMessage = {
   role: "user" | "assistant";
@@ -214,10 +219,14 @@ const messagesApiAdapter: AgentRuntime = {
 //   OPENAI_API_KEY           bearer token
 //   OPENAI_MODEL             model id (default: gpt-4o-mini)
 //   OPENAI_REASONING_EFFORT  optional, passed through only if set
+//   OPENAI_WIRE              "chat" (default) or "responses" — OpenAI's reasoning models
+//                            (GPT-5.x) only support function tools WITH reasoning on
+//                            /v1/responses; chat/completions rejects the combination.
 
 const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1";
 const OPENAI_MODEL = process.env.OPENAI_MODEL ?? "gpt-4o-mini";
 const OPENAI_REASONING_EFFORT = process.env.OPENAI_REASONING_EFFORT;
+const OPENAI_WIRE = process.env.OPENAI_WIRE ?? "chat";
 
 type OpenAIMessage =
   | { role: "system"; content: string }
@@ -382,6 +391,14 @@ const openAICompatibleAdapter: AgentRuntime = {
             systemContent,
             Number(process.env.OPENAI_MAX_TOKENS ?? "16000"),
           );
+
+          // Responses wire: same MCP loop, /v1/responses request/event shapes.
+          if (OPENAI_WIRE === "responses") {
+            await runResponsesLoop({ apiKey, emit, mcp, mcpTools, systemContent, history });
+            controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
+            return;
+          }
+
           const convo: OpenAIMessage[] = [
             { role: "system", content: systemContent },
             ...translateMessagesToOpenAI(history),
@@ -415,9 +432,15 @@ const openAICompatibleAdapter: AgentRuntime = {
 
             if (!res.ok || !res.body) {
               const errText = await res.text().catch(() => "");
+              // Reasoning models that gate tools behind the Responses API name it in the
+              // error — point at the switch instead of leaving a bare 400.
+              const hint = errText.includes("/v1/responses")
+                ? " — this model requires the Responses API for tools+reasoning: set OPENAI_WIRE=responses (or OPENAI_REASONING_EFFORT=none to stay on chat/completions without reasoning)."
+                : "";
               throw new Error(
                 `OpenAI-compatible provider (${OPENAI_BASE_URL}) returned ${res.status}` +
-                  (errText ? `: ${errText}` : ""),
+                  (errText ? `: ${errText}` : "") +
+                  hint,
               );
             }
 
@@ -601,6 +624,189 @@ const openAICompatibleAdapter: AgentRuntime = {
     });
   },
 };
+
+// ─── OpenAI Responses wire loop ─────────────────────────────────────────────
+// Same client-side MCP tool loop as the chat path, over /v1/responses shapes:
+// input items (function_call / function_call_output) instead of tool messages,
+// and item-keyed streaming events instead of choice deltas. Wire validated
+// against gpt-5.6-terra (tools run WITH reasoning here; chat/completions
+// rejects that combination). Pure translation helpers live in openai-responses.ts.
+async function runResponsesLoop(opts: {
+  apiKey: string;
+  emit: (event: unknown) => void;
+  mcp: MCPClient;
+  mcpTools: Array<{ name: string; description?: string; inputSchema?: Record<string, unknown> }>;
+  systemContent: string;
+  history: ChatMessage[];
+}) {
+  const { apiKey, emit, mcp } = opts;
+  const tools = buildResponsesTools(opts.mcpTools);
+  const input: ResponsesInputItem[] = translateMessagesToResponsesInput(opts.history);
+  let blockIndex = 0;
+  const MAX_ITERATIONS = 12;
+
+  for (let iter = 0; iter < MAX_ITERATIONS; iter++) {
+    const body: Record<string, unknown> = {
+      model: OPENAI_MODEL,
+      instructions: opts.systemContent,
+      input,
+      tools: tools.length ? tools : undefined,
+      stream: true,
+    };
+    if (OPENAI_REASONING_EFFORT) body.reasoning = { effort: OPENAI_REASONING_EFFORT };
+
+    const res = await fetch(`${OPENAI_BASE_URL}/responses`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok || !res.body) {
+      const errText = await res.text().catch(() => "");
+      throw new Error(
+        `OpenAI Responses provider (${OPENAI_BASE_URL}) returned ${res.status}` +
+          (errText ? `: ${errText}` : ""),
+      );
+    }
+
+    // Stream: events are item-keyed. Track each output item → UI block.
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    type Item =
+      | { kind: "text"; blockIdx: number; started: boolean }
+      | { kind: "fc"; blockIdx: number; callId: string; name: string; args: string };
+    const items = new Map<string, Item>();
+    const calls: Array<{ callId: string; name: string; args: string }> = [];
+
+    outer: while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split("\n");
+      buf = lines.pop() ?? "";
+      for (const raw of lines) {
+        const line = raw.trim();
+        if (!line.startsWith("data:")) continue;
+        let ev: any;
+        try {
+          ev = JSON.parse(line.slice(5).trim());
+        } catch {
+          continue;
+        }
+        switch (ev.type) {
+          case "response.output_item.added": {
+            const item = ev.item ?? {};
+            if (item.type === "function_call") {
+              const blockIdx = blockIndex++;
+              items.set(String(item.id), {
+                kind: "fc",
+                blockIdx,
+                callId: String(item.call_id ?? item.id),
+                name: String(item.name ?? ""),
+                args: "",
+              });
+              emit({
+                type: "content_block_start",
+                index: blockIdx,
+                content_block: {
+                  type: "mcp_tool_use",
+                  id: String(item.call_id ?? item.id),
+                  name: String(item.name ?? ""),
+                  server_name: "frontier",
+                  input: {},
+                },
+              });
+            } else if (item.type === "message") {
+              // Text block opens lazily on the first delta (message items can be empty).
+              items.set(String(item.id), { kind: "text", blockIdx: -1, started: false });
+            }
+            break; // reasoning items: not surfaced
+          }
+          case "response.output_text.delta": {
+            const entry = items.get(String(ev.item_id));
+            if (!entry || entry.kind !== "text") break;
+            if (!entry.started) {
+              entry.blockIdx = blockIndex++;
+              entry.started = true;
+              emit({
+                type: "content_block_start",
+                index: entry.blockIdx,
+                content_block: { type: "text", text: "" },
+              });
+            }
+            emit({
+              type: "content_block_delta",
+              index: entry.blockIdx,
+              delta: { type: "text_delta", text: String(ev.delta ?? "") },
+            });
+            break;
+          }
+          case "response.function_call_arguments.delta": {
+            const entry = items.get(String(ev.item_id));
+            if (!entry || entry.kind !== "fc") break;
+            entry.args += String(ev.delta ?? "");
+            emit({
+              type: "content_block_delta",
+              index: entry.blockIdx,
+              delta: { type: "input_json_delta", partial_json: String(ev.delta ?? "") },
+            });
+            break;
+          }
+          case "response.output_item.done": {
+            const item = ev.item ?? {};
+            const entry = items.get(String(item.id));
+            if (!entry) break;
+            if (entry.kind === "fc") {
+              // The done item carries the authoritative full arguments string.
+              if (typeof item.arguments === "string" && item.arguments) entry.args = item.arguments;
+              emit({ type: "content_block_stop", index: entry.blockIdx });
+              calls.push({ callId: entry.callId, name: entry.name, args: entry.args });
+            } else if (entry.started) {
+              emit({ type: "content_block_stop", index: entry.blockIdx });
+            }
+            break;
+          }
+          case "response.failed":
+          case "error": {
+            const msg =
+              ev.message ?? ev.response?.error?.message ?? "Responses stream reported failure";
+            throw new Error(`OpenAI Responses stream error: ${msg}`);
+          }
+          case "response.completed":
+            break outer;
+        }
+      }
+    }
+
+    // No tool calls → final answer delivered; done.
+    if (calls.length === 0) break;
+
+    // Execute tools against MCP, surface results, and extend the input for the next turn
+    // (function_call must precede its function_call_output).
+    for (const call of calls) {
+      const result = await callMcpTool(mcp, call.name, safeParseJson(call.args));
+      const resultBlockIdx = blockIndex++;
+      emit({
+        type: "content_block_start",
+        index: resultBlockIdx,
+        content_block: {
+          type: "mcp_tool_result",
+          tool_use_id: call.callId,
+          content: [{ type: "text", text: result.text }],
+          is_error: result.isError,
+        },
+      });
+      emit({ type: "content_block_stop", index: resultBlockIdx });
+      input.push({
+        type: "function_call",
+        call_id: call.callId,
+        name: call.name,
+        arguments: call.args || "{}",
+      });
+      input.push({ type: "function_call_output", call_id: call.callId, output: result.text });
+    }
+  }
+}
 
 function safeParseJson(s: string): Record<string, unknown> {
   if (!s) return {};
