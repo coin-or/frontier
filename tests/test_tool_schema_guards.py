@@ -42,10 +42,14 @@ class TestGuardParamSteering:
         assert "scenario_config" in _param_desc("model", "scenarios")
 
     def test_guard_tails_stay_identical(self):
-        """All four guards end with the shared _GUARD_TAIL — no drift between copies."""
+        """The strict guards end with the shared _GUARD_TAIL — no drift between copies.
+        (run_scenarios documents its own two-mode behavior: redundant-consistent use
+        is ignored, contradicting use redirects.)"""
         for tool, param in (("model", "scenarios"), ("solve", "scenario"),
-                            ("solve", "run_scenarios"), ("explore", "label")):
+                            ("explore", "label")):
             assert _param_desc(tool, param).endswith(srv._GUARD_TAIL)
+        desc = _param_desc("solve", "run_scenarios")
+        assert "ignored" in desc and "redirect" in desc
 
 
 class TestReplaceVsMergeContract:

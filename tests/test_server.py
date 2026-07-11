@@ -115,6 +115,9 @@ class TestModelUpdate:
         assert shrunk["status"]["constraints"] == 1
         assert "replaced the whole set" in shrunk["constraints_note"]
         assert "(was 3)" in shrunk["constraints_note"]
+        # The dropped rules are named by key — no verification `get` needed.
+        assert "cardinality:1:2" in shrunk["constraints_note"]
+        assert "force_exclude:C" in shrunk["constraints_note"]
 
     def test_option_removal_cascade_carries_constraints_note(self):
         """An options replacement that cascade-drops referencing constraints is
@@ -132,6 +135,7 @@ class TestModelUpdate:
                            options=[{"name": "B"}, {"name": "C"}])
         assert result["status"]["constraints"] == 1
         assert "removed options/objectives" in result["constraints_note"]
+        assert "force_include:A" in result["constraints_note"]
 
     def test_combined_update_notes_shrink_against_pre_call_count(self):
         """The shrink baseline is the pre-call count: an objectives cascade in the
@@ -439,6 +443,24 @@ class TestSolveValidate:
 
 
 class TestSolveRun:
+    def test_run_scenarios_flag_redirects_when_contradicting(self):
+        """run_scenarios=true on another action is the wrong-name miscall — redirect."""
+        pid = _build_solvable_problem()
+        result = srv.solve(action="run", problem_id=pid, run_scenarios=True)
+        assert 'action="run_scenarios"' in result["error"]
+
+    def test_run_scenarios_flag_tolerated_beside_its_action(self):
+        """run_scenarios=true beside action="run_scenarios" states the right intent
+        twice — the call proceeds (here into normal validation) instead of bouncing."""
+        pid = srv.model(
+            action="create",
+            options=[{"name": "A"}, {"name": "B"}, {"name": "C"}],
+            objectives=[{"name": "Value", "direction": "maximize"},
+                        {"name": "Cost", "direction": "minimize"}],
+        )["problem_id"]
+        result = srv.solve(action="run_scenarios", problem_id=pid, run_scenarios=True)
+        assert "solve has no" not in result.get("error", "")
+
     def test_run_success(self):
         pid = _build_solvable_problem()
         result = srv.solve(action="run", problem_id=pid)

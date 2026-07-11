@@ -499,7 +499,7 @@ def _model_update(params: dict) -> dict:
     # Snapshot before ANY branch runs: constraints shrink two ways — a replacement
     # list, or the objectives/options blocks cascade-dropping referencing rules —
     # and a combined update does both, so a branch-local baseline would mask it.
-    constraints_before = len(p.constraints)
+    constraint_keys_before = [explorer._constraint_key(c.model_dump()) for c in p.constraints]
 
     # Metadata updates
     if "name" in params:
@@ -664,13 +664,19 @@ def _model_update(params: dict) -> dict:
 
     # Constraints shrink silently two ways — a replacement list omitting rules, or an
     # objectives/options replacement cascade-dropping referencing rules — so a fallen
-    # count is named (epistemic caption; the semantics live on the param descriptions).
-    if len(p.constraints) < constraints_before:
+    # count is named, with the dropped rules listed by key so no verification `get` is
+    # needed (epistemic caption; the semantics live on the param descriptions).
+    if len(p.constraints) < len(constraint_keys_before):
+        keys_now = {explorer._constraint_key(c.model_dump()) for c in p.constraints}
+        dropped = [k for k in constraint_keys_before if k not in keys_now]
+        listed = ", ".join(dropped[:5]) + (" …" if len(dropped) > 5 else "")
         result["constraints_note"] = (
-            f"Constraint count fell: now {len(p.constraints)} (was {constraints_before}) — "
-            + ("the constraints list replaced the whole set."
+            f"Constraint count fell: now {len(p.constraints)} "
+            f"(was {len(constraint_keys_before)}) — "
+            + ("the constraints list replaced the whole set"
                if "constraints" in params else
-               "rules referencing removed options/objectives were dropped."))
+               "rules referencing removed options/objectives were dropped")
+            + f". Dropped: {listed}.")
 
     # Include metrics on structural changes so the LLM can coach the user
     if structural_change:
@@ -1093,7 +1099,9 @@ def solve(
                     "explore(scenario=\"…\")." + _GUARD_TAIL)] = None,
     run_scenarios: Annotated[bool, Field(
         description="Do not use — run_scenarios is an ACTION, not a flag: call "
-                    "solve(action=\"run_scenarios\")." + _GUARD_TAIL)] = False,
+                    "solve(action=\"run_scenarios\"). Redundant beside that action "
+                    "(ignored); with any other action this wrong-name guard returns a "
+                    "redirect.")] = False,
 ) -> dict:
     """Validate and run the optimizer.
 
@@ -1198,7 +1206,9 @@ def solve(
     # Guards: scenarios are solved by their own action, not by a filter/flag on `run`.
     # Without these, a `scenario=`/`run_scenarios=` argument is silently dropped and a plain
     # `run` returns the BASE frontier as if it were the scenario — a wrong answer with no error.
-    if scenario is not None or run_scenarios:
+    # A redundant-but-consistent run_scenarios=true beside action="run_scenarios" states the
+    # right intent twice — proceed rather than bounce a correct call (live user-test finding).
+    if scenario is not None or (run_scenarios and action != "run_scenarios"):
         return {"error": "solve has no `scenario`/`run_scenarios` argument. To optimize every "
                 "scenario independently, call solve(action=\"run_scenarios\") (needs "
                 "scenario_config on the model). To then view one scenario's frontier, use "
