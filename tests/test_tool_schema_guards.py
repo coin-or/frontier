@@ -52,6 +52,20 @@ class TestReplaceVsMergeContract:
     def test_scores_declare_merge(self):
         assert "merge" in _param_desc("model", "scores").lower()
 
+    def test_reference_points_declare_full_replacement(self):
+        assert "FULL REPLACEMENT" in _param_desc("model", "reference_points").upper()
+
+    def test_interaction_matrices_declare_upsert(self):
+        assert "upsert" in _param_desc("model", "interaction_matrices").lower()
+
+    def test_scenario_config_declares_override_replacement(self):
+        desc = _param_desc("model", "scenario_config")
+        assert "constraint_overrides REPLACES the entire base constraint set" in desc
+        assert "inherits" in desc
+
+    def test_source_declares_load_only(self):
+        assert 'action="load"' in _param_desc("model", "source")
+
 
 @pytest.fixture()
 def tmp_store(monkeypatch):

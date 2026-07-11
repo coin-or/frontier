@@ -289,11 +289,23 @@ def model(
         description="On update: FULL REPLACEMENT — always send the COMPLETE constraint "
                     "set; a partial list silently drops every constraint it omits.")] = None,
     approach: str | None = None,
-    reference_points: list[dict] | None = None,
-    scenario_config: dict | None = None,
-    interaction_matrices: list[dict] | None = None,
+    reference_points: Annotated[list[dict] | None, Field(
+        description="On update: FULL REPLACEMENT — send the complete list.")] = None,
+    scenario_config: Annotated[dict | None, Field(
+        description="{\"enabled\": true, \"scenarios\": [...]} — schema in the "
+                    "problem_framing skill. Per scenario: score_overrides adjust "
+                    "individual scores; a non-empty constraint_overrides REPLACES the "
+                    "entire base constraint set for that scenario (restate every rule "
+                    "that still applies), while empty/omitted inherits the base set "
+                    "unchanged.")] = None,
+    interaction_matrices: Annotated[list[dict] | None, Field(
+        description="Merge semantics: upserts by objective — send only what "
+                    "changes.")] = None,
     section: str | None = None,
-    source: str | None = None,
+    source: Annotated[str | None, Field(
+        description="action=\"load\" only: the bundle name to restore (saved/ shadows "
+                    "a like-named example); omit to list available names. On create it "
+                    "returns a redirect to load.")] = None,
     save_as: str | None = None,
     # guard: wrong name for scenario_config (see below)
     scenarios: Annotated[list[dict] | None, Field(
