@@ -177,10 +177,10 @@ Both pieces are plain web services – host them anywhere (Render, Fly, Railway,
 | Provider | `AGENT_BACKEND` | Credentials |
 |---|---|---|
 | **Anthropic** (default) | `messages-api` (public-https engine) or `anthropic-local` (localhost engine) | `ANTHROPIC_API_KEY`, optional `ANTHROPIC_MODEL` (default `claude-opus-4-8`) |
-| **OpenAI** | `openai-compatible` | `OPENAI_API_KEY`, `OPENAI_MODEL` |
+| **OpenAI** | `openai-compatible` | `OPENAI_API_KEY`, `OPENAI_MODEL`; reasoning models (GPT-5.x) also set `OPENAI_WIRE=responses` |
 | **Any OpenAI-compatible endpoint** (NVIDIA NIM / [build.nvidia.com](https://build.nvidia.com), Groq, Together, a local server, …) | `openai-compatible` | `OPENAI_BASE_URL` (the provider's URL), `OPENAI_API_KEY`, `OPENAI_MODEL` |
 
-Any OpenAI-compatible endpoint drops in by pointing `OPENAI_BASE_URL` at it — e.g. NVIDIA NIM at `https://integrate.api.nvidia.com/v1` with `OPENAI_MODEL=nvidia/nemotron-3-super-120b-a12b`. Reasoning models render cleanly out of the box on providers that stream chain-of-thought in a separate field the UI drops (NIM does) — only the final answer shows. [`ui/.env.example`](ui/.env.example) has a copy-paste block per backend; keep real keys there (it's gitignored), never in the repo.
+Any OpenAI-compatible endpoint drops in by pointing `OPENAI_BASE_URL` at it — e.g. NVIDIA NIM at `https://integrate.api.nvidia.com/v1` with `OPENAI_MODEL=nvidia/nemotron-3-super-120b-a12b`. Reasoning models render cleanly out of the box on providers that stream chain-of-thought in a separate field the UI drops (NIM does) — only the final answer shows. OpenAI's own reasoning models (GPT-5.x) gate function tools behind the Responses API: set `OPENAI_WIRE=responses` and the same adapter switches wire formats — same loop, same clean output. [`ui/.env.example`](ui/.env.example) has a copy-paste block per backend; keep real keys there (it's gitignored), never in the repo.
 
 **Render (one-click example):** [`render.yaml`](render.yaml) provisions both as a blueprint.
 
