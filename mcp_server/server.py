@@ -19,8 +19,9 @@ import json
 import os
 import sys
 from datetime import datetime, timezone
+from typing import Annotated
 
-from pydantic import ValidationError
+from pydantic import Field, ValidationError
 
 from mcp.server.fastmcp import FastMCP
 
@@ -212,6 +213,13 @@ def skill_solution_interpreter() -> str:
     return (SKILLS_DIR / "solution_interpreter" / "SKILL.md").read_text()
 
 
+# Shared tail for every wrong-name guard param's schema description (the params
+# exist only to catch a miscall FastMCP would otherwise silently drop). One
+# source so the four guards can't drift apart; annotations are lazily evaluated
+# in module globals, so this must precede the tool signatures that reference it.
+_GUARD_TAIL = " This wrong-name guard only returns a redirect."
+
+
 # ─── Skill delivery tool (works with all MCP clients) ───
 
 # Skill names map 1:1 onto skills/<name>/ directories. The set doubles as the
@@ -275,18 +283,41 @@ def model(
     name: str | None = None,
     domain: str | None = None,
     context: str | None = None,
-    objectives: list[dict] | None = None,
-    options: list[dict | str] | None = None,
-    scores: list[dict] | None = None,
-    constraints: list[dict] | None = None,
+    objectives: Annotated[list[dict] | None, Field(
+        description="On update: FULL REPLACEMENT — send the complete list; scores, "
+                    "constraints, and interaction matrices referencing a removed "
+                    "objective are dropped.")] = None,
+    options: Annotated[list[dict | str] | None, Field(
+        description="On update: FULL REPLACEMENT — send the complete list; scores and "
+                    "constraints referencing a removed option are dropped.")] = None,
+    scores: Annotated[list[dict] | None, Field(
+        description="Merge semantics: upserts by (option, objective) — send only what "
+                    "changes.")] = None,
+    constraints: Annotated[list[dict] | None, Field(
+        description="On update: FULL REPLACEMENT — always send the COMPLETE constraint "
+                    "set; a partial list silently drops every constraint it omits.")] = None,
     approach: str | None = None,
-    reference_points: list[dict] | None = None,
-    scenario_config: dict | None = None,
-    interaction_matrices: list[dict] | None = None,
+    reference_points: Annotated[list[dict] | None, Field(
+        description="On update: FULL REPLACEMENT — send the complete list.")] = None,
+    scenario_config: Annotated[dict | None, Field(
+        description="{\"enabled\": true, \"scenarios\": [...]} — schema in the "
+                    "problem_framing skill. Per scenario: score_overrides adjust "
+                    "individual scores; a non-empty constraint_overrides REPLACES the "
+                    "entire base constraint set for that scenario (restate every rule "
+                    "that still applies), while empty/omitted inherits the base set "
+                    "unchanged.")] = None,
+    interaction_matrices: Annotated[list[dict] | None, Field(
+        description="Merge semantics: upserts by objective — send only what "
+                    "changes.")] = None,
     section: str | None = None,
-    source: str | None = None,
+    source: Annotated[str | None, Field(
+        description="action=\"load\" only: the bundle name to restore; omit to list "
+                    "available names.")] = None,
     save_as: str | None = None,
-    scenarios: list[dict] | None = None,  # guard: wrong name for scenario_config (see below)
+    # guard: wrong name for scenario_config (see below)
+    scenarios: Annotated[list[dict] | None, Field(
+        description="Do not use — scenarios are set via scenario_config={\"enabled\": true, "
+                    "\"scenarios\": [...]}." + _GUARD_TAIL)] = None,
 ) -> dict:
     """Build and modify the optimization problem.
 
@@ -310,7 +341,8 @@ def model(
                 approach ("binary" or "proportional"),
                 reference_points (list of {type, name?, objective_values, selected_options?}),
                 interaction_matrices (list of {objective, entries} for quadratic aggregation).
-                Scores use merge semantics; everything else is full replacement.
+                Scores and interaction_matrices merge (upsert); objectives, options,
+                constraints, and reference_points are full replacement.
                 Side effects: score and structural edits both mark the latest run stale.
                 Only structural edits (objectives/options/constraints/approach/matrices/scenarios)
                 re-arm solution_interpreter — and, on an objectives/options shape change,
@@ -349,9 +381,8 @@ def model(
     `get_skill('problem_framing')` or before calling `model/create`) for
     constraint, interaction-matrix, and scenario JSON schemas.
 
-    `scenarios` is a guard, not a feature: scenarios are set through
-    `scenario_config`, so a `scenarios=[...]` argument is a wrong-name mistake and
-    returns a redirect instead of being silently ignored.
+    `scenarios` is a wrong-name guard (see its param description); scenarios are
+    set through `scenario_config`.
     """
     if scenarios is not None:
         return {"error": "Scenarios are not set via a `scenarios` argument. Put them in "
@@ -465,6 +496,10 @@ def _model_update(params: dict) -> dict:
 
     structural_change = False   # drives results_stale + metrics; includes score edits
     interpreter_rearm = False   # re-arms solution_interpreter; excludes score-only edits
+    # Snapshot before ANY branch runs: constraints shrink two ways — a replacement
+    # list, or the objectives/options blocks cascade-dropping referencing rules —
+    # and a combined update does both, so a branch-local baseline would mask it.
+    constraint_keys_before = [explorer._constraint_key(c.model_dump()) for c in p.constraints]
 
     # Metadata updates
     if "name" in params:
@@ -618,6 +653,7 @@ def _model_update(params: dict) -> dict:
         "status": {
             "objectives": len(p.objectives),
             "options": len(p.options),
+            "constraints": len(p.constraints),
             "scores_complete": round(len(p.scores) / total_possible, 2) if total_possible > 0 else 0.0,
             "has_run": p.run is not None,
             "has_exact_run": p.exact_run is not None,
@@ -625,6 +661,22 @@ def _model_update(params: dict) -> dict:
             "total_runs": len(p.runs) + (1 if p.run else 0),
         },
     }
+
+    # Constraints shrink silently two ways — a replacement list omitting rules, or an
+    # objectives/options replacement cascade-dropping referencing rules — so a fallen
+    # count is named, with the dropped rules listed by key so no verification `get` is
+    # needed (epistemic caption; the semantics live on the param descriptions).
+    if len(p.constraints) < len(constraint_keys_before):
+        keys_now = {explorer._constraint_key(c.model_dump()) for c in p.constraints}
+        dropped = [k for k in constraint_keys_before if k not in keys_now]
+        listed = ", ".join(dropped[:5]) + (" …" if len(dropped) > 5 else "")
+        result["constraints_note"] = (
+            f"Constraint count fell: now {len(p.constraints)} "
+            f"(was {len(constraint_keys_before)}) — "
+            + ("the constraints list replaced the whole set"
+               if "constraints" in params else
+               "rules referencing removed options/objectives were dropped")
+            + f". Dropped: {listed}.")
 
     # Include metrics on structural changes so the LLM can coach the user
     if structural_change:
@@ -1040,8 +1092,16 @@ def solve(
     time_limit: float | None = None,
     wait_seconds: float | None = None,
     job_id: str | None = None,
-    scenario: str | None = None,      # guard: solve has no scenario filter (see below)
-    run_scenarios: bool = False,      # guard: run_scenarios is an action, not a flag (see below)
+    # guards: scenarios are solved by their own action, not a filter/flag on `run` (see below)
+    scenario: Annotated[str | None, Field(
+        description="Do not use — solve has no scenario filter. Solve every scenario with "
+                    "action=\"run_scenarios\", then inspect one via "
+                    "explore(scenario=\"…\")." + _GUARD_TAIL)] = None,
+    run_scenarios: Annotated[bool, Field(
+        description="Do not use — run_scenarios is an ACTION, not a flag: call "
+                    "solve(action=\"run_scenarios\"). Redundant beside that action "
+                    "(ignored); with any other action this wrong-name guard returns a "
+                    "redirect.")] = False,
 ) -> dict:
     """Validate and run the optimizer.
 
@@ -1146,7 +1206,9 @@ def solve(
     # Guards: scenarios are solved by their own action, not by a filter/flag on `run`.
     # Without these, a `scenario=`/`run_scenarios=` argument is silently dropped and a plain
     # `run` returns the BASE frontier as if it were the scenario — a wrong answer with no error.
-    if scenario is not None or run_scenarios:
+    # A redundant-but-consistent run_scenarios=true beside action="run_scenarios" states the
+    # right intent twice — proceed rather than bounce a correct call (live user-test finding).
+    if scenario is not None or (run_scenarios and action != "run_scenarios"):
         return {"error": "solve has no `scenario`/`run_scenarios` argument. To optimize every "
                 "scenario independently, call solve(action=\"run_scenarios\") (needs "
                 "scenario_config on the model). To then view one scenario's frontier, use "
@@ -1716,7 +1778,10 @@ def explore(
     cvar_alpha: float | None = None,
     format: str | None = None,
     audit_property: dict | list[dict] | None = None,
-    label: str | None = None,  # guard: wrong name for custom_name (see below)
+    # guard: wrong name for custom_name (see below)
+    label: Annotated[str | None, Field(
+        description="Do not use — name a curated pin with `custom_name` (rename an existing "
+                    "pin via rename= + content_signature)." + _GUARD_TAIL)] = None,
 ) -> dict:
     """Navigate results after solving — or, with `audit`, interrogate the model's feasible region
     directly (no prior solve needed). Every other action reads a run.
