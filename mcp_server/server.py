@@ -213,6 +213,13 @@ def skill_solution_interpreter() -> str:
     return (SKILLS_DIR / "solution_interpreter" / "SKILL.md").read_text()
 
 
+# Shared tail for every wrong-name guard param's schema description (the params
+# exist only to catch a miscall FastMCP would otherwise silently drop). One
+# source so the four guards can't drift apart; annotations are lazily evaluated
+# in module globals, so this must precede the tool signatures that reference it.
+_GUARD_TAIL = " This wrong-name guard only returns a redirect."
+
+
 # ─── Skill delivery tool (works with all MCP clients) ───
 
 # Skill names map 1:1 onto skills/<name>/ directories. The set doubles as the
@@ -277,8 +284,9 @@ def model(
     domain: str | None = None,
     context: str | None = None,
     objectives: Annotated[list[dict] | None, Field(
-        description="On update: FULL REPLACEMENT — send the complete list; scores and "
-                    "constraints referencing a removed objective are dropped.")] = None,
+        description="On update: FULL REPLACEMENT — send the complete list; scores, "
+                    "constraints, and interaction matrices referencing a removed "
+                    "objective are dropped.")] = None,
     options: Annotated[list[dict | str] | None, Field(
         description="On update: FULL REPLACEMENT — send the complete list; scores and "
                     "constraints referencing a removed option are dropped.")] = None,
@@ -303,15 +311,13 @@ def model(
                     "changes.")] = None,
     section: str | None = None,
     source: Annotated[str | None, Field(
-        description="action=\"load\" only: the bundle name to restore (saved/ shadows "
-                    "a like-named example); omit to list available names. On create it "
-                    "returns a redirect to load.")] = None,
+        description="action=\"load\" only: the bundle name to restore; omit to list "
+                    "available names.")] = None,
     save_as: str | None = None,
     # guard: wrong name for scenario_config (see below)
     scenarios: Annotated[list[dict] | None, Field(
         description="Do not use — scenarios are set via scenario_config={\"enabled\": true, "
-                    "\"scenarios\": [...]}. This wrong-name guard only returns a "
-                    "redirect.")] = None,
+                    "\"scenarios\": [...]}." + _GUARD_TAIL)] = None,
 ) -> dict:
     """Build and modify the optimization problem.
 
@@ -335,7 +341,8 @@ def model(
                 approach ("binary" or "proportional"),
                 reference_points (list of {type, name?, objective_values, selected_options?}),
                 interaction_matrices (list of {objective, entries} for quadratic aggregation).
-                Scores use merge semantics; everything else is full replacement.
+                Scores and interaction_matrices merge (upsert); objectives, options,
+                constraints, and reference_points are full replacement.
                 Side effects: score and structural edits both mark the latest run stale.
                 Only structural edits (objectives/options/constraints/approach/matrices/scenarios)
                 re-arm solution_interpreter — and, on an objectives/options shape change,
@@ -374,9 +381,8 @@ def model(
     `get_skill('problem_framing')` or before calling `model/create`) for
     constraint, interaction-matrix, and scenario JSON schemas.
 
-    `scenarios` is a guard, not a feature: scenarios are set through
-    `scenario_config`, so a `scenarios=[...]` argument is a wrong-name mistake and
-    returns a redirect instead of being silently ignored.
+    `scenarios` is a wrong-name guard (see its param description); scenarios are
+    set through `scenario_config`.
     """
     if scenarios is not None:
         return {"error": "Scenarios are not set via a `scenarios` argument. Put them in "
@@ -490,6 +496,10 @@ def _model_update(params: dict) -> dict:
 
     structural_change = False   # drives results_stale + metrics; includes score edits
     interpreter_rearm = False   # re-arms solution_interpreter; excludes score-only edits
+    # Snapshot before ANY branch runs: constraints shrink two ways — a replacement
+    # list, or the objectives/options blocks cascade-dropping referencing rules —
+    # and a combined update does both, so a branch-local baseline would mask it.
+    constraints_before = len(p.constraints)
 
     # Metadata updates
     if "name" in params:
@@ -569,9 +579,7 @@ def _model_update(params: dict) -> dict:
         structural_change = True
 
     # Constraints — full replacement
-    constraints_before = None
     if "constraints" in params:
-        constraints_before = len(p.constraints)
         p.constraints = [_parse_constraint(c) for c in params["constraints"]]
         structural_change = True
         interpreter_rearm = True
@@ -654,13 +662,15 @@ def _model_update(params: dict) -> dict:
         },
     }
 
-    # A constraints update REPLACES the whole set — a shrink is usually an
-    # accidental partial send, so name it rather than let 62 rules vanish silently.
-    if constraints_before is not None and len(p.constraints) < constraints_before:
+    # Constraints shrink silently two ways — a replacement list omitting rules, or an
+    # objectives/options replacement cascade-dropping referencing rules — so a fallen
+    # count is named (epistemic caption; the semantics live on the param descriptions).
+    if len(p.constraints) < constraints_before:
         result["constraints_note"] = (
-            f"Constraint set replaced: now {len(p.constraints)} (was {constraints_before}). "
-            "Updates are full replacement — to add or edit one constraint, resend the "
-            "complete set.")
+            f"Constraint count fell: now {len(p.constraints)} (was {constraints_before}) — "
+            + ("the constraints list replaced the whole set."
+               if "constraints" in params else
+               "rules referencing removed options/objectives were dropped."))
 
     # Include metrics on structural changes so the LLM can coach the user
     if structural_change:
@@ -1079,12 +1089,11 @@ def solve(
     # guards: scenarios are solved by their own action, not a filter/flag on `run` (see below)
     scenario: Annotated[str | None, Field(
         description="Do not use — solve has no scenario filter. Solve every scenario with "
-                    "action=\"run_scenarios\", then inspect one via explore(scenario=\"…\"). "
-                    "This wrong-name guard only returns a redirect.")] = None,
+                    "action=\"run_scenarios\", then inspect one via "
+                    "explore(scenario=\"…\")." + _GUARD_TAIL)] = None,
     run_scenarios: Annotated[bool, Field(
         description="Do not use — run_scenarios is an ACTION, not a flag: call "
-                    "solve(action=\"run_scenarios\"). This wrong-name guard only returns a "
-                    "redirect.")] = False,
+                    "solve(action=\"run_scenarios\")." + _GUARD_TAIL)] = False,
 ) -> dict:
     """Validate and run the optimizer.
 
@@ -1762,8 +1771,7 @@ def explore(
     # guard: wrong name for custom_name (see below)
     label: Annotated[str | None, Field(
         description="Do not use — name a curated pin with `custom_name` (rename an existing "
-                    "pin via rename= + content_signature). This wrong-name guard only "
-                    "returns a redirect.")] = None,
+                    "pin via rename= + content_signature)." + _GUARD_TAIL)] = None,
 ) -> dict:
     """Navigate results after solving — or, with `audit`, interrogate the model's feasible region
     directly (no prior solve needed). Every other action reads a run.
