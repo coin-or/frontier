@@ -30,6 +30,8 @@ Iteration is also how Frontier closes the **partial optimization** and **silent 
 | **Run** | Execute optimization, produce Pareto frontier | Examine results. |
 | **Examine** | Assess solution count, diversity, constraint binding, diagnostic patterns | If healthy → move to explore. If problematic → back to model to adjust formulation, then re-run. |
 
+Validate's `readiness` block names which kind of work remains — relay its verdict in the user's terms: `framing_gap` means the structure needs decisions (route to `frontier://skills/problem_framing`), `data_gap` means the structure is set and scores are missing — its `score_gaps` roll the holes up per objective, and a fully `unscored` axis is worth naming plainly ("nothing is scored on Risk yet") over reporting a cell count. `ready` means run.
+
 The examine step is where most iteration happens. Few solutions? Constraints too tight — relax and re-run. Solutions clustered? Objectives may be correlated — consolidate and re-run. Key option never selected? Check its scores — adjust and re-run.
 
 ## Run

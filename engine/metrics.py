@@ -23,6 +23,7 @@ from .models import (
     Problem,
     Run,
     Solution,
+    ValidationResult,
 )
 
 _MAX_MISSING_SCORES_RETURNED = 20
@@ -191,11 +192,13 @@ def frontier_quality(
     Gates are evaluated in order — failure short-circuits the rest:
       1. frontier_returned: ≥1 solution
       2. non_trivial: ≥2 solutions AND at least one objective varies (≥1% relative range)
-      3. diverse: spacing CV bounded AND no extreme allocation concentration
+      3. diverse: spacing CV bounded, no extreme allocation concentration, every
+         objective participates in the tradeoff (none flat)
 
     Status mapping:
       POOR    — frontier_returned or non_trivial fails (frontier is empty or degenerate)
-      WARNING — passes non_trivial but fails diverse (uneven coverage or single-winner allocation)
+      WARNING — passes non_trivial but fails diverse (uneven coverage, single-winner
+                allocation, or a dead objective axis)
       GOOD    — all gates pass
 
     Returns: {"status", "gates", "issues"}.
@@ -210,11 +213,11 @@ def frontier_quality(
         }
 
     non_trivial = True
+    flat_objs: list[str] = []
     if len(solutions) < 2:
         non_trivial = False
         issues.append("Only 1 solution — frontier is degenerate (likely over-constrained or a single-feasible-point problem).")
     else:
-        flat_objs: list[str] = []
         for obj in objectives:
             vals = [s.objective_values.get(obj.name, 0.0) for s in solutions]
             v_range = max(vals) - min(vals)
@@ -237,6 +240,28 @@ def frontier_quality(
     if spacing_cv is not None and spacing_cv > 1.5:
         diverse = False
         issues.append(f"Spacing CV {spacing_cv:.2f} (>1.5) — frontier coverage is uneven; solutions cluster in some regions.")
+
+    # A flat axis on an otherwise-varying frontier: the plans differ, but this objective
+    # is <1% of the choice — epsilon spreads keep such points technically non-dominated,
+    # so without this gate they arrive looking like a healthy tradeoff.
+    if flat_objs:
+        diverse = False
+        names = ", ".join(f"'{o}'" for o in flat_objs)
+        subject = (f"Objective {names} is flat" if len(flat_objs) == 1
+                   else f"Objectives {names} are flat")
+        issues.append(
+            f"{subject} across the frontier (<1% variation) — not differentiating these "
+            "plans, so the tradeoff runs among the remaining objectives. Check the score "
+            "spread on that axis, or whether a bound pins it."
+        )
+
+    # Pairwise objective alignment is deliberately NOT gated here: among mutually
+    # non-dominated points any pair is anti-correlated by construction on a 2-objective
+    # frontier, and with ≥3 objectives a dominant tradeoff axis induces strong positive
+    # pair correlations on perfectly healthy frontiers (measured 0.91–0.98 across the
+    # bundled examples). All-objectives-aligned collapse already lands in gate 2 via the
+    # dominance filter; the graded pairwise read is `explore tradeoffs` →
+    # objective_redundancy.
 
     if solutions[0].allocations is not None:
         worst_concentration = 0
@@ -264,6 +289,74 @@ def frontier_quality(
         "gates": {"frontier_returned": True, "non_trivial": True, "diverse": diverse},
         "issues": issues,
     }
+
+
+_SCORE_MATRIX_MSG = "Score matrix incomplete"  # optimizer.validate's aggregated score issue
+
+
+def readiness(problem: Problem, vr: ValidationResult) -> dict:
+    """Classify validate's findings into a readiness verdict in the workflow's terms.
+
+    A deterministic classifier over the existing issues (code decides what is true;
+    skills teach the vocabulary). Verdicts:
+      ready       — structure and scores complete; solving is next
+      framing_gap — the model's structure needs decisions (objectives, options, rules)
+      data_gap    — structure is set; the score matrix has holes
+
+    When both kinds of gap exist, framing wins (scores can't settle a structure that
+    isn't). ``ready`` on the ValidationResult stays the single go/no-go — this block
+    names which kind of work remains, rolls score gaps up per objective, and points
+    at the one next step.
+    """
+    if vr.ready:
+        block = {
+            "verdict": "ready",
+            "summary": "Structure and scores are complete.",
+            "next_steps": "solve run",
+        }
+        advisories = sum(1 for i in vr.issues if i.severity == "warning")
+        if advisories:
+            block["summary"] += f" {advisories} advisory issue(s) noted."
+        return block
+
+    framing_errors = [
+        i for i in vr.issues
+        if i.severity == "error" and not i.message.startswith(_SCORE_MATRIX_MSG)
+    ]
+
+    score_gaps: list[dict] = []
+    if vr.missing_scores:
+        n_opts = len(problem.options)
+        by_obj: dict[str, int] = {}
+        for m in vr.missing_scores:
+            by_obj[m["objective"]] = by_obj.get(m["objective"], 0) + 1
+        for obj_name, k in sorted(by_obj.items(), key=lambda kv: (-kv[1], kv[0])):
+            gap = {"objective": obj_name, "missing": k, "of": n_opts}
+            if n_opts > 0 and k >= n_opts:
+                gap["unscored"] = True  # the whole axis is missing, not scattered cells
+            score_gaps.append(gap)
+
+    if framing_errors:
+        block = {
+            "verdict": "framing_gap",
+            "summary": (f"{len(framing_errors)} structural issue(s) to settle — what the "
+                        "decision optimizes, chooses among, or must respect isn't fully "
+                        "defined yet (see issues)."),
+            "next_steps": "model update to resolve the issues; problem_framing guides the judgment calls",
+        }
+    else:
+        fully_unscored = [g["objective"] for g in score_gaps if g.get("unscored")]
+        detail = (" — " + ", ".join(f"'{o}'" for o in fully_unscored) + " entirely unscored"
+                  if fully_unscored else "")
+        block = {
+            "verdict": "data_gap",
+            "summary": (f"Structure is set; {len(vr.missing_scores)} option–objective "
+                        f"score(s) still to fill{detail}."),
+            "next_steps": "model update scores=… to fill the gaps; data_collection guides elicitation",
+        }
+    if score_gaps:
+        block["score_gaps"] = score_gaps
+    return block
 
 
 def outcome_metrics(problem: Problem) -> dict:
@@ -327,8 +420,10 @@ def diagnostics(problem: Problem, run: Run | None = None) -> list[dict]:
     # Pre-compute per-objective stats (single pass, shared by clustering + dominance checks)
     obj_stats = _compute_obj_stats(problem, solutions)
 
-    # 1. Clustered solutions: all solutions within 5% of each other
-    if len(solutions) >= 3:
+    # 1. Clustered solutions: all solutions within 5% of each other. Two solutions
+    # can cluster too — a 2-point near-identical frontier used to fall between this
+    # check (which wanted ≥3) and the <1% all-flat POOR gate, presenting as clean.
+    if len(solutions) >= 2:
         _check_clustering(obj_stats, results)
 
     # 2. One objective dominates: <10% variation

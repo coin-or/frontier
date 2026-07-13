@@ -891,6 +891,10 @@ def _model_get_section(p: Problem, section: str) -> dict:
                 **header,
                 "name": p.name,
                 "domain": p.domain,
+                # The user's original decision question — the north star the skills
+                # anchor presentation on; carried here so a fresh session's summary
+                # fetch recovers it without a full dump.
+                "context": p.context,
                 "approach": p.approach.value,
                 "objectives_count": len(p.objectives),
                 "options_count": len(p.options),
@@ -1240,6 +1244,9 @@ def solve(
             vr = optimizer.validate(p)
             result = json.loads(vr.model_dump_json())
             result["solvers"] = _solver_availability(p)
+            # Which kind of work remains, in the workflow's terms — the issues list
+            # stays the detail; this names framing_gap vs data_gap and the next step.
+            result["readiness"] = metrics.readiness(p, vr)
             if vr.ready:
                 # If ready to solve, inject optimization_strategy
                 _inject_skill(result, "optimization_strategy",
