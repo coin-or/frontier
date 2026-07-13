@@ -208,6 +208,24 @@ class TestDiagnostics:
         flagged_opts = [d["option"] for d in diags if d["pattern"] == "option_never_selected"]
         assert "C" in flagged_opts
 
+    def test_zero_mean_axis_with_real_spread_not_clustered(self):
+        """A mean-straddling-zero objective (net P&L −50/+50) has genuine spread; the
+        zero-safe scale must keep it from reading as rel_range 0 → false clustering."""
+        p = Problem(
+            objectives=[
+                Objective(name="NetPnL", direction="maximize"),
+                Objective(name="Cost", direction="minimize"),
+            ],
+            options=[Option(name="A"), Option(name="B")],
+            run=Run(solutions=[
+                Solution(solution_id=0, selected_options=["A"], objective_values={"NetPnL": -50.0, "Cost": 100.0}),
+                Solution(solution_id=1, selected_options=["B"], objective_values={"NetPnL": 50.0, "Cost": 101.0}),
+            ]),
+        )
+        diags = diagnostics(p)
+        assert not any(d["pattern"] == "clustered_solutions" for d in diags)
+        assert not any(d.get("objective") == "NetPnL" and d["pattern"] == "low_variation_objective" for d in diags)
+
     def test_two_near_identical_solutions_cluster(self):
         """A 2-point frontier within 5% on every objective is clustered — it used to
         fall between this check (which wanted ≥3) and the <1% all-flat POOR gate."""
@@ -473,13 +491,26 @@ class TestReadiness:
         assert r["verdict"] == "framing_gap"
         assert r["score_gaps"]  # the data gap still travels alongside
 
-    def test_message_marker_matches_validate(self):
-        """readiness classifies the score-matrix issue by its message prefix — pin that
-        prefix against optimizer.validate drifting away from it."""
+    def test_score_issue_carries_shared_prefix(self):
+        """readiness classifies the score-matrix issue by the SCORE_MATRIX_MSG prefix
+        both modules import from models — guard against a hand-written replacement
+        message bypassing the shared constant."""
         p = self._scored(missing=[("A", "Rev")])
         vr = self._validate(p)
-        from engine.metrics import _SCORE_MATRIX_MSG
-        assert any(i.message.startswith(_SCORE_MATRIX_MSG) for i in vr.issues)
+        from engine.models import SCORE_MATRIX_MSG
+        assert any(i.message.startswith(SCORE_MATRIX_MSG) for i in vr.issues)
+
+    def test_duplicate_option_names_keep_rollup_denominator_honest(self):
+        # Duplicate names are their own framing error; the per-objective rollup must
+        # count unique options so a fully-unscored axis still reads unscored.
+        objs = [Objective(name="Rev", direction="maximize"), Objective(name="Eff", direction="minimize")]
+        opts = [Option(name="A"), Option(name="A"), Option(name="B"), Option(name="C")]
+        p = Problem(objectives=objs, options=opts,
+                    scores=[Score(option=o, objective="Rev", value=1.0) for o in ("A", "B", "C")])
+        r = readiness(p, self._validate(p))
+        assert r["verdict"] == "framing_gap"  # the duplicate-name error
+        eff = next(g for g in r["score_gaps"] if g["objective"] == "Eff")
+        assert eff["of"] == 3 and eff["unscored"] is True
 
 
 class TestDominatedOptionsCap:

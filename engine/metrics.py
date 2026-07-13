@@ -10,9 +10,11 @@ The MCP server includes them in tool responses at natural checkpoints.
 
 from __future__ import annotations
 
+from collections import Counter
 from statistics import variance
 
 from .models import (
+    SCORE_MATRIX_MSG,
     BoundOperator,
     CardinalityConstraint,
     Direction,
@@ -250,9 +252,8 @@ def frontier_quality(
         subject = (f"Objective {names} is flat" if len(flat_objs) == 1
                    else f"Objectives {names} are flat")
         issues.append(
-            f"{subject} across the frontier (<1% variation) — not differentiating these "
-            "plans, so the tradeoff runs among the remaining objectives. Check the score "
-            "spread on that axis, or whether a bound pins it."
+            f"{subject} across the frontier (<1% relative variation) — not differentiating "
+            "these plans; the tradeoff runs among the remaining objectives."
         )
 
     # Pairwise objective alignment is deliberately NOT gated here: among mutually
@@ -291,9 +292,6 @@ def frontier_quality(
     }
 
 
-_SCORE_MATRIX_MSG = "Score matrix incomplete"  # optimizer.validate's aggregated score issue
-
-
 def readiness(problem: Problem, vr: ValidationResult) -> dict:
     """Classify validate's findings into a readiness verdict in the workflow's terms.
 
@@ -321,27 +319,25 @@ def readiness(problem: Problem, vr: ValidationResult) -> dict:
 
     framing_errors = [
         i for i in vr.issues
-        if i.severity == "error" and not i.message.startswith(_SCORE_MATRIX_MSG)
+        if i.severity == "error" and not i.message.startswith(SCORE_MATRIX_MSG)
     ]
 
     score_gaps: list[dict] = []
     if vr.missing_scores:
-        n_opts = len(problem.options)
-        by_obj: dict[str, int] = {}
-        for m in vr.missing_scores:
-            by_obj[m["objective"]] = by_obj.get(m["objective"], 0) + 1
+        # validate scans unique option names, so the rollup denominator must too —
+        # duplicate-named options (their own framing error) would overstate it.
+        n_opts = len({o.name for o in problem.options})
+        by_obj = Counter(m["objective"] for m in vr.missing_scores)
         for obj_name, k in sorted(by_obj.items(), key=lambda kv: (-kv[1], kv[0])):
             gap = {"objective": obj_name, "missing": k, "of": n_opts}
-            if n_opts > 0 and k >= n_opts:
+            if k == n_opts:
                 gap["unscored"] = True  # the whole axis is missing, not scattered cells
             score_gaps.append(gap)
 
     if framing_errors:
         block = {
             "verdict": "framing_gap",
-            "summary": (f"{len(framing_errors)} structural issue(s) to settle — what the "
-                        "decision optimizes, chooses among, or must respect isn't fully "
-                        "defined yet (see issues)."),
+            "summary": f"{len(framing_errors)} structural issue(s) to resolve before scoring and solving (see issues).",
             "next_steps": "model update to resolve the issues; problem_framing guides the judgment calls",
         }
     else:
@@ -454,7 +450,11 @@ def _compute_obj_stats(
         val_max = max(values)
         val_range = val_max - val_min
         val_mean = sum(values) / len(values)
-        rel_range = (val_range / abs(val_mean)) if val_mean != 0 else 0.0
+        # Zero-safe scale: a mean-straddling-zero axis (net P&L, carbon delta) has real
+        # spread that a |mean| denominator would collapse to rel_range 0.0 — reading a
+        # 100-unit swing as "no variation" for the clustering/low-variation checks.
+        scale = abs(val_mean) if abs(val_mean) > 1e-9 else max(abs(val_max), abs(val_min), 1e-9)
+        rel_range = val_range / scale
         stats[obj.name] = {
             "min": val_min,
             "max": val_max,

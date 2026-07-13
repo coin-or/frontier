@@ -893,8 +893,11 @@ def _model_get_section(p: Problem, section: str) -> dict:
                 "domain": p.domain,
                 # The user's original decision question — the north star the skills
                 # anchor presentation on; carried here so a fresh session's summary
-                # fetch recovers it without a full dump.
-                "context": p.context,
+                # fetch recovers it without a full dump. Head-truncated so an agent
+                # that pasted a whole brief as context can't break the slice's
+                # always-small contract (full text via section="full").
+                **({"context": p.context} if len(p.context) <= 500
+                   else {"context": p.context[:500] + "…", "context_truncated": True}),
                 "approach": p.approach.value,
                 "objectives_count": len(p.objectives),
                 "options_count": len(p.options),
@@ -1247,13 +1250,20 @@ def solve(
             # Which kind of work remains, in the workflow's terms — the issues list
             # stays the detail; this names framing_gap vs data_gap and the next step.
             result["readiness"] = metrics.readiness(p, vr)
+            # readiness.score_gaps carries the per-objective truth, so the raw cell list
+            # ships a capped head + total (the data_metrics convention) instead of
+            # flooding the wire at portfolio scale.
+            missing = result.get("missing_scores") or []
+            if len(missing) > metrics._MAX_MISSING_SCORES_RETURNED:
+                result["missing_scores"] = missing[:metrics._MAX_MISSING_SCORES_RETURNED]
+                result["missing_scores_total"] = len(missing)
             if vr.ready:
                 # If ready to solve, inject optimization_strategy
                 _inject_skill(result, "optimization_strategy",
                     "Problem validates as ready. Review this guide before running solve.",
                     problem_id)
-            elif len(p.objectives) < 2:
-                # Not ready and structurally thin — route to the framing checkpoint to catch
+            elif result["readiness"]["verdict"] == "framing_gap":
+                # Structure needs decisions — route to the framing checkpoint to catch
                 # mis-framing before spending compute (problem_framing isn't auto-injected).
                 result["guidance_pointer"] = _make_guidance_pointer(
                     "problem_framing", "Formalization Checkpoint")
