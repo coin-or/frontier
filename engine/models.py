@@ -371,6 +371,11 @@ class Problem(BaseModel):
 
 # --- Validation result ---
 
+# Message prefix of optimizer.validate's aggregated score-matrix issue. Shared so
+# metrics.readiness can classify the issue structurally instead of mirroring the
+# literal — reword the message here and both sides move together.
+SCORE_MATRIX_MSG = "Score matrix incomplete"
+
 
 class ValidationIssue(BaseModel):
     severity: Literal["error", "warning"]

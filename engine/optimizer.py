@@ -238,6 +238,7 @@ class _SimplexRepair(Repair):
         return np.clip(X, lo, hi)
 
 from .models import (
+    SCORE_MATRIX_MSG,
     Aggregation,
     Approach,
     BoundOperator,
@@ -337,7 +338,7 @@ def validate(problem: Problem) -> ValidationResult:
     if missing_scores:
         issues.append(ValidationIssue(
             severity="error",
-            message=f"Score matrix incomplete: {len(missing_scores)} missing scores.",
+            message=f"{SCORE_MATRIX_MSG}: {len(missing_scores)} missing scores.",
         ))
 
     # Constraint feasibility checks

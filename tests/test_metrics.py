@@ -9,6 +9,7 @@ from engine.metrics import (
     framing_metrics,
     frontier_quality,
     outcome_metrics,
+    readiness,
     solve_metrics,
 )
 from engine.models import (
@@ -207,6 +208,41 @@ class TestDiagnostics:
         flagged_opts = [d["option"] for d in diags if d["pattern"] == "option_never_selected"]
         assert "C" in flagged_opts
 
+    def test_zero_mean_axis_with_real_spread_not_clustered(self):
+        """A mean-straddling-zero objective (net P&L −50/+50) has genuine spread; the
+        zero-safe scale must keep it from reading as rel_range 0 → false clustering."""
+        p = Problem(
+            objectives=[
+                Objective(name="NetPnL", direction="maximize"),
+                Objective(name="Cost", direction="minimize"),
+            ],
+            options=[Option(name="A"), Option(name="B")],
+            run=Run(solutions=[
+                Solution(solution_id=0, selected_options=["A"], objective_values={"NetPnL": -50.0, "Cost": 100.0}),
+                Solution(solution_id=1, selected_options=["B"], objective_values={"NetPnL": 50.0, "Cost": 101.0}),
+            ]),
+        )
+        diags = diagnostics(p)
+        assert not any(d["pattern"] == "clustered_solutions" for d in diags)
+        assert not any(d.get("objective") == "NetPnL" and d["pattern"] == "low_variation_objective" for d in diags)
+
+    def test_two_near_identical_solutions_cluster(self):
+        """A 2-point frontier within 5% on every objective is clustered — it used to
+        fall between this check (which wanted ≥3) and the <1% all-flat POOR gate."""
+        p = Problem(
+            objectives=[
+                Objective(name="Cost", direction="minimize"),
+                Objective(name="Quality", direction="maximize"),
+            ],
+            options=[Option(name="A"), Option(name="B")],
+            run=Run(solutions=[
+                Solution(solution_id=0, selected_options=["A"], objective_values={"Cost": 100.0, "Quality": 50.0}),
+                Solution(solution_id=1, selected_options=["B"], objective_values={"Cost": 103.0, "Quality": 51.5}),
+            ]),
+        )
+        diags = diagnostics(p)
+        assert any(d["pattern"] == "clustered_solutions" for d in diags)
+
     def test_low_variation_objective(self):
         """Objective with <10% variation gets flagged."""
         p = Problem(
@@ -362,6 +398,119 @@ class TestFrontierQuality:
         q = frontier_quality(sols, self.objectives)
         assert q["status"] == "POOR"
         assert q["gates"]["non_trivial"] is False
+
+    def test_one_flat_objective_is_warning(self):
+        # One axis dead (<1% variation) while the other varies: the plans differ, but
+        # 'Effort' is out of the tradeoff — must downgrade, not present as clean.
+        sols = [
+            Solution(solution_id=i, selected_options=[f"O{i}"],
+                     objective_values={"Revenue": 10.0 + 4 * i, "Effort": 100.0 + 0.1 * i})
+            for i in range(4)
+        ]
+        q = frontier_quality(sols, self.objectives, spacing_cv=0.3)
+        assert q["status"] == "WARNING"
+        assert q["gates"]["non_trivial"] is True
+        assert q["gates"]["diverse"] is False
+        assert any("Effort" in i and "flat" in i.lower() for i in q["issues"])
+
+    def test_three_objectives_one_flat_names_only_the_dead_axis(self):
+        objs = [*self.objectives, Objective(name="Risk", direction="minimize")]
+        sols = [
+            Solution(solution_id=i, selected_options=[f"O{i}"],
+                     objective_values={"Revenue": 10.0 + 4 * i, "Effort": 8.0 + 3 * i, "Risk": 50.0})
+            for i in range(4)
+        ]
+        q = frontier_quality(sols, objs, spacing_cv=0.3)
+        assert q["status"] == "WARNING"
+        flat_issues = [i for i in q["issues"] if "flat" in i.lower()]
+        assert len(flat_issues) == 1
+        assert "Risk" in flat_issues[0]
+        assert "Revenue" not in flat_issues[0] and "Effort" not in flat_issues[0]
+
+    def test_conflicting_pair_stays_good(self):
+        # Regression guard for the diverse gate: a genuine tradeoff (Revenue up, Effort up
+        # = worse) with both axes varying must remain GOOD.
+        sols = [
+            Solution(solution_id=i, selected_options=[f"O{i}"],
+                     objective_values={"Revenue": 10.0 + 4 * i, "Effort": 8.0 + 3 * i})
+            for i in range(5)
+        ]
+        q = frontier_quality(sols, self.objectives, spacing_cv=0.3)
+        assert q["status"] == "GOOD"
+        assert q["issues"] == []
+
+
+# ─── readiness (validate verdict) ───
+
+
+class TestReadiness:
+    """The readiness classifier over optimizer.validate — which kind of work remains."""
+
+    def _validate(self, p):
+        from engine.optimizer import validate
+        return validate(p)
+
+    def _scored(self, missing: list[tuple[str, str]] = ()):
+        objs = [Objective(name="Rev", direction="maximize"), Objective(name="Eff", direction="minimize")]
+        opts = [Option(name=n) for n in ("A", "B", "C")]
+        scores = [Score(option=o.name, objective=ob.name, value=1.0)
+                  for o in opts for ob in objs if (o.name, ob.name) not in missing]
+        return Problem(objectives=objs, options=opts, scores=scores)
+
+    def test_ready(self):
+        p = self._scored()
+        r = readiness(p, self._validate(p))
+        assert r["verdict"] == "ready"
+        assert r["next_steps"] == "solve run"
+        assert "score_gaps" not in r
+
+    def test_framing_gap_thin_structure(self):
+        p = Problem(objectives=[Objective(name="Rev", direction="maximize")],
+                    options=[Option(name="A"), Option(name="B"), Option(name="C")])
+        r = readiness(p, self._validate(p))
+        assert r["verdict"] == "framing_gap"
+        assert "problem_framing" in r["next_steps"]
+
+    def test_data_gap_with_per_objective_rollup(self):
+        # 'Eff' entirely unscored, 'Rev' one hole — the rollup must distinguish the two.
+        missing = [("A", "Eff"), ("B", "Eff"), ("C", "Eff"), ("A", "Rev")]
+        p = self._scored(missing=missing)
+        r = readiness(p, self._validate(p))
+        assert r["verdict"] == "data_gap"
+        gaps = {g["objective"]: g for g in r["score_gaps"]}
+        assert gaps["Eff"]["missing"] == 3 and gaps["Eff"]["of"] == 3 and gaps["Eff"].get("unscored") is True
+        assert gaps["Rev"]["missing"] == 1 and "unscored" not in gaps["Rev"]
+        assert "Eff" in r["summary"]  # the fully-dead axis is named, not buried in a count
+        assert "data_collection" in r["next_steps"]
+
+    def test_framing_gap_wins_over_data_gap(self):
+        # One objective AND missing scores: scores can't settle an unsettled structure.
+        p = Problem(objectives=[Objective(name="Rev", direction="maximize")],
+                    options=[Option(name="A"), Option(name="B"), Option(name="C")])
+        r = readiness(p, self._validate(p))
+        assert r["verdict"] == "framing_gap"
+        assert r["score_gaps"]  # the data gap still travels alongside
+
+    def test_score_issue_carries_shared_prefix(self):
+        """readiness classifies the score-matrix issue by the SCORE_MATRIX_MSG prefix
+        both modules import from models — guard against a hand-written replacement
+        message bypassing the shared constant."""
+        p = self._scored(missing=[("A", "Rev")])
+        vr = self._validate(p)
+        from engine.models import SCORE_MATRIX_MSG
+        assert any(i.message.startswith(SCORE_MATRIX_MSG) for i in vr.issues)
+
+    def test_duplicate_option_names_keep_rollup_denominator_honest(self):
+        # Duplicate names are their own framing error; the per-objective rollup must
+        # count unique options so a fully-unscored axis still reads unscored.
+        objs = [Objective(name="Rev", direction="maximize"), Objective(name="Eff", direction="minimize")]
+        opts = [Option(name="A"), Option(name="A"), Option(name="B"), Option(name="C")]
+        p = Problem(objectives=objs, options=opts,
+                    scores=[Score(option=o, objective="Rev", value=1.0) for o in ("A", "B", "C")])
+        r = readiness(p, self._validate(p))
+        assert r["verdict"] == "framing_gap"  # the duplicate-name error
+        eff = next(g for g in r["score_gaps"] if g["objective"] == "Eff")
+        assert eff["of"] == 3 and eff["unscored"] is True
 
 
 class TestDominatedOptionsCap:

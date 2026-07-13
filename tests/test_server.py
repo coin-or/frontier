@@ -430,12 +430,45 @@ class TestSolveValidate:
         pid = _build_solvable_problem()
         result = srv.solve(action="validate", problem_id=pid)
         assert result["ready"] is True
+        assert result["readiness"]["verdict"] == "ready"
+        assert result["readiness"]["next_steps"] == "solve run"
 
     def test_validate_not_ready(self):
         created = srv.model(action="create")
         pid = created["problem_id"]
         result = srv.solve(action="validate", problem_id=pid)
         assert result["ready"] is False
+        # An empty problem is a structure problem, not a data problem
+        assert result["readiness"]["verdict"] == "framing_gap"
+
+    def test_validate_missing_scores_capped(self):
+        # readiness.score_gaps carries the per-objective truth, so the raw cell list
+        # ships a capped head + total instead of flooding the wire at portfolio scale.
+        created = srv.model(action="create", name="unscored portfolio")
+        pid = created["problem_id"]
+        srv.model(action="update", problem_id=pid,
+                  objectives=[{"name": "Rev", "direction": "maximize"},
+                              {"name": "Eff", "direction": "minimize"}],
+                  options=[{"name": f"P{i}"} for i in range(30)])
+        result = srv.solve(action="validate", problem_id=pid)
+        assert len(result["missing_scores"]) == 20
+        assert result["missing_scores_total"] == 60
+        assert result["readiness"]["score_gaps"][0]["missing"] == 30  # rollup stays exact
+
+    def test_validate_data_gap(self):
+        created = srv.model(action="create", name="scores pending")
+        pid = created["problem_id"]
+        srv.model(action="update", problem_id=pid,
+                  objectives=[{"name": "Rev", "direction": "maximize"},
+                              {"name": "Eff", "direction": "minimize"}],
+                  options=[{"name": "A"}, {"name": "B"}, {"name": "C"}],
+                  scores=[{"option": "A", "objective": "Rev", "value": 5}])
+        result = srv.solve(action="validate", problem_id=pid)
+        assert result["ready"] is False
+        r = result["readiness"]
+        assert r["verdict"] == "data_gap"
+        assert {g["objective"] for g in r["score_gaps"]} == {"Rev", "Eff"}
+        assert next(g for g in r["score_gaps"] if g["objective"] == "Eff")["unscored"] is True
 
     def test_validate_nonexistent(self):
         result = srv.solve(action="validate", problem_id="nonexistent")

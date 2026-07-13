@@ -18,7 +18,7 @@ Every solve returns two pre-computed signals — read them first, before scannin
 | Status | Meaning | What to do |
 |---|---|---|
 | **GOOD** | All gates pass | Present results with confidence. Skip quality talk entirely. |
-| **WARNING** | Frontier is non-trivial but uneven (clustered coverage or single-winner allocation) | Surface the issue from `issues[]` in domain language, then proceed. Don't block exploration. |
+| **WARNING** | Frontier is non-trivial but uneven (clustered coverage, single-winner allocation, or a flat objective axis) | Surface the issue from `issues[]` in domain language, then proceed. Don't block exploration. |
 | **POOR** | Empty or degenerate frontier (<2 solutions, or all objectives flat) | Stop and route to optimization_strategy. Don't present a degenerate frontier as if it were a real choice set. |
 
 **Acting on `frontier_complete`:**
@@ -33,6 +33,7 @@ Every solve returns two pre-computed signals — read them first, before scannin
 The raw `issues[]` strings are agent-readable. Translate to user language:
 - *"Spacing CV …uneven"* → "The frontier clusters in some tradeoff regions — there may be zones we haven't explored. Want me to try thorough mode?"
 - *"Solution #X allocates Y% to Z…"* → "Solution X concentrates Y% on Z — that may be intended, but if a more diversified mix is preferred, consider adding a per-option upper bound."
+- *"Objective 'X' is flat across the frontier…"* → "X barely moves across these plans — the real choice here is between the other objectives." Then diagnose *why* the axis is dead: a binding bound pinning it (often genuine signal — under a tight scenario, a floor can pin an objective for every feasible plan; on an exact overlay a pinned axis is expected when a bound binds every certified point, so read it with the certificate and present certification normally), or scores with no spread (a scoring gap worth revisiting). Name which. One caveat before relaying: flat is measured relative to the objective's magnitude, so a large-baseline axis (a cost in the millions) can read flat while carrying spread that matters in absolute terms — judge the spread in the decision's units before calling the axis dead.
 
 **Underlying metrics (only when needed):** `quality.hypervolume_normalized` (0-1, healthy > 0.6) and `quality.spacing_cv` (healthy < 0.5) are still in the response. Use them only when the `frontier_quality` issues don't pinpoint the concern — e.g., a borderline-low hypervolume that didn't trip the diversity gate but you suspect under-search.
 
@@ -44,7 +45,7 @@ The raw `issues[]` strings are agent-readable. Translate to user language:
 |---|---|---|---|
 | **Feasible** | ≥1 solution exists | `frontier_quality.gates.frontier_returned` | Infeasible — route to optimization_strategy for constraint diagnosis |
 | **Non-trivial** | Multiple solutions, ≥1 objective varies | `frontier_quality.gates.non_trivial` | Over-constrained or objectives all flat — relax constraints or consolidate objectives |
-| **Diverse** | Spacing reasonable, no extreme allocation concentration | `frontier_quality.gates.diverse` | See `issues[]` — uneven coverage or single-winner allocation |
+| **Diverse** | Spacing reasonable, no extreme allocation concentration, every objective in play | `frontier_quality.gates.diverse` | See `issues[]` — uneven coverage, single-winner allocation, or a flat objective axis |
 | **Robust** | Stable across parameter changes | Compare across scenarios / re-runs | Flag fragile solutions; suggest scenario analysis if not yet done |
 | **Credible** | Domain-sensible | User confirms selections make sense | Scores may need recalibration, or a constraint is missing |
 
@@ -150,7 +151,7 @@ On MILP, present the frontier-inferred estimate and name it as an estimate — i
 
 **The two reads:**
 
-*Where to invest* — `where_to_invest` ranks constraint shadow prices by raw magnitude. A shadow price is reported in the solver's cost sense: the price a binding constraint charges the optimized objective per unit of tightening — positive always means tighter hurts, whichever direction the objective optimizes — and "per unit" means *that constraint's* unit, so rates on different levers (a % of budget, a return floor, a group cap) are different currencies, and rescaling a constraint rescales its dual. Read the ranking as a shortlist of binding levers; crown one the highest-leverage move only after pricing each in decision terms — rate × the increment the user could realistically negotiate. Translate into the constraint's own units:
+*Where to invest* — `where_to_invest` ranks constraint shadow prices by raw magnitude. A shadow price is reported in the solver's cost sense: the price a binding constraint charges the optimized objective per unit of tightening — positive always means tighter hurts, whichever direction the objective optimizes — and "per unit" means *that constraint's* unit, so rates on different levers (a % of budget, a return floor, a group cap) are different currencies, and rescaling a constraint rescales its dual. Read the ranking as a shortlist of binding levers; crown one the highest-leverage move only after pricing each in decision terms — rate × the increment the user could realistically negotiate. Three lenses pick that lever, and only the first is computed: **impact** (the dual's price), **controllability** (can the user actually move this limit — a board mandate and a negotiable budget carry the same dual very differently), and **uncertainty** (is the input behind it shaky — an uncertain lever is worth quantifying before committing, which is exactly what its `suggested_scenarios` seed is for: duals rank, scenarios quantify). Translate into the constraint's own units:
 - *"At this point each extra unit of required return costs about [shadow] more risk — the marginal price of return here."*
 - `frontier_shadow_price_trend` shows that price along the frontier. Rising = diminishing returns: *"Return gets steadily more expensive — the first units are cheap, the last cost several times the risk."* Name where it steepens. At portfolio scale the curve arrives evenly downsampled (`frontier_shadow_price_trend_elided` says how many points were thinned; endpoints kept) — narrate the shape, and fetch `sensitivity` at a specific `solution_id` for any thinned point.
 
@@ -339,7 +340,7 @@ The `diagnostics` array in solve output contains structured signals (not pre-wri
 | `pattern` value | Structured fields | What to tell the user |
 |---|---|---|
 | `zero_solutions` | — | Problem is infeasible. Route to optimization_strategy for constraint diagnosis. |
-| `clustered_solutions` | — | "Your solutions are nearly identical — objectives may not truly conflict. Are [X] and [Y] measuring the same thing?" |
+| `clustered_solutions` | — | "Your solutions are nearly identical — objectives may not truly conflict. Are [X] and [Y] measuring the same thing?" With only 2–3 solutions, read it differently: a tight cluster there usually means a tight feasible set (few plans satisfy the constraints) or a deliberately narrow certified set — name that, and save the redundant-objectives probe for larger frontiers. |
 | `low_variation_objective` | `objective`, `relative_range` | "[Objective] barely varies across solutions (range [X]%). It's not driving differentiation — consider dropping it or re-scoring." |
 | `option_never_selected` | `option` — or, at portfolio scale, one summary entry with `count` + an `options` head | "[Option] doesn't appear in any solution. Check if it's dominated or blocked by a constraint." For the summary form, present the count and route detail to `explore composition`. |
 | `binding_constraint` | `constraint`, `extreme_value` | "[Constraint] is binding (solutions push right up to the limit). Relaxing it would open new tradeoff space." See the **Binding Analysis** section for shadow-price framing when `tradeoffs` is available. |
@@ -425,6 +426,8 @@ Both emit raw curated solutions (names, signatures, objective values, selected o
 ### Stakeholder Writeup & the Why-Triplet
 
 When the user has **decided** — a solution chosen, or a curated set locked — and needs to carry it to others (a memo, a deck, a review), shift from exploration to a **stakeholder writeup**. This is a Confirming/handoff move, *not* an exploration one: reach for it only once the decision is made, because its structure presumes a single chosen plan — using it mid-exploration would fight *Never Say Best*. The export (`explore curated format=…`) is the data table; this is the narrative that frames it.
+
+**Open with the decision trace** — one line carrying the arc's concrete numbers, so the whole pipeline is auditable at a glance before the narrative starts: *"From 42 options, the search mapped 31 efficient plans; you kept 3 finalists, and the exact pass confirmed each one."* Every figure comes from a named field — options/scenarios counts from `model get section="summary"`, frontier size from the solve's `total_pareto_found` (or `tradeoffs.total_solutions`), the shortlist from `explore curated`'s `total_curated`, and the certification clause from `explore certify` (its `invariant`, `dominance_audit.nsga_dominated_fraction`, `coverage.reclaimed_fraction` — phrased per the certificate reading, never as a lone "gap %"). Include only the phases that ran; a stage without a number to cite drops out rather than getting an asserted one.
 
 **The six-part order** (each part traces to returned data, never to assertion or solver internals):
 
