@@ -159,9 +159,9 @@ MCP_TRANSPORT=sse python -m mcp_server.server
 FRONTIER_MCP_TOKEN=your-secret MCP_TRANSPORT=sse python -m mcp_server.server
 ```
 
-Point your MCP client at the local server – for SSE that's `http://localhost:8000/sse`. The optional web UI lives in [`ui/`](ui/) – see its [README](ui/README.md).
+**Exact solvers (optional).** Install `highspy` (CPU; `pip install highspy`) or cuOpt (NVIDIA GPU; `pip install --extra-index-url=https://pypi.nvidia.com cuopt-cu12`) to unlock `solver="highs"|"cuopt"`: exact certification (`explore certify`) and solver-exact sensitivity (`explore sensitivity`) on supported shapes. See [`architecture.md`](architecture.md#solver-backends-pluggable).
 
-**Exact solvers (optional).** Install `highspy` (CPU; `pip install highspy`) or cuOpt (NVIDIA GPU; `pip install --extra-index-url=https://pypi.nvidia.com cuopt-cu12`) to unlock `solver="highs"|"cuopt"`: exact certification (`explore certify`) and solver-exact sensitivity (`explore sensitivity`) on supported shapes. No GPU at hand? [examples/cuopt_colab.ipynb](examples/cuopt_colab.ipynb) is a ready Colab template for the cuOpt arc. How it works (the shared scalarization engine, the certify invariant, which shapes carry duals) is in [`architecture.md`](architecture.md#solver-backends-pluggable).
+Point your MCP client at the local server – for SSE that's `http://localhost:8000/sse`. The optional web UI lives in [`ui/`](ui/) – see its [README](ui/README.md).
 
 ### Deploy your own
 
@@ -180,7 +180,7 @@ Both pieces are plain web services – host them anywhere (Render, Fly, Railway,
 | **OpenAI** | `openai-compatible` | `OPENAI_API_KEY`, `OPENAI_MODEL`; reasoning models (GPT-5.x) also set `OPENAI_WIRE=responses` |
 | **Any OpenAI-compatible endpoint** (NVIDIA NIM / [build.nvidia.com](https://build.nvidia.com), Groq, Together, a local server, …) | `openai-compatible` | `OPENAI_BASE_URL` (the provider's URL), `OPENAI_API_KEY`, `OPENAI_MODEL` |
 
-Any OpenAI-compatible endpoint drops in by pointing `OPENAI_BASE_URL` at it — e.g. NVIDIA NIM at `https://integrate.api.nvidia.com/v1` with `OPENAI_MODEL=nvidia/nemotron-3-super-120b-a12b`. Reasoning models render cleanly out of the box on providers that stream chain-of-thought in a separate field the UI drops (NIM does) — only the final answer shows. OpenAI's own reasoning models (GPT-5.x) gate function tools behind the Responses API: set `OPENAI_WIRE=responses` and the same adapter switches wire formats — same loop, same clean output. [`ui/.env.example`](ui/.env.example) has a copy-paste block per backend; keep real keys there (it's gitignored), never in the repo.
+Any OpenAI-compatible endpoint drops in by pointing `OPENAI_BASE_URL` at it — e.g. NVIDIA NIM at `https://integrate.api.nvidia.com/v1` with `OPENAI_MODEL=nvidia/nemotron-3-super-120b-a12b`. [`ui/.env.example`](ui/.env.example) has a copy-paste block per backend; keep real keys there (it's gitignored), never in the repo.
 
 **Render (one-click example):** [`render.yaml`](render.yaml) provisions both as a blueprint.
 
