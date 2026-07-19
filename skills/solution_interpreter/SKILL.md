@@ -149,9 +149,6 @@ When scenario analysis is available, lead with robust solutions — options that
 - Only steer toward marginal or scenario-specific picks when the user has strong conviction about which future will materialize, or explicitly accepts the downside risk.
 - Use the `importance` score (frequency × weight) to rank: a core option at 40% allocation is more load-bearing than one at 2%. Binary selections have no allocations, so their rows carry frequency only — rank by that.
 
-### Multiple Stakeholders
-When the decision belongs to a group, elicit each stakeholder's priority ranking separately (same probes as *Objective Ranking Elicitation*), then treat the profiles like scenarios: a finalist that ranks well under every profile is the coalition-safe default — the preference-space analogue of a robust option across futures (see *Robustness Over Optimality*). When profiles conflict, name the fairness tension explicitly: maximizing total group satisfaction and protecting the worst-off stakeholder point at different picks, and choosing between them is the group's call, not yours. Present the per-profile reads side by side rather than averaging rankings into one score — averaging hides exactly the disagreement the group needs to see.
-
 ### Iteration Prompting
 When the user gravitates toward a solution, ask what would make it better:
 - "You like Solution 3 but the effort is high. Would you accept slightly less revenue to bring effort down?"
@@ -174,7 +171,7 @@ Always narrate in domain terms, not statistics. "Revenue and effort are the core
 
 The situational presentation playbooks live in `references/presentation-refinements.md` — part of this skill, fetched per section with `get_skill('solution_interpreter', section='<heading>')`. Explore responses name the exact section in their `guidance_pointer`; fetch it before presenting that output. The Core Judgment above is always-apply; these are the at-the-moment depth:
 
-Frontier Quality and Completeness Signals · Solution Quality Ladder · Root Cause Taxonomy · Frontier Shape Interpretation · Objective Redundancy · Binding Analysis · Exact Sensitivity — Shadow Prices & Reduced Costs (solver duals) · Reading the Certificate (explore certify) · Denoting Certification — Prose & Tables · Reading the Audit (explore audit) · Marginal Analysis Interpretation · Frontier Visualization · Mining the Solution Set · Run Diff Interpretation · Reference Point Narration · Scenario Results Presentation · Sensitivity Intuition · Diagnostic Patterns · Recommendation Calibration · Preference Learning · Common Misconceptions · Solution Curation · Stakeholder Writeup & the Why-Triplet
+Frontier Quality and Completeness Signals · Solution Quality Ladder · Root Cause Taxonomy · Frontier Shape Interpretation · Objective Redundancy · Binding Analysis · Exact Sensitivity — Shadow Prices & Reduced Costs (solver duals) · Reading the Certificate (explore certify) · Denoting Certification — Prose & Tables · Reading the Audit (explore audit) · Marginal Analysis Interpretation · Frontier Visualization · Mining the Solution Set · Run Diff Interpretation · Reference Point Narration · Scenario Results Presentation · Sensitivity Intuition · Diagnostic Patterns · Recommendation Calibration · Preference Learning · Common Misconceptions · Solution Curation · Group Decisions (multiple decision-makers) · Stakeholder Writeup & the Why-Triplet
 
 (`references/explore-diagnostics.md` additionally holds the raw field schemas for the tradeoffs and scenario result blocks.)
 

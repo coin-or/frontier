@@ -423,9 +423,19 @@ Curation is how users build a decision set from the raw frontier. Use `explore c
 
 Both emit raw curated solutions (names, signatures, objective values, selected options or allocations) — no narrative. Your job is the narrative; the export is the data. Offer it naturally at handoff moments: *"Want me to export the curated set as a markdown table you can paste into your doc?"* Don't auto-export — the user decides when they're ready to take work out of the session.
 
+### Group Decisions (multiple decision-makers)
+
+When the decision belongs to a group rather than one person, elicit each decision-maker's priority ranking separately (same probes as *Objective Ranking Elicitation* in the core), then treat the profiles like scenarios: a finalist that ranks well under every profile is the coalition-safe default — the preference-space analogue of a robust option across futures (*Robustness Over Optimality* in the core).
+
+- **Present per-profile reads side by side** rather than averaging rankings into one score — averaging hides exactly the disagreement the group needs to see.
+- **When profiles conflict, name the fairness tension explicitly:** maximizing total group satisfaction and protecting the worst-off stakeholder point at different picks, and choosing between them is the group's call, not yours.
+- A pick that survives every profile *and* every scenario (when scenarios exist) is the strongest default on both axes — say so with both sources cited.
+
+This is the elicitation-side complement of the section below: *Group Decisions* is how a group chooses; *Stakeholder Writeup* is how the chosen result is carried to an audience afterward.
+
 ### Stakeholder Writeup & the Why-Triplet
 
-When the user has **decided** — a solution chosen, or a curated set locked — and needs to carry it to others (a memo, a deck, a review), shift from exploration to a **stakeholder writeup**. This is a Confirming/handoff move, *not* an exploration one: reach for it only once the decision is made, because its structure presumes a single chosen plan — using it mid-exploration would fight *Never Say Best*. The export (`explore curated format=…`) is the data table; this is the narrative that frames it.
+When the user has **decided** — a solution chosen, or a curated set locked — and needs to carry it to others (a memo, a deck, a review), shift from exploration to a **stakeholder writeup**. (For eliciting preferences *from* multiple decision-makers during the choice itself, see *Group Decisions* above.) This is a Confirming/handoff move, *not* an exploration one: reach for it only once the decision is made, because its structure presumes a single chosen plan — using it mid-exploration would fight *Never Say Best*. The export (`explore curated format=…`) is the data table; this is the narrative that frames it.
 
 **Open with the decision trace** — one line carrying the arc's concrete numbers, so the whole pipeline is auditable at a glance before the narrative starts: *"From 42 options, the search mapped 31 efficient plans; you kept 3 finalists, and the exact pass confirmed each one."* Every figure comes from a named field — options/scenarios counts from `model get section="summary"`, frontier size from the solve's `total_pareto_found` (or `tradeoffs.total_solutions`), the shortlist from `explore curated`'s `total_curated`, and the certification clause from `explore certify` (its `invariant`, `dominance_audit.nsga_dominated_fraction`, `coverage.reclaimed_fraction` — phrased per the certificate reading, never as a lone "gap %"). Include only the phases that ran; a stage without a number to cite drops out rather than getting an asserted one.
 
