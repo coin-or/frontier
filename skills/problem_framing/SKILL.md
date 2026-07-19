@@ -1,7 +1,7 @@
 ---
 name: frontier-problem-framing
 description: Read frontier://skills/problem_framing before creating a problem. Use when structuring a new decision — defining objectives, options, constraints, approach, reference points, and scenarios for Frontier optimization.
-version: 1.1.0
+version: 1.2.0
 ---
 
 # Problem Framing
@@ -40,7 +40,7 @@ Before framing, confirm the decision is the right shape for Frontier. Three ques
 
 - **Fit** — does the decision have at least two genuinely conflicting objectives, three or more real options, and actual tradeoffs? A ranking task, a single-objective problem, or a decision with a dominant option doesn't need optimization; say so and suggest weighted scoring or direct comparison instead.
 - **Value** — will the answer change what the user does? If the decision is already made, if the stakes are too small to justify iteration, or if the answer will be overridden by a non-modeled factor, the work is decorative. Surface that before investing in framing.
-- **Shape** — Frontier models a one-shot choice over a fixed option set. If the decision is really sequential (decide, learn, decide again) or hinges on how other parties respond, a static frontier answers the wrong question — model only the first commitment, or say the fit isn't there.
+- **Shape** — Frontier models a one-shot choice over a fixed option set. If the decision is really sequential (decide, learn, decide again) or hinges on how other parties respond, a static frontier answers the wrong question — model only the first commitment, or say the fit isn't there. When you do model only the first commitment, ask what each option forecloses: if options differ meaningfully in reversibility or in what they keep open (later expansion, exit cost, the ability to switch), add a flexibility objective and score it — a one-shot frontier otherwise systematically undervalues plans that preserve optionality.
 
 If a gate fails, offer the honest route out. Framing a bad fit wastes the user's time and produces a frontier no one trusts.
 

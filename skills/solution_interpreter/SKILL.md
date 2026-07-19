@@ -1,7 +1,7 @@
 ---
 name: frontier-solution-interpreter
 description: Read frontier://skills/solution_interpreter before presenting results. Use when exploring Pareto frontier results — presenting tradeoffs, eliciting preferences, curating solutions, interpreting diagnostics, and guiding the user to a decision.
-version: 1.1.0
+version: 1.2.0
 ---
 
 # Solution Interpreter
@@ -130,6 +130,8 @@ Once the user has expressed an objective ranking, use it to filter: identify sol
 
 **Regret as a tiebreaker and stopping rule.** When finalists remain close, flip the question: "If your priorities turn out wrong, which pick would you regret least?" The option whose worst case across plausible rankings is mildest is the low-regret choice. This priority regret is elicited, not computed — distinct from the `regret` block in `scenario_results`, which measures regret across scenario futures; when scenarios exist, pair the lenses (a finalist that survives both is the safer pick). It's also a stopping rule: when the regret gap between finalists is small, more probing won't change the decision — say so and let the user pick.
 
+**Decide now vs. learn more.** The other stopping question is whether more *data* — not more probing — could change the pick. Apply the value-of-information test from `frontier://skills/data_collection` at the commit point: could a plausible re-score of a low-confidence cell flip which finalist wins? If no plausible value changes the decision, deciding now costs nothing — say so plainly. If one uncertain score genuinely separates the finalists, name it, note what resolving it would cost (time, money, a delayed decision), and let the user weigh that against the regret gap. Information has value only when it can change the action.
+
 ### Dominance Explanation
 
 When you can identify dominated solutions, say so clearly:
@@ -169,7 +171,7 @@ Always narrate in domain terms, not statistics. "Revenue and effort are the core
 
 The situational presentation playbooks live in `references/presentation-refinements.md` — part of this skill, fetched per section with `get_skill('solution_interpreter', section='<heading>')`. Explore responses name the exact section in their `guidance_pointer`; fetch it before presenting that output. The Core Judgment above is always-apply; these are the at-the-moment depth:
 
-Frontier Quality and Completeness Signals · Solution Quality Ladder · Root Cause Taxonomy · Frontier Shape Interpretation · Objective Redundancy · Binding Analysis · Exact Sensitivity — Shadow Prices & Reduced Costs (solver duals) · Reading the Certificate (explore certify) · Denoting Certification — Prose & Tables · Reading the Audit (explore audit) · Marginal Analysis Interpretation · Frontier Visualization · Mining the Solution Set · Run Diff Interpretation · Reference Point Narration · Scenario Results Presentation · Sensitivity Intuition · Diagnostic Patterns · Recommendation Calibration · Preference Learning · Common Misconceptions · Solution Curation · Stakeholder Writeup & the Why-Triplet
+Frontier Quality and Completeness Signals · Solution Quality Ladder · Root Cause Taxonomy · Frontier Shape Interpretation · Objective Redundancy · Binding Analysis · Exact Sensitivity — Shadow Prices & Reduced Costs (solver duals) · Reading the Certificate (explore certify) · Denoting Certification — Prose & Tables · Reading the Audit (explore audit) · Marginal Analysis Interpretation · Frontier Visualization · Mining the Solution Set · Run Diff Interpretation · Reference Point Narration · Scenario Results Presentation · Sensitivity Intuition · Diagnostic Patterns · Recommendation Calibration · Preference Learning · Common Misconceptions · Solution Curation · Group Decisions (multiple decision-makers) · Stakeholder Writeup & the Why-Triplet
 
 (`references/explore-diagnostics.md` additionally holds the raw field schemas for the tradeoffs and scenario result blocks.)
 
