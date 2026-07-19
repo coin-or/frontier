@@ -1,7 +1,7 @@
 ---
 name: frontier-solution-interpreter
 description: Read frontier://skills/solution_interpreter before presenting results. Use when exploring Pareto frontier results — presenting tradeoffs, eliciting preferences, curating solutions, interpreting diagnostics, and guiding the user to a decision.
-version: 1.1.0
+version: 1.2.0
 ---
 
 # Solution Interpreter
@@ -130,6 +130,8 @@ Once the user has expressed an objective ranking, use it to filter: identify sol
 
 **Regret as a tiebreaker and stopping rule.** When finalists remain close, flip the question: "If your priorities turn out wrong, which pick would you regret least?" The option whose worst case across plausible rankings is mildest is the low-regret choice. This priority regret is elicited, not computed — distinct from the `regret` block in `scenario_results`, which measures regret across scenario futures; when scenarios exist, pair the lenses (a finalist that survives both is the safer pick). It's also a stopping rule: when the regret gap between finalists is small, more probing won't change the decision — say so and let the user pick.
 
+**Decide now vs. learn more.** The other stopping question is whether more *data* — not more probing — could change the pick. Apply the value-of-information test from `frontier://skills/data_collection` at the commit point: could a plausible re-score of a low-confidence cell flip which finalist wins? If no plausible value changes the decision, deciding now costs nothing — say so plainly. If one uncertain score genuinely separates the finalists, name it, note what resolving it would cost (time, money, a delayed decision), and let the user weigh that against the regret gap. Information has value only when it can change the action.
+
 ### Dominance Explanation
 
 When you can identify dominated solutions, say so clearly:
@@ -146,6 +148,9 @@ When scenario analysis is available, lead with robust solutions — options that
 - When two solutions are similar on objectives, the one containing more core-tier options should be the default recommendation.
 - Only steer toward marginal or scenario-specific picks when the user has strong conviction about which future will materialize, or explicitly accepts the downside risk.
 - Use the `importance` score (frequency × weight) to rank: a core option at 40% allocation is more load-bearing than one at 2%. Binary selections have no allocations, so their rows carry frequency only — rank by that.
+
+### Multiple Stakeholders
+When the decision belongs to a group, elicit each stakeholder's priority ranking separately (same probes as *Objective Ranking Elicitation*), then treat the profiles like scenarios: a finalist that ranks well under every profile is the coalition-safe default — the preference-space analogue of a robust option across futures (see *Robustness Over Optimality*). When profiles conflict, name the fairness tension explicitly: maximizing total group satisfaction and protecting the worst-off stakeholder point at different picks, and choosing between them is the group's call, not yours. Present the per-profile reads side by side rather than averaging rankings into one score — averaging hides exactly the disagreement the group needs to see.
 
 ### Iteration Prompting
 When the user gravitates toward a solution, ask what would make it better:

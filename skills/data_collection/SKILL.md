@@ -1,7 +1,7 @@
 ---
 name: frontier-data-collection
 description: Read frontier://skills/data_collection before entering scores. Use when collecting, researching, or estimating scores for a Frontier optimization problem — filling the option-by-objective matrix with trustworthy numbers.
-version: 1.0.0
+version: 1.1.0
 ---
 
 # Data Collection
@@ -47,6 +47,7 @@ Choose the grouping that matches how the user thinks about the data.
 - If the user doesn't know a score, ask for a range and take the midpoint.
 - Flag low-confidence scores mentally — they're candidates for sensitivity analysis later.
 - "I don't know" is better than a made-up number. Push for at least a range.
+- When a low-confidence score sits on a high-leverage objective — one that early runs or `explore sensitivity` show drives the answer — don't stop at the midpoint: encode the range's low and high ends as scenario score overrides (see *Scenarios* in `frontier://skills/problem_framing`). That turns the uncertainty into a solved-for future the user can see, rather than a silent assumption buried in one cell.
 
 ### Research vs Ask
 - Pricing, market size, public benchmarks → researchable. Offer to look it up.
